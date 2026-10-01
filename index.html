@@ -8,10 +8,15 @@
 <meta property="og:title" content="Ose Demander">
 <meta property="og:description" content="Tu as reçu une invitation. Ouvre-la pour répondre.">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💌</text></svg>">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..800&family=Caveat:wght@500..700&display=swap" rel="stylesheet">
+<meta name="referrer" content="no-referrer">
+<link rel="preload" href="fonts/bricolage-grotesque.woff2" as="font" type="font/woff2" crossorigin>
 <style>
+/* ---------- Polices (hébergées sur le site, aucun appel à Google) ---------- */
+@font-face{font-family:"Bricolage Grotesque";font-style:normal;font-display:swap;font-weight:200 800;font-stretch:75% 100%;
+  src:url("fonts/bricolage-grotesque.woff2") format("woff2-variations"),url("fonts/bricolage-grotesque.woff2") format("woff2")}
+@font-face{font-family:"Caveat";font-style:normal;font-display:swap;font-weight:400 700;
+  src:url("fonts/caveat.woff2") format("woff2-variations"),url("fonts/caveat.woff2") format("woff2")}
+
 /* ---------- Thèmes ---------- */
 :root{
   --bg:#ECE6FF; --surface:#FFFFFF; --ink:#1F1546; --muted:#5D5482; --line:#CFC4F5;
@@ -282,10 +287,72 @@ async function encodeData(obj){
   if(window.CompressionStream){ try{ return "z"+b64url(await pipe(raw,new CompressionStream("deflate-raw"))); }catch(e){} }
   return "p"+b64url(raw);
 }
+const MAX_LINK=8000, MAX_DATA=20000; // limites contre les liens trafiqués (bombe de décompression)
+async function inflateLimited(bytes){
+  const reader=new Blob([bytes]).stream().pipeThrough(new DecompressionStream("deflate-raw")).getReader();
+  const parts=[]; let total=0;
+  for(;;){ const {done,value}=await reader.read(); if(done) break; total+=value.length;
+    if(total>MAX_DATA){ reader.cancel(); throw new Error("too big"); } parts.push(value); }
+  const out=new Uint8Array(total); let o=0; for(const p of parts){ out.set(p,o); o+=p.length; } return out;
+}
 async function decodeData(str){
+  if(str.length>MAX_LINK || !/^[zp][A-Za-z0-9_-]+$/.test(str)) throw new Error("bad link");
   const kind=str[0], bytes=unb64url(str.slice(1));
-  const raw = kind==="z" ? await pipe(bytes,new DecompressionStream("deflate-raw")) : bytes;
-  return JSON.parse(new TextDecoder().decode(raw));
+  const raw = kind==="z" ? await inflateLimited(bytes) : bytes;
+  if(raw.length>MAX_DATA) throw new Error("too big");
+  return sanitize(JSON.parse(new TextDecoder().decode(raw)));
+}
+/* Validation stricte : on ne garde que les champs connus, avec le bon type et la bonne longueur */
+function sanitize(x){
+  if(!x || typeof x!=="object" || Array.isArray(x)) throw new Error("bad data");
+  const str=(v,max)=>typeof v==="string" ? v.slice(0,max).trim() : "";
+  const one=(v,list,def)=>list.includes(v) ? v : def;
+  const isDate=v=>typeof v==="string" && /^\d{4}-\d{2}-\d{2}$/.test(v);
+  const isTime=v=>typeof v==="string" && /^\d{2}:\d{2}$/.test(v);
+  const isAt=v=>typeof v==="string" && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(v) && !isNaN(new Date(v));
+  const isScr=v=>typeof v==="string" && v.length<=800 && /^[A-Za-z0-9_-]+$/.test(v);
+  const d={};
+  d.f=str(x.f,30); d.t=str(x.t,30); d.q=str(x.q,80);
+  if(!d.f||!d.t||!d.q) throw new Error("missing");
+  d.o=one(x.o,Object.keys(OCC),"juste"); if(d.o==="libre") d.of=str(x.of,40);
+  d.th=one(x.th,THEMES.map(t=>t.id),"base");
+  d.n=one(x.n,NO_MODES.map(m=>m.id),"fuit");
+  d.an=one(x.an,["n","d","0"],"n");
+  d.c=one(x.c,CHANNELS.map(c=>c.id),"any");
+  if(d.c!=="any"){
+    const ci=str(x.ci,40);
+    const ok = (d.c==="wa"||d.c==="sms") ? /^\+?[\d\s.\-()]{6,25}$/.test(ci) : /^@?[A-Za-z0-9._\-]{1,40}$/.test(ci);
+    if(ok) d.ci=ci; else d.c="any";
+  }
+  const m=str(x.m,300); if(m){ d.m=m; if(x.mh) d.mh=1; }
+  const item=(it,max)=>{
+    if(!it || typeof it!=="object") return undefined;
+    const v=one(it.v,["v","s","r"],"s"), h=str(it.h,100);
+    if(v==="v"){ const t=str(it.x,max); return t ? {v,x:t} : undefined; }
+    if(v==="r" && isAt(it.at) && isScr(it.e)) return {v,h,at:it.at,e:it.e};
+    return {v:"s",h};
+  };
+  if(Array.isArray(x.p)){
+    d.p=x.p.slice(0,6).filter(st=>st&&typeof st==="object").map(st=>{
+      const v=one(st.v,["v","s","r"],"s"), h=str(st.h,20), i=str(st.i,100);
+      if(v==="v") return {h,v,a:str(st.a,80),l:str(st.l,120)};
+      if(v==="r" && isAt(st.at) && isScr(st.e)) return {h,v,i,at:st.at,e:st.e};
+      return {h,v:"s",i};
+    });
+    if(!d.p.length) throw new Error("empty");
+    if(isTime(x.en)) d.en=x.en;
+    const me=str(x.me,100), br=str(x.br,100); if(me) d.me=me; if(br) d.br=br;
+  } else {
+    d.a=item(x.a,120)||{v:"s",h:""};
+    const l=item(x.l,120); if(l) d.l=l;
+    const dt=str(x.dt,200); if(dt) d.dt=dt;
+  }
+  if(Array.isArray(x.sl)){
+    const sl=x.sl.slice(0,3).filter(s=>Array.isArray(s)&&isDate(s[0])&&isTime(s[1])).map(s=>[s[0],s[1]]);
+    if(sl.length>=2) d.sl=sl;
+  }
+  if(!d.sl){ if(!isDate(x.d)||!isTime(x.h)) throw new Error("no date"); d.d=x.d; d.h=x.h; }
+  return d;
 }
 /* Brouillage des infos à révélation programmée (pas lisibles en clair dans le lien) */
 const KEY="ose-demander";
@@ -476,7 +543,7 @@ function stepHTML(){
         <button type="button" class="btn primary" id="copy">Copier le lien</button>
         ${navigator.share ? `<button type="button" class="btn" id="share">Partager</button>` : ""}
       </div>
-      <p class="hint">Envoie-le par message. Rien n'expire, rien n'est stocké.</p>
+      <p class="hint">Envoie-le par message. Rien n'expire, rien n'est stocké. Toute personne qui a ce lien peut lire l'invitation : ne le partage qu'avec la bonne personne.</p>
     </div>`;
   }
 }
@@ -681,7 +748,7 @@ function renderInvite(){
         <p class="tease" id="tease" aria-live="polite"></p>
       </div>
     </div>
-    <p class="foot"><a href="./">Crée la tienne sur Ose Demander</a></p>
+    <p class="foot">Invitation créée par un utilisateur d'Ose Demander.<br><a href="./">Crée la tienne</a> · <a href="mentions-legales.html#signaler">Signaler un abus</a></p>
   </main>`;
   bindSound();
   bindNo();
@@ -770,7 +837,7 @@ function lockedHTML(label, hint, at){
 function itemHTML(it, kind){
   if(!it) return "";
   if(it.v==="v") return kind==="lieu" ? mapsLink(it.x) : `<strong>${esc(it.x)}</strong>`;
-  if(it.v==="r" && revealable(it.at)){ const val=unscramble(it.e); return kind==="lieu" ? mapsLink(val) : `<strong>${esc(val)}</strong>`; }
+  if(it.v==="r" && revealable(it.at)){ let val=""; try{ val=unscramble(it.e); }catch(e){} if(val) return kind==="lieu" ? mapsLink(val) : `<strong>${esc(val)}</strong>`; }
   return lockedHTML("Surprise", it.h, it.v==="r"?it.at:null);
 }
 function whenText(){
@@ -791,7 +858,7 @@ function detailsHTML(){
     h+=`<div class="d-row"><small>Le programme</small><ol class="timeline">${D.p.map(st=>{
       let body, lock=false;
       if(st.v==="v") body=`<strong>${esc(st.a)}</strong>${st.l?`<br>${mapsLink(st.l)}`:""}`;
-      else if(st.v==="r" && revealable(st.at)){ const x=JSON.parse(unscramble(st.e)); body=`<strong>${esc(x.a)}</strong>${x.l?`<br>${mapsLink(x.l)}`:""}`; }
+      else if(st.v==="r" && revealable(st.at) && (()=>{ try{ const x=JSON.parse(unscramble(st.e)); st._a=String(x.a||"").slice(0,80); st._l=String(x.l||"").slice(0,120); return true; }catch(e){ return false; } })()){ body=`<strong>${esc(st._a)}</strong>${st._l?`<br>${mapsLink(st._l)}`:""}`; }
       else { lock=true; body=lockedHTML("Surprise", st.i, st.v==="r"?st.at:null); }
       return `<li class="${lock?"lock":""}"><div class="h">${esc(st.h||"")}</div>${body}</li>`;
     }).join("")}</ol></div>`;
@@ -832,7 +899,7 @@ async function reply(){
   const open=u=>{ window.location.href=u; };
   switch(D.c){
     case "wa": open(`https://wa.me/${cleanPhone(id)}?text=${encodeURIComponent(txt)}`); break;
-    case "sms": open(`sms:${id.replace(/\s/g,"")}?&body=${encodeURIComponent(txt)}`); break;
+    case "sms": open(`sms:${encodeURIComponent(id.replace(/[^\d+]/g,""))}?&body=${encodeURIComponent(txt)}`); break;
     case "snap": await copyText(txt); toast("Réponse copiée, colle-la dans le chat 😉"); setTimeout(()=>open(`https://www.snapchat.com/add/${encodeURIComponent(id.replace(/^@/,""))}`),900); break;
     case "ig": await copyText(txt); toast("Réponse copiée, colle-la dans le chat 😉"); setTimeout(()=>open(`https://ig.me/m/${encodeURIComponent(id.replace(/^@/,""))}`),900); break;
     case "fb": await copyText(txt); toast("Réponse copiée, colle-la dans le chat 😉"); setTimeout(()=>open(`https://m.me/${encodeURIComponent(id.replace(/^@/,""))}`),900); break;
