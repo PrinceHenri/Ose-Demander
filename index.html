@@ -19,7 +19,14 @@
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:image" content="https://osedemander.fr/og-image.png">
 <meta name="theme-color" content="#ECE6FF">
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💌</text></svg>">
+<link rel="icon" type="image/png" sizes="64x64" href="icons/favicon-64.png">
+<!-- Appli installable (PWA) -->
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Ose Demander">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="referrer" content="no-referrer">
 <link rel="preload" href="fonts/bricolage-grotesque.woff2" as="font" type="font/woff2" crossorigin>
 <style>
@@ -179,6 +186,12 @@ textarea.input{min-height:90px;resize:vertical}
 .wrap,.inv{position:relative;z-index:1}
 .ticket{transition:transform .3s ease-out}
 .snd{position:fixed;top:calc(12px + env(safe-area-inset-top,0px));right:12px;z-index:30;border:2px solid var(--ink);background:var(--surface);color:var(--ink);border-radius:999px;padding:6px 12px;font-size:14px;font-weight:600;cursor:pointer}
+.install{border:2px solid var(--ink);background:var(--accent);color:var(--accent-ink);border-radius:999px;padding:7px 14px;font-weight:700;font-size:14px;cursor:pointer;box-shadow:2px 2px 0 var(--ink)}
+.sheet{position:fixed;inset:0;z-index:60;background:rgba(20,14,50,.45);display:flex;align-items:flex-end;justify-content:center;padding:16px}
+.sheet-card{width:100%;max-width:440px;background:var(--surface);color:var(--ink);border:2px solid var(--ink);border-radius:20px;box-shadow:6px 6px 0 var(--ink);padding:22px 20px calc(18px + env(safe-area-inset-bottom,0px))}
+.sheet-card h3{margin:0 0 10px;font-size:22px;letter-spacing:-.01em}
+.sheet-card ol{margin:0 0 16px;padding-left:22px}
+.sheet-card li{margin:0 0 8px}
 /* ---------- Enveloppe ---------- */
 .env-screen{position:relative;z-index:1;min-height:100vh;min-height:100dvh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;padding:24px;text-align:center}
 .env-from{font-size:clamp(26px,7vw,38px);font-weight:800;letter-spacing:-.025em;line-height:1.1;margin:0;max-width:15ch}
@@ -391,7 +404,7 @@ function renderCreator(){
   <div class="wrap">
     <header class="top">
       <a class="logo" href="./">Ose Demander<span class="q">?</span></a>
-      <small>Gratuit, sans compte</small>
+      <span id="installSlot"><small>Gratuit, sans compte</small></span>
     </header>
     ${S.step===0 ? `<section class="hero">
       <h1><span>Pose la question.</span><span>Le Non n'a aucune chance.</span></h1>
@@ -410,6 +423,7 @@ function renderCreator(){
     <p class="foot">Rien n'est stocké : toute l'invitation tient dans le lien.<br><a href="mentions-legales.html">Mentions légales</a></p>
   </div>`;
   bindCreator();
+  refreshInstall();
 }
 
 function visBlock(key, label, ph, it){
@@ -1112,6 +1126,38 @@ const Sound = {
   no(){ this.tone(320,170,.18,"triangle",.09); },
   yes(){ [523,659,784,1047].forEach((f,i)=>this.tone(f,f*1.01,.28,"sine",.09,i*.09)); }
 };
+
+/* ---------- Appli installable (PWA) ---------- */
+let installEvt=null;
+const isStandalone=()=>matchMedia("(display-mode: standalone)").matches || navigator.standalone===true;
+const isIOS=()=>/iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform==="MacIntel" && navigator.maxTouchPoints>1);
+window.addEventListener("beforeinstallprompt",e=>{ e.preventDefault(); installEvt=e; refreshInstall(); });
+window.addEventListener("appinstalled",()=>{ installEvt=null; refreshInstall(); toast("Ose Demander est installée 🎉"); });
+function refreshInstall(){
+  const slot=$("#installSlot"); if(!slot) return;
+  if(isStandalone() || (!installEvt && !isIOS())){ slot.innerHTML=`<small>Gratuit, sans compte</small>`; return; }
+  slot.innerHTML=`<button type="button" class="install" id="installBtn">Installer l'appli</button>`;
+  $("#installBtn").addEventListener("click",async()=>{
+    if(installEvt){ installEvt.prompt(); const r=await installEvt.userChoice.catch(()=>null); installEvt=null; refreshInstall(); return; }
+    showIOSHelp();
+  });
+}
+function showIOSHelp(){
+  const d=document.createElement("div"); d.className="sheet"; d.setAttribute("role","dialog"); d.setAttribute("aria-modal","true"); d.setAttribute("aria-label","Installer l'appli");
+  d.innerHTML=`<div class="sheet-card">
+    <h3>Installer Ose Demander</h3>
+    <ol>
+      <li>Ouvre ce site dans <b>Safari</b>.</li>
+      <li>Touche le bouton <b>Partager</b> (le carré avec une flèche vers le haut).</li>
+      <li>Choisis <b>Sur l'écran d'accueil</b>, puis <b>Ajouter</b>.</li>
+    </ol>
+    <button type="button" class="btn primary" style="width:100%">Compris</button></div>`;
+  d.addEventListener("click",e=>{ if(e.target===d || e.target.tagName==="BUTTON") d.remove(); });
+  document.body.appendChild(d); $("button",d).focus();
+}
+if("serviceWorker" in navigator && (location.protocol==="https:" || location.hostname==="localhost")){
+  window.addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));
+}
 
 /* ---------- Routage ---------- */
 async function route(){

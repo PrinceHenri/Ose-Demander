@@ -12,6 +12,16 @@ ose-demander/
 ├── index.html              ← tout le site (création + invitation)
 ├── mentions-legales.html   ← à compléter (zones surlignées, 2 fois l'e-mail)
 ├── README.md               ← ce guide
+├── manifest.webmanifest    ← fiche de l'appli installable (PWA)
+├── sw.js                   ← service worker : installation + hors connexion
+├── og-image.png            ← image d'aperçu des liens
+├── CNAME                   ← créé par GitHub pour le domaine, ne pas supprimer
+├── icons/
+│   ├── icon-192.png
+│   ├── icon-512.png
+│   ├── maskable-512.png
+│   ├── apple-touch-icon.png
+│   └── favicon-64.png
 └── fonts/
     ├── bricolage-grotesque.woff2
     ├── caveat.woff2
@@ -38,6 +48,12 @@ Si tu achètes un domaine (ex. `osedemander.fr`, environ 10 €/an) :
 1. Dans **Settings** → **Pages** → **Custom domain**, entre ton domaine.
 2. Chez ton registraire, ajoute un enregistrement `CNAME` pointant vers `TON-PSEUDO.github.io`.
 3. Coche **Enforce HTTPS** quand l'option apparaît.
+
+## Appli installable (PWA)
+
+Le site s'installe comme une appli depuis le navigateur (bouton « Installer l'appli » en haut de la page d'accueil, ou « Partager » → « Sur l'écran d'accueil » sur iPhone). Il fonctionne aussi hors connexion.
+
+**Après une mise à jour importante** de `index.html`, ouvre `sw.js` et change `ose-v1` en `ose-v2` (puis `ose-v3`…) : les appareils qui ont installé l'appli téléchargeront la nouvelle version.
 
 ## Sécurité
 

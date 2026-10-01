@@ -1,0 +1,20 @@
+{
+  "name": "Ose Demander",
+  "short_name": "Ose Demander",
+  "description": "Crée des invitations animées auxquelles on ne dit pas non. Gratuit, sans compte, rien n'est stocké.",
+  "lang": "fr",
+  "dir": "ltr",
+  "id": "./",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#ECE6FF",
+  "theme_color": "#ECE6FF",
+  "categories": ["lifestyle", "social", "entertainment"],
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
