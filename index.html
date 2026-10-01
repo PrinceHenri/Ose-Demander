@@ -1,0 +1,1060 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Ose Demander — crée une invitation à laquelle on ne dit pas non</title>
+<meta name="description" content="Crée gratuitement une invitation animée : date, fête des mères, journée surprise… Le bouton Non résiste. Sans compte, rien n'est stocké.">
+<meta property="og:title" content="Ose Demander">
+<meta property="og:description" content="Tu as reçu une invitation. Ouvre-la pour répondre.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💌</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..800&family=Caveat:wght@500..700&display=swap" rel="stylesheet">
+<style>
+/* ---------- Thèmes ---------- */
+:root{
+  --bg:#ECE6FF; --surface:#FFFFFF; --ink:#1F1546; --muted:#5D5482; --line:#CFC4F5;
+  --accent:#E83F86; --accent-ink:#FFFFFF; --soft:#F6F2FF;
+  --pattern:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='90' height='90'%3E%3Ctext x='12' y='38' font-family='Georgia' font-size='30' fill='%23E83F86' fill-opacity='.10'%3E%3F%3C/text%3E%3Ctext x='56' y='80' font-family='Georgia' font-size='22' fill='%231F1546' fill-opacity='.07'%3E%3F%3C/text%3E%3C/svg%3E");
+  --display:"Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --hand:"Caveat", "Comic Sans MS", cursive;
+  --r:18px;
+}
+[data-theme="amour"]{--bg:#FFE4EC;--ink:#4B0F2E;--muted:#8A4562;--line:#F3B6C9;--accent:#D9245F;--soft:#FFF3F6;
+  --pattern:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80'%3E%3Cpath d='M20 30c-6-8-18-2-12 8l12 12 12-12c6-10-6-16-12-8z' fill='%23D9245F' fill-opacity='.10'/%3E%3Cpath d='M60 64c-4-5-12-1-8 5l8 8 8-8c4-6-4-10-8-5z' fill='%23D9245F' fill-opacity='.07'/%3E%3C/svg%3E");}
+[data-theme="maman"]{--bg:#FFEBDD;--ink:#5A2416;--muted:#8F5442;--line:#F5C6AA;--accent:#E0592F;--soft:#FFF5EE;
+  --pattern:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='90' height='90'%3E%3Cg fill='%23E0592F' fill-opacity='.10'%3E%3Ccircle cx='25' cy='17' r='7'/%3E%3Ccircle cx='17' cy='25' r='7'/%3E%3Ccircle cx='33' cy='25' r='7'/%3E%3Ccircle cx='25' cy='33' r='7'/%3E%3C/g%3E%3Ccircle cx='25' cy='25' r='5' fill='%23F2A33A' fill-opacity='.25'/%3E%3Ccircle cx='68' cy='68' r='4' fill='%23E0592F' fill-opacity='.10'/%3E%3C/svg%3E");}
+[data-theme="papa"]{--bg:#E3EAF6;--ink:#14254A;--muted:#4A5D85;--line:#BCCBE6;--accent:#D99A1E;--accent-ink:#14254A;--soft:#F1F5FC;
+  --pattern:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40'%3E%3Cpath d='M0 40L40 0' stroke='%2314254A' stroke-opacity='.07' stroke-width='6'/%3E%3Cpath d='M-10 10L10 -10M30 50L50 30' stroke='%23D99A1E' stroke-opacity='.14' stroke-width='3'/%3E%3C/svg%3E");}
+[data-theme="amis"]{--bg:#FFF2B3;--ink:#22200F;--muted:#5E5730;--line:#EDD86A;--accent:#2F5BFF;--soft:#FFFBE3;
+  --pattern:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='70' height='70'%3E%3Ccircle cx='15' cy='15' r='9' fill='none' stroke='%232F5BFF' stroke-opacity='.16' stroke-width='3'/%3E%3Ccircle cx='52' cy='50' r='5' fill='%23FF5B3A' fill-opacity='.16'/%3E%3C/svg%3E");}
+[data-theme="fete"]{--bg:#E6F6EF;--ink:#10372B;--muted:#456B5E;--line:#B5DECB;--accent:#F2484B;--soft:#F3FBF7;
+  --pattern:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='90' height='90'%3E%3Crect x='10' y='14' width='10' height='4' rx='2' transform='rotate(30 15 16)' fill='%23F2484B' fill-opacity='.22'/%3E%3Crect x='60' y='22' width='10' height='4' rx='2' transform='rotate(-25 65 24)' fill='%233D7CF2' fill-opacity='.22'/%3E%3Crect x='34' y='60' width='10' height='4' rx='2' transform='rotate(70 39 62)' fill='%23F2B33D' fill-opacity='.3'/%3E%3Ccircle cx='75' cy='72' r='3' fill='%2310372B' fill-opacity='.12'/%3E%3C/svg%3E");}
+[data-theme="mystere"]{--bg:#1C1838;--surface:#29234D;--ink:#F2EEFF;--muted:#B3AAD9;--line:#3F3773;--accent:#FFC94A;--accent-ink:#1C1838;--soft:#231E44;
+  --pattern:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Cpath d='M20 10l2 6 6 2-6 2-2 6-2-6-6-2 6-2z' fill='%23FFC94A' fill-opacity='.35'/%3E%3Ccircle cx='70' cy='40' r='1.5' fill='%23F2EEFF' fill-opacity='.5'/%3E%3Ccircle cx='40' cy='80' r='1' fill='%23F2EEFF' fill-opacity='.5'/%3E%3Ccircle cx='88' cy='86' r='1.5' fill='%23FFC94A' fill-opacity='.4'/%3E%3C/svg%3E");}
+
+*{box-sizing:border-box}
+html{height:100%;scroll-padding-top:env(safe-area-inset-top,0px)}
+:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+body{margin:0;min-height:100%;font-family:var(--display);font-size:17px;line-height:1.5;color:var(--ink);
+  background-color:var(--bg);background-image:var(--pattern);transition:background-color .4s,color .4s;
+  -webkit-font-smoothing:antialiased}
+a{color:inherit}
+button,input,textarea,select{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.wrap{max-width:600px;margin:0 auto;padding:20px 18px 60px}
+.hidden{display:none!important}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+
+/* ---------- En-tête ---------- */
+.top{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:6px 0 18px}
+.logo{font-weight:800;font-size:22px;letter-spacing:-.02em;text-decoration:none;display:flex;align-items:baseline;gap:2px}
+.logo .q{display:inline-block;color:var(--accent);font-size:28px;transform:rotate(12deg)}
+.top small{color:var(--muted);font-size:14px}
+
+/* ---------- Accueil ---------- */
+.hero{padding:10px 0 26px}
+.hero h1{font-size:clamp(40px,10vw,66px);line-height:.95;letter-spacing:-.035em;margin:0 0 14px;font-weight:800;font-variation-settings:"opsz" 96}
+.hero h1 span{display:block}
+.hero h1 span:nth-child(2){padding-left:.6em;color:var(--muted);font-weight:500}
+.hero p{max-width:46ch;margin:0;color:var(--muted);font-size:18px}
+
+/* ---------- Formulaire ---------- */
+.panel{background:var(--surface);border:2px solid var(--ink);border-radius:var(--r);padding:22px 20px;box-shadow:6px 6px 0 var(--ink)}
+.progress{display:flex;gap:6px;margin:0 0 18px}
+.progress i{flex:1;height:6px;border-radius:6px;background:var(--line)}
+.progress i.on{background:var(--accent)}
+.stepnum{color:var(--muted);font-size:14px;margin:0 0 2px}
+.panel h2{font-size:28px;line-height:1.1;letter-spacing:-.02em;margin:0 0 6px}
+.panel .lead{color:var(--muted);margin:0 0 18px}
+.field{display:block;margin:0 0 16px}
+.field > span{display:block;font-weight:600;font-size:15px;margin:0 0 6px}
+.field > span em{font-style:normal;font-weight:400;color:var(--muted)}
+.input,textarea.input{width:100%;padding:12px 14px;border:2px solid var(--line);border-radius:12px;background:var(--soft);transition:border-color .15s}
+.input:focus{border-color:var(--accent);outline:none}
+textarea.input{min-height:90px;resize:vertical}
+.hint{font-size:14px;color:var(--muted);margin:6px 0 0}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media (max-width:460px){.row2{grid-template-columns:1fr}}
+.group-title{font-weight:700;font-size:15px;margin:16px 0 8px}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{border:2px solid var(--line);background:var(--soft);border-radius:999px;padding:8px 14px;cursor:pointer;font-size:15px;transition:border-color .15s,background .15s}
+.chip:hover{border-color:var(--ink)}
+.chip[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.swatches{display:flex;flex-wrap:wrap;gap:10px}
+.swatch{width:46px;height:46px;border-radius:50%;border:3px solid transparent;cursor:pointer;position:relative}
+.swatch[aria-pressed="true"]{border-color:var(--ink);box-shadow:0 0 0 3px var(--surface) inset}
+.seg{display:flex;flex-wrap:wrap;gap:6px;background:var(--soft);border:2px solid var(--line);border-radius:14px;padding:4px;margin:0 0 10px}
+.seg button{flex:1 1 auto;border:0;background:none;padding:8px 10px;border-radius:10px;cursor:pointer;font-size:14px;font-weight:600;color:var(--muted)}
+.seg button[aria-pressed="true"]{background:var(--surface);color:var(--ink);box-shadow:0 1px 0 var(--line),0 0 0 2px var(--ink)}
+.vis-box{border:2px dashed var(--line);border-radius:14px;padding:14px;margin:0 0 16px}
+.vis-box .field:last-child{margin-bottom:0}
+.vis-note{font-size:14px;color:var(--muted);margin:0 0 10px}
+.prog-step{border:2px solid var(--line);border-radius:14px;padding:14px;margin:0 0 12px;background:var(--soft)}
+.prog-step header{display:flex;justify-content:space-between;align-items:center;margin:0 0 10px;font-weight:700}
+.linkbtn{background:none;border:0;color:var(--accent);font-weight:600;cursor:pointer;padding:4px;text-decoration:underline;text-underline-offset:3px}
+.check{display:flex;gap:10px;align-items:flex-start;margin:0 0 14px;cursor:pointer}
+.check input{width:20px;height:20px;margin-top:3px;accent-color:var(--accent)}
+.counter{font-size:13px;color:var(--muted);text-align:right;margin-top:4px}
+.cards{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:0 0 16px}
+.optcard{text-align:left;border:2px solid var(--line);background:var(--soft);border-radius:14px;padding:12px;cursor:pointer}
+.optcard b{display:block;font-size:16px}
+.optcard span{font-size:14px;color:var(--muted)}
+.optcard[aria-pressed="true"]{border-color:var(--ink);background:var(--surface);box-shadow:3px 3px 0 var(--ink)}
+.nav{display:flex;justify-content:space-between;gap:10px;margin-top:22px}
+.btn{border:2px solid var(--ink);border-radius:14px;padding:13px 20px;font-weight:700;cursor:pointer;background:var(--surface);transition:transform .1s, box-shadow .1s}
+.btn:active{transform:translate(2px,2px)}
+.btn.primary{background:var(--accent);color:var(--accent-ink);box-shadow:3px 3px 0 var(--ink)}
+.btn.primary:active{box-shadow:1px 1px 0 var(--ink)}
+.btn.ghost{background:transparent}
+.error{color:#B3122E;background:#FFE3E8;border-radius:10px;padding:8px 12px;font-size:14px;margin:12px 0 0}
+[data-theme="mystere"] .error{color:#FFD0D8;background:#4A1F3A}
+.recap{list-style:none;padding:0;margin:0 0 16px}
+.recap li{display:grid;grid-template-columns:120px 1fr;gap:10px;padding:10px 0;border-bottom:1px solid var(--line);font-size:15px}
+.recap li b{color:var(--muted);font-weight:600}
+@media (max-width:460px){.recap li{grid-template-columns:1fr;gap:2px}}
+.linkbox{word-break:break-all;font-size:13px;background:var(--soft);border:2px solid var(--line);border-radius:12px;padding:12px;margin:10px 0}
+.btns{display:flex;flex-wrap:wrap;gap:10px}
+.foot{margin-top:28px;font-size:14px;color:var(--muted);text-align:center}
+.foot a{color:var(--muted)}
+
+/* ---------- Invitation (ticket) ---------- */
+.inv{max-width:480px;margin:0 auto;padding:64px 16px 60px}
+.ticket{position:relative;background:var(--surface);border:2px solid var(--ink);border-radius:22px;box-shadow:8px 8px 0 var(--ink)}
+.ticket .stub{padding:16px 22px 18px;display:flex;justify-content:space-between;gap:12px;font-size:15px;color:var(--muted)}
+.ticket .stub b{color:var(--ink);display:block;font-size:18px}
+.ticket .perf{position:relative;height:0;border-top:2px dashed var(--line);margin:0 18px}
+.ticket .perf::before,.ticket .perf::after{content:"";position:absolute;top:-13px;width:24px;height:24px;border-radius:50%;background:var(--bg);border:2px solid var(--ink)}
+.ticket .perf::before{left:-32px;clip-path:inset(0 0 0 50%)}
+.ticket .perf::after{right:-32px;clip-path:inset(0 50% 0 0)}
+.ticket .main{padding:26px 22px 28px;text-align:center;min-height:260px;position:relative}
+.occ{font-size:15px;color:var(--muted);margin:0 0 10px}
+.question{font-size:clamp(30px,8vw,42px);line-height:1.05;letter-spacing:-.03em;font-weight:800;margin:0 0 26px;font-variation-settings:"opsz" 96}
+.answer{display:flex;justify-content:center;align-items:center;gap:14px;flex-wrap:wrap;min-height:70px}
+.yes,.no{font-weight:800;font-size:20px;border-radius:16px;padding:14px 30px;border:2px solid var(--ink);cursor:pointer;transition:transform .2s ease}
+.yes{background:var(--accent);color:var(--accent-ink);box-shadow:4px 4px 0 var(--ink)}
+.no{background:var(--surface);transition:left .25s ease, top .25s ease, transform .2s ease}
+.no.flee{position:fixed;z-index:20}
+.tease{min-height:26px;margin:16px 0 0;font-size:16px;color:var(--muted)}
+.handnote{font-family:var(--hand);font-size:28px;line-height:1.2;margin:18px 0 0;color:var(--ink)}
+.details{text-align:left;margin-top:8px}
+.d-row{padding:12px 0;border-bottom:1px solid var(--line)}
+.d-row:last-child{border-bottom:0}
+.d-row small{display:block;color:var(--muted);font-size:14px}
+.d-row strong{font-size:18px}
+.locked{display:flex;gap:10px;align-items:flex-start}
+.locked .lk{font-size:22px;line-height:1}
+.count{font-variant-numeric:tabular-nums;font-weight:700;color:var(--accent)}
+.timeline{list-style:none;margin:6px 0 0;padding:0 0 0 18px;border-left:3px solid var(--line)}
+.timeline li{position:relative;padding:0 0 18px 14px}
+.timeline li::before{content:"";position:absolute;left:-27px;top:6px;width:14px;height:14px;border-radius:50%;background:var(--accent);border:2px solid var(--surface)}
+.timeline li.lock::before{background:var(--line)}
+.timeline .h{font-weight:800}
+.slots{display:flex;flex-direction:column;gap:8px;margin-top:8px}
+.after-actions{display:flex;flex-direction:column;gap:10px;margin-top:22px}
+.after-actions .btn{width:100%}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:12px;font-size:15px;z-index:50;max-width:90vw;text-align:center}
+#confetti{position:fixed;inset:0;pointer-events:none;z-index:40}
+.pop-in{animation:pop .5s cubic-bezier(.2,1.4,.4,1)}
+@keyframes pop{from{transform:scale(.85);opacity:0}to{transform:none;opacity:1}}
+#decor{position:fixed;inset:0;pointer-events:none;z-index:0}
+.wrap,.inv{position:relative;z-index:1}
+.ticket{transition:transform .3s ease-out}
+.snd{position:fixed;top:calc(12px + env(safe-area-inset-top,0px));right:12px;z-index:30;border:2px solid var(--ink);background:var(--surface);color:var(--ink);border-radius:999px;padding:6px 12px;font-size:14px;font-weight:600;cursor:pointer}
+/* ---------- Enveloppe ---------- */
+.env-screen{position:relative;z-index:1;min-height:100vh;min-height:100dvh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;padding:24px;text-align:center}
+.env-from{font-size:clamp(26px,7vw,38px);font-weight:800;letter-spacing:-.025em;line-height:1.1;margin:0;max-width:15ch}
+.env-hint{color:var(--muted);margin:0}
+.env-from,.env-hint{transition:opacity .3s}
+.env-screen.opened .env-from,.env-screen.opened .env-hint{opacity:0}
+.envelope{position:relative;display:block;width:min(340px,84vw);aspect-ratio:3/2;border:0;padding:0;background:none;cursor:pointer;perspective:900px;margin-top:90px}
+.env-back{position:absolute;inset:0;background:var(--accent);border:2px solid var(--ink);border-radius:12px;box-shadow:8px 8px 0 var(--ink)}
+.env-paper{position:absolute;left:7%;right:7%;top:8%;height:80%;z-index:1;background:var(--surface);border:2px solid var(--ink);border-radius:8px;display:flex;justify-content:center;padding-top:9%;font-family:var(--hand);font-size:28px;color:var(--ink);transition:transform .7s cubic-bezier(.2,1,.3,1) .3s}
+.env-front{position:absolute;inset:0;width:100%;height:100%;z-index:2;overflow:visible}
+.env-flap{position:absolute;left:0;right:0;top:0;height:58%;z-index:3;transform-origin:top center;transition:transform .45s ease,z-index 0s .2s}
+.env-flap svg{width:100%;height:100%;display:block;overflow:visible}
+.seal{position:absolute;left:50%;top:100%;transform:translate(-50%,-62%);width:50px;height:50px;border-radius:50%;background:var(--ink);color:var(--accent);display:grid;place-items:center;font-weight:800;font-size:21px;border:3px solid var(--surface);transition:opacity .2s}
+.envelope.open .env-flap{transform:rotateX(180deg);z-index:0}
+.envelope.open .seal{opacity:0}
+.envelope.open .env-paper{transform:translateY(-52%)}
+.envelope.wiggle:not(.open){animation:wiggle 3.4s ease-in-out infinite}
+@keyframes wiggle{0%,84%,100%{transform:rotate(0)}88%{transform:rotate(-3deg)}92%{transform:rotate(3deg)}96%{transform:rotate(-1.5deg)}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<canvas id="decor" aria-hidden="true"></canvas>
+<canvas id="confetti" aria-hidden="true"></canvas>
+<div id="app"></div>
+
+<script>
+/* =========================================================
+   Ose Demander — tout fonctionne dans le navigateur.
+   Les infos de l'invitation sont compressées dans le lien (#i=...).
+   Aucune donnée n'est envoyée ni stockée sur un serveur.
+   ========================================================= */
+
+/* ---------- Données ---------- */
+const OCCASIONS = [
+  {cat:"Amour", items:[
+    {id:"date", label:"Un rendez-vous", theme:"amour", q:"Ça te dit un rendez-vous avec moi ?"},
+    {id:"valentin", label:"La Saint-Valentin", theme:"amour", q:"Tu veux être ma Valentine ?"},
+    {id:"annivamour", label:"L'anniversaire de mon amour", theme:"amour", q:"Je peux t'emmener fêter ton anniversaire ?"},
+    {id:"couple", label:"Notre anniversaire de couple", theme:"amour", q:"On fête notre anniversaire ensemble ?"},
+    {id:"mariage", label:"Une demande en mariage", theme:"amour", q:"Veux-tu m'épouser ?"}
+  ]},
+  {cat:"Famille", items:[
+    {id:"meres", label:"La fête des mères", theme:"maman", q:"Maman, je t'emmène pour la fête des mères ?"},
+    {id:"peres", label:"La fête des pères", theme:"papa", q:"Papa, je t'emmène pour la fête des pères ?"},
+    {id:"grands", label:"La fête des grands-parents", theme:"maman", q:"Je vous invite pour la fête des grands-parents ?"},
+    {id:"annivfam", label:"Un anniversaire en famille", theme:"fete", q:"Tu viens fêter ton anniversaire avec moi ?"}
+  ]},
+  {cat:"Amis", items:[
+    {id:"sortie", label:"Une sortie entre amis", theme:"amis", q:"Tu viens avec moi ?"},
+    {id:"annivami", label:"L'anniversaire d'un·e ami·e", theme:"fete", q:"Je t'invite pour ton anniversaire ?"},
+    {id:"temoin", label:"Être mon témoin", theme:"amis", q:"Tu veux être mon témoin ?"}
+  ]},
+  {cat:"Autre", items:[
+    {id:"surprise", label:"Une journée surprise", theme:"mystere", q:"Tu me confies ta journée ?"},
+    {id:"pardon", label:"Me faire pardonner", theme:"amis", q:"On se réconcilie autour d'un moment à deux ?"},
+    {id:"juste", label:"Juste comme ça", theme:"base", q:"Ça te dit qu'on se voie ?"},
+    {id:"libre", label:"Autre chose…", theme:"base", q:"Tu dis oui ?"}
+  ]}
+];
+const OCC = Object.fromEntries(OCCASIONS.flatMap(g => g.items.map(i => [i.id, {...i, cat:g.cat}])));
+const THEMES = [
+  {id:"base", name:"Lilas", c:"#ECE6FF", a:"#E83F86"},
+  {id:"amour", name:"Amour", c:"#FFE4EC", a:"#D9245F"},
+  {id:"maman", name:"Pétales", c:"#FFEBDD", a:"#E0592F"},
+  {id:"papa", name:"Cravate", c:"#E3EAF6", a:"#D99A1E"},
+  {id:"amis", name:"Pop", c:"#FFF2B3", a:"#2F5BFF"},
+  {id:"fete", name:"Confettis", c:"#E6F6EF", a:"#F2484B"},
+  {id:"mystere", name:"Mystère", c:"#1C1838", a:"#FFC94A"}
+];
+const MSG_SUGG = {
+  Amour:["J'ai envie de passer ce moment avec toi, rien qu'avec toi.","Prépare ton plus beau sourire, je m'occupe du reste.","Tu n'as rien à prévoir, juste à dire oui."],
+  Famille:["Merci pour tout. Ce moment, c'est pour toi.","Tu t'occupes toujours de nous, cette fois c'est mon tour.","Un petit moment rien que pour toi, tu l'as bien mérité."],
+  Amis:["Ça fait trop longtemps, on rattrape le temps perdu.","Pas d'excuse cette fois, je t'attends.","Ce ne sera pas pareil sans toi."],
+  Autre:["Fais-moi confiance, tu vas aimer.","Je ne dis rien de plus, c'est une surprise.","Garde ton agenda libre, j'ai prévu quelque chose."]
+};
+const NO_MODES = [
+  {id:"fuit", t:"Il s'enfuit", d:"Le bouton Non s'échappe dès qu'on approche."},
+  {id:"retrecit", t:"Il rétrécit", d:"Chaque Non rapetisse, et le Oui grossit."},
+  {id:"supplie", t:"Il supplie", d:"Des messages de plus en plus dramatiques."},
+  {id:"transforme", t:"Il se transforme", d:"Au survol, Non devient Oui."}
+];
+const CHANNELS = [
+  {id:"any", t:"Peu importe", ph:"", need:false},
+  {id:"wa", t:"WhatsApp", ph:"Ton numéro, ex. 06 12 34 56 78", need:true},
+  {id:"sms", t:"SMS", ph:"Ton numéro, ex. 06 12 34 56 78", need:true},
+  {id:"snap", t:"Snapchat", ph:"Ton nom d'utilisateur Snap", need:true},
+  {id:"ig", t:"Instagram", ph:"Ton nom d'utilisateur Instagram", need:true},
+  {id:"fb", t:"Messenger", ph:"Ton nom d'utilisateur Facebook", need:true}
+];
+const HOURS = ["10:00","11:00","12:00","13:00","14:00","15:00","16:00","17:00","18:00","19:00","20:00","21:00"];
+const STEP_TITLES = ["Qui","L'occasion","Ce qui est prévu","Quand","Le message","La réponse","Vérifier"];
+
+/* ---------- Utilitaires ---------- */
+const $ = (s, r=document) => r.querySelector(s);
+const $$ = (s, r=document) => [...r.querySelectorAll(s)];
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const todayISO = () => { const d=new Date(); d.setMinutes(d.getMinutes()-d.getTimezoneOffset()); return d.toISOString().slice(0,10); };
+function setTheme(id, lv="n"){ document.documentElement.dataset.theme = id === "base" ? "" : id; Decor.set(id||"base", lv); }
+function toast(msg){ const t=document.createElement("div"); t.className="toast"; t.setAttribute("role","status"); t.textContent=msg; document.body.appendChild(t); setTimeout(()=>t.remove(),2600); }
+async function copyText(txt){
+  try{ await navigator.clipboard.writeText(txt); return true; }
+  catch(e){ const ta=document.createElement("textarea"); ta.value=txt; document.body.appendChild(ta); ta.select(); let ok=false; try{ok=document.execCommand("copy");}catch(_){} ta.remove(); return ok; }
+}
+function frDate(iso){
+  if(!iso) return "";
+  const [y,m,d] = iso.split("-").map(Number);
+  return new Date(y,m-1,d).toLocaleDateString("fr-FR",{weekday:"long",day:"numeric",month:"long"});
+}
+function frTime(t){ return t ? t.replace(":", " h ").replace(" h 00"," h") : ""; }
+
+/* Encodage du lien : JSON -> compression (deflate) -> base64url */
+function b64url(bytes){ let s=""; for(let i=0;i<bytes.length;i+=0x8000) s+=String.fromCharCode.apply(null, bytes.subarray(i,i+0x8000)); return btoa(s).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,""); }
+function unb64url(str){ str=str.replace(/-/g,"+").replace(/_/g,"/"); while(str.length%4) str+="="; const bin=atob(str); const out=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) out[i]=bin.charCodeAt(i); return out; }
+async function pipe(bytes, stream){ const s=new Blob([bytes]).stream().pipeThrough(stream); return new Uint8Array(await new Response(s).arrayBuffer()); }
+async function encodeData(obj){
+  const raw = new TextEncoder().encode(JSON.stringify(obj));
+  if(window.CompressionStream){ try{ return "z"+b64url(await pipe(raw,new CompressionStream("deflate-raw"))); }catch(e){} }
+  return "p"+b64url(raw);
+}
+async function decodeData(str){
+  const kind=str[0], bytes=unb64url(str.slice(1));
+  const raw = kind==="z" ? await pipe(bytes,new DecompressionStream("deflate-raw")) : bytes;
+  return JSON.parse(new TextDecoder().decode(raw));
+}
+/* Brouillage des infos à révélation programmée (pas lisibles en clair dans le lien) */
+const KEY="ose-demander";
+function scramble(text){ const b=new TextEncoder().encode(text); for(let i=0;i<b.length;i++) b[i]^=KEY.charCodeAt(i%KEY.length)+i%7; return b64url(b); }
+function unscramble(s){ const b=unb64url(s); for(let i=0;i<b.length;i++) b[i]^=KEY.charCodeAt(i%KEY.length)+i%7; return new TextDecoder().decode(b); }
+
+/* =========================================================
+   CRÉATEUR
+   ========================================================= */
+const S = {
+  step:0, from:"", to:"", occ:"", occFree:"", theme:"base", themeManual:false, anim:"n",
+  mode:"one",
+  act:{v:"v", x:"", h:"", at:""}, lieu:{v:"v", x:"", h:"", at:""}, details:"",
+  steps:[{h:"", a:"", l:"", v:"v", hint:"", at:""}],
+  end:"", bring:"", meet:"",
+  date:"", time:"", choose:false, slots:[{d:"",t:""},{d:"",t:""}],
+  q:"", qEdited:false, msg:"", hidden:false,
+  no:"fuit", ch:"any", chId:"", link:""
+};
+
+function renderCreator(){
+  setTheme(S.theme, S.anim);
+  $("#app").innerHTML = `
+  <div class="wrap">
+    <header class="top">
+      <a class="logo" href="./">Ose Demander<span class="q">?</span></a>
+      <small>Gratuit, sans compte</small>
+    </header>
+    ${S.step===0 ? `<section class="hero">
+      <h1><span>Pose la question.</span><span>Le Non n'a aucune chance.</span></h1>
+      <p>Crée une invitation pour un date, une fête des mères ou une journée surprise. Tu envoies le lien, on te répond en un clic.</p>
+    </section>` : ""}
+    <form class="panel" id="form" novalidate>
+      <div class="progress" aria-hidden="true">${STEP_TITLES.map((_,i)=>`<i class="${i<=S.step?"on":""}"></i>`).join("")}</div>
+      <p class="stepnum">Étape ${S.step+1} sur ${STEP_TITLES.length}</p>
+      ${stepHTML()}
+      <p class="error hidden" id="err" role="alert"></p>
+      <div class="nav">
+        ${S.step>0 ? `<button type="button" class="btn ghost" id="back">Retour</button>` : `<span></span>`}
+        ${S.step<STEP_TITLES.length-1 ? `<button type="submit" class="btn primary">Continuer</button>` : ``}
+      </div>
+    </form>
+    <p class="foot">Rien n'est stocké : toute l'invitation tient dans le lien.<br><a href="mentions-legales.html">Mentions légales</a></p>
+  </div>`;
+  bindCreator();
+}
+
+function visBlock(key, label, ph, it){
+  return `<div class="vis-box" data-vis="${key}">
+    <div class="field"><span>${label}</span>
+      <div class="seg" role="group" aria-label="Visibilité : ${label}">
+        <button type="button" data-v="v" aria-pressed="${it.v==="v"}">Visible</button>
+        <button type="button" data-v="s" aria-pressed="${it.v==="s"}">Surprise</button>
+        <button type="button" data-v="r" aria-pressed="${it.v==="r"}">Révélé plus tard</button>
+      </div>
+      <p class="vis-note">${it.v==="v" ? "Affiché dès qu'elle dit oui." : it.v==="s" ? "Jamais affiché ni inclus dans le lien. Tu peux donner un indice." : "Caché, puis révélé automatiquement à l'heure que tu choisis."}</p>
+    </div>
+    ${it.v!=="s" ? `<label class="field"><span class="sr">${label}</span><input class="input" data-k="x" maxlength="120" placeholder="${ph}" value="${esc(it.x)}"></label>` : ""}
+    ${it.v!=="v" ? `<label class="field"><span>Indice <em>(facultatif)</em></span><input class="input" data-k="h" maxlength="100" placeholder="Ex. Prévois des baskets" value="${esc(it.h)}"></label>` : ""}
+    ${it.v==="r" ? `<label class="field"><span>Révéler le</span><input class="input" type="datetime-local" data-k="at" value="${esc(it.at)}"></label>` : ""}
+  </div>`;
+}
+
+function stepHTML(){
+  switch(S.step){
+  case 0: return `
+    <h2>Qui invite qui ?</h2>
+    <p class="lead">Un prénom ou un surnom, celui que vous utilisez entre vous.</p>
+    <div class="row2">
+      <label class="field"><span>Son prénom</span><input class="input" id="to" maxlength="30" placeholder="Ex. Loulou" value="${esc(S.to)}" autocomplete="off"></label>
+      <label class="field"><span>Ton prénom</span><input class="input" id="from" maxlength="30" placeholder="Ex. Keke" value="${esc(S.from)}" autocomplete="off"></label>
+    </div>`;
+  case 1: return `
+    <h2>C'est pour quoi ?</h2>
+    <p class="lead">Les couleurs s'adaptent à l'occasion. Tu peux les changer en dessous.</p>
+    ${OCCASIONS.map(g=>`<p class="group-title">${g.cat}</p><div class="chips">${g.items.map(o=>`<button type="button" class="chip" data-occ="${o.id}" aria-pressed="${S.occ===o.id}">${o.label}</button>`).join("")}</div>`).join("")}
+    ${S.occ==="libre" ? `<label class="field" style="margin-top:14px"><span>Laquelle ?</span><input class="input" id="occFree" maxlength="40" placeholder="Ex. Ma pendaison de crémaillère" value="${esc(S.occFree)}"></label>` : ""}
+    <p class="group-title">Couleurs</p>
+    <div class="swatches">${THEMES.map(t=>`<button type="button" class="swatch" data-th="${t.id}" aria-pressed="${S.theme===t.id}" title="${t.name}" aria-label="Thème ${t.name}" style="background:linear-gradient(135deg,${t.c} 55%,${t.a} 55%)"></button>`).join("")}</div>
+    <p class="group-title">Animations</p>
+    <div class="seg" role="group" aria-label="Animations">
+      <button type="button" data-anim="n" aria-pressed="${S.anim==="n"}">Normales</button>
+      <button type="button" data-anim="d" aria-pressed="${S.anim==="d"}">Discrètes</button>
+      <button type="button" data-anim="0" aria-pressed="${S.anim==="0"}">Aucune</button>
+    </div>
+    <p class="hint">Le décor bouge en fond, et explose au moment du Oui. Choisis « Aucune » pour une invitation sobre.</p>`;
+  case 2: return `
+    <h2>Qu'est-ce que tu prévois ?</h2>
+    <p class="lead">Chaque info peut rester une surprise.</p>
+    <div class="seg" role="group" aria-label="Type de plan">
+      <button type="button" data-mode="one" aria-pressed="${S.mode==="one"}">Une activité</button>
+      <button type="button" data-mode="prog" aria-pressed="${S.mode==="prog"}">Un programme (plusieurs étapes)</button>
+    </div>
+    ${S.mode==="one" ? `
+      ${visBlock("act","L'activité","Ex. Escape game, dîner, cinéma…",S.act)}
+      ${visBlock("lieu","Le lieu","Ex. Le Petit Bistrot, 12 rue de Charonne, Paris",S.lieu)}
+      <label class="field"><span>Détails <em>(facultatif)</em></span><textarea class="input" id="details" maxlength="200" placeholder="Ex. Tenue chic, je réserve la table">${esc(S.details)}</textarea></label>
+    ` : `
+      ${S.steps.map((st,i)=>`
+      <div class="prog-step" data-step="${i}">
+        <header>Étape ${i+1}${S.steps.length>1?`<button type="button" class="linkbtn" data-del="${i}">Retirer</button>`:""}</header>
+        <div class="row2">
+          <label class="field"><span>Vers quelle heure</span><input class="input" data-s="h" maxlength="20" placeholder="Ex. 11 h, midi" value="${esc(st.h)}"></label>
+          <div class="field"><span>Visibilité</span>
+            <div class="seg" role="group" aria-label="Visibilité de l'étape ${i+1}">
+              <button type="button" data-sv="v" aria-pressed="${st.v==="v"}">Visible</button>
+              <button type="button" data-sv="s" aria-pressed="${st.v==="s"}">Surprise</button>
+              <button type="button" data-sv="r" aria-pressed="${st.v==="r"}">Plus tard</button>
+            </div></div>
+        </div>
+        ${st.v!=="s" ? `<label class="field"><span>Activité</span><input class="input" data-s="a" maxlength="80" placeholder="Ex. Brunch" value="${esc(st.a)}"></label>
+        <label class="field"><span>Lieu <em>(facultatif)</em></span><input class="input" data-s="l" maxlength="120" placeholder="Ex. Café Oberkampf, Paris" value="${esc(st.l)}"></label>` : ""}
+        ${st.v!=="v" ? `<label class="field"><span>Indice <em>(facultatif)</em></span><input class="input" data-s="hint" maxlength="100" placeholder="Ex. Prépare ton cerveau" value="${esc(st.hint)}"></label>` : ""}
+        ${st.v==="r" ? `<label class="field"><span>Révéler le</span><input class="input" type="datetime-local" data-s="at" value="${esc(st.at)}"></label>` : ""}
+      </div>`).join("")}
+      ${S.steps.length<6 ? `<button type="button" class="btn" id="addStep" style="width:100%;margin-bottom:18px">Ajouter une étape</button>` : `<p class="hint">6 étapes maximum, pour que le lien reste partageable.</p>`}
+      <p class="group-title">Infos pour la journée <em style="font-weight:400;color:var(--muted)">(facultatif)</em></p>
+      <div class="row2">
+        <label class="field"><span>Fin vers</span><input class="input" type="time" id="end" value="${esc(S.end)}"></label>
+        <label class="field"><span>Point de départ</span><input class="input" id="meet" maxlength="100" placeholder="Ex. Je passe te chercher" value="${esc(S.meet)}"></label>
+      </div>
+      <label class="field"><span>À prévoir</span><input class="input" id="bring" maxlength="100" placeholder="Ex. Tenue confortable, maillot de bain" value="${esc(S.bring)}"></label>
+    `}`;
+  case 3: return `
+    <h2>Quand ?</h2>
+    <p class="lead">${S.mode==="prog" ? "Le jour et l'heure de début." : "Le jour et l'heure du rendez-vous."}</p>
+    <label class="check"><input type="checkbox" id="choose" ${S.choose?"checked":""}><span>Lui laisser choisir parmi plusieurs créneaux</span></label>
+    ${!S.choose ? `
+      <label class="field"><span>Date</span><input class="input" type="date" id="date" min="${todayISO()}" value="${esc(S.date)}"></label>
+      <div class="field"><span>Heure</span>
+        <div class="chips">${HOURS.map(h=>`<button type="button" class="chip" data-hour="${h}" aria-pressed="${S.time===h}">${frTime(h)}</button>`).join("")}</div>
+      </div>
+      <label class="field"><span>Ou une heure précise</span><input class="input" type="time" id="time" value="${esc(S.time)}" style="max-width:180px"></label>
+    ` : `
+      ${S.slots.map((sl,i)=>`<div class="row2" data-slot="${i}">
+        <label class="field"><span>Créneau ${i+1} : date</span><input class="input" type="date" data-sl="d" min="${todayISO()}" value="${esc(sl.d)}"></label>
+        <label class="field"><span>Heure</span><input class="input" type="time" data-sl="t" value="${esc(sl.t)}"></label>
+      </div>`).join("")}
+      ${S.slots.length<3 ? `<button type="button" class="btn" id="addSlot">Ajouter un créneau</button>` : ""}
+    `}`;
+  case 4: {
+    const o=OCC[S.occ]; const cat=o?o.cat:"Autre";
+    if(!S.qEdited) S.q = o ? o.q : "Tu dis oui ?";
+    return `
+    <h2>Les mots</h2>
+    <p class="lead">La question s'affiche en grand, le message apparaît sur la carte.</p>
+    <label class="field"><span>La question</span><input class="input" id="q" maxlength="80" value="${esc(S.q)}"></label>
+    <label class="field"><span>Ton message <em>(facultatif)</em></span><textarea class="input" id="msg" maxlength="300" placeholder="Écris-lui un petit mot…">${esc(S.msg)}</textarea><div class="counter" id="cnt">${S.msg.length} / 300</div></label>
+    <p class="group-title">Besoin d'inspiration ?</p>
+    <div class="chips" style="margin-bottom:16px">${MSG_SUGG[cat].map((m,i)=>`<button type="button" class="chip" data-sugg="${i}">${esc(m)}</button>`).join("")}</div>
+    <label class="check"><input type="checkbox" id="hidden" ${S.hidden?"checked":""}><span>Garder le message caché jusqu'au Oui</span></label>`;
+  }
+  case 5: {
+    const ch=CHANNELS.find(c=>c.id===S.ch);
+    return `
+    <h2>Le Non, et la réponse</h2>
+    <p class="lead">Choisis comment le bouton Non résiste.</p>
+    <div class="cards">${NO_MODES.map(m=>`<button type="button" class="optcard" data-no="${m.id}" aria-pressed="${S.no===m.id}"><b>${m.t}</b><span>${m.d}</span></button>`).join("")}</div>
+    <div class="field"><span>Comment veux-tu recevoir sa réponse ?</span>
+      <div class="chips">${CHANNELS.map(c=>`<button type="button" class="chip" data-ch="${c.id}" aria-pressed="${S.ch===c.id}">${c.t}</button>`).join("")}</div>
+      <p class="hint">${S.ch==="any" ? "Elle choisira l'appli au moment de répondre." : (S.ch==="wa"||S.ch==="sms") ? "Le message s'ouvrira déjà écrit, elle n'aura qu'à l'envoyer." : "Cette appli ne permet pas de pré-écrire le message : la réponse sera copiée, elle n'aura qu'à la coller."}</p>
+    </div>
+    ${ch.need ? `<label class="field"><span>${(S.ch==="wa"||S.ch==="sms")?"Ton numéro":"Ton nom d'utilisateur"}</span><input class="input" id="chId" maxlength="40" placeholder="${ch.ph}" value="${esc(S.chId)}" ${(S.ch==="wa"||S.ch==="sms")?'inputmode="tel"':''}></label>
+    <p class="hint">Il sera inclus dans le lien, visible seulement par les personnes qui l'ont.</p>` : ""}`;
+  }
+  case 6: return `
+    <h2>Tout est bon ?</h2>
+    <p class="lead">Vérifie, teste, puis crée ton lien.</p>
+    <ul class="recap">
+      <li><b>De / pour</b><span>${esc(S.from)} → ${esc(S.to)}</span></li>
+      <li><b>Occasion</b><span>${esc(occLabel())}</span></li>
+      <li><b>Question</b><span>${esc(S.q)}</span></li>
+      <li><b>Prévu</b><span>${recapPlan()}</span></li>
+      <li><b>Quand</b><span>${S.choose ? S.slots.filter(s=>s.d&&s.t).map(s=>esc(frDate(s.d)+" à "+frTime(s.t))).join("<br>")+"<br><em>Elle choisit</em>" : esc(frDate(S.date)+" à "+frTime(S.time))}</span></li>
+      <li><b>Message</b><span>${S.msg?esc(S.msg)+(S.hidden?" <em>(caché jusqu'au Oui)</em>":""):"<em>Aucun</em>"}</span></li>
+      <li><b>Animations</b><span>${{n:"Normales",d:"Discrètes","0":"Aucune"}[S.anim]}</span></li>
+      <li><b>Le Non</b><span>${NO_MODES.find(m=>m.id===S.no).t}</span></li>
+      <li><b>Réponse via</b><span>${CHANNELS.find(c=>c.id===S.ch).t}${S.chId?" ("+esc(S.chId)+")":""}</span></li>
+    </ul>
+    <div class="btns">
+      <button type="button" class="btn" id="preview">Tester l'invitation</button>
+      <button type="button" class="btn primary" id="make">Créer mon lien</button>
+    </div>
+    <div id="result" class="${S.link?"":"hidden"}">
+      <p class="group-title">Ton lien est prêt</p>
+      <div class="linkbox" id="linkbox">${esc(S.link)}</div>
+      <div class="btns">
+        <button type="button" class="btn primary" id="copy">Copier le lien</button>
+        ${navigator.share ? `<button type="button" class="btn" id="share">Partager</button>` : ""}
+      </div>
+      <p class="hint">Envoie-le par message. Rien n'expire, rien n'est stocké.</p>
+    </div>`;
+  }
+}
+function occLabel(){ if(S.occ==="libre") return S.occFree || "Autre"; return OCC[S.occ]?.label || ""; }
+function itemRecap(it){ return it.v==="s" ? "Surprise"+(it.h?` (indice : ${esc(it.h)})`:"") : it.v==="r" ? `${esc(it.x)} <em>(révélé le ${esc(it.at.replace("T"," à "))})</em>` : esc(it.x); }
+function recapPlan(){
+  if(S.mode==="one") return `${itemRecap(S.act)}<br>${S.lieu.v==="v"&&!S.lieu.x?"<em>Lieu non précisé</em>":itemRecap(S.lieu)}`;
+  return S.steps.map(st=>`${esc(st.h||"?")} : ${st.v==="s"?"Surprise":esc(st.a)}${st.v==="r"?" <em>(révélé plus tard)</em>":""}`).join("<br>");
+}
+
+function readStep(){
+  const v=id=>{const e=$("#"+id);return e?e.value.trim():undefined;};
+  switch(S.step){
+  case 0: S.to=v("to"); S.from=v("from"); break;
+  case 1: if($("#occFree")) S.occFree=v("occFree"); break;
+  case 2:
+    if(S.mode==="one"){
+      ["act","lieu"].forEach(k=>{ const box=$(`[data-vis="${k}"]`); $$("[data-k]",box).forEach(inp=>S[k][inp.dataset.k]=inp.value.trim()); });
+      S.details=v("details")||"";
+    } else {
+      $$(".prog-step").forEach(box=>{ const st=S.steps[+box.dataset.step]; $$("[data-s]",box).forEach(inp=>st[inp.dataset.s]=inp.value.trim()); });
+      S.end=v("end")||""; S.meet=v("meet")||""; S.bring=v("bring")||"";
+    } break;
+  case 3:
+    if(!S.choose){ S.date=v("date")||""; const t=v("time"); if(t) S.time=t; }
+    else $$("[data-slot]").forEach(r=>{ const sl=S.slots[+r.dataset.slot]; $$("[data-sl]",r).forEach(i=>sl[i.dataset.sl]=i.value); });
+    break;
+  case 4: { const q=v("q"); if(q!==S.q){S.q=q;S.qEdited=true;} S.msg=$("#msg").value.trim(); S.hidden=$("#hidden").checked; break; }
+  case 5: if($("#chId")) S.chId=v("chId"); break;
+  }
+}
+function validate(){
+  const now=new Date();
+  const futureOk=at=>at && new Date(at)>now;
+  switch(S.step){
+  case 0: if(!S.to||!S.from) return "Indique vos deux prénoms (ou surnoms)."; break;
+  case 1: if(!S.occ) return "Choisis une occasion."; break;
+  case 2:
+    if(S.mode==="one"){
+      if(S.act.v!=="s" && !S.act.x) return "Décris l'activité, ou choisis « Surprise ».";
+      for(const [k,n] of [["act","l'activité"],["lieu","le lieu"]]){ const it=S[k];
+        if(it.v==="r" && !it.x) return `Indique ${n} à révéler.`;
+        if(it.v==="r" && !futureOk(it.at)) return `Choisis une date de révélation à venir pour ${n}.`; }
+    } else {
+      for(const [i,st] of S.steps.entries()){
+        if(st.v!=="s" && !st.a) return `Indique l'activité de l'étape ${i+1}, ou choisis « Surprise ».`;
+        if(st.v==="r" && !futureOk(st.at)) return `Choisis une date de révélation à venir pour l'étape ${i+1}.`;
+      }
+    } break;
+  case 3:
+    if(!S.choose){ if(!S.date) return "Choisis une date."; if(S.date<todayISO()) return "Cette date est déjà passée."; if(!S.time) return "Choisis une heure."; }
+    else { const ok=S.slots.filter(s=>s.d&&s.t); if(ok.length<2) return "Propose au moins deux créneaux complets (date et heure)."; if(ok.some(s=>s.d<todayISO())) return "Un des créneaux est déjà passé."; }
+    break;
+  case 4: if(!S.q) return "Écris la question à poser."; break;
+  case 5: if(CHANNELS.find(c=>c.id===S.ch).need && !S.chId) return "Indique où recevoir la réponse."; break;
+  }
+  return "";
+}
+
+function bindCreator(){
+  const f=$("#form");
+  f.addEventListener("submit",e=>{
+    e.preventDefault(); readStep();
+    const err=validate();
+    if(err){ const el=$("#err"); el.textContent=err; el.classList.remove("hidden"); return; }
+    S.step++; S.link=""; renderCreator(); window.scrollTo({top:0});
+  });
+  $("#back")?.addEventListener("click",()=>{ readStep(); S.step--; renderCreator(); window.scrollTo({top:0}); });
+  const rerender=()=>{ renderCreator(); };
+
+  // Étape 1
+  $$("[data-occ]").forEach(b=>b.addEventListener("click",()=>{
+    readStep(); S.occ=b.dataset.occ; if(!S.themeManual) S.theme=OCC[S.occ].theme;
+    if(S.occ==="surprise" && S.mode==="one" && !S.act.x) S.mode="prog";
+    rerender();
+  }));
+  $$("[data-th]").forEach(b=>b.addEventListener("click",()=>{ readStep(); S.theme=b.dataset.th; S.themeManual=true; rerender(); }));
+  $$("[data-anim]").forEach(b=>b.addEventListener("click",()=>{ readStep(); S.anim=b.dataset.anim; rerender(); }));
+  // Étape 2
+  $$("[data-mode]").forEach(b=>b.addEventListener("click",()=>{ readStep(); S.mode=b.dataset.mode; rerender(); }));
+  $$("[data-vis]").forEach(box=>$$("[data-v]",box).forEach(b=>b.addEventListener("click",()=>{ readStep(); S[box.dataset.vis].v=b.dataset.v; rerender(); })));
+  $$(".prog-step").forEach(box=>$$("[data-sv]",box).forEach(b=>b.addEventListener("click",()=>{ readStep(); S.steps[+box.dataset.step].v=b.dataset.sv; rerender(); })));
+  $$("[data-del]").forEach(b=>b.addEventListener("click",()=>{ readStep(); S.steps.splice(+b.dataset.del,1); rerender(); }));
+  $("#addStep")?.addEventListener("click",()=>{ readStep(); S.steps.push({h:"",a:"",l:"",v:"v",hint:"",at:""}); rerender(); });
+  // Étape 3
+  $("#choose")?.addEventListener("change",e=>{ readStep(); S.choose=e.target.checked; rerender(); });
+  $$("[data-hour]").forEach(b=>b.addEventListener("click",()=>{ readStep(); S.time=b.dataset.hour; rerender(); }));
+  $("#addSlot")?.addEventListener("click",()=>{ readStep(); S.slots.push({d:"",t:""}); rerender(); });
+  // Étape 4
+  $("#msg")?.addEventListener("input",e=>{ $("#cnt").textContent=`${e.target.value.length} / 300`; });
+  $$("[data-sugg]").forEach(b=>b.addEventListener("click",()=>{ $("#msg").value=b.textContent; $("#cnt").textContent=`${b.textContent.length} / 300`; }));
+  // Étape 5
+  $$("[data-no]").forEach(b=>b.addEventListener("click",()=>{ readStep(); S.no=b.dataset.no; rerender(); }));
+  $$("[data-ch]").forEach(b=>b.addEventListener("click",()=>{ readStep(); if(S.ch!==b.dataset.ch) S.chId=""; S.ch=b.dataset.ch; rerender(); }));
+  // Étape 6
+  $("#preview")?.addEventListener("click",async()=>{ const url=await buildLink(); window.open(url,"_blank","noopener"); });
+  $("#make")?.addEventListener("click",async()=>{
+    S.link=await buildLink(); $("#linkbox").textContent=S.link; $("#result").classList.remove("hidden");
+    if(S.link.length>1800) toast("Le lien est long : raccourcis le message si l'appli le coupe.");
+  });
+  $("#copy")?.addEventListener("click",async()=>{ toast(await copyText(S.link)?"Lien copié":"Copie impossible, sélectionne le lien à la main"); });
+  $("#share")?.addEventListener("click",()=>navigator.share({title:"Ose Demander",text:`${S.to}, j'ai une question pour toi 💌`,url:S.link}).catch(()=>{}));
+}
+
+function packItem(it){
+  if(it.v==="s") return {v:"s", h:it.h||undefined};
+  if(it.v==="r") return {v:"r", h:it.h||undefined, at:it.at, e:scramble(it.x)};
+  return it.x ? {v:"v", x:it.x} : undefined;
+}
+async function buildLink(){
+  const d={ f:S.from, t:S.to, o:S.occ, th:S.theme, q:S.q, n:S.no, c:S.ch };
+  if(S.occ==="libre") d.of=S.occFree;
+  if(S.chId) d.ci=S.chId;
+  if(S.anim!=="n") d.an=S.anim;
+  if(S.msg){ d.m=S.msg; if(S.hidden) d.mh=1; }
+  if(S.mode==="one"){
+    d.a=packItem(S.act); const l=packItem(S.lieu); if(l) d.l=l; if(S.details) d.dt=S.details;
+  } else {
+    d.p=S.steps.map(st=>{
+      if(st.v==="s") return {h:st.h, v:"s", i:st.hint||undefined};
+      if(st.v==="r") return {h:st.h, v:"r", i:st.hint||undefined, at:st.at, e:scramble(JSON.stringify({a:st.a,l:st.l}))};
+      return {h:st.h, v:"v", a:st.a, l:st.l||undefined};
+    });
+    if(S.end) d.en=S.end; if(S.meet) d.me=S.meet; if(S.bring) d.br=S.bring;
+  }
+  if(S.choose) d.sl=S.slots.filter(s=>s.d&&s.t).map(s=>[s.d,s.t]);
+  else { d.d=S.date; d.h=S.time; }
+  const base=location.href.split("#")[0];
+  return base+"#i="+await encodeData(d);
+}
+
+/* =========================================================
+   INVITATION (côté destinataire)
+   ========================================================= */
+let D=null, chosenSlot=null, countTimer=null, yesDone=false;
+const REDUCED = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const invAnim = () => REDUCED ? "0" : (D && D.an) || "n";
+const buzz = pat => { if(invAnim()!=="0" && navigator.vibrate) try{ navigator.vibrate(pat); }catch(e){} };
+function soundBtn(){ return `<button type="button" class="snd" id="snd" aria-pressed="${Sound.on}">${Sound.on?"🔊 Son":"🔇 Son"}</button>`; }
+function bindSound(){ $("#snd")?.addEventListener("click",()=>{ Sound.on=!Sound.on; Sound.init(); const b=$("#snd"); b.setAttribute("aria-pressed",Sound.on); b.textContent=Sound.on?"🔊 Son":"🔇 Son"; Sound.pop(); }); }
+
+function renderEnvelope(){
+  setTheme(D.th||"base", invAnim());
+  document.title = `${D.f} a une question pour toi`;
+  const initial = (D.f||"?").trim().charAt(0).toUpperCase();
+  $("#app").innerHTML = `
+  <main class="env-screen">
+    ${soundBtn()}
+    <p class="env-from">${esc(D.f)} t'a envoyé une invitation</p>
+    <button type="button" class="envelope ${invAnim()==="n"?"wiggle":""}" id="env" aria-label="Ouvrir l'invitation">
+      <span class="env-back"></span>
+      <span class="env-paper">Pour ${esc(D.t)}</span>
+      <svg class="env-front" viewBox="0 0 300 200" preserveAspectRatio="none" aria-hidden="true">
+        <path d="M2 2 L150 118 L298 2 L298 188 Q298 198 288 198 L12 198 Q2 198 2 188 Z" style="fill:var(--accent)" />
+        <path d="M2 2 L150 118 L298 2 L298 188 Q298 198 288 198 L12 198 Q2 198 2 188 Z" fill="rgba(0,0,0,.08)" style="stroke:var(--ink)" stroke-width="2.5" stroke-linejoin="round"/>
+        <path d="M4 196 L122 96 M296 196 L178 96" style="stroke:var(--ink)" stroke-width="1.5" opacity=".3"/>
+      </svg>
+      <span class="env-flap"><svg viewBox="0 0 300 116" preserveAspectRatio="none" aria-hidden="true">
+        <path d="M2 2 L298 2 L150 114 Z" style="fill:var(--accent);stroke:var(--ink)" stroke-width="2.5" stroke-linejoin="round"/>
+        <path d="M2 2 L298 2 L150 114 Z" fill="rgba(255,255,255,.14)"/>
+      </svg><span class="seal" aria-hidden="true">${esc(initial)}</span></span>
+    </button>
+    <p class="env-hint">Touche l'enveloppe pour l'ouvrir</p>
+  </main>`;
+  bindSound();
+  let opened=false;
+  $("#env").addEventListener("click",()=>{
+    if(opened) return; opened=true;
+    $("#env").classList.add("open"); $(".env-screen").classList.add("opened"); Sound.pop(); buzz(20);
+    setTimeout(renderInvite, invAnim()==="0" ? 0 : 1150);
+  });
+}
+
+function enableTilt(){
+  window.onmousemove=null;
+  if(invAnim()!=="n" || !matchMedia("(pointer:fine)").matches) return;
+  window.onmousemove=e=>{
+    const tk=$(".ticket"); if(!tk) return;
+    const rx=(e.clientY/innerHeight-.5)*-7, ry=(e.clientX/innerWidth-.5)*7;
+    tk.style.transform=`perspective(900px) rotateX(${rx.toFixed(2)}deg) rotateY(${ry.toFixed(2)}deg)`;
+  };
+}
+
+function renderInvite(){
+  setTheme(D.th||"base", invAnim());
+  const occ = D.o==="libre" ? (D.of||"") : (OCC[D.o]?.label||"");
+  document.title = `${D.f} a une question pour toi`;
+  $("#app").innerHTML = `
+  ${soundBtn()}
+  <main class="inv">
+    <div class="ticket pop-in">
+      <div class="stub"><div>De<b>${esc(D.f)}</b></div><div style="text-align:right">Pour<b>${esc(D.t)}</b></div></div>
+      <div class="perf" aria-hidden="true"></div>
+      <div class="main" id="main">
+        ${occ?`<p class="occ">${esc(occ)}</p>`:""}
+        <h1 class="question">${esc(D.q)}</h1>
+        ${D.m && !D.mh ? `<p class="handnote" style="margin:-8px 0 22px">${esc(D.m)}</p>` : ""}
+        <div class="answer" id="answer">
+          <button class="yes" id="yes" type="button">Oui</button>
+          <button class="no" id="no" type="button">Non</button>
+        </div>
+        <p class="tease" id="tease" aria-live="polite"></p>
+      </div>
+    </div>
+    <p class="foot"><a href="./">Crée la tienne sur Ose Demander</a></p>
+  </main>`;
+  bindSound();
+  bindNo();
+  $("#yes").addEventListener("click", sayYes);
+  enableTilt();
+}
+
+function bindNo(){
+  const no=$("#no"), yes=$("#yes"), tease=$("#tease");
+  let n=0;
+  const lines=["Raté !","Essaie encore","Tu es sûr·e ?","Le Non est en grève aujourd'hui","Il reste un bouton, regarde à gauche 👀","Allez…"];
+  let last=0;
+  const hit=()=>{ const now=Date.now(); if(now-last<250) return; last=now; Decor.react(); Sound.no(); buzz(25); };
+  const say=()=>{ tease.textContent=lines[Math.min(n,lines.length-1)]; n++; hit(); };
+  if(D.n==="fuit"){
+    const flee=e=>{
+      if(e) e.preventDefault();
+      const r=no.getBoundingClientRect(), yr=yes.getBoundingClientRect();
+      const W=window.innerWidth, H=window.innerHeight, m=16;
+      let x,y,tries=0;
+      do{ x=m+Math.random()*(W-r.width-2*m); y=m+Math.random()*(H-r.height-2*m); tries++; }
+      while(tries<30 && (Math.abs(x-r.left)<90 && Math.abs(y-r.top)<60 || (x<yr.right+20 && x+r.width>yr.left-20 && y<yr.bottom+20 && y+r.height>yr.top-20)));
+      if(!no.classList.contains("flee")){ document.body.appendChild(no); no.style.left=r.left+"px"; no.style.top=r.top+"px"; no.classList.add("flee"); no.offsetHeight; }
+      no.style.left=x+"px"; no.style.top=y+"px"; say();
+    };
+    no.addEventListener("pointerenter",e=>{ if(e.pointerType==="mouse") flee(); });
+    no.addEventListener("touchstart",flee,{passive:false});
+    no.addEventListener("click",flee);
+  } else if(D.n==="retrecit"){
+    let s=1, ys=1;
+    no.addEventListener("click",()=>{
+      s*=.78; ys=Math.min(ys*1.15,1.9);
+      no.style.transform=`scale(${s})`; yes.style.transform=`scale(${ys})`;
+      if(s<.3){ no.remove(); tease.textContent="Il ne reste qu'une option 😇"; } else say();
+    });
+  } else if(D.n==="supplie"){
+    const beg=["Tu es sûr·e ?","Vraiment vraiment ?","Réfléchis bien…","Je vais pleurer 🥺","Tu me brises le cœur","Dernière chance…"];
+    let i=0;
+    no.addEventListener("click",()=>{
+      if(i<beg.length){ no.textContent=beg[i++]; tease.textContent=""; hit(); }
+      else { no.textContent="Oui"; no.className="yes"; no.onclick=sayYes; }
+    });
+  } else { // transforme
+    const turn=()=>{ if(no.textContent!=="Oui") hit(); no.textContent="Oui"; no.classList.add("yes"); no.classList.remove("no"); };
+    no.addEventListener("pointerenter",turn); no.addEventListener("focus",turn);
+    no.addEventListener("touchstart",turn,{passive:true});
+    no.addEventListener("click",e=>{ turn(); sayYes(e); });
+  }
+}
+
+function sayYes(e){
+  if(yesDone) return;
+  let x=innerWidth/2, y=innerHeight*.5;
+  const src=e && e.currentTarget && e.currentTarget.getBoundingClientRect ? e.currentTarget : $("#yes");
+  if(src){ const r=src.getBoundingClientRect(); x=r.left+r.width/2; y=r.top+r.height/2; }
+  $$(".no.flee").forEach(b=>b.remove());
+  yesDone=true;
+  Decor.burst(x, y, 150); Sound.yes(); buzz([40,60,40]);
+  const main=$("#main");
+  const occ = D.o==="libre" ? (D.of||"") : (OCC[D.o]?.label||"");
+  main.innerHTML = `
+    <div class="pop-in">
+      <p class="occ">${esc(occ)}</p>
+      <h1 class="question" style="margin-bottom:8px">C'est un oui !</h1>
+      <p style="color:var(--muted);margin:0">${esc(D.f)} va être ravi·e.</p>
+      ${D.m ? `<p class="handnote">${esc(D.m)}</p>` : ""}
+      <div class="details" id="details">${detailsHTML()}</div>
+      <div class="after-actions" id="actions">${actionsHTML()}</div>
+    </div>`;
+  bindAfter();
+  startCountdowns();
+}
+
+function revealable(at){ return at && new Date(at) <= new Date(); }
+function countdown(at){
+  let s=Math.max(0,Math.floor((new Date(at)-new Date())/1000));
+  const d=Math.floor(s/86400); s%=86400; const h=Math.floor(s/3600); s%=3600; const m=Math.floor(s/60); s%=60;
+  return (d?d+" j ":"")+String(h).padStart(2,"0")+" h "+String(m).padStart(2,"0")+" min "+String(s).padStart(2,"0")+" s";
+}
+function mapsLink(place){ return `<a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(place)}" target="_blank" rel="noopener">${esc(place)}</a><br><small>Voir sur la carte</small>`; }
+function lockedHTML(label, hint, at){
+  return `<div class="locked"><span class="lk" aria-hidden="true">🔒</span><div><strong>${label}</strong>
+    ${hint?`<small>Indice : ${esc(hint)}</small>`:""}
+    ${at?`<small>Se révèle dans <span class="count" data-at="${esc(at)}">${countdown(at)}</span></small>`:""}</div></div>`;
+}
+function itemHTML(it, kind){
+  if(!it) return "";
+  if(it.v==="v") return kind==="lieu" ? mapsLink(it.x) : `<strong>${esc(it.x)}</strong>`;
+  if(it.v==="r" && revealable(it.at)){ const val=unscramble(it.e); return kind==="lieu" ? mapsLink(val) : `<strong>${esc(val)}</strong>`; }
+  return lockedHTML("Surprise", it.h, it.v==="r"?it.at:null);
+}
+function whenText(){
+  if(D.sl){ if(chosenSlot===null) return null; const s=D.sl[chosenSlot]; return `${frDate(s[0])} à ${frTime(s[1])}`; }
+  return `${frDate(D.d)} à ${frTime(D.h)}`;
+}
+function detailsHTML(){
+  let h="";
+  // Quand
+  if(D.sl){
+    h+=`<div class="d-row"><small>Quand</small>${chosenSlot===null
+      ? `<strong>Choisis ton créneau</strong><div class="slots">${D.sl.map((s,i)=>`<button type="button" class="chip" data-pick="${i}">${esc(frDate(s[0]))} à ${esc(frTime(s[1]))}</button>`).join("")}</div>`
+      : `<strong>${esc(whenText())}</strong> <button type="button" class="linkbtn" id="repick">Changer</button>`}</div>`;
+  } else h+=`<div class="d-row"><small>Quand</small><strong>${esc(whenText())}</strong>${D.en?`<small>Jusque vers ${esc(frTime(D.en))}</small>`:""}</div>`;
+  if(D.p){
+    if(D.me) h+=`<div class="d-row"><small>Point de départ</small><strong>${esc(D.me)}</strong></div>`;
+    if(D.br) h+=`<div class="d-row"><small>À prévoir</small><strong>${esc(D.br)}</strong></div>`;
+    h+=`<div class="d-row"><small>Le programme</small><ol class="timeline">${D.p.map(st=>{
+      let body, lock=false;
+      if(st.v==="v") body=`<strong>${esc(st.a)}</strong>${st.l?`<br>${mapsLink(st.l)}`:""}`;
+      else if(st.v==="r" && revealable(st.at)){ const x=JSON.parse(unscramble(st.e)); body=`<strong>${esc(x.a)}</strong>${x.l?`<br>${mapsLink(x.l)}`:""}`; }
+      else { lock=true; body=lockedHTML("Surprise", st.i, st.v==="r"?st.at:null); }
+      return `<li class="${lock?"lock":""}"><div class="h">${esc(st.h||"")}</div>${body}</li>`;
+    }).join("")}</ol></div>`;
+  } else {
+    h+=`<div class="d-row"><small>Au programme</small>${itemHTML(D.a,"act")}</div>`;
+    if(D.l) h+=`<div class="d-row"><small>Où</small>${itemHTML(D.l,"lieu")}</div>`;
+    if(D.dt) h+=`<div class="d-row"><small>Détails</small><strong>${esc(D.dt)}</strong></div>`;
+  }
+  return h;
+}
+function actionsHTML(){
+  const ch=CHANNELS.find(c=>c.id===D.c)||CHANNELS[0];
+  const label = ch.id==="any" ? "Envoyer ma réponse" : `Répondre sur ${ch.t}`;
+  const canCal = !D.sl || chosenSlot!==null;
+  return `
+    <button type="button" class="btn primary" id="reply">${label}</button>
+    ${canCal?`<button type="button" class="btn" id="cal">Ajouter à mon agenda</button>`:""}
+    <button type="button" class="btn ghost" id="copyR">Copier ma réponse</button>`;
+}
+function replyText(){
+  const occ = D.o==="libre" ? (D.of||"ton invitation") : (OCC[D.o]?.label||"ton invitation");
+  let t=`Oui ! ✅ ${D.t} accepte ton invitation (${occ.charAt(0).toLowerCase()+occ.slice(1)}).`;
+  const w=whenText(); if(w) t+=` Rendez-vous ${w}.`;
+  return t+" 💌";
+}
+function cleanPhone(p){ let n=p.replace(/[^\d+]/g,""); if(n.startsWith("+")) return n.slice(1); if(n.startsWith("00")) return n.slice(2); if(n.startsWith("0")) return "33"+n.slice(1); return n; }
+function bindAfter(){
+  $$("[data-pick]").forEach(b=>b.addEventListener("click",()=>{ chosenSlot=+b.dataset.pick; refreshAfter(); }));
+  $("#repick")?.addEventListener("click",()=>{ chosenSlot=null; refreshAfter(); });
+  $("#reply").addEventListener("click",reply);
+  $("#cal")?.addEventListener("click",downloadICS);
+  $("#copyR").addEventListener("click",async()=>toast(await copyText(replyText())?"Réponse copiée":"Copie impossible"));
+}
+function refreshAfter(){ $("#details").innerHTML=detailsHTML(); $("#actions").innerHTML=actionsHTML(); bindAfter(); }
+async function reply(){
+  if(D.sl && chosenSlot===null){ toast("Choisis d'abord ton créneau"); return; }
+  const txt=replyText(), id=D.ci||"";
+  const open=u=>{ window.location.href=u; };
+  switch(D.c){
+    case "wa": open(`https://wa.me/${cleanPhone(id)}?text=${encodeURIComponent(txt)}`); break;
+    case "sms": open(`sms:${id.replace(/\s/g,"")}?&body=${encodeURIComponent(txt)}`); break;
+    case "snap": await copyText(txt); toast("Réponse copiée, colle-la dans le chat 😉"); setTimeout(()=>open(`https://www.snapchat.com/add/${encodeURIComponent(id.replace(/^@/,""))}`),900); break;
+    case "ig": await copyText(txt); toast("Réponse copiée, colle-la dans le chat 😉"); setTimeout(()=>open(`https://ig.me/m/${encodeURIComponent(id.replace(/^@/,""))}`),900); break;
+    case "fb": await copyText(txt); toast("Réponse copiée, colle-la dans le chat 😉"); setTimeout(()=>open(`https://m.me/${encodeURIComponent(id.replace(/^@/,""))}`),900); break;
+    default:
+      if(navigator.share){ navigator.share({text:txt}).catch(()=>{}); }
+      else toast(await copyText(txt)?"Réponse copiée, envoie-la où tu veux":"Copie impossible");
+  }
+}
+function downloadICS(){
+  let d,t;
+  if(D.sl){ [d,t]=D.sl[chosenSlot]; } else { d=D.d; t=D.h; }
+  const [Y,M,Dd]=d.split("-").map(Number), [hh,mm]=t.split(":").map(Number);
+  const start=new Date(Y,M-1,Dd,hh,mm);
+  let end=new Date(start.getTime()+2*3600e3);
+  if(D.en){ const [eh,em]=D.en.split(":").map(Number); end=new Date(Y,M-1,Dd,eh,em); if(end<=start) end.setDate(end.getDate()+1); }
+  const fmt=x=>`${x.getFullYear()}${String(x.getMonth()+1).padStart(2,"0")}${String(x.getDate()).padStart(2,"0")}T${String(x.getHours()).padStart(2,"0")}${String(x.getMinutes()).padStart(2,"0")}00`;
+  const icsEsc=s=>String(s).replace(/[\\;,]/g,m=>"\\"+m).replace(/\n/g,"\\n");
+  const occ = D.o==="libre" ? (D.of||"Invitation") : (OCC[D.o]?.label||"Invitation");
+  let title = D.p ? (D.p.some(s=>s.v!=="v")?"Journée surprise":"Journée") : (D.a && D.a.v==="v" ? D.a.x : "Surprise");
+  title += ` avec ${D.f}`;
+  let loc = (!D.p && D.l && D.l.v==="v") ? D.l.x : (D.me||"");
+  const desc = `${occ}. Invitation créée avec Ose Demander.`;
+  const ics=["BEGIN:VCALENDAR","VERSION:2.0","PRODID:-//Ose Demander//FR","BEGIN:VEVENT",
+    `UID:${Date.now()}@ose-demander`,`DTSTAMP:${fmt(new Date())}`,`DTSTART:${fmt(start)}`,`DTEND:${fmt(end)}`,
+    `SUMMARY:${icsEsc(title)}`, loc?`LOCATION:${icsEsc(loc)}`:"", `DESCRIPTION:${icsEsc(desc)}`,
+    "END:VEVENT","END:VCALENDAR"].filter(Boolean).join("\r\n");
+  const url=URL.createObjectURL(new Blob([ics],{type:"text/calendar"}));
+  const a=document.createElement("a"); a.href=url; a.download="invitation.ics"; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),2000);
+}
+function startCountdowns(){
+  clearInterval(countTimer);
+  countTimer=setInterval(()=>{
+    const els=$$(".count[data-at]"); if(!els.length){ clearInterval(countTimer); return; }
+    let reveal=false;
+    els.forEach(el=>{ if(revealable(el.dataset.at)) reveal=true; else el.textContent=countdown(el.dataset.at); });
+    if(reveal){ refreshAfter(); toast("Une surprise vient de se révéler ✨"); }
+  },1000);
+}
+
+/* ---------- Décor animé + explosions (selon le thème) ---------- */
+const DECOR = {
+  base:   {shape:"q",        move:"rise",    cols:["#E83F86","#1F1546","#A893EE"], react:"fall",  burst:["q","confetti"]},
+  amour:  {shape:"heart",    move:"rise",    cols:["#D9245F","#F06A93","#F7A1BB"], react:"break"},
+  maman:  {shape:"petal",    move:"fall",    cols:["#E0592F","#F2A33A","#F4B6A0"], react:"gust"},
+  papa:   {shape:"star5",    move:"drift",   cols:["#D99A1E","#14254A","#7C93C3"], react:"fall"},
+  amis:   {shape:"bubble",   move:"bounce",  cols:["#2F5BFF","#FF5B3A","#22200F"], react:"pop",   burst:["bubble","confetti"]},
+  fete:   {shape:"confetti", move:"fall",    cols:["#F2484B","#3D7CF2","#F2B33D","#3CC48A"], react:"gust"},
+  mystere:{shape:"sparkle",  move:"twinkle", cols:["#FFC94A","#F2EEFF"], react:"fall"}
+};
+
+const Decor = (() => {
+  const back=document.getElementById("decor"), front=document.getElementById("confetti");
+  const bx=back.getContext("2d"), fx=front.getContext("2d");
+  let W=0,H=0, theme="base", level="n", P=[], B=[], raf=null, fraf=null, t=0, gust=0, shoot=null, nextShoot=300;
+  const rnd=(a,b)=>a+Math.random()*(b-a);
+  const cfg=()=>DECOR[theme]||DECOR.base;
+  const eff=()=>REDUCED_ANIM ? "0" : level;
+  const pick=a=>a[Math.floor(Math.random()*a.length)];
+
+  function size(){
+    const dpr=Math.min(window.devicePixelRatio||1,2); W=innerWidth; H=innerHeight;
+    for(const c of [back,front]){ c.width=W*dpr; c.height=H*dpr; c.style.width=W+"px"; c.style.height=H+"px"; }
+    bx.setTransform(dpr,0,0,dpr,0,0); fx.setTransform(dpr,0,0,dpr,0,0);
+  }
+  function make(initial){
+    const c=cfg(), k=eff()==="d"?.6:1;
+    const p={x:rnd(0,W), y:rnd(0,H), s:rnd(6,11), r:rnd(0,6.28), vr:rnd(-.015,.015)*k, c:pick(c.cols), ph:rnd(0,6.28), a:rnd(.3,.7), st:null, n:0, vx:0, vy:0};
+    if(eff()==="d") p.a*=.75;
+    switch(c.move){
+      case "rise": p.vy=-rnd(.25,.6)*k; if(!initial) p.y=H+20; break;
+      case "fall": p.vx=rnd(-.2,.2)*k; p.vy=rnd(.35,.8)*k; p.vr=rnd(-.04,.04)*k; if(!initial) p.y=-20; break;
+      case "drift": p.vx=rnd(-.35,.35)*k; p.vy=rnd(-.25,.25)*k; if(!initial) p.y=-15; break;
+      case "bounce": p.vx=rnd(-.6,.6)*k; p.vy=rnd(-.6,.6)*k; p.s=rnd(7,14); break;
+      case "twinkle": p.s=rnd(4,9); break;
+    }
+    return p;
+  }
+  function populate(){ const e=eff(); const n=e==="0"?0:e==="d"?7:(W<600?12:18); P=Array.from({length:n},()=>make(true)); }
+
+  function shape(ctx,kind,s,col){
+    ctx.fillStyle=col; ctx.strokeStyle=col; ctx.beginPath();
+    switch(kind){
+      case "heart":
+        ctx.moveTo(0,s*.8); ctx.bezierCurveTo(-s*1.2,-s*.1,-s*.6,-s,0,-s*.4); ctx.bezierCurveTo(s*.6,-s,s*1.2,-s*.1,0,s*.8); ctx.fill(); break;
+      case "petal": ctx.ellipse(0,0,s*.45,s,0,0,Math.PI*2); ctx.fill(); break;
+      case "star5":
+        for(let i=0;i<10;i++){ const r=i%2?s*.45:s, a=i*Math.PI/5-Math.PI/2; ctx.lineTo(Math.cos(a)*r,Math.sin(a)*r); } ctx.closePath(); ctx.fill(); break;
+      case "sparkle":
+        ctx.moveTo(0,-s); ctx.quadraticCurveTo(0,0,s,0); ctx.quadraticCurveTo(0,0,0,s); ctx.quadraticCurveTo(0,0,-s,0); ctx.quadraticCurveTo(0,0,0,-s); ctx.fill(); break;
+      case "bubble":
+        ctx.lineWidth=2; ctx.arc(0,0,s,0,Math.PI*2); ctx.stroke(); ctx.beginPath(); ctx.arc(-s*.35,-s*.35,s*.2,0,Math.PI*2); ctx.fill(); break;
+      case "confetti": ctx.fillRect(-s*.6,-s*.25,s*1.2,s*.5); break;
+      case "q": ctx.font=`700 ${s*2.2}px Georgia, serif`; ctx.textAlign="center"; ctx.textBaseline="middle"; ctx.fillText("?",0,0); break;
+    }
+  }
+
+  function step(){
+    t++; bx.clearRect(0,0,W,H); gust*=.965;
+    const c=cfg();
+    for(let i=0;i<P.length;i++){
+      const p=P[i];
+      if(p.st==="fall"){ p.vy+=.22; p.x+=p.vx; p.y+=p.vy; p.r+=.08; if(p.y>H+30){ P[i]=make(c.move!=="fall"&&c.move!=="rise"); continue; } }
+      else if(p.st==="break"){ p.n++; p.vy+=.12; p.y+=p.vy; if(p.n>70){ P[i]=make(false); continue; } }
+      else if(p.st==="pop"){ p.n++; if(p.n>18){ P[i]=make(true); continue; } }
+      else {
+        const sway = c.move==="rise" ? Math.sin(t*.02+p.ph)*.35 : 0;
+        p.x+=p.vx+gust+sway; p.y+=p.vy; p.r+=p.vr;
+        if(c.move==="bounce"){ if(p.x<p.s||p.x>W-p.s) p.vx*=-1; if(p.y<p.s||p.y>H-p.s) p.vy*=-1; }
+        else {
+          if(p.y<-30||p.y>H+30){ P[i]=make(false); continue; }
+          if(p.x<-30) p.x=W+20; if(p.x>W+30) p.x=-20;
+        }
+      }
+      let a=p.a;
+      if(c.move==="twinkle" && !p.st) a=.12+.7*Math.abs(Math.sin(t*.015+p.ph));
+      bx.save(); bx.globalAlpha=a; bx.translate(p.x,p.y);
+      if(p.st==="break"){
+        bx.globalAlpha=a*(1-p.n/70);
+        for(const side of [-1,1]){
+          bx.save(); bx.translate(side*p.n*.5,0); bx.rotate(side*p.n*.025);
+          bx.beginPath(); bx.rect(side<0?-p.s*2:0,-p.s*2,p.s*2,p.s*4); bx.clip(); shape(bx,c.shape,p.s,p.c); bx.restore();
+        }
+      } else if(p.st==="pop"){
+        bx.globalAlpha=a*(1-p.n/18); bx.lineWidth=2; bx.strokeStyle=p.c; bx.beginPath(); bx.arc(0,0,p.s*(1+p.n*.12),0,Math.PI*2); bx.stroke();
+      } else {
+        bx.rotate(c.move==="rise" ? Math.sin(t*.02+p.ph)*.3 : p.r); shape(bx,c.shape,p.s,p.c);
+      }
+      bx.restore();
+    }
+    // Étoile filante (thème Mystère)
+    if(theme==="mystere" && eff()==="n"){
+      if(!shoot && t>nextShoot){ shoot={x:rnd(W*.3,W),y:rnd(0,H*.35),n:0}; nextShoot=t+rnd(420,900); }
+      if(shoot){
+        shoot.n++; const L=90, k=shoot.n*7, x=shoot.x-k, y=shoot.y+k*.45;
+        const g=bx.createLinearGradient(x,y,x+L,y-L*.45); g.addColorStop(0,"rgba(255,233,170,.9)"); g.addColorStop(1,"rgba(255,233,170,0)");
+        bx.strokeStyle=g; bx.lineWidth=2; bx.beginPath(); bx.moveTo(x,y); bx.lineTo(x+L,y-L*.45); bx.stroke();
+        if(shoot.n>45) shoot=null;
+      }
+    }
+    raf=requestAnimationFrame(step);
+  }
+  function start(){ if(!raf && eff()!=="0" && !document.hidden) raf=requestAnimationFrame(step); }
+  function stop(){ if(raf) cancelAnimationFrame(raf); raf=null; }
+
+  function fstep(){
+    fx.clearRect(0,0,W,H);
+    for(const p of B){
+      p.vy+=.3; p.vx*=.985; p.x+=p.vx; p.y+=p.vy; p.r+=p.vr; p.life++;
+      fx.save(); fx.globalAlpha=Math.max(0,1-p.life/p.max); fx.translate(p.x,p.y); fx.rotate(p.r); shape(fx,p.k,p.s,p.c); fx.restore();
+    }
+    B=B.filter(p=>p.life<p.max && p.y<H+40);
+    fraf = B.length ? requestAnimationFrame(fstep) : (fx.clearRect(0,0,W,H), null);
+  }
+
+  document.addEventListener("visibilitychange",()=>{ document.hidden ? stop() : start(); });
+
+  return {
+    set(th, lv){
+      if(th===theme && lv===level && (P.length || lv==="0")) return;
+      theme=th; level=lv; shoot=null; gust=0;
+      populate(); if(eff()==="0"){ stop(); bx.clearRect(0,0,W,H); } else start();
+    },
+    react(){
+      if(eff()==="0" || !P.length) return;
+      const kind=cfg().react||"fall";
+      if(kind==="gust"){ gust=(Math.random()<.5?-1:1)*5; return; }
+      const free=P.filter(p=>!p.st).sort(()=>Math.random()-.5).slice(0,3);
+      free.forEach(p=>{ p.st=kind; p.n=0; p.vy=kind==="fall"?1:.4; p.vx=rnd(-1,1); });
+    },
+    burst(x,y,n,small){
+      const e=eff(); if(e==="0") return;
+      const c=cfg(), kinds=c.burst||[c.shape];
+      const cols = theme==="fete"||theme==="base" ? [...c.cols,"#FFC94A","#3CC48A"] : c.cols;
+      const count=Math.round(n*(e==="d"?.45:1)), sp=small?.45:1;
+      for(let i=0;i<count;i++) B.push({x,y,vx:rnd(-9,9)*sp,vy:rnd(-15,-5)*sp,s:rnd(6,12),r:rnd(0,6.28),vr:rnd(-.2,.2),c:pick(cols),k:pick(kinds),life:0,max:rnd(90,150)});
+      if(!fraf) fraf=requestAnimationFrame(fstep);
+    },
+    resize(){ size(); populate(); }
+  };
+})();
+const REDUCED_ANIM = matchMedia("(prefers-reduced-motion: reduce)").matches;
+Decor.resize();
+window.addEventListener("resize",()=>Decor.resize());
+
+/* ---------- Son (désactivé par défaut) ---------- */
+const Sound = {
+  on:false, ctx:null,
+  init(){ try{ if(!this.ctx) this.ctx=new (window.AudioContext||window.webkitAudioContext)(); if(this.ctx.state==="suspended") this.ctx.resume(); }catch(e){} },
+  tone(f1,f2,dur,type="sine",vol=.1,delay=0){
+    if(!this.on||!this.ctx) return;
+    const c=this.ctx, t0=c.currentTime+delay, o=c.createOscillator(), g=c.createGain();
+    o.type=type; o.frequency.setValueAtTime(f1,t0); o.frequency.exponentialRampToValueAtTime(f2,t0+dur);
+    g.gain.setValueAtTime(vol,t0); g.gain.exponentialRampToValueAtTime(.001,t0+dur);
+    o.connect(g).connect(c.destination); o.start(t0); o.stop(t0+dur+.02);
+  },
+  pop(){ this.tone(700,1300,.09,"sine",.08); },
+  no(){ this.tone(320,170,.18,"triangle",.09); },
+  yes(){ [523,659,784,1047].forEach((f,i)=>this.tone(f,f*1.01,.28,"sine",.09,i*.09)); }
+};
+
+/* ---------- Routage ---------- */
+async function route(){
+  const m=location.hash.match(/^#i=(.+)$/);
+  if(m){
+    try{ D=await decodeData(m[1]); chosenSlot=null; yesDone=false; renderEnvelope(); return; }
+    catch(e){
+      setTheme("base","n");
+      $("#app").innerHTML=`<main class="inv"><div class="ticket"><div class="main"><h1 class="question">Ce lien est incomplet</h1><p>Il a peut-être été coupé en le copiant. Demande à la personne de te le renvoyer en entier.</p><p><a class="btn primary" href="./" style="display:inline-block;text-decoration:none">Créer une invitation</a></p></div></div></main>`;
+      return;
+    }
+  }
+  renderCreator();
+}
+window.addEventListener("hashchange",route);
+// Après le Oui : toucher le fond fait jaillir des éléments du thème
+document.addEventListener("pointerdown",e=>{
+  if(!yesDone || invAnim()==="0") return;
+  if(e.target.closest("button,a,input,textarea,.chip,.ticket")) return;
+  Decor.burst(e.clientX, e.clientY, 16, true); Sound.pop();
+});
+route();
+</script>
+</body>
+</html>
