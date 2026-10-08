@@ -385,6 +385,32 @@ const NO_MODES = [
   {id:"supplie", t:"Il supplie", d:"Des messages de plus en plus dramatiques."},
   {id:"transforme", t:"Il se transforme", d:"Au survol, Non devient « Oui ? »."}
 ];
+/* Ton des messages du Non. « taquin » (par défaut) = les textes d'origine : les anciens liens ne changent pas.
+   lines : sous les boutons ; beg : texte du bouton qui supplie (court) ; giveUp : avant d'accepter le refus ;
+   small : Non au plus petit ; turn : clic sur le Non qui se transforme */
+const NO_TONES = [
+  {id:"taquin", t:"Taquin",
+    lines:["Raté !","Essaie encore","Vraiment ?","Le Non est en grève aujourd'hui","Il reste un bouton, regarde à gauche 👀","Allez…"],
+    beg:["Vraiment ?","Vraiment vraiment ?","Réfléchis bien…","Je vais pleurer 🥺","Tu me brises le cœur","Dernière chance…"],
+    giveUp:"Bon… d'accord 🥲", small:"Il ne peut pas être plus petit 😇", turn:"Il voulait tellement que tu dises oui…"},
+  {id:"drole", t:"Drôle",
+    lines:["Erreur 404 : Non introuvable","Ce bouton est parti en vacances 🏖️","Le Non fait la sieste, repasse plus tard","Bien tenté, mais non","Tu as essayé d'éteindre et de rallumer ?","Le Oui, lui, est très disponible 👀"],
+    beg:["Tu rates un truc génial","Le Oui a des snacks 🍿","Même mon chat dirait oui","Je rajoute un dessert ?","Ça ira dans mes mémoires","Allez, sois sympa 😅"],
+    giveUp:"Bon, j'abandonne 🏳️", small:"Il est devenu microscopique 🔬", turn:"Le Non a changé de camp 😎"},
+  {id:"mignon", t:"Mignon",
+    lines:["Oh non 🥺","Le Non a un peu peur de toi","Il s'est caché !","Le Non préfère faire un câlin","Petit Non timide…","Psst, le Oui est juste là 💛"],
+    beg:["Oh non 🥺","S'il te plaît…","Juste un petit oui ?","Avec des paillettes ✨","Mes yeux de chaton 🐱","Pour me faire plaisir ?"],
+    giveUp:"D'accord… 🥹", small:"Il est tout petit maintenant 🐣", turn:"Le Non voulait juste un câlin 💛"},
+  {id:"theatral", t:"Théâtral",
+    lines:["Ô désespoir !","Quelle tragédie en trois actes…","Le Non a fui la scène !","Rideau ! Ah non, pas encore","Le public retient son souffle","Une ovation pour le Oui ?"],
+    beg:["Ô cruauté !","Mon cœur se brise…","Je m'effondre !","Les violons pleurent 🎻","Ainsi finit l'histoire ?","Un dernier acte…"],
+    giveUp:"Soit. Le rideau tombe 🎭", small:"Il disparaît dans les coulisses", turn:"Coup de théâtre : le Non voulait dire oui !"},
+  {id:"romantique", t:"Romantique",
+    lines:["Même le Non a envie de dire oui","Mon cœur retient son souffle","Le Non s'est perdu dans tes yeux","Ce bouton rêve d'un oui","Un oui, et tout commence","Le Oui t'attend 💗"],
+    beg:["Penses-y encore…","Mon cœur bat plus vite","Imagine-nous là-bas","Juste un petit oui ?","Tant à vivre ensemble…","Une chance pour nous ?"],
+    giveUp:"Je comprends… 💔", small:"Il s'efface doucement", turn:"Le Non a fondu ❤️"}
+];
+const noTone = id => NO_TONES.find(t=>t.id===id) || NO_TONES[0];
 const CHANNELS = [
   {id:"any", t:"Peu importe", ph:"", need:false},
   {id:"wa", t:"WhatsApp", ph:"Ton numéro, ex. 06 12 34 56 78", need:true},
@@ -532,6 +558,7 @@ function sanitize(x){
   d.o=one(x.o,Object.keys(OCC),"juste"); if(d.o==="libre") d.of=str(x.of,40);
   d.th=one(x.th,THEMES.map(t=>t.id),"base");
   d.n=one(x.n,NO_MODES.map(m=>m.id),"fuit");
+  const tn=one(x.tn,NO_TONES.map(t=>t.id),"taquin"); if(tn!=="taquin") d.tn=tn; // ton du Non (absent = taquin)
   d.an=one(x.an,["n","d","0"],"n");
   // Personnalisation (facultative, absente des anciens liens) : listes fermées et longueur limitée
   const ac=one(x.ac,ACCENTS.map(a=>a.id),""); if(ac) d.ac=ac;
@@ -611,7 +638,8 @@ const LINK_CH = {1:"any",2:"wa",3:"sms",4:"snap",5:"ig",6:"fb"};
 const LINK_AN = {1:"n",2:"d",3:"0"};
 const LINK_AC = {1:"framboise",2:"corail",3:"mandarine",4:"or",5:"menthe",6:"ocean",7:"violet",8:"nuit"};
 const LINK_EM = {1:"💌",2:"❤️",3:"🌹",4:"💍",5:"🌷",6:"👔",7:"🎂",8:"🎉",9:"🎁",10:"✨",11:"🍕",12:"☕"};
-const LINK_KEYS = ["f","t","o","F","q","T","n","A","C","E","s","S","c","i","m","H","a","l","D","p","e","M","b","w","L"];
+const LINK_TONE = {1:"taquin",2:"drole",3:"mignon",4:"theatral",5:"romantique"};
+const LINK_KEYS = ["f","t","o","F","q","T","n","N","A","C","E","s","S","c","i","m","H","a","l","D","p","e","M","b","w","L"];
 /* Dates : minutes depuis le 1er janvier 2026 (heure locale de l'invitation, sans fuseau) */
 const LINK_T0 = Date.UTC(2026,0,1), LINK_TMAX = 60*24*366*100;
 const own = (o,k) => Object.prototype.hasOwnProperty.call(o,k);
@@ -629,6 +657,7 @@ function packLink(d){
   c.q=phrase(d.q);
   if(d.th!==OCC[d.o].theme) c.T=code(LINK_TH,d.th);
   if(d.n!=="fuit") c.n=code(LINK_NO,d.n);
+  if(d.tn) c.N=code(LINK_TONE,d.tn);
   if(d.an!=="n") c.A=code(LINK_AN,d.an);
   if(d.ac) c.C=code(LINK_AC,d.ac);
   if(d.em) c.E=code(LINK_EM,d.em);
@@ -675,6 +704,7 @@ function unpackLink(c){
   x.q=phrase(c.q);
   x.th = has("T") ? dec(LINK_TH,c.T) : OCC[x.o].theme;
   x.n = has("n") ? dec(LINK_NO,c.n) : "fuit";
+  if(has("N")) x.tn=dec(LINK_TONE,c.N);
   x.an = has("A") ? dec(LINK_AN,c.A) : "n";
   if(has("C")) x.ac=dec(LINK_AC,c.C);
   if(has("E")) x.em=dec(LINK_EM,c.E);
@@ -710,23 +740,23 @@ function unpackLink(c){
 const TEMPLATES = [
   {id:"rdv", cat:"Amour", label:"Premier rendez-vous", occ:"date", theme:"amour", no:"fuit", em:"💌",
     q:"Ça te dit un rendez-vous avec moi ?", msg:"Prépare ton plus beau sourire, je m'occupe du reste."},
-  {id:"valentin", cat:"Amour", label:"Saint-Valentin", occ:"valentin", theme:"amour", no:"retrecit", em:"🌹",
+  {id:"valentin", cat:"Amour", label:"Saint-Valentin", occ:"valentin", theme:"amour", no:"retrecit", tone:"romantique", em:"🌹",
     q:"Tu passes la Saint-Valentin avec moi ?", msg:"Tu n'as rien à prévoir, juste à dire oui."},
-  {id:"couple", cat:"Amour", label:"Anniversaire de couple", occ:"couple", theme:"amour", no:"supplie", em:"❤️",
+  {id:"couple", cat:"Amour", label:"Anniversaire de couple", occ:"couple", theme:"amour", no:"supplie", tone:"romantique", em:"❤️",
     q:"On fête notre anniversaire ensemble ?", msg:"J'ai envie de passer ce moment avec toi, rien qu'avec toi."},
-  {id:"mariage", cat:"Amour", label:"Demande en mariage", occ:"mariage", theme:"amour", no:"supplie", em:"💍",
+  {id:"mariage", cat:"Amour", label:"Demande en mariage", occ:"mariage", theme:"amour", no:"supplie", tone:"romantique", em:"💍",
     q:"Veux-tu m'épouser ?", msg:"Je veux passer tous mes moments avec toi."},
-  {id:"meres", cat:"Famille", label:"Fête des mères", occ:"meres", theme:"maman", no:"transforme", em:"🌷",
+  {id:"meres", cat:"Famille", label:"Fête des mères", occ:"meres", theme:"maman", no:"transforme", tone:"mignon", em:"🌷",
     q:"Maman, je t'emmène pour la fête des mères ?", msg:"Tu t'occupes toujours de nous, cette fois c'est mon tour."},
-  {id:"peres", cat:"Famille", label:"Fête des pères", occ:"peres", theme:"papa", no:"retrecit", em:"👔",
+  {id:"peres", cat:"Famille", label:"Fête des pères", occ:"peres", theme:"papa", no:"retrecit", tone:"drole", em:"👔",
     q:"Papa, je t'emmène pour la fête des pères ?", msg:"Merci pour tout. Ce moment, c'est pour toi."},
-  {id:"grands", cat:"Famille", label:"Fête des grands-parents", occ:"grands", theme:"maman", no:"supplie", em:"🎁",
+  {id:"grands", cat:"Famille", label:"Fête des grands-parents", occ:"grands", theme:"maman", no:"supplie", tone:"mignon", em:"🎁",
     q:"Je vous invite pour la fête des grands-parents ?", msg:"Un petit moment rien que pour vous, vous l'avez bien mérité."},
-  {id:"soiree", cat:"Amis", label:"Soirée entre amis", occ:"sortie", theme:"amis", no:"fuit", em:"🍕",
+  {id:"soiree", cat:"Amis", label:"Soirée entre amis", occ:"sortie", theme:"amis", no:"fuit", tone:"drole", em:"🍕",
     q:"Tu viens avec moi ?", msg:"Ça fait trop longtemps, on rattrape le temps perdu."},
-  {id:"anniv", cat:"Amis", label:"Un anniversaire", occ:"annivami", theme:"fete", no:"fuit", em:"🎂",
+  {id:"anniv", cat:"Amis", label:"Un anniversaire", occ:"annivami", theme:"fete", no:"fuit", tone:"drole", em:"🎂",
     q:"Je t'invite pour ton anniversaire ?", msg:"Ce ne sera pas pareil sans toi."},
-  {id:"temoin", cat:"Amis", label:"Être mon témoin", occ:"temoin", theme:"amis", no:"supplie", em:"🎉",
+  {id:"temoin", cat:"Amis", label:"Être mon témoin", occ:"temoin", theme:"amis", no:"supplie", tone:"theatral", em:"🎉",
     q:"Tu veux être mon témoin ?", msg:"Je ne vois personne d'autre à mes côtés ce jour-là."},
   {id:"mystere", cat:"Surprise", label:"Journée mystère", occ:"surprise", theme:"mystere", no:"fuit", em:"✨",
     q:"Tu me confies ta journée ?", msg:"Fais-moi confiance, tu vas aimer.",
@@ -751,7 +781,7 @@ const S = {
   end:"", bring:"", meet:"",
   date:"", time:"", choose:false, slots:[{d:"",t:""},{d:"",t:""}],
   q:"", qEdited:false, msg:"", hidden:false,
-  no:"fuit", ch:"any", chId:"", link:"",
+  no:"fuit", tone:"taquin", ch:"any", chId:"", link:"",
   ac:"", em:"", sg:"", snd:true,
   moreOpen:false, open:new Set(), err:"", errSec:""
 };
@@ -759,8 +789,8 @@ const S = {
 function applyTemplate(id){
   const t=TEMPLATES.find(x=>x.id===id);
   const p=(t&&t.plan)||{}, pr=S.preset||{};
-  if(t) Object.assign(S,{tpl:t.id, occ:t.occ, occFree:"", theme:t.theme, q:t.q, qEdited:true, msg:t.msg, no:t.no, em:t.em});
-  else Object.assign(S,{tpl:"zero", occ:"juste", occFree:"", theme:"base", q:OCC.juste.q, qEdited:false, msg:"", no:"fuit", em:""});
+  if(t) Object.assign(S,{tpl:t.id, occ:t.occ, occFree:"", theme:t.theme, q:t.q, qEdited:true, msg:t.msg, no:t.no, tone:t.tone||"taquin", em:t.em});
+  else Object.assign(S,{tpl:"zero", occ:"juste", occFree:"", theme:"base", q:OCC.juste.q, qEdited:false, msg:"", no:"fuit", tone:"taquin", em:""});
   Object.assign(S,{themeManual:false, hidden:false, ac:""});
   // On défait ce que le modèle précédent avait préréglé, si la personne n'y a pas touché
   if(pr.prog && !p.steps) S.mode="one";
@@ -881,7 +911,7 @@ function screenHTML(){
       ${recapRow("Question", esc(S.q), 'data-goto="words"')}
       ${recapRow("Message", S.msg ? esc(S.msg)+(S.hidden?" <em>(caché jusqu'au Oui)</em>":"") : "<em>Aucun</em>", 'data-goto="words"')}
       ${recapRow("Style", styleRecap(), 'data-goto="style"')}
-      ${recapRow("Le Non", esc(NO_MODES.find(m=>m.id===S.no).t), 'data-goto="no"')}
+      ${recapRow("Le Non", esc(NO_MODES.find(m=>m.id===S.no).t)+" · ton "+esc(noTone(S.tone).t.toLowerCase()), 'data-goto="no"')}
       ${recapRow("Réponse via", esc(CHANNELS.find(c=>c.id===S.ch).t)+(S.chId?" ("+esc(S.chId)+")":""), 'data-goto="reply"')}
     </ul>
     <details class="more" id="more" ${S.moreOpen?"open":""}>
@@ -1064,7 +1094,12 @@ function secStyle(){
     <label class="check" style="margin-top:14px"><input type="checkbox" id="sndInv" ${S.snd?"checked":""}><span>Sons dans l'invitation <em style="color:var(--muted)">(sons brefs à l'ouverture, au Non et au Oui ; la personne invitée peut toujours les couper)</em></span></label>`;
 }
 function secNo(){
+  const t=noTone(S.tone);
+  const ex = S.no==="supplie" ? t.beg.slice(0,3) : S.no==="transforme" ? [t.turn] : S.no==="retrecit" ? [t.lines[0], t.small] : t.lines.slice(0,3);
   return `<div class="cards">${NO_MODES.map(m=>`<button type="button" class="optcard" data-no="${m.id}" aria-pressed="${S.no===m.id}"><b>${m.t}</b><span>${m.d}</span></button>`).join("")}</div>
+    <p class="group-title">Le ton des messages</p>
+    <div class="chips" role="group" aria-label="Ton des messages">${NO_TONES.map(x=>`<button type="button" class="chip" data-tone="${x.id}" aria-pressed="${S.tone===x.id}">${x.t}</button>`).join("")}</div>
+    <p class="hint">Par exemple : ${ex.map(e=>`« ${esc(e)} »`).join(" · ")}</p>
     <p class="hint">Quel que soit le mode, un lien discret permet toujours de répondre non pour de vrai.</p>`;
 }
 function secReply(){
@@ -1195,6 +1230,7 @@ function bindCreator(){
   on("[data-delslot]", b=>{ S.slots.splice(+b.dataset.delslot,1); });
   // Le Non, la réponse
   on("[data-no]", b=>{ S.no=b.dataset.no; });
+  on("[data-tone]", b=>{ S.tone=b.dataset.tone; });
   on("[data-ch]", b=>{ if(S.ch!==b.dataset.ch) S.chId=""; S.ch=b.dataset.ch; });
 
   // Aperçu en direct pendant la saisie
@@ -1233,6 +1269,7 @@ function packItem(it){
 async function buildLink(){
   const d={ f:S.from, t:S.to, o:S.occ, th:S.theme, q:S.q, n:S.no, c:S.ch };
   if(S.occ==="libre") d.of=S.occFree;
+  if(S.tone!=="taquin") d.tn=S.tone;
   if(S.chId) d.ci=S.chId;
   if(S.anim!=="n") d.an=S.anim;
   if(S.ac) d.ac=S.ac; if(S.em) d.em=S.em; if(S.sg) d.sg=S.sg;
@@ -1431,7 +1468,7 @@ async function duplicateInvitation(it){
     choose:!!d.sl, date:d.sl?"":d.d, time:d.sl?"":d.h,
     slots:d.sl ? d.sl.map(s=>({d:s[0],t:s[1]})) : [{d:"",t:""},{d:"",t:""}],
     q:d.q, qEdited:!o||d.q!==o.q, msg:d.m||"", hidden:!!d.mh,
-    no:d.n, ch:d.c, chId:d.ci||"", link:"",
+    no:d.n, tone:d.tn||"taquin", ch:d.c, chId:d.ci||"", link:"",
     ac:d.ac||"", em:d.em||"", sg:d.sg||"", snd:d.so!==0
   });
   location.hash=""; // retour au formulaire (voir route)
@@ -1493,7 +1530,7 @@ const SAFETY = "Une invitation ne vous demandera jamais de mot de passe, de code
 let EXAMPLE=false;
 function demoData(){
   const d=new Date(); d.setDate(d.getDate()+7); d.setMinutes(d.getMinutes()-d.getTimezoneOffset());
-  return sanitize({f:"Keke", t:"Loulou", o:"date", th:"amour", q:"Ça te dit un rendez-vous avec moi ?", n:"fuit", c:"any",
+  return sanitize({f:"Keke", t:"Loulou", o:"date", th:"amour", q:"Ça te dit un rendez-vous avec moi ?", n:"fuit", tn:"romantique", c:"any",
     m:"Prépare ton plus beau sourire, je m'occupe du reste.", sg:"Ton Keke", em:"💌",
     a:{v:"v", x:"Dîner aux chandelles"}, l:{v:"s", h:"Pas loin de chez toi"}, d:d.toISOString().slice(0,10), h:"19:30"});
 }
@@ -1639,7 +1676,7 @@ function openRefuse(){
 function bindNo(){
   const no=$("#no"), yes=$("#yes"), tease=$("#tease");
   let n=0;
-  const lines=["Raté !","Essaie encore","Vraiment ?","Le Non est en grève aujourd'hui","Il reste un bouton, regarde à gauche 👀","Allez…"];
+  const tone=noTone(D.tn), lines=tone.lines;
   let last=0;
   // Chaque tentative sur le Non compte (une seule fois par geste)
   const hit=()=>{ const now=Date.now(); if(now-last<250) return; last=now; Decor.react(); Sound.no(); buzz(25);
@@ -1664,14 +1701,14 @@ function bindNo(){
     no.addEventListener("click",()=>{
       s=Math.max(s*.78,.35); ys=Math.min(ys*1.15,1.9);
       no.style.transform=`scale(${s})`; yes.style.transform=`scale(${ys})`;
-      if(s<=.35){ tease.textContent="Il ne peut pas être plus petit 😇"; hit(); } else say();
+      if(s<=.35){ tease.textContent=tone.small; hit(); } else say();
     });
   } else if(D.n==="supplie"){
-    const beg=["Vraiment ?","Vraiment vraiment ?","Réfléchis bien…","Je vais pleurer 🥺","Tu me brises le cœur","Dernière chance…"];
+    const beg=tone.beg;
     let i=0;
     no.addEventListener("click",()=>{
       if(i<beg.length){ no.textContent=beg[i++]; tease.textContent=""; hit(); }
-      else if(i===beg.length){ no.textContent="Bon… d'accord 🥲"; i++; hit(); }
+      else if(i===beg.length){ no.textContent=tone.giveUp; i++; hit(); }
       else openRefuse(); // il a supplié, il accepte le refus
     });
   } else { // transforme : il tente « Oui ? », mais ne dit jamais oui à ta place
@@ -1679,7 +1716,7 @@ function bindNo(){
     const back=()=>{ no.textContent="Non"; };
     no.addEventListener("pointerenter",turn); no.addEventListener("focus",turn);
     no.addEventListener("pointerleave",back); no.addEventListener("blur",back);
-    no.addEventListener("click",()=>{ turn(); tease.textContent="Il voulait tellement que tu dises oui…"; hit(); });
+    no.addEventListener("click",()=>{ turn(); tease.textContent=tone.turn; hit(); });
   }
 }
 
