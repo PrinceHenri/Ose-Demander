@@ -1690,7 +1690,7 @@ const Decor = (() => {
   }
   function make(initial){
     const c=cfg(), k=eff()==="d"?.6:1;
-    const p={x:rnd(0,W), y:rnd(0,H), s:rnd(6,11), r:rnd(0,6.28), vr:rnd(-.015,.015)*k, c:pick(c.cols), ph:rnd(0,6.28), a:rnd(.3,.7), st:null, n:0, vx:0, vy:0};
+    const p={x:rnd(0,W), y:rnd(0,H), s:rnd(6,11), r:rnd(0,6.28), vr:rnd(-.015,.015)*k, c:pick(c.cols), ph:rnd(0,6.28), a:rnd(.27,.62), st:null, n:0, vx:0, vy:0};
     if(eff()==="d") p.a*=.75;
     switch(c.move){
       case "rise": p.vy=-rnd(.25,.6)*k; if(!initial) p.y=H+20; break;
@@ -1701,8 +1701,17 @@ const Decor = (() => {
     }
     return p;
   }
-  function populate(){ const e=eff(); const n=e==="0"?0:e==="d"?7:(W<600?12:18); P=Array.from({length:n},()=>make(true)); }
+  // Nombre d'éléments : Normales 18 (téléphone) ou 26 (ordinateur), Discrètes 10
+  function populate(){ const e=eff(); const n=e==="0"?0:e==="d"?10:(W<600?18:26); P=Array.from({length:n},()=>make(true)); }
 
+  // « ? » dessiné une fois par couleur dans une petite image, puis collé à la bonne taille (bien plus rapide que du texte)
+  const Q_BOX=64, Q_FONT=52, qSprites=new Map();
+  function qSprite(col){
+    let c=qSprites.get(col);
+    if(!c){ c=document.createElement("canvas"); c.width=c.height=Q_BOX; const g=c.getContext("2d");
+      g.font=`700 ${Q_FONT}px Georgia, serif`; g.textAlign="center"; g.textBaseline="middle"; g.fillStyle=col; g.fillText("?",Q_BOX/2,Q_BOX/2+2); qSprites.set(col,c); }
+    return c;
+  }
   function shape(ctx,kind,s,col){
     ctx.fillStyle=col; ctx.strokeStyle=col; ctx.beginPath();
     switch(kind){
@@ -1716,7 +1725,7 @@ const Decor = (() => {
       case "bubble":
         ctx.lineWidth=2; ctx.arc(0,0,s,0,Math.PI*2); ctx.stroke(); ctx.beginPath(); ctx.arc(-s*.35,-s*.35,s*.2,0,Math.PI*2); ctx.fill(); break;
       case "confetti": ctx.fillRect(-s*.6,-s*.25,s*1.2,s*.5); break;
-      case "q": ctx.font=`700 ${s*2.2}px Georgia, serif`; ctx.textAlign="center"; ctx.textBaseline="middle"; ctx.fillText("?",0,0); break;
+      case "q": { const d=s*2.2*Q_BOX/Q_FONT; ctx.drawImage(qSprite(col),-d/2,-d/2,d,d); break; }
     }
   }
 
