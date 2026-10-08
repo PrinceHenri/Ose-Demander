@@ -11,7 +11,9 @@
   h2{font-size:20px;margin:28px 0 8px}
   h3{font-size:17px;margin:20px 0 6px}
   .todo{background:#FFE3EE;padding:1px 6px;border-radius:6px}
-  .dedicace{margin:48px 0 0;text-align:right;font-size:13px;color:#8C84AD}
+  /* Dédicace : Lucida Calligraphy si l'appareil l'a (Windows, Office), sinon Caveat (hébergée sur le site) */
+  @font-face{font-family:"Dedicace repli";src:url("fonts/caveat.woff2") format("woff2");font-display:swap;size-adjust:135%}
+  .dedicace{margin:48px 0 0;text-align:right;font-size:14px;color:#8C84AD;font-family:"Lucida Calligraphy","Lucida Handwriting","Dedicace repli",cursive}
   a{color:#1F1546}
 </style>
 </head>
