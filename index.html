@@ -421,29 +421,101 @@ function frDate(iso){
 }
 function frTime(t){ return t ? t.replace(":", " h ").replace(" h 00"," h") : ""; }
 
-/* Encodage du lien : JSON -> compression (deflate) -> base64url */
+/* Encodage du lien : JSON -> compression (deflate) -> base64url
+   Préfixes : « y » (format compact, compressé), « x » (format compact, non compressé),
+   « z » et « p » (ancien format, toujours lu à l'identique). */
 function b64url(bytes){ let s=""; for(let i=0;i<bytes.length;i+=0x8000) s+=String.fromCharCode.apply(null, bytes.subarray(i,i+0x8000)); return btoa(s).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,""); }
 function unb64url(str){ str=str.replace(/-/g,"+").replace(/_/g,"/"); while(str.length%4) str+="="; const bin=atob(str); const out=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) out[i]=bin.charCodeAt(i); return out; }
 async function pipe(bytes, stream){ const s=new Blob([bytes]).stream().pipeThrough(stream); return new Uint8Array(await new Response(s).arrayBuffer()); }
+/* Garde la version la plus courte : compressée (préfixe z/y) ou brute (préfixe p/x) */
+async function squeeze(text, zip, plain){
+  const raw=new TextEncoder().encode(text); let best=plain+b64url(raw);
+  if(window.CompressionStream){ try{ const z=zip+b64url(await pipe(raw,new CompressionStream("deflate-raw"))); if(z.length<best.length) best=z; }catch(e){} }
+  return best;
+}
 async function encodeData(obj){
-  const raw = new TextEncoder().encode(JSON.stringify(obj));
-  if(window.CompressionStream){ try{ return "z"+b64url(await pipe(raw,new CompressionStream("deflate-raw"))); }catch(e){} }
-  return "p"+b64url(raw);
+  const json=JSON.stringify(obj);
+  // Format compact, seulement s'il se relit exactement comme l'ancien (sinon, ancien format)
+  try{
+    const d=sanitize(JSON.parse(json)), c=JSON.stringify(packLink(d));
+    if(JSON.stringify(sanitize(unpackLink(JSON.parse(c))))===JSON.stringify(d)) return await squeeze(c,"y","x");
+  }catch(e){}
+  return squeeze(json,"z","p");
 }
 const MAX_LINK=8000, MAX_DATA=20000; // limites contre les liens trafiqués (bombe de décompression)
 async function inflateLimited(bytes){
-  const reader=new Blob([bytes]).stream().pipeThrough(new DecompressionStream("deflate-raw")).getReader();
+  // Anciens navigateurs (sans DecompressionStream ou sans « deflate-raw ») : décompression intégrée
+  if(typeof DecompressionStream!=="function" || !Blob.prototype.stream) return inflate(bytes, MAX_DATA);
+  let ds; try{ ds=new DecompressionStream("deflate-raw"); }catch(e){ return inflate(bytes, MAX_DATA); }
+  const reader=new Blob([bytes]).stream().pipeThrough(ds).getReader();
   const parts=[]; let total=0;
   for(;;){ const {done,value}=await reader.read(); if(done) break; total+=value.length;
     if(total>MAX_DATA){ reader.cancel(); throw new Error("too big"); } parts.push(value); }
   const out=new Uint8Array(total); let o=0; for(const p of parts){ out.set(p,o); o+=p.length; } return out;
 }
 async function decodeData(str){
-  if(str.length>MAX_LINK || !/^[zp][A-Za-z0-9_-]+$/.test(str)) throw new Error("bad link");
+  if(str.length>MAX_LINK || !/^[zpyx][A-Za-z0-9_-]+$/.test(str)) throw new Error("bad link");
   const kind=str[0], bytes=unb64url(str.slice(1));
-  const raw = kind==="z" ? await inflateLimited(bytes) : bytes;
+  const raw = (kind==="z"||kind==="y") ? await inflateLimited(bytes) : bytes;
   if(raw.length>MAX_DATA) throw new Error("too big");
-  return sanitize(JSON.parse(new TextDecoder().decode(raw)));
+  const x=JSON.parse(new TextDecoder().decode(raw));
+  return sanitize(kind==="z"||kind==="p" ? x : unpackLink(x));
+}
+/* Décompression deflate brute (RFC 1951) en pur JavaScript, sortie limitée à « max » octets */
+const INF={lb:[],le:[],db:[],de:[]};
+for(let i=0,b=3;i<29;i++){ INF.le[i]=i<8||i===28?0:(i>>2)-1; INF.lb[i]=i===28?258:b; b+=1<<INF.le[i]; }
+for(let i=0,b=1;i<30;i++){ INF.de[i]=i<4?0:(i>>1)-1; INF.db[i]=b; b+=1<<INF.de[i]; }
+function inflate(src, max){
+  const bad=()=>{ throw new Error("bad data"); };
+  const out=new Uint8Array(max); let n=0, pos=0, buf=0, cnt=0;
+  const bits=k=>{ while(cnt<k){ if(pos>=src.length) bad(); buf|=src[pos++]<<cnt; cnt+=8; } const v=buf&((1<<k)-1); buf>>>=k; cnt-=k; return v; };
+  const put=b=>{ if(n>=max) throw new Error("too big"); out[n++]=b; };
+  const huff=(lens,from,len)=>{ // code canonique : nombre de codes par longueur + symboles triés
+    const count=new Array(16).fill(0), offs=new Array(16).fill(0), sym=[];
+    for(let i=0;i<len;i++) count[lens[from+i]]++;
+    count[0]=0; for(let l=1;l<15;l++) offs[l+1]=offs[l]+count[l];
+    for(let i=0;i<len;i++) if(lens[from+i]) sym[offs[lens[from+i]]++]=i;
+    return {count,sym};
+  };
+  const sym=h=>{ let code=0, first=0, idx=0;
+    for(let l=1;l<16;l++){ code|=bits(1); const c=h.count[l]; if(code-c<first) return h.sym[idx+code-first]; idx+=c; first=(first+c)<<1; code<<=1; }
+    bad();
+  };
+  let last=0;
+  while(!last){
+    last=bits(1); const type=bits(2); let lit, dist;
+    if(type===0){ // bloc stocké tel quel
+      buf=0; cnt=0; if(pos+4>src.length) bad();
+      const len=src[pos]|src[pos+1]<<8; if(len!==(~(src[pos+2]|src[pos+3]<<8)&0xffff)) bad(); pos+=4;
+      if(pos+len>src.length) bad(); for(let i=0;i<len;i++) put(src[pos++]); continue;
+    }
+    if(type===1){ // codes fixes
+      const l=[]; for(let i=0;i<288;i++) l[i]=i<144?8:i<256?9:i<280?7:8; for(let i=0;i<30;i++) l[288+i]=5;
+      lit=huff(l,0,288); dist=huff(l,288,30);
+    } else if(type===2){ // codes dynamiques
+      const nl=bits(5)+257, nd=bits(5)+1, nc=bits(4)+4, cl=new Array(19).fill(0), l=[];
+      [16,17,18,0,8,7,9,6,10,5,11,4,12,3,13,2,14,1,15].slice(0,nc).forEach(i=>{ cl[i]=bits(3); });
+      const ch=huff(cl,0,19);
+      while(l.length<nl+nd){
+        const s=sym(ch);
+        if(s<16) l.push(s);
+        else { const r = s===16 ? 3+bits(2) : s===17 ? 3+bits(3) : 11+bits(7);
+          if(s===16 && !l.length) bad(); const v = s===16 ? l[l.length-1] : 0;
+          if(l.length+r>nl+nd) bad(); for(let i=0;i<r;i++) l.push(v); }
+      }
+      lit=huff(l,0,nl); dist=huff(l,nl,nd);
+    } else bad();
+    for(;;){
+      const s=sym(lit);
+      if(s<256){ put(s); continue; }
+      if(s===256) break;
+      const i=s-257; if(i>=29) bad();
+      const len=INF.lb[i]+bits(INF.le[i]), di=sym(dist); if(di>=30) bad();
+      const d=INF.db[di]+bits(INF.de[di]); if(d>n) bad();
+      for(let k=0;k<len;k++) put(out[n-d]);
+    }
+  }
+  return out.slice(0,n);
 }
 /* Validation stricte : on ne garde que les champs connus, avec le bon type et la bonne longueur */
 function sanitize(x){
@@ -506,6 +578,130 @@ function sanitize(x){
 const KEY="ose-demander";
 function scramble(text){ const b=new TextEncoder().encode(text); for(let i=0;i<b.length;i++) b[i]^=KEY.charCodeAt(i%KEY.length)+i%7; return b64url(b); }
 function unscramble(s){ const b=unb64url(s); for(let i=0;i<b.length;i++) b[i]^=KEY.charCodeAt(i%KEY.length)+i%7; return new TextDecoder().decode(b); }
+
+/* Format compact (préfixes y et x) : clés d'une lettre, codes numériques,
+   champs égaux à leur valeur par défaut omis.
+   RÈGLE ABSOLUE pour toutes les tables ci-dessous : un code ne change jamais de valeur
+   et n'est jamais supprimé ni réutilisé. Nouvelle valeur ou nouvelle formulation = nouveau code, à la suite.
+   Un texte qui n'est pas exactement dans la table est mis en entier dans le lien. */
+const LINK_PHRASES = {
+  1:"Ça te dit un rendez-vous avec moi ?", 2:"Tu passes la Saint-Valentin avec moi ?",
+  3:"Je peux t'emmener fêter ton anniversaire ?", 4:"On fête notre anniversaire ensemble ?",
+  5:"Veux-tu m'épouser ?", 6:"Maman, je t'emmène pour la fête des mères ?",
+  7:"Papa, je t'emmène pour la fête des pères ?", 8:"Je vous invite pour la fête des grands-parents ?",
+  9:"Tu viens fêter ton anniversaire avec moi ?", 10:"Tu viens avec moi ?",
+  11:"Je t'invite pour ton anniversaire ?", 12:"Tu veux être mon témoin ?",
+  13:"Tu me confies ta journée ?", 14:"On se réconcilie autour d'un moment à deux ?",
+  15:"Ça te dit qu'on se voie ?", 16:"Tu dis oui ?",
+  17:"Je t'emmène dîner, sans rien te dire ?",
+  18:"J'ai envie de passer ce moment avec toi, rien qu'avec toi.", 19:"Prépare ton plus beau sourire, je m'occupe du reste.",
+  20:"Tu n'as rien à prévoir, juste à dire oui.", 21:"Merci pour tout. Ce moment, c'est pour toi.",
+  22:"Tu t'occupes toujours de nous, cette fois c'est mon tour.", 23:"Un petit moment rien que pour toi, tu l'as bien mérité.",
+  24:"Ça fait trop longtemps, on rattrape le temps perdu.", 25:"Pas d'excuse cette fois, je t'attends.",
+  26:"Ce ne sera pas pareil sans toi.", 27:"Fais-moi confiance, tu vas aimer.",
+  28:"Je ne dis rien de plus, c'est une surprise.", 29:"Garde ton agenda libre, j'ai prévu quelque chose.",
+  30:"Je veux passer tous mes moments avec toi.", 31:"Un petit moment rien que pour vous, vous l'avez bien mérité.",
+  32:"Je ne vois personne d'autre à mes côtés ce jour-là."
+};
+const LINK_OCC = {1:"date",2:"valentin",3:"annivamour",4:"couple",5:"mariage",6:"meres",7:"peres",8:"grands",
+  9:"annivfam",10:"sortie",11:"annivami",12:"temoin",13:"surprise",14:"pardon",15:"juste",16:"libre"};
+const LINK_TH = {1:"base",2:"amour",3:"maman",4:"papa",5:"amis",6:"fete",7:"mystere"};
+const LINK_NO = {1:"fuit",2:"retrecit",3:"supplie",4:"transforme"};
+const LINK_CH = {1:"any",2:"wa",3:"sms",4:"snap",5:"ig",6:"fb"};
+const LINK_AN = {1:"n",2:"d",3:"0"};
+const LINK_AC = {1:"framboise",2:"corail",3:"mandarine",4:"or",5:"menthe",6:"ocean",7:"violet",8:"nuit"};
+const LINK_EM = {1:"💌",2:"❤️",3:"🌹",4:"💍",5:"🌷",6:"👔",7:"🎂",8:"🎉",9:"🎁",10:"✨",11:"🍕",12:"☕"};
+const LINK_KEYS = ["f","t","o","F","q","T","n","A","C","E","s","S","c","i","m","H","a","l","D","p","e","M","b","w","L"];
+/* Dates : minutes depuis le 1er janvier 2026 (heure locale de l'invitation, sans fuseau) */
+const LINK_T0 = Date.UTC(2026,0,1), LINK_TMAX = 60*24*366*100;
+const own = (o,k) => Object.prototype.hasOwnProperty.call(o,k);
+
+/* Invitation validée (ancien format) -> objet compact */
+function packLink(d){
+  const code=(tbl,v)=>{ for(const k in tbl) if(tbl[k]===v) return +k; throw new Error("no code"); };
+  const phrase=v=>{ for(const k in LINK_PHRASES) if(LINK_PHRASES[k]===v) return +k; return v; };
+  const min=iso=>(Date.parse(iso+"Z")-LINK_T0)/60000; // vérifié ensuite par la relecture
+  const dayMin=t=>+t.slice(0,2)*60+ +t.slice(3);
+  const item=it=> it.v==="v" ? it.x : it.v==="r" ? [it.h,min(it.at),it.e] : it.h ? [it.h] : [];
+  const c={f:d.f, t:d.t};
+  if(d.o!=="juste") c.o=code(LINK_OCC,d.o);
+  if(d.of) c.F=d.of;
+  c.q=phrase(d.q);
+  if(d.th!==OCC[d.o].theme) c.T=code(LINK_TH,d.th);
+  if(d.n!=="fuit") c.n=code(LINK_NO,d.n);
+  if(d.an!=="n") c.A=code(LINK_AN,d.an);
+  if(d.ac) c.C=code(LINK_AC,d.ac);
+  if(d.em) c.E=code(LINK_EM,d.em);
+  if(d.sg) c.s=d.sg;
+  if(d.so===0) c.S=0;
+  if(d.c!=="any"){ c.c=code(LINK_CH,d.c); c.i=d.ci; }
+  if(d.m){ c.m=phrase(d.m); if(d.mh) c.H=1; }
+  if(d.p){
+    c.p=d.p.map(st=>{
+      if(st.v==="r") return [st.h,2,st.i,min(st.at),st.e];
+      const s = st.v==="v" ? [st.h,0,st.a,st.l] : [st.h,1,st.i];
+      while(s.length>2 && s[s.length-1]==="") s.pop(); // textes vides en fin : omis
+      return s;
+    });
+    if(d.en) c.e=dayMin(d.en); if(d.me) c.M=d.me; if(d.br) c.b=d.br;
+  } else {
+    c.a=item(d.a); if(d.l) c.l=item(d.l); if(d.dt) c.D=d.dt;
+  }
+  if(d.sl) c.L=d.sl.map(s=>min(s[0]+"T"+s[1])); else c.w=min(d.d+"T"+d.h);
+  return c;
+}
+/* Objet compact -> ancien format, puis sanitize. Strict : clé inconnue, mauvais type ou code inconnu = lien refusé */
+function unpackLink(c){
+  const bad=()=>{ throw new Error("bad data"); };
+  if(!c || typeof c!=="object" || Array.isArray(c)) bad();
+  if(Object.keys(c).some(k=>!LINK_KEYS.includes(k))) bad();
+  const has=k=>own(c,k);
+  const s=v=>typeof v==="string" ? v : bad();
+  const dec=(tbl,v)=>Number.isInteger(v) && own(tbl,v) ? tbl[v] : bad();
+  const phrase=v=>typeof v==="number" ? dec(LINK_PHRASES,v) : s(v);
+  const arr=(v,min,max)=>Array.isArray(v) && v.length>=min && v.length<=max ? v : bad();
+  const at=v=>Number.isInteger(v) && v>=0 && v<=LINK_TMAX ? new Date(LINK_T0+v*60000).toISOString().slice(0,16) : bad();
+  const hm=v=>Number.isInteger(v) && v>=0 && v<1440 ? String(v/60|0).padStart(2,"0")+":"+String(v%60).padStart(2,"0") : bad();
+  const item=v=>{
+    if(typeof v==="string") return {v:"v", x:v};
+    arr(v,0,3);
+    if(v.length===3) return {v:"r", h:s(v[0]), at:at(v[1]), e:s(v[2])};
+    if(v.length===2) bad();
+    return {v:"s", h:v.length ? s(v[0]) : ""};
+  };
+  const x={f:s(c.f), t:s(c.t)};
+  x.o = has("o") ? dec(LINK_OCC,c.o) : "juste";
+  if(has("F")){ if(x.o!=="libre") bad(); x.of=s(c.F); }
+  x.q=phrase(c.q);
+  x.th = has("T") ? dec(LINK_TH,c.T) : OCC[x.o].theme;
+  x.n = has("n") ? dec(LINK_NO,c.n) : "fuit";
+  x.an = has("A") ? dec(LINK_AN,c.A) : "n";
+  if(has("C")) x.ac=dec(LINK_AC,c.C);
+  if(has("E")) x.em=dec(LINK_EM,c.E);
+  if(has("s")) x.sg=s(c.s);
+  if(has("S")){ if(c.S!==0) bad(); x.so=0; }
+  x.c = has("c") ? dec(LINK_CH,c.c) : "any";
+  if(has("i")!==(x.c!=="any")) bad(); if(has("i")) x.ci=s(c.i);
+  if(has("m")) x.m=phrase(c.m);
+  if(has("H")){ if(c.H!==1 || !has("m")) bad(); x.mh=1; }
+  if(has("p")){
+    if(has("a")||has("l")||has("D")) bad();
+    x.p=arr(c.p,1,6).map(st=>{
+      arr(st,2,5); const h=s(st[0]);
+      if(st[1]===0 && st.length<=4) return {h, v:"v", a:st.length>2 ? s(st[2]) : "", l:st.length>3 ? s(st[3]) : ""};
+      if(st[1]===1 && st.length<=3) return {h, v:"s", i:st.length>2 ? s(st[2]) : ""};
+      if(st[1]===2 && st.length===5) return {h, v:"r", i:s(st[2]), at:at(st[3]), e:s(st[4])};
+      return bad();
+    });
+    if(has("e")) x.en=hm(c.e); if(has("M")) x.me=s(c.M); if(has("b")) x.br=s(c.b);
+  } else {
+    if(has("e")||has("M")||has("b")||!has("a")) bad();
+    x.a=item(c.a); if(has("l")) x.l=item(c.l); if(has("D")) x.dt=s(c.D);
+  }
+  if(has("L")){ if(has("w")) bad(); x.sl=arr(c.L,2,3).map(v=>at(v).split("T")); }
+  else { const w=at(c.w).split("T"); x.d=w[0]; x.h=w[1]; }
+  return x;
+}
 
 /* =========================================================
    CRÉATEUR
@@ -1075,7 +1271,7 @@ function isOwnLink(link){
   const prod = u.protocol==="https:" && u.hostname===SITE_HOST && !u.port;
   const dev = location.hostname==="localhost" && u.origin===location.origin; // test en local uniquement
   return (prod||dev) && u.href===link && !u.username && !u.password && !u.search
-    && (u.pathname==="/" || u.pathname==="/index.html") && /^#i=[zp][A-Za-z0-9_-]+$/.test(u.hash);
+    && (u.pathname==="/" || u.pathname==="/index.html") && /^#i=[zpyx][A-Za-z0-9_-]+$/.test(u.hash);
 }
 /* Validation stricte d'une entrée : champs connus seulement, bons types, bonnes longueurs */
 function validEntry(x){
