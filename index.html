@@ -1690,7 +1690,8 @@ const Decor = (() => {
   }
   function make(initial){
     const c=cfg(), k=eff()==="d"?.6:1;
-    const p={x:rnd(0,W), y:rnd(0,H), s:rnd(6,11), r:rnd(0,6.28), vr:rnd(-.015,.015)*k, c:pick(c.cols), ph:rnd(0,6.28), a:rnd(.27,.62), st:null, n:0, vx:0, vy:0};
+    const p={x:rnd(0,W), y:rnd(0,H), s:rnd(6,11), r:rnd(0,6.28), vr:rnd(-.015,.015)*k, c:pick(c.cols), ph:rnd(0,6.28), a:rnd(.27,.62), st:null, n:0, vx:0, vy:0,
+      ox:0, oy:0, vox:0, voy:0}; // écart dû au pointeur (revient à 0 tout seul)
     if(eff()==="d") p.a*=.75;
     switch(c.move){
       case "rise": p.vy=-rnd(.25,.6)*k; if(!initial) p.y=H+20; break;
@@ -1729,11 +1730,34 @@ const Decor = (() => {
     }
   }
 
+  /* Le décor s'écarte du pointeur (souris ou doigt). Seule la dernière position est gardée en mémoire,
+     le temps du calcul ; elle est oubliée dès que le pointeur s'en va. Rien n'est enregistré ni envoyé. */
+  const ptr={x:0, y:0, on:false};
+  const setPtr=(x,y)=>{ ptr.x=x; ptr.y=y; ptr.on=true; }, clearPtr=()=>{ ptr.on=false; };
+  const passive={passive:true};
+  window.addEventListener("pointermove",e=>{ if(e.pointerType!=="touch") setPtr(e.clientX,e.clientY); },passive);
+  for(const t of ["touchstart","touchmove"]) window.addEventListener(t,e=>{ const p=e.touches[0]; if(p) setPtr(p.clientX,p.clientY); },passive);
+  window.addEventListener("touchend",e=>{ if(!e.touches.length) clearPtr(); },passive);
+  window.addEventListener("touchcancel",clearPtr,passive);
+  document.addEventListener("mouseout",e=>{ if(!e.relatedTarget) clearPtr(); });
+  window.addEventListener("blur",clearPtr);
+  const COARSE=matchMedia("(pointer:coarse)").matches;
+  // R : rayon (100 px sur ordinateur, 80 px sur téléphone) ; force : plus faible en mode « Discrètes »
+  function avoid(p, R, force){
+    if(ptr.on && !p.st){
+      const dx=p.x+p.ox-ptr.x, dy=p.y+p.oy-ptr.y, d2=dx*dx+dy*dy;
+      if(d2<R*R && d2>.01){ const d=Math.sqrt(d2), f=1-d/R, k=f*f*force; p.vox+=dx/d*k; p.voy+=dy/d*k; }
+    }
+    // Poussée amortie, puis retour progressif sur la trajectoire normale
+    p.vox*=.84; p.voy*=.84; p.ox=(p.ox+p.vox)*.965; p.oy=(p.oy+p.voy)*.965;
+  }
+
   function step(){
     t++; bx.clearRect(0,0,W,H); gust*=.965;
-    const c=cfg();
+    const c=cfg(), R=(W<600 || COARSE) ? 80 : 100, force=eff()==="d" ? .35 : .8;
     for(let i=0;i<P.length;i++){
       const p=P[i];
+      avoid(p, R, force);
       if(p.st==="fall"){ p.vy+=.22; p.x+=p.vx; p.y+=p.vy; p.r+=.08; if(p.y>H+30){ P[i]=make(c.move!=="fall"&&c.move!=="rise"); continue; } }
       else if(p.st==="break"){ p.n++; p.vy+=.12; p.y+=p.vy; if(p.n>70){ P[i]=make(false); continue; } }
       else if(p.st==="pop"){ p.n++; if(p.n>18){ P[i]=make(true); continue; } }
@@ -1748,7 +1772,7 @@ const Decor = (() => {
       }
       let a=p.a;
       if(c.move==="twinkle" && !p.st) a=.12+.7*Math.abs(Math.sin(t*.015+p.ph));
-      bx.save(); bx.globalAlpha=a; bx.translate(p.x,p.y);
+      bx.save(); bx.globalAlpha=a; bx.translate(p.x+p.ox,p.y+p.oy);
       if(p.st==="break"){
         bx.globalAlpha=a*(1-p.n/70);
         for(const side of [-1,1]){
@@ -1812,7 +1836,9 @@ const Decor = (() => {
       for(let i=0;i<count;i++) B.push({x,y,vx:rnd(-9,9)*sp,vy:rnd(-15,-5)*sp,s:rnd(6,12),r:rnd(0,6.28),vr:rnd(-.2,.2),c:pick(cols),k:pick(kinds),life:0,max:rnd(90,150)});
       if(!fraf) fraf=requestAnimationFrame(fstep);
     },
-    resize(){ size(); populate(); run(); }
+    resize(){ size(); populate(); run(); },
+    // Lecture seule (vérifications) : nombre d'éléments et écart actuel dû au pointeur
+    info(){ return {n:P.length, running:!!raf, pts:P.map(p=>({x:p.x+p.ox, y:p.y+p.oy, off:Math.hypot(p.ox,p.oy), st:p.st}))}; }
   };
 })();
 const REDUCED_ANIM = matchMedia("(prefers-reduced-motion: reduce)").matches;
