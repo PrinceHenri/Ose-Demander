@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Ose Demander — crée une invitation à laquelle on ne dit pas non</title>
-<meta name="description" content="Crée gratuitement une invitation animée : date, fête des mères, journée surprise… Le bouton Non résiste. Sans compte, rien n'est stocké.">
+<meta name="description" content="Crée gratuitement une invitation animée : date, fête des mères, journée surprise… Le bouton Non résiste. Sans compte, rien n'est stocké en ligne.">
 <!-- Aperçu du lien (WhatsApp, Snapchat, Messenger, LinkedIn, X…) -->
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Ose Demander">
@@ -76,6 +76,11 @@ button,input,textarea,select{font:inherit;color:inherit}
 .logo{font-weight:800;font-size:22px;letter-spacing:-.02em;text-decoration:none;display:flex;align-items:baseline;gap:2px}
 .logo .q{display:inline-block;color:var(--accent);font-size:28px;transform:rotate(12deg)}
 .top small{color:var(--muted);font-size:14px}
+.top{flex-wrap:wrap}
+.top-actions{display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:8px;margin-left:auto}
+.hist-btn{display:inline-flex;align-items:center;gap:6px;border:2px solid var(--ink);background:var(--surface);color:var(--ink);border-radius:999px;padding:7px 14px;font-weight:700;font-size:14px;text-decoration:none;box-shadow:2px 2px 0 var(--ink)}
+.hist-btn .badge{background:var(--accent);color:var(--accent-ink);border-radius:999px;padding:0 7px;min-width:20px;font-size:12px;line-height:20px;text-align:center}
+@media (max-width:460px){.top small{display:none}}
 
 /* ---------- Accueil ---------- */
 .hero{padding:10px 0 26px}
@@ -142,6 +147,21 @@ textarea.input{min-height:90px;resize:vertical}
 .btns{display:flex;flex-wrap:wrap;gap:10px}
 .foot{margin-top:28px;font-size:14px;color:var(--muted);text-align:center}
 .foot a{color:var(--muted)}
+
+/* ---------- Mes invitations (historique local) ---------- */
+.back{display:inline-block;margin:0 0 8px;color:var(--muted);font-size:15px;font-weight:600;text-underline-offset:3px}
+.tip{background:var(--soft);border:2px dashed var(--line);border-radius:12px;padding:10px 12px;font-size:15px;margin:0 0 16px}
+.hist{list-style:none;margin:0 0 18px;padding:0;display:flex;flex-direction:column;gap:12px}
+.hist li{border:2px solid var(--line);border-radius:14px;padding:14px;background:var(--soft)}
+.hist .who{font-weight:800;font-size:19px;line-height:1.2;margin:0;overflow-wrap:anywhere}
+.hist .meta{margin:3px 0 0;font-size:14px;color:var(--muted);overflow-wrap:anywhere}
+.hist .acts{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.btn.sm{padding:8px 12px;font-size:14px;border-radius:12px}
+.btn.danger{color:#B3122E;border-color:#B3122E}
+.empty{color:var(--muted);text-align:center;padding:18px 8px;margin:0 0 18px;border:2px dashed var(--line);border-radius:14px}
+.hist-tools{display:flex;flex-wrap:wrap;gap:10px;border-top:2px dashed var(--line);padding-top:16px}
+.sheet-card p{margin:0 0 16px;color:var(--muted)}
+.sheet-card .btns .btn{flex:1}
 
 /* ---------- Invitation (ticket) ---------- */
 .inv{max-width:480px;margin:0 auto;padding:64px 16px 60px}
@@ -398,14 +418,24 @@ const S = {
   no:"fuit", ch:"any", chId:"", link:""
 };
 
+const SITE_TITLE = document.title;
+function topHTML(onHistory){
+  const n = onHistory ? 0 : loadHistory().length;
+  return `<header class="top">
+      <a class="logo" href="./">Ose Demander<span class="q">?</span></a>
+      <div class="top-actions">
+        ${onHistory ? "" : `<a class="hist-btn" href="#mes-invitations">Mes invitations<span class="badge ${n?"":"hidden"}" id="histBadge">${n}</span></a>`}
+        <span id="installSlot"><small>Gratuit, sans compte</small></span>
+      </div>
+    </header>`;
+}
+
 function renderCreator(){
   setTheme(S.theme, S.anim);
+  document.title = SITE_TITLE;
   $("#app").innerHTML = `
   <div class="wrap">
-    <header class="top">
-      <a class="logo" href="./">Ose Demander<span class="q">?</span></a>
-      <span id="installSlot"><small>Gratuit, sans compte</small></span>
-    </header>
+    ${topHTML(false)}
     ${S.step===0 ? `<section class="hero">
       <h1><span>Pose la question.</span><span>Le Non n'a aucune chance.</span></h1>
       <p>Crée une invitation pour un date, une fête des mères ou une journée surprise. Tu envoies le lien, on te répond en un clic.</p>
@@ -420,7 +450,7 @@ function renderCreator(){
         ${S.step<STEP_TITLES.length-1 ? `<button type="submit" class="btn primary">Continuer</button>` : ``}
       </div>
     </form>
-    <p class="foot">Rien n'est stocké : toute l'invitation tient dans le lien.<br><a href="mentions-legales.html">Mentions légales</a></p>
+    <p class="foot">Rien n'est stocké en ligne : toute l'invitation tient dans le lien.<br><a href="mentions-legales.html">Mentions légales</a></p>
   </div>`;
   bindCreator();
   refreshInstall();
@@ -569,7 +599,8 @@ function stepHTML(){
         <button type="button" class="btn primary" id="copy">Copier le lien</button>
         ${navigator.share ? `<button type="button" class="btn" id="share">Partager</button>` : ""}
       </div>
-      <p class="hint">Envoie-le par message. Rien n'expire, rien n'est stocké. Toute personne qui a ce lien peut lire l'invitation : ne le partage qu'avec la bonne personne.</p>
+      <p class="hint" id="savedNote"></p>
+      <p class="hint">Envoie-le par message. Rien n'expire, rien n'est envoyé à un serveur. Toute personne qui a ce lien peut lire l'invitation : ne le partage qu'avec la bonne personne.</p>
     </div>`;
   }
 }
@@ -669,6 +700,11 @@ function bindCreator(){
   $("#make")?.addEventListener("click",async()=>{
     S.link=await buildLink(); $("#linkbox").textContent=S.link; $("#result").classList.remove("hidden");
     if(S.link.length>1800) toast("Le lien est long : raccourcis le message si l'appli le coupe.");
+    // Historique : uniquement ici, côté créateur (jamais côté destinataire)
+    const saved=await addToHistory(S.link);
+    $("#savedNote").textContent = saved ? "Ajoutée à « Mes invitations ». Ton historique reste uniquement sur cet appareil." : "";
+    const n=loadHistory().length, badge=$("#histBadge");
+    if(badge){ badge.textContent=n; badge.classList.toggle("hidden",!n); }
   });
   $("#copy")?.addEventListener("click",async()=>{ toast(await copyText(S.link)?"Lien copié":"Copie impossible, sélectionne le lien à la main"); });
   $("#share")?.addEventListener("click",()=>navigator.share({title:"Ose Demander",text:`${S.to}, j'ai une question pour toi 💌`,url:S.link}).catch(()=>{}));
@@ -697,8 +733,232 @@ async function buildLink(){
   }
   if(S.choose) d.sl=S.slots.filter(s=>s.d&&s.t).map(s=>[s.d,s.t]);
   else { d.d=S.date; d.h=S.time; }
-  const base=location.href.split("#")[0];
+  const base=location.origin+location.pathname; // sans « ?… » (ex. traceurs ajoutés par les réseaux sociaux)
   return base+"#i="+await encodeData(d);
+}
+
+/* =========================================================
+   MES INVITATIONS — historique stocké uniquement sur cet appareil
+   (localStorage). Jamais envoyé nulle part, jamais lu côté destinataire.
+   ========================================================= */
+const HIST_KEY="ose-historique", HIST_MAX=200, SITE_HOST="osedemander.fr";
+const HIST_FIELDS=["id","from","to","occ","occFree","when","link","created"];
+const newId=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,8);
+const byNewest=(a,b)=>Date.parse(b.created)-Date.parse(a.created);
+const linkData=link=>link.slice(link.indexOf("#i=")+3);
+
+/* Seuls les liens d'invitation d'Ose Demander sont acceptés */
+function isOwnLink(link){
+  if(typeof link!=="string" || link.length>MAX_LINK+60) return false;
+  let u; try{ u=new URL(link); }catch(e){ return false; }
+  const prod = u.protocol==="https:" && u.hostname===SITE_HOST && !u.port;
+  const dev = location.hostname==="localhost" && u.origin===location.origin; // test en local uniquement
+  return (prod||dev) && u.href===link && !u.username && !u.password && !u.search
+    && (u.pathname==="/" || u.pathname==="/index.html") && /^#i=[zp][A-Za-z0-9_-]+$/.test(u.hash);
+}
+/* Validation stricte d'une entrée : champs connus seulement, bons types, bonnes longueurs */
+function validEntry(x){
+  if(!x || typeof x!=="object" || Array.isArray(x)) return false;
+  if(Object.keys(x).some(k=>!HIST_FIELDS.includes(k))) return false;
+  const txt=(v,max)=>typeof v==="string" && v.trim()!=="" && v.length<=max;
+  const isDate=v=>typeof v==="string" && /^\d{4}-\d{2}-\d{2}$/.test(v);
+  const isTime=v=>typeof v==="string" && /^\d{2}:\d{2}$/.test(v);
+  return typeof x.id==="string" && /^[a-z0-9]{6,24}$/.test(x.id)
+    && txt(x.from,30) && txt(x.to,30)
+    && typeof x.occ==="string" && Object.keys(OCC).includes(x.occ)
+    && (x.occFree===undefined || (typeof x.occFree==="string" && x.occFree.length<=40))
+    && Array.isArray(x.when) && x.when.length>=1 && x.when.length<=3
+    && x.when.every(w=>Array.isArray(w) && w.length===2 && isDate(w[0]) && isTime(w[1]))
+    && typeof x.created==="string" && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{3})?Z$/.test(x.created) && !isNaN(Date.parse(x.created))
+    && isOwnLink(x.link);
+}
+/* L'entrée est toujours reconstruite à partir du lien décodé et validé : ce qui est affiché correspond au lien */
+function entryFrom(d, link, created=new Date().toISOString(), id=newId()){
+  const e={id, from:d.f, to:d.t, occ:d.o, when: d.sl ? d.sl.map(s=>[s[0],s[1]]) : [[d.d,d.h]], link, created};
+  if(d.o==="libre" && d.of) e.occFree=d.of;
+  return e;
+}
+function loadHistory(){
+  try{ const a=JSON.parse(localStorage.getItem(HIST_KEY)||"[]"); return Array.isArray(a) ? a.filter(validEntry).sort(byNewest) : []; }
+  catch(e){ return []; }
+}
+function storeHistory(list){
+  try{
+    if(list.length) localStorage.setItem(HIST_KEY, JSON.stringify(list.slice(0,HIST_MAX)));
+    else localStorage.removeItem(HIST_KEY);
+    return true;
+  }catch(e){ return false; }
+}
+/* Demande au navigateur de ne pas effacer l'historique automatiquement */
+function askPersist(){
+  try{ navigator.storage?.persisted?.().then(p=>{ if(!p) return navigator.storage.persist(); }).catch(()=>{}); }catch(e){}
+}
+async function addToHistory(link){
+  try{
+    const e=entryFrom(await decodeData(linkData(link)), link);
+    if(!validEntry(e)) return false;
+    const list=loadHistory().filter(x=>x.link!==link);
+    list.unshift(e);
+    if(!storeHistory(list)) return false;
+    askPersist();
+    return true;
+  }catch(e){ return false; }
+}
+
+function histOcc(it){ return it.occ==="libre" ? (it.occFree||"Autre chose") : OCC[it.occ].label; }
+function histWhen(it){
+  if(it.when.length===1) return `${frDate(it.when[0][0])} à ${frTime(it.when[0][1])}`;
+  const short=iso=>{ const [y,m,d]=iso.split("-").map(Number); return new Date(y,m-1,d).toLocaleDateString("fr-FR",{weekday:"short",day:"numeric",month:"short"}); };
+  return "Au choix : "+it.when.map(w=>`${short(w[0])} ${frTime(w[1])}`).join(", ");
+}
+function renderHistory(){
+  setTheme("base","n");
+  document.title = "Mes invitations — Ose Demander";
+  const list=loadHistory();
+  $("#app").innerHTML = `
+  <div class="wrap">
+    ${topHTML(true)}
+    <section class="panel">
+      <a class="back" href="#">← Retour</a>
+      <h2>Mes invitations</h2>
+      <p class="lead">Ton historique reste uniquement sur cet appareil.</p>
+      ${isStandalone() ? "" : `<p class="tip">💡 Installe l'appli pour mieux conserver ton historique.</p>`}
+      ${list.length ? `<ul class="hist" id="histList">${list.map(it=>`
+        <li data-id="${esc(it.id)}">
+          <p class="who">Pour ${esc(it.to)}</p>
+          <p class="meta">De ${esc(it.from)} · ${esc(histOcc(it))}</p>
+          <p class="meta">${esc(histWhen(it))}</p>
+          <p class="meta">Créée le ${esc(new Date(it.created).toLocaleDateString("fr-FR",{day:"numeric",month:"long",year:"numeric"}))}</p>
+          <div class="acts">
+            <button type="button" class="btn sm primary" data-act="copy">Copier le lien</button>
+            <button type="button" class="btn sm" data-act="open">Ouvrir</button>
+            <button type="button" class="btn sm" data-act="dup">Dupliquer</button>
+            <button type="button" class="btn sm ghost" data-act="del">Supprimer</button>
+          </div>
+        </li>`).join("")}</ul>`
+      : `<p class="empty">Aucune invitation pour l'instant.<br>Quand tu cliques sur « Créer mon lien », elle s'ajoute ici.</p>`}
+      <div class="hist-tools">
+        ${list.length ? `<button type="button" class="btn sm" id="histExport">Exporter mon historique</button>` : ""}
+        <button type="button" class="btn sm" id="histImport">Importer un historique</button>
+        ${list.length ? `<button type="button" class="btn sm danger" id="histClear">Tout effacer</button>` : ""}
+      </div>
+      <input type="file" id="histFile" accept=".json,application/json" class="hidden">
+      <p class="hint">L'export crée un fichier .json à garder pour toi : il contient tes liens, donc tes invitations. Pratique pour changer de téléphone ou passer du navigateur à l'appli.</p>
+    </section>
+    <p class="foot">Rien n'est envoyé en ligne : l'historique est enregistré dans ce navigateur.<br><a href="mentions-legales.html#historique">En savoir plus</a></p>
+  </div>`;
+  refreshInstall();
+
+  $("#histList")?.addEventListener("click", async e=>{
+    const b=e.target.closest("[data-act]"); if(!b) return;
+    const id=b.closest("[data-id]").dataset.id, it=loadHistory().find(x=>x.id===id);
+    if(!it){ renderHistory(); return; }
+    switch(b.dataset.act){
+      case "copy": toast(await copyText(it.link)?"Lien copié":"Copie impossible"); break;
+      case "open": window.open(it.link,"_blank","noopener"); break;
+      case "dup": duplicateInvitation(it); break;
+      case "del":
+        if(storeHistory(loadHistory().filter(x=>x.id!==id))){ renderHistory(); toast("Invitation retirée de l'historique"); }
+        else toast("Impossible de modifier l'historique sur cet appareil");
+        break;
+    }
+  });
+  $("#histExport")?.addEventListener("click", exportHistory);
+  $("#histImport").addEventListener("click", ()=>$("#histFile").click());
+  $("#histFile").addEventListener("change", e=>{ importHistory(e.target.files[0]); e.target.value=""; });
+  $("#histClear")?.addEventListener("click", async()=>{
+    const n=loadHistory().length;
+    const ok=await confirmSheet("Tout effacer ?",
+      `${n>1?`Les ${n} invitations`:"L'invitation"} de cet appareil ${n>1?"seront retirées":"sera retirée"} de l'historique. Les liens déjà envoyés continueront de fonctionner. Exporte ton historique avant si tu veux le garder.`,
+      "Tout effacer");
+    if(!ok) return;
+    if(storeHistory([])){ renderHistory(); toast("Historique effacé"); }
+    else toast("Impossible d'effacer l'historique sur cet appareil");
+  });
+}
+function confirmSheet(title, text, okLabel){
+  return new Promise(resolve=>{
+    const d=document.createElement("div"); d.className="sheet"; d.setAttribute("role","dialog"); d.setAttribute("aria-modal","true"); d.setAttribute("aria-label",title);
+    d.innerHTML=`<div class="sheet-card"><h3>${esc(title)}</h3><p>${esc(text)}</p>
+      <div class="btns"><button type="button" class="btn" data-r="0">Annuler</button><button type="button" class="btn primary" data-r="1">${esc(okLabel)}</button></div></div>`;
+    const onKey=e=>{ if(e.key==="Escape") close(false); };
+    const close=v=>{ d.remove(); document.removeEventListener("keydown",onKey); resolve(v); };
+    d.addEventListener("click",e=>{ if(e.target===d) return close(false); const b=e.target.closest("[data-r]"); if(b) close(b.dataset.r==="1"); });
+    document.addEventListener("keydown",onKey);
+    document.body.appendChild(d); $("[data-r='0']",d).focus();
+  });
+}
+/* Dupliquer : on relit le lien pour pré-remplir tout le formulaire */
+async function duplicateInvitation(it){
+  let d; try{ d=await decodeData(linkData(it.link)); }catch(e){ toast("Impossible de relire ce lien"); return; }
+  const blank={v:"v",x:"",h:"",at:""};
+  const unpack=x=>{
+    if(!x) return {...blank};
+    if(x.v==="v") return {...blank, x:x.x};
+    if(x.v==="r"){ let val=""; try{ val=unscramble(x.e).slice(0,120); }catch(e){} return {v:"r",x:val,h:x.h||"",at:x.at}; }
+    return {v:"s",x:"",h:x.h||"",at:""};
+  };
+  const o=OCC[d.o];
+  Object.assign(S,{
+    step:0, from:d.f, to:d.t, occ:d.o, occFree:d.of||"", theme:d.th, themeManual:!o||d.th!==o.theme, anim:d.an||"n",
+    mode:d.p?"prog":"one", act:unpack(d.a), lieu:unpack(d.l), details:d.dt||"",
+    steps:d.p ? d.p.map(st=>{
+      if(st.v==="v") return {h:st.h, a:st.a, l:st.l||"", v:"v", hint:"", at:""};
+      if(st.v==="r"){ let x={}; try{ const p=JSON.parse(unscramble(st.e)); if(p && typeof p==="object") x=p; }catch(e){}
+        return {h:st.h, a:String(x.a||"").slice(0,80), l:String(x.l||"").slice(0,120), v:"r", hint:st.i||"", at:st.at}; }
+      return {h:st.h, a:"", l:"", v:"s", hint:st.i||"", at:""};
+    }) : [{h:"",a:"",l:"",v:"v",hint:"",at:""}],
+    end:d.en||"", meet:d.me||"", bring:d.br||"",
+    choose:!!d.sl, date:d.sl?"":d.d, time:d.sl?"":d.h,
+    slots:d.sl ? d.sl.map(s=>({d:s[0],t:s[1]})) : [{d:"",t:""},{d:"",t:""}],
+    q:d.q, qEdited:!o||d.q!==o.q, msg:d.m||"", hidden:!!d.mh,
+    no:d.n, ch:d.c, chId:d.ci||"", link:""
+  });
+  location.hash=""; // retour au formulaire (voir route)
+  window.scrollTo({top:0});
+  toast("Invitation dupliquée : modifie ce que tu veux");
+}
+function saveFile(name, text, type){
+  const url=URL.createObjectURL(new Blob([text],{type}));
+  const a=document.createElement("a"); a.href=url; a.download=name; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),2000);
+}
+function exportHistory(){
+  const items=loadHistory();
+  if(!items.length){ toast("Ton historique est vide"); return; }
+  const json=JSON.stringify({app:"ose-demander", version:1, exported:new Date().toISOString(), items}, null, 2);
+  saveFile(`ose-demander-historique-${todayISO()}.json`, json, "application/json");
+  toast("Historique exporté");
+}
+async function importHistory(file){
+  if(!file) return;
+  const bad="Ce fichier n'est pas un historique Ose Demander";
+  if(file.size>2e6){ toast(bad); return; }
+  let data; try{ data=JSON.parse(await file.text()); }catch(e){ toast(bad); return; }
+  const okTop = data && typeof data==="object" && !Array.isArray(data)
+    && Object.keys(data).every(k=>["app","version","exported","items"].includes(k))
+    && data.app==="ose-demander" && data.version===1
+    && (data.exported===undefined || (typeof data.exported==="string" && data.exported.length<=40))
+    && Array.isArray(data.items) && data.items.length<=1000;
+  if(!okTop){ toast(bad); return; }
+  const list=loadHistory(), links=new Set(list.map(x=>x.link)), ids=new Set(list.map(x=>x.id));
+  let added=0, skipped=0;
+  for(const x of data.items){
+    if(!validEntry(x)){ skipped++; continue; }
+    if(links.has(x.link)) continue; // déjà dans l'historique
+    let d; try{ d=await decodeData(linkData(x.link)); }catch(e){ skipped++; continue; }
+    const e=entryFrom(d, x.link, x.created, ids.has(x.id) ? newId() : x.id);
+    if(!validEntry(e)){ skipped++; continue; }
+    list.push(e); links.add(e.link); ids.add(e.id); added++;
+  }
+  list.sort(byNewest);
+  if(added && !storeHistory(list)){ toast("Impossible d'enregistrer l'historique sur cet appareil"); return; }
+  if(added) askPersist();
+  renderHistory();
+  let msg = added ? `${added} invitation${added>1?"s":""} importée${added>1?"s":""}` : "Aucune nouvelle invitation à importer";
+  if(skipped) msg += ` · ${skipped} ignorée${skipped>1?"s":""} (invalide${skipped>1?"s":""})`;
+  if(list.length>HIST_MAX) msg += ` · seules les ${HIST_MAX} plus récentes sont gardées`;
+  toast(msg);
 }
 
 /* =========================================================
@@ -952,9 +1212,7 @@ function downloadICS(){
     `UID:${Date.now()}@ose-demander`,`DTSTAMP:${fmt(new Date())}`,`DTSTART:${fmt(start)}`,`DTEND:${fmt(end)}`,
     `SUMMARY:${icsEsc(title)}`, loc?`LOCATION:${icsEsc(loc)}`:"", `DESCRIPTION:${icsEsc(desc)}`,
     "END:VEVENT","END:VCALENDAR"].filter(Boolean).join("\r\n");
-  const url=URL.createObjectURL(new Blob([ics],{type:"text/calendar"}));
-  const a=document.createElement("a"); a.href=url; a.download="invitation.ics"; document.body.appendChild(a); a.click(); a.remove();
-  setTimeout(()=>URL.revokeObjectURL(url),2000);
+  saveFile("invitation.ics", ics, "text/calendar");
 }
 function startCountdowns(){
   clearInterval(countTimer);
@@ -1161,6 +1419,7 @@ if("serviceWorker" in navigator && (location.protocol==="https:" || location.hos
 
 /* ---------- Routage ---------- */
 async function route(){
+  if(location.hash==="#mes-invitations"){ renderHistory(); return; }
   const m=location.hash.match(/^#i=(.+)$/);
   if(m){
     try{ D=await decodeData(m[1]); chosenSlot=null; yesDone=false; renderEnvelope(); return; }
