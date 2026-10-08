@@ -161,6 +161,65 @@ textarea.input{min-height:90px;resize:vertical}
 .empty{color:var(--muted);text-align:center;padding:18px 8px;margin:0 0 18px;border:2px dashed var(--line);border-radius:14px}
 .hist-tools{display:flex;flex-wrap:wrap;gap:10px;border-top:2px dashed var(--line);padding-top:16px}
 .sheet-card p{margin:0 0 16px;color:var(--muted)}
+
+/* ---------- Accueil (refonte) ---------- */
+.hero h1{font-size:clamp(36px,9.5vw,60px)}
+.home-cards{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:0 0 18px}
+.home-card{display:flex;flex-direction:column;align-items:flex-start;gap:2px;text-align:left;background:var(--surface);border:2px solid var(--ink);border-radius:var(--r);padding:14px;cursor:pointer;box-shadow:4px 4px 0 var(--ink);transition:transform .1s,box-shadow .1s}
+.home-card:active{transform:translate(2px,2px);box-shadow:2px 2px 0 var(--ink)}
+.home-card .ico{font-size:28px;line-height:1.1;margin-bottom:4px}
+.home-card b{font-size:19px;letter-spacing:-.01em}
+.home-card span:last-child{font-size:14px;color:var(--muted);line-height:1.35}
+.home-actions{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;margin:0 0 26px}
+.home-actions a.btn{text-decoration:none;display:inline-block}
+.privacy{border:2px dashed var(--ink);border-radius:var(--r);padding:16px 18px;background:var(--soft)}
+.privacy h2{font-size:14px;text-transform:uppercase;letter-spacing:.08em;margin:0 0 10px}
+.privacy ul{list-style:none;margin:0 0 10px;padding:0}
+.privacy li{display:flex;gap:10px;padding:4px 0;font-weight:600}
+.privacy a{font-size:14px;color:var(--muted)}
+
+/* ---------- Création express ---------- */
+.tpls{display:flex;flex-direction:column;gap:10px}
+.tpl{display:flex;gap:12px;align-items:flex-start;width:100%;text-align:left;border:2px solid var(--line);background:var(--soft);border-radius:14px;padding:12px 14px;cursor:pointer}
+.tpl:hover{border-color:var(--ink)}
+.tpl[aria-pressed="true"]{border-color:var(--ink);background:var(--surface);box-shadow:3px 3px 0 var(--ink)}
+.tpl .ico{font-size:26px;line-height:1.2;flex:none}
+.tpl b{display:block;font-size:17px}
+.tpl .tq{display:block;font-size:15px}
+.tpl small{display:block;color:var(--muted);font-size:13px;margin-top:2px}
+.adv{display:flex;justify-content:space-between;align-items:center;gap:10px;border:2px dashed var(--line);border-radius:14px;padding:12px 14px;margin:0 0 16px;font-size:15px}
+.adv .linkbtn{flex:none}
+.preview{margin:0 0 18px}
+.preview .ticket{box-shadow:5px 5px 0 var(--ink)}
+.preview .main{min-height:0;padding:20px 16px 18px}
+.preview .question{font-size:26px;margin:0 0 14px}
+.preview .handnote{font-size:24px;margin:0 0 14px}
+.preview .answer{min-height:0;pointer-events:none}
+.preview .yes,.preview .no{font-size:16px;padding:9px 22px;cursor:default}
+.pv-env{display:flex;align-items:center;gap:10px;font-size:14px;color:var(--muted);margin:0 0 12px}
+.pv-env .seal{position:static;transform:none;width:40px;height:40px;font-size:17px;flex:none}
+.pv-env .seal.emoji{font-size:20px}
+.recap.edit li{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.recap.edit li > div{min-width:0;overflow-wrap:anywhere}
+.recap.edit li b{display:block;font-size:13px}
+.recap.edit .linkbtn{flex:none;font-size:14px}
+.more{border:2px solid var(--ink);border-radius:14px;background:var(--surface);margin:4px 0 0}
+.more > summary,.sec > summary{cursor:pointer;list-style:none;display:flex;justify-content:space-between;align-items:center;gap:10px}
+.more > summary::-webkit-details-marker,.sec > summary::-webkit-details-marker{display:none}
+.more > summary{font-weight:700;padding:14px 16px}
+.more > summary::after{content:"+";font-size:22px;line-height:1}
+.more[open] > summary::after{content:"−"}
+.sec{border-top:2px dashed var(--line)}
+.sec > summary{font-weight:600;padding:12px 16px}
+.sec > summary::after{content:"▸";color:var(--muted)}
+.sec[open] > summary::after{content:"▾"}
+.sec-body{padding:2px 16px 16px}
+.sec-body .error{margin:0 0 12px}
+.chip.emo{font-size:20px;line-height:1.25;padding:5px 11px}
+.swatch.acc{width:38px;height:38px}
+.swatch:disabled{opacity:.22;cursor:not-allowed}
+.demo-banner{position:fixed;top:calc(12px + env(safe-area-inset-top,0px));left:12px;right:96px;z-index:30;margin:0;background:var(--ink);color:var(--bg);border-radius:12px;padding:6px 12px;font-size:13px;font-weight:600;width:fit-content;max-width:calc(100% - 108px)}
+.demo-banner a{color:inherit}
 .sheet-card .btns .btn{flex:1}
 
 /* ---------- Invitation (ticket) ---------- */
@@ -329,7 +388,7 @@ const CHANNELS = [
   {id:"fb", t:"Messenger", ph:"Ton nom d'utilisateur Facebook", need:true}
 ];
 const HOURS = ["10:00","11:00","12:00","13:00","14:00","15:00","16:00","17:00","18:00","19:00","20:00","21:00"];
-const STEP_TITLES = ["Qui","L'occasion","Ce qui est prévu","Quand","Le message","La réponse","Vérifier"];
+const STEP_TITLES = ["Le modèle","Les prénoms","Quand et où","L'aperçu"];
 
 /* ---------- Utilitaires ---------- */
 const $ = (s, r=document) => r.querySelector(s);
@@ -444,8 +503,45 @@ function unscramble(s){ const b=unb64url(s); for(let i=0;i<b.length;i++) b[i]^=K
 /* =========================================================
    CRÉATEUR
    ========================================================= */
+/* Modèles prêts à l'emploi : ils pré-remplissent des champs existants, rien de nouveau n'est mis dans le lien */
+const TEMPLATES = [
+  {id:"rdv", cat:"Amour", label:"Premier rendez-vous", occ:"date", theme:"amour", no:"fuit", em:"💌",
+    q:"Ça te dit un rendez-vous avec moi ?", msg:"Prépare ton plus beau sourire, je m'occupe du reste."},
+  {id:"valentin", cat:"Amour", label:"Saint-Valentin", occ:"valentin", theme:"amour", no:"retrecit", em:"🌹",
+    q:"Tu passes la Saint-Valentin avec moi ?", msg:"Tu n'as rien à prévoir, juste à dire oui."},
+  {id:"couple", cat:"Amour", label:"Anniversaire de couple", occ:"couple", theme:"amour", no:"supplie", em:"❤️",
+    q:"On fête notre anniversaire ensemble ?", msg:"J'ai envie de passer ce moment avec toi, rien qu'avec toi."},
+  {id:"mariage", cat:"Amour", label:"Demande en mariage", occ:"mariage", theme:"amour", no:"supplie", em:"💍",
+    q:"Veux-tu m'épouser ?", msg:"Je veux passer tous mes moments avec toi."},
+  {id:"meres", cat:"Famille", label:"Fête des mères", occ:"meres", theme:"maman", no:"transforme", em:"🌷",
+    q:"Maman, je t'emmène pour la fête des mères ?", msg:"Tu t'occupes toujours de nous, cette fois c'est mon tour."},
+  {id:"peres", cat:"Famille", label:"Fête des pères", occ:"peres", theme:"papa", no:"retrecit", em:"👔",
+    q:"Papa, je t'emmène pour la fête des pères ?", msg:"Merci pour tout. Ce moment, c'est pour toi."},
+  {id:"grands", cat:"Famille", label:"Fête des grands-parents", occ:"grands", theme:"maman", no:"supplie", em:"🎁",
+    q:"Je vous invite pour la fête des grands-parents ?", msg:"Un petit moment rien que pour vous, vous l'avez bien mérité."},
+  {id:"soiree", cat:"Amis", label:"Soirée entre amis", occ:"sortie", theme:"amis", no:"fuit", em:"🍕",
+    q:"Tu viens avec moi ?", msg:"Ça fait trop longtemps, on rattrape le temps perdu."},
+  {id:"anniv", cat:"Amis", label:"Un anniversaire", occ:"annivami", theme:"fete", no:"fuit", em:"🎂",
+    q:"Je t'invite pour ton anniversaire ?", msg:"Ce ne sera pas pareil sans toi."},
+  {id:"temoin", cat:"Amis", label:"Être mon témoin", occ:"temoin", theme:"amis", no:"supplie", em:"🎉",
+    q:"Tu veux être mon témoin ?", msg:"Je ne vois personne d'autre à mes côtés ce jour-là."},
+  {id:"mystere", cat:"Surprise", label:"Journée mystère", occ:"surprise", theme:"mystere", no:"fuit", em:"✨",
+    q:"Tu me confies ta journée ?", msg:"Fais-moi confiance, tu vas aimer.",
+    plan:{steps:[{h:"10 h",hint:"Prévois des baskets"},{h:"13 h",hint:"Tu vas te régaler"},{h:"17 h",hint:"Garde des forces"}]}},
+  {id:"diner", cat:"Surprise", label:"Dîner surprise", occ:"juste", theme:"mystere", no:"transforme", em:"💌",
+    q:"Je t'emmène dîner, sans rien te dire ?", msg:"Je ne dis rien de plus, c'est une surprise.",
+    plan:{act:"Un dîner", lieuHint:"Habille-toi bien"}}
+];
+const HOME_CATS = [
+  {cat:"Amour", ico:"❤️", d:"Rendez-vous, Saint-Valentin, couple"},
+  {cat:"Famille", ico:"🌷", d:"Fête des mères, des pères, grands-parents"},
+  {cat:"Amis", ico:"🎉", d:"Soirée, anniversaire, témoin"},
+  {cat:"Surprise", ico:"✨", d:"Journée mystère, dîner surprise"}
+];
+
 const S = {
-  step:0, from:"", to:"", occ:"", occFree:"", theme:"base", themeManual:false, anim:"n",
+  step:"home", tplCat:"Tous", tpl:"", preset:{},
+  from:"", to:"", occ:"", occFree:"", theme:"base", themeManual:false, anim:"n",
   mode:"one",
   act:{v:"v", x:"", h:"", at:""}, lieu:{v:"v", x:"", h:"", at:""}, details:"",
   steps:[{h:"", a:"", l:"", v:"v", hint:"", at:""}],
@@ -453,8 +549,25 @@ const S = {
   date:"", time:"", choose:false, slots:[{d:"",t:""},{d:"",t:""}],
   q:"", qEdited:false, msg:"", hidden:false,
   no:"fuit", ch:"any", chId:"", link:"",
-  ac:"", em:"", sg:""
+  ac:"", em:"", sg:"",
+  moreOpen:false, open:new Set(), err:"", errSec:""
 };
+
+function applyTemplate(id){
+  const t=TEMPLATES.find(x=>x.id===id);
+  const p=(t&&t.plan)||{}, pr=S.preset||{};
+  if(t) Object.assign(S,{tpl:t.id, occ:t.occ, occFree:"", theme:t.theme, q:t.q, qEdited:true, msg:t.msg, no:t.no, em:t.em});
+  else Object.assign(S,{tpl:"zero", occ:"juste", occFree:"", theme:"base", q:OCC.juste.q, qEdited:false, msg:"", no:"fuit", em:""});
+  Object.assign(S,{themeManual:false, hidden:false, ac:""});
+  // On défait ce que le modèle précédent avait préréglé, si la personne n'y a pas touché
+  if(pr.prog && !p.steps) S.mode="one";
+  if(pr.act && !p.act && S.act.x===pr.act) S.act={v:"v",x:"",h:"",at:""};
+  if(pr.lieu && !p.lieuHint && S.lieu.v==="s") S.lieu={v:"v",x:"",h:"",at:""};
+  if(p.steps){ S.mode="prog"; S.steps=p.steps.map(st=>({h:st.h, a:"", l:"", v:"s", hint:st.hint, at:""})); }
+  if(p.act && !S.act.x) S.act={v:"v",x:p.act,h:"",at:""};
+  if(p.lieuHint && !S.lieu.x) S.lieu={v:"s",x:"",h:p.lieuHint,at:""};
+  S.preset={prog:!!p.steps, act:p.act||"", lieu:!!p.lieuHint};
+}
 
 const SITE_TITLE = document.title;
 function topHTML(onHistory){
@@ -471,77 +584,211 @@ function topHTML(onHistory){
 function renderCreator(){
   setTheme(S.theme, S.anim, S.ac);
   document.title = SITE_TITLE;
+  const n=S.step;
   $("#app").innerHTML = `
   <div class="wrap">
     ${topHTML(false)}
-    ${S.step===0 ? `<section class="hero">
-      <h1><span>Pose la question.</span><span>Le Non n'a aucune chance.</span></h1>
-      <p>Crée une invitation pour un date, une fête des mères ou une journée surprise. Tu envoies le lien, on te répond en un clic.</p>
-    </section>` : ""}
+    ${n==="home" ? homeHTML() : `
     <form class="panel" id="form" novalidate>
-      <div class="progress" aria-hidden="true">${STEP_TITLES.map((_,i)=>`<i class="${i<=S.step?"on":""}"></i>`).join("")}</div>
-      <p class="stepnum">Étape ${S.step+1} sur ${STEP_TITLES.length}</p>
-      ${stepHTML()}
-      <p class="error hidden" id="err" role="alert"></p>
+      <div class="progress" aria-hidden="true">${STEP_TITLES.map((_,i)=>`<i class="${i<n?"on":""}"></i>`).join("")}</div>
+      <p class="stepnum">Étape ${n} sur ${STEP_TITLES.length} · ${STEP_TITLES[n-1]}</p>
+      ${screenHTML()}
+      <p class="error ${S.err && !S.errSec ? "" : "hidden"}" id="err" role="alert">${esc(S.errSec ? "" : S.err)}</p>
       <div class="nav">
-        ${S.step>0 ? `<button type="button" class="btn ghost" id="back">Retour</button>` : `<span></span>`}
-        ${S.step<STEP_TITLES.length-1 ? `<button type="submit" class="btn primary">Continuer</button>` : ``}
+        <button type="button" class="btn ghost" id="back">${n===1 ? "Accueil" : "Retour"}</button>
+        ${n===2||n===3 ? `<button type="submit" class="btn primary">${n===3 ? "Voir l'aperçu" : "Continuer"}</button>` : ""}
       </div>
-    </form>
+    </form>`}
     <p class="foot">Rien n'est stocké en ligne : toute l'invitation tient dans le lien.<br><a href="mentions-legales.html">Mentions légales</a></p>
   </div>`;
+  S.err=""; S.errSec="";
   bindCreator();
   refreshInstall();
 }
 
-function visBlock(key, label, ph, it){
-  return `<div class="vis-box" data-vis="${key}">
-    <div class="field"><span>${label}</span>
-      <div class="seg" role="group" aria-label="Visibilité : ${label}">
-        <button type="button" data-v="v" aria-pressed="${it.v==="v"}">Visible</button>
-        <button type="button" data-v="s" aria-pressed="${it.v==="s"}">Surprise</button>
-        <button type="button" data-v="r" aria-pressed="${it.v==="r"}">Révélé plus tard</button>
-      </div>
-      <p class="vis-note">${it.v==="v" ? "Affiché dès qu'elle dit oui." : it.v==="s" ? "Jamais affiché ni inclus dans le lien. Tu peux donner un indice." : "Caché, puis révélé automatiquement à l'heure que tu choisis."}</p>
+/* ---------- Accueil ---------- */
+function homeHTML(){
+  return `<section class="hero">
+      <h1><span>Tu as quelque chose à demander ?</span><span>Fais-le autrement.</span></h1>
+      <p>Une invitation animée à envoyer par message. On te répond en un clic, et le Non résiste… un peu.</p>
+    </section>
+    <div class="home-cards">${HOME_CATS.map(c=>`<button type="button" class="home-card" data-home="${c.cat}">
+      <span class="ico" aria-hidden="true">${c.ico}</span><b>${c.cat}</b><span>${c.d}</span></button>`).join("")}</div>
+    <div class="home-actions">
+      <a class="btn" href="#exemple">Voir un exemple</a>
+      <button type="button" class="linkbtn" id="fromScratch">Partir de zéro →</button>
     </div>
-    ${it.v!=="s" ? `<label class="field"><span class="sr">${label}</span><input class="input" data-k="x" maxlength="120" placeholder="${ph}" value="${esc(it.x)}"></label>` : ""}
-    ${it.v!=="v" ? `<label class="field"><span>Indice <em>(facultatif)</em></span><input class="input" data-k="h" maxlength="100" placeholder="Ex. Prévois des baskets" value="${esc(it.h)}"></label>` : ""}
-    ${it.v==="r" ? `<label class="field"><span>Révéler le</span><input class="input" type="datetime-local" data-k="at" value="${esc(it.at)}"></label>` : ""}
-  </div>`;
+    <section class="privacy" aria-labelledby="privT">
+      <h2 id="privT">Privé par conception</h2>
+      <ul>
+        <li><span aria-hidden="true">🔗</span>Toute l'invitation tient dans le lien</li>
+        <li><span aria-hidden="true">🚫</span>Pas de compte, pas de serveur</li>
+        <li><span aria-hidden="true">📱</span>Ton historique reste sur ton appareil</li>
+      </ul>
+      <a href="mentions-legales.html#donnees">En savoir plus</a>
+    </section>`;
 }
 
-function stepHTML(){
+/* ---------- Les 4 écrans ---------- */
+function screenHTML(){
   switch(S.step){
-  case 0: return `
+  case 1: {
+    const cats=["Tous","Amour","Famille","Amis","Surprise"];
+    const list=TEMPLATES.filter(t=>S.tplCat==="Tous"||t.cat===S.tplCat);
+    return `
+    <h2>Choisis un modèle</h2>
+    <p class="lead">Il règle l'occasion, les couleurs, la question et le message. Tu pourras tout changer.</p>
+    <div class="chips" role="group" aria-label="Catégorie" style="margin-bottom:16px">${cats.map(c=>`<button type="button" class="chip" data-cat="${c}" aria-pressed="${S.tplCat===c}">${c}</button>`).join("")}</div>
+    <div class="tpls">${list.map(t=>`<button type="button" class="tpl" data-tpl="${t.id}" aria-pressed="${S.tpl===t.id}">
+        <span class="ico" aria-hidden="true">${t.em}</span>
+        <span><b>${esc(t.label)}</b><span class="tq">« ${esc(t.q)} »</span><small>${esc(themeName(t.theme))} · ${esc(noLabel(t.no))}</small></span></button>`).join("")}
+      <button type="button" class="tpl" data-tpl="zero" aria-pressed="${S.tpl==="zero"}"><span class="ico" aria-hidden="true">✏️</span>
+        <span><b>Partir de zéro</b><small>Tu choisis tout toi-même</small></span></button>
+    </div>`;
+  }
+  case 2: return `
     <h2>Qui invite qui ?</h2>
     <p class="lead">Un prénom ou un surnom, celui que vous utilisez entre vous.</p>
     <div class="row2">
       <label class="field"><span>Son prénom</span><input class="input" id="to" maxlength="30" placeholder="Ex. Loulou" value="${esc(S.to)}" autocomplete="off"></label>
       <label class="field"><span>Ton prénom</span><input class="input" id="from" maxlength="30" placeholder="Ex. Keke" value="${esc(S.from)}" autocomplete="off"></label>
     </div>`;
-  case 1: return `
-    <h2>C'est pour quoi ?</h2>
-    <p class="lead">Les couleurs s'adaptent à l'occasion. Tu peux les changer en dessous.</p>
-    ${OCCASIONS.map(g=>`<p class="group-title">${g.cat}</p><div class="chips">${g.items.map(o=>`<button type="button" class="chip" data-occ="${o.id}" aria-pressed="${S.occ===o.id}">${o.label}</button>`).join("")}</div>`).join("")}
-    ${S.occ==="libre" ? `<label class="field" style="margin-top:14px"><span>Laquelle ?</span><input class="input" id="occFree" maxlength="40" placeholder="Ex. Ma pendaison de crémaillère" value="${esc(S.occFree)}"></label>` : ""}
-    <p class="group-title">Couleurs</p>
-    <div class="swatches">${THEMES.map(t=>`<button type="button" class="swatch" data-th="${t.id}" aria-pressed="${S.theme===t.id}" title="${t.name}" aria-label="Thème ${t.name}" style="background:linear-gradient(135deg,${t.c} 55%,${t.a} 55%)"></button>`).join("")}</div>
-    <p class="group-title">Animations</p>
-    <div class="seg" role="group" aria-label="Animations">
-      <button type="button" data-anim="n" aria-pressed="${S.anim==="n"}">Normales</button>
-      <button type="button" data-anim="d" aria-pressed="${S.anim==="d"}">Discrètes</button>
-      <button type="button" data-anim="0" aria-pressed="${S.anim==="0"}">Aucune</button>
+  case 3: {
+    const nSl=S.slots.filter(s=>s.d&&s.t).length;
+    return `
+    <h2>Quand et où ?</h2>
+    <p class="lead">${S.mode==="prog" ? "Le jour et l'heure de début." : "Le jour, l'heure et ce qui est prévu."}</p>
+    ${S.choose ? advNote(`Tu proposes ${nSl>1?nSl+" créneaux":"plusieurs créneaux"} au choix.`, "when") : dateTimeHTML()}
+    ${S.mode==="prog"
+      ? advNote(`Un programme en ${S.steps.length} étape${S.steps.length>1?"s":""} est prévu.`, "plan")
+      : visBlock("act","Ce qui est prévu","Ex. Dîner au restaurant, cinéma…",S.act,false) + visBlock("lieu","Le lieu","Ex. Le Petit Bistrot, 12 rue de Charonne, Paris",S.lieu,false)}
+    <p class="hint">Plusieurs créneaux, programme en étapes ou révélation programmée : dans « Personnaliser davantage », à l'étape suivante.</p>`;
+  }
+  case 4: return `
+    <h2>Voilà ce que ${esc(S.to)} va recevoir</h2>
+    <p class="lead">Vérifie, teste, puis crée ton lien.</p>
+    ${previewHTML()}
+    <ul class="recap edit">
+      ${recapRow("De / pour", `${esc(S.from)} → ${esc(S.to)}`, 'data-edit="2"')}
+      ${recapRow("Quand", whenRecap(), S.choose ? 'data-goto="when"' : 'data-edit="3"')}
+      ${S.mode==="one"
+        ? recapRow("Prévu", itemRecap(S.act), S.act.v==="r" ? 'data-goto="plan"' : 'data-edit="3"')
+          + recapRow("Lieu", S.lieu.v==="v"&&!S.lieu.x ? "<em>Non précisé</em>" : itemRecap(S.lieu), S.lieu.v==="r" ? 'data-goto="plan"' : 'data-edit="3"')
+        : recapRow("Programme", recapPlan(), 'data-goto="plan"')}
+      ${recapRow("Occasion", esc(occLabel()), 'data-goto="occ"')}
+      ${recapRow("Question", esc(S.q), 'data-goto="words"')}
+      ${recapRow("Message", S.msg ? esc(S.msg)+(S.hidden?" <em>(caché jusqu'au Oui)</em>":"") : "<em>Aucun</em>", 'data-goto="words"')}
+      ${recapRow("Style", styleRecap(), 'data-goto="style"')}
+      ${recapRow("Le Non", esc(NO_MODES.find(m=>m.id===S.no).t), 'data-goto="no"')}
+      ${recapRow("Réponse via", esc(CHANNELS.find(c=>c.id===S.ch).t)+(S.chId?" ("+esc(S.chId)+")":""), 'data-goto="reply"')}
+    </ul>
+    <details class="more" id="more" ${S.moreOpen?"open":""}>
+      <summary>Personnaliser davantage</summary>
+      ${section("occ","L'occasion",secOcc())}
+      ${section("words","Les mots",secWords())}
+      ${section("style","Le style",secStyle())}
+      ${section("plan","Le programme",secPlan())}
+      ${section("when","Quand (et créneaux au choix)",secWhen())}
+      ${section("no","Le Non",secNo())}
+      ${section("reply","La réponse",secReply())}
+    </details>
+    <div class="btns" style="margin-top:18px">
+      <button type="button" class="btn" id="preview">Tester l'invitation</button>
+      <button type="button" class="btn primary" id="make">Créer mon lien</button>
     </div>
-    <p class="hint">Le décor bouge en fond, et explose au moment du Oui. Choisis « Aucune » pour une invitation sobre.</p>`;
-  case 2: return `
-    <h2>Qu'est-ce que tu prévois ?</h2>
-    <p class="lead">Chaque info peut rester une surprise.</p>
-    <div class="seg" role="group" aria-label="Type de plan">
+    <div id="result" class="${S.link?"":"hidden"}">
+      <p class="group-title">Ton lien est prêt</p>
+      <div class="linkbox" id="linkbox">${esc(S.link)}</div>
+      <div class="btns">
+        <button type="button" class="btn primary" id="copy">Copier le lien</button>
+        ${navigator.share ? `<button type="button" class="btn" id="share">Partager</button>` : ""}
+      </div>
+      <p class="hint" id="savedNote"></p>
+      <p class="hint">Envoie-le par message. Rien n'expire, rien n'est envoyé à un serveur. Toute personne qui a ce lien peut lire l'invitation : ne le partage qu'avec la bonne personne.</p>
+    </div>`;
+  }
+}
+const themeName = id => (THEMES.find(t=>t.id===id)||THEMES[0]).name;
+const noLabel = id => "le Non "+NO_MODES.find(m=>m.id===id).t.replace(/^Il /,"");
+function advNote(text, sec){ return `<div class="adv"><span>${esc(text)}</span><button type="button" class="linkbtn" data-goto="${sec}">Modifier</button></div>`; }
+function recapRow(label, value, attr){
+  return `<li><div><b>${label}</b><span>${value}</span></div><button type="button" class="linkbtn" ${attr} aria-label="Modifier : ${label}">Modifier</button></li>`;
+}
+function section(key, title, body){
+  return `<details class="sec" data-sec="${key}" ${S.open.has(key)?"open":""}><summary>${title}</summary>
+    <div class="sec-body">${S.errSec===key ? `<p class="error" role="alert">${esc(S.err)}</p>` : ""}${body}</div></details>`;
+}
+
+/* ---------- Aperçu (statique, mis à jour pendant la saisie) ---------- */
+function previewHTML(){
+  const occ=occLabel(), initial=(S.from||"?").trim().charAt(0).toUpperCase();
+  return `<div class="preview" aria-label="Aperçu de l'invitation">
+    <p class="pv-env"><span class="seal ${S.em?"emoji":""}" aria-hidden="true">${esc(S.em||initial)}</span>Sur l'enveloppe</p>
+    <div class="ticket">
+      <div class="stub"><div>De<b>${esc(S.from)}</b></div><div style="text-align:right">Pour<b>${esc(S.to)}</b></div></div>
+      <div class="perf" aria-hidden="true"></div>
+      <div class="main">
+        ${occ?`<p class="occ">${esc(occ)}</p>`:""}
+        <p class="question" id="pvQ">${esc(S.q)}</p>
+        <p class="handnote" id="pvMsg" ${S.msg&&!S.hidden?"":"hidden"}>${esc(S.msg)}</p>
+        <p class="hint" id="pvHidden" ${S.msg&&S.hidden?"":"hidden"}>🔒 Message caché jusqu'au Oui</p>
+        <div class="answer" aria-hidden="true"><span class="yes">Oui</span><span class="no">Non</span></div>
+        <p class="sign" id="pvSign" ${S.sg?"":"hidden"}>${esc(S.sg)}</p>
+      </div>
+    </div>
+  </div>`;
+}
+function whenRecap(){
+  return S.choose ? S.slots.filter(s=>s.d&&s.t).map(s=>esc(frDate(s.d)+" à "+frTime(s.t))).join("<br>")+"<br><em>Au choix</em>"
+    : esc(frDate(S.date)+" à "+frTime(S.time));
+}
+function styleRecap(){
+  const a=ACCENTS.find(x=>x.id===S.ac);
+  return [themeName(S.theme), a ? "accent "+a.name : "", "enveloppe "+(S.em||"avec l'initiale"),
+    S.sg ? "signé « "+S.sg+" »" : "", {n:"",d:"animations discrètes","0":"sans animation"}[S.anim]].filter(Boolean).map(esc).join(" · ");
+}
+
+/* ---------- Sections de « Personnaliser davantage » ---------- */
+function dateTimeHTML(){
+  return `<label class="field"><span>Date</span><input class="input" type="date" id="date" min="${todayISO()}" value="${esc(S.date)}"></label>
+    <div class="field"><span>Heure</span>
+      <div class="chips">${HOURS.map(h=>`<button type="button" class="chip" data-hour="${h}" aria-pressed="${S.time===h}">${frTime(h)}</button>`).join("")}</div>
+    </div>
+    <label class="field"><span>Ou une heure précise</span><input class="input" type="time" id="time" value="${esc(S.time)}" style="max-width:180px"></label>`;
+}
+function secWhen(){
+  return `<label class="check"><input type="checkbox" id="choose" ${S.choose?"checked":""}><span>Laisser choisir parmi plusieurs créneaux</span></label>
+    ${!S.choose ? dateTimeHTML() : `
+      ${S.slots.map((sl,i)=>`<div class="row2" data-slot="${i}">
+        <label class="field"><span>Créneau ${i+1} : date</span><input class="input" type="date" data-sl="d" min="${todayISO()}" value="${esc(sl.d)}"></label>
+        <label class="field"><span>Heure</span><input class="input" type="time" data-sl="t" value="${esc(sl.t)}"></label>
+      </div>`).join("")}
+      ${S.slots.length<3 ? `<button type="button" class="btn" id="addSlot">Ajouter un créneau</button>` : ""}`}`;
+}
+function visBlock(key, label, ph, it, reveal=true){
+  if(!reveal && it.v==="r")
+    return advNote(`${label} : révélé le ${(it.at||"").replace("T"," à ")}.`, "plan");
+  return `<div class="vis-box" data-vis="${key}">
+    <div class="field"><span>${label}</span>
+      <div class="seg" role="group" aria-label="Visibilité : ${label}">
+        <button type="button" data-v="v" aria-pressed="${it.v==="v"}">Visible</button>
+        <button type="button" data-v="s" aria-pressed="${it.v==="s"}">Surprise</button>
+        ${reveal ? `<button type="button" data-v="r" aria-pressed="${it.v==="r"}">Révélé plus tard</button>` : ""}
+      </div>
+      <p class="vis-note">${it.v==="v" ? "Affiché dès le Oui." : it.v==="s" ? "Jamais affiché ni inclus dans le lien. Tu peux donner un indice." : "Caché, puis révélé automatiquement à l'heure que tu choisis."}</p>
+    </div>
+    ${it.v!=="s" ? `<label class="field"><span class="sr">${label}</span><input class="input" data-k="x" maxlength="120" placeholder="${ph}" value="${esc(it.x)}"></label>` : ""}
+    ${it.v!=="v" ? `<label class="field"><span>Indice <em>(facultatif)</em></span><input class="input" data-k="h" maxlength="100" placeholder="Ex. Prévois des baskets" value="${esc(it.h)}"></label>` : ""}
+    ${it.v==="r" ? `<label class="field"><span>Révéler le</span><input class="input" type="datetime-local" data-k="at" value="${esc(it.at)}"></label>` : ""}
+  </div>`;
+}
+function secPlan(){
+  return `<div class="seg" role="group" aria-label="Type de plan">
       <button type="button" data-mode="one" aria-pressed="${S.mode==="one"}">Une activité</button>
       <button type="button" data-mode="prog" aria-pressed="${S.mode==="prog"}">Un programme (plusieurs étapes)</button>
     </div>
     ${S.mode==="one" ? `
-      ${visBlock("act","L'activité","Ex. Escape game, dîner, cinéma…",S.act)}
+      ${visBlock("act","Ce qui est prévu","Ex. Escape game, dîner, cinéma…",S.act)}
       ${visBlock("lieu","Le lieu","Ex. Le Petit Bistrot, 12 rue de Charonne, Paris",S.lieu)}
       <label class="field"><span>Détails <em>(facultatif)</em></span><textarea class="input" id="details" maxlength="200" placeholder="Ex. Tenue chic, je réserve la table">${esc(S.details)}</textarea></label>
     ` : `
@@ -570,172 +817,184 @@ function stepHTML(){
       </div>
       <label class="field"><span>À prévoir</span><input class="input" id="bring" maxlength="100" placeholder="Ex. Tenue confortable, maillot de bain" value="${esc(S.bring)}"></label>
     `}`;
-  case 3: return `
-    <h2>Quand ?</h2>
-    <p class="lead">${S.mode==="prog" ? "Le jour et l'heure de début." : "Le jour et l'heure du rendez-vous."}</p>
-    <label class="check"><input type="checkbox" id="choose" ${S.choose?"checked":""}><span>Lui laisser choisir parmi plusieurs créneaux</span></label>
-    ${!S.choose ? `
-      <label class="field"><span>Date</span><input class="input" type="date" id="date" min="${todayISO()}" value="${esc(S.date)}"></label>
-      <div class="field"><span>Heure</span>
-        <div class="chips">${HOURS.map(h=>`<button type="button" class="chip" data-hour="${h}" aria-pressed="${S.time===h}">${frTime(h)}</button>`).join("")}</div>
-      </div>
-      <label class="field"><span>Ou une heure précise</span><input class="input" type="time" id="time" value="${esc(S.time)}" style="max-width:180px"></label>
-    ` : `
-      ${S.slots.map((sl,i)=>`<div class="row2" data-slot="${i}">
-        <label class="field"><span>Créneau ${i+1} : date</span><input class="input" type="date" data-sl="d" min="${todayISO()}" value="${esc(sl.d)}"></label>
-        <label class="field"><span>Heure</span><input class="input" type="time" data-sl="t" value="${esc(sl.t)}"></label>
-      </div>`).join("")}
-      ${S.slots.length<3 ? `<button type="button" class="btn" id="addSlot">Ajouter un créneau</button>` : ""}
-    `}`;
-  case 4: {
-    const o=OCC[S.occ]; const cat=o?o.cat:"Autre";
-    if(!S.qEdited) S.q = o ? o.q : "Tu dis oui ?";
-    return `
-    <h2>Les mots</h2>
-    <p class="lead">La question s'affiche en grand, le message apparaît sur la carte.</p>
-    <label class="field"><span>La question</span><input class="input" id="q" maxlength="80" value="${esc(S.q)}"></label>
-    <label class="field"><span>Ton message <em>(facultatif)</em></span><textarea class="input" id="msg" maxlength="300" placeholder="Écris-lui un petit mot…">${esc(S.msg)}</textarea><div class="counter" id="cnt">${S.msg.length} / 300</div></label>
+}
+function secOcc(){
+  return `${OCCASIONS.map(g=>`<p class="group-title">${g.cat}</p><div class="chips">${g.items.map(o=>`<button type="button" class="chip" data-occ="${o.id}" aria-pressed="${S.occ===o.id}">${o.label}</button>`).join("")}</div>`).join("")}
+    ${S.occ==="libre" ? `<label class="field" style="margin-top:14px"><span>Laquelle ?</span><input class="input" id="occFree" maxlength="40" placeholder="Ex. Ma pendaison de crémaillère" value="${esc(S.occFree)}"></label>` : ""}`;
+}
+function secWords(){
+  const o=OCC[S.occ]; const cat=o?o.cat:"Autre";
+  if(!S.qEdited) S.q = o ? o.q : "Tu dis oui ?";
+  return `<label class="field"><span>La question</span><input class="input" id="q" maxlength="80" value="${esc(S.q)}"></label>
+    <label class="field"><span>Ton message <em>(facultatif)</em></span><textarea class="input" id="msg" maxlength="300" placeholder="Écris un petit mot…">${esc(S.msg)}</textarea><div class="counter" id="cnt">${S.msg.length} / 300</div></label>
     <p class="group-title">Besoin d'inspiration ?</p>
     <div class="chips" style="margin-bottom:16px">${MSG_SUGG[cat].map((m,i)=>`<button type="button" class="chip" data-sugg="${i}">${esc(m)}</button>`).join("")}</div>
     <label class="check"><input type="checkbox" id="hidden" ${S.hidden?"checked":""}><span>Garder le message caché jusqu'au Oui</span></label>`;
-  }
-  case 5: {
-    const ch=CHANNELS.find(c=>c.id===S.ch);
-    return `
-    <h2>Le Non, et la réponse</h2>
-    <p class="lead">Choisis comment le bouton Non résiste.</p>
-    <div class="cards">${NO_MODES.map(m=>`<button type="button" class="optcard" data-no="${m.id}" aria-pressed="${S.no===m.id}"><b>${m.t}</b><span>${m.d}</span></button>`).join("")}</div>
-    <div class="field"><span>Comment veux-tu recevoir sa réponse ?</span>
+}
+function secStyle(){
+  const th=THEMES.find(t=>t.id===S.theme)||THEMES[0], initial=(S.from||"?").trim().charAt(0).toUpperCase();
+  return `<p class="group-title">Thème</p>
+    <div class="swatches">${THEMES.map(t=>`<button type="button" class="swatch" data-th="${t.id}" aria-pressed="${S.theme===t.id}" title="${t.name}" aria-label="Thème ${t.name}" style="background:linear-gradient(135deg,${t.c} 55%,${t.a} 55%)"></button>`).join("")}</div>
+    <p class="group-title">Couleur d'accent</p>
+    <div class="swatches">
+      <button type="button" class="swatch acc" data-ac="" aria-pressed="${!S.ac}" title="Celle du thème" aria-label="Couleur du thème" style="background:${th.a}"></button>
+      ${ACCENTS.map(a=>{ const ok=accentOk(S.theme,a.id);
+        return `<button type="button" class="swatch acc" data-ac="${a.id}" aria-pressed="${S.ac===a.id}" title="${a.name}${ok?"":" : peu lisible avec ce thème"}" aria-label="Accent ${a.name}" style="background:${a.c}" ${ok?"":"disabled"}></button>`; }).join("")}
+    </div>
+    <p class="hint">Les couleurs grisées seraient peu lisibles avec ce thème.</p>
+    <p class="group-title">Sur l'enveloppe</p>
+    <div class="chips">
+      <button type="button" class="chip" data-em="" aria-pressed="${!S.em}">L'initiale (${esc(initial)})</button>
+      ${EMOJIS.map(e=>`<button type="button" class="chip emo" data-em="${e}" aria-pressed="${S.em===e}" aria-label="Emoji ${e}">${e}</button>`).join("")}
+    </div>
+    <label class="field" style="margin-top:16px"><span>Signature manuscrite <em>(facultatif)</em></span><input class="input" id="sg" maxlength="30" placeholder="Ex. Ton Keke" value="${esc(S.sg)}"></label>
+    <p class="group-title">Animations</p>
+    <div class="seg" role="group" aria-label="Animations">
+      <button type="button" data-anim="n" aria-pressed="${S.anim==="n"}">Normales</button>
+      <button type="button" data-anim="d" aria-pressed="${S.anim==="d"}">Discrètes</button>
+      <button type="button" data-anim="0" aria-pressed="${S.anim==="0"}">Aucune</button>
+    </div>
+    <p class="hint">Le décor bouge en fond, et explose au moment du Oui. Choisis « Aucune » pour une invitation sobre.</p>`;
+}
+function secNo(){
+  return `<div class="cards">${NO_MODES.map(m=>`<button type="button" class="optcard" data-no="${m.id}" aria-pressed="${S.no===m.id}"><b>${m.t}</b><span>${m.d}</span></button>`).join("")}</div>
+    <p class="hint">Quel que soit le mode, un lien discret permet toujours de répondre non pour de vrai.</p>`;
+}
+function secReply(){
+  const ch=CHANNELS.find(c=>c.id===S.ch), tel=S.ch==="wa"||S.ch==="sms";
+  return `<div class="field"><span>Comment veux-tu recevoir la réponse ?</span>
       <div class="chips">${CHANNELS.map(c=>`<button type="button" class="chip" data-ch="${c.id}" aria-pressed="${S.ch===c.id}">${c.t}</button>`).join("")}</div>
-      <p class="hint">${S.ch==="any" ? "Elle choisira l'appli au moment de répondre." : (S.ch==="wa"||S.ch==="sms") ? "Le message s'ouvrira déjà écrit, elle n'aura qu'à l'envoyer." : "Cette appli ne permet pas de pré-écrire le message : la réponse sera copiée, elle n'aura qu'à la coller."}</p>
+      <p class="hint">${S.ch==="any" ? "L'appli sera choisie au moment de répondre." : tel ? "Le message s'ouvrira déjà écrit, il n'y aura plus qu'à l'envoyer." : "Cette appli ne permet pas de pré-écrire le message : la réponse sera copiée, il suffira de la coller."}</p>
     </div>
-    ${ch.need ? `<label class="field"><span>${(S.ch==="wa"||S.ch==="sms")?"Ton numéro":"Ton nom d'utilisateur"}</span><input class="input" id="chId" maxlength="40" placeholder="${ch.ph}" value="${esc(S.chId)}" ${(S.ch==="wa"||S.ch==="sms")?'inputmode="tel"':''}></label>
+    ${ch.need ? `<label class="field"><span>${tel?"Ton numéro":"Ton nom d'utilisateur"}</span><input class="input" id="chId" maxlength="40" placeholder="${ch.ph}" value="${esc(S.chId)}" ${tel?'inputmode="tel"':''}></label>
     <p class="hint">Il sera inclus dans le lien, visible seulement par les personnes qui l'ont.</p>` : ""}`;
-  }
-  case 6: return `
-    <h2>Tout est bon ?</h2>
-    <p class="lead">Vérifie, teste, puis crée ton lien.</p>
-    <ul class="recap">
-      <li><b>De / pour</b><span>${esc(S.from)} → ${esc(S.to)}</span></li>
-      <li><b>Occasion</b><span>${esc(occLabel())}</span></li>
-      <li><b>Question</b><span>${esc(S.q)}</span></li>
-      <li><b>Prévu</b><span>${recapPlan()}</span></li>
-      <li><b>Quand</b><span>${S.choose ? S.slots.filter(s=>s.d&&s.t).map(s=>esc(frDate(s.d)+" à "+frTime(s.t))).join("<br>")+"<br><em>Elle choisit</em>" : esc(frDate(S.date)+" à "+frTime(S.time))}</span></li>
-      <li><b>Message</b><span>${S.msg?esc(S.msg)+(S.hidden?" <em>(caché jusqu'au Oui)</em>":""):"<em>Aucun</em>"}</span></li>
-      <li><b>Animations</b><span>${{n:"Normales",d:"Discrètes","0":"Aucune"}[S.anim]}</span></li>
-      <li><b>Le Non</b><span>${NO_MODES.find(m=>m.id===S.no).t}</span></li>
-      <li><b>Réponse via</b><span>${CHANNELS.find(c=>c.id===S.ch).t}${S.chId?" ("+esc(S.chId)+")":""}</span></li>
-    </ul>
-    <div class="btns">
-      <button type="button" class="btn" id="preview">Tester l'invitation</button>
-      <button type="button" class="btn primary" id="make">Créer mon lien</button>
-    </div>
-    <div id="result" class="${S.link?"":"hidden"}">
-      <p class="group-title">Ton lien est prêt</p>
-      <div class="linkbox" id="linkbox">${esc(S.link)}</div>
-      <div class="btns">
-        <button type="button" class="btn primary" id="copy">Copier le lien</button>
-        ${navigator.share ? `<button type="button" class="btn" id="share">Partager</button>` : ""}
-      </div>
-      <p class="hint" id="savedNote"></p>
-      <p class="hint">Envoie-le par message. Rien n'expire, rien n'est envoyé à un serveur. Toute personne qui a ce lien peut lire l'invitation : ne le partage qu'avec la bonne personne.</p>
-    </div>`;
-  }
 }
 function occLabel(){ if(S.occ==="libre") return S.occFree || "Autre"; return OCC[S.occ]?.label || ""; }
 function itemRecap(it){ return it.v==="s" ? "Surprise"+(it.h?` (indice : ${esc(it.h)})`:"") : it.v==="r" ? `${esc(it.x)} <em>(révélé le ${esc(it.at.replace("T"," à "))})</em>` : esc(it.x); }
 function recapPlan(){
-  if(S.mode==="one") return `${itemRecap(S.act)}<br>${S.lieu.v==="v"&&!S.lieu.x?"<em>Lieu non précisé</em>":itemRecap(S.lieu)}`;
   return S.steps.map(st=>`${esc(st.h||"?")} : ${st.v==="s"?"Surprise":esc(st.a)}${st.v==="r"?" <em>(révélé plus tard)</em>":""}`).join("<br>");
 }
 
-function readStep(){
-  const v=id=>{const e=$("#"+id);return e?e.value.trim():undefined;};
-  switch(S.step){
-  case 0: S.to=v("to"); S.from=v("from"); break;
-  case 1: if($("#occFree")) S.occFree=v("occFree"); break;
-  case 2:
-    if(S.mode==="one"){
-      ["act","lieu"].forEach(k=>{ const box=$(`[data-vis="${k}"]`); $$("[data-k]",box).forEach(inp=>S[k][inp.dataset.k]=inp.value.trim()); });
-      S.details=v("details")||"";
-    } else {
-      $$(".prog-step").forEach(box=>{ const st=S.steps[+box.dataset.step]; $$("[data-s]",box).forEach(inp=>st[inp.dataset.s]=inp.value.trim()); });
-      S.end=v("end")||""; S.meet=v("meet")||""; S.bring=v("bring")||"";
-    } break;
-  case 3:
-    if(!S.choose){ S.date=v("date")||""; const t=v("time"); if(t) S.time=t; }
-    else $$("[data-slot]").forEach(r=>{ const sl=S.slots[+r.dataset.slot]; $$("[data-sl]",r).forEach(i=>sl[i.dataset.sl]=i.value); });
-    break;
-  case 4: { const q=v("q"); if(q!==S.q){S.q=q;S.qEdited=true;} S.msg=$("#msg").value.trim(); S.hidden=$("#hidden").checked; break; }
-  case 5: if($("#chId")) S.chId=v("chId"); break;
-  }
+/* ---------- Lecture et vérification ---------- */
+/* Lit tous les champs présents à l'écran (quel que soit l'écran) */
+function readAll(){
+  const v=id=>{ const e=$("#"+id); return e ? e.value.trim() : undefined; };
+  if($("#to")){ S.to=v("to"); S.from=v("from"); }
+  if($("#occFree")) S.occFree=v("occFree");
+  ["act","lieu"].forEach(k=>{ const box=$(`[data-vis="${k}"]`); if(box) $$("[data-k]",box).forEach(inp=>S[k][inp.dataset.k]=inp.value.trim()); });
+  if($("#details")) S.details=v("details");
+  $$(".prog-step").forEach(box=>{ const st=S.steps[+box.dataset.step]; $$("[data-s]",box).forEach(inp=>st[inp.dataset.s]=inp.value.trim()); });
+  if($("#end")){ S.end=v("end"); S.meet=v("meet"); S.bring=v("bring"); }
+  if($("#date")){ S.date=v("date"); const t=v("time"); if(t) S.time=t; }
+  $$("[data-slot]").forEach(r=>{ const sl=S.slots[+r.dataset.slot]; $$("[data-sl]",r).forEach(i=>sl[i.dataset.sl]=i.value); });
+  if($("#q")){ const q=v("q"); if(q!==S.q){ S.q=q; S.qEdited=true; } }
+  if($("#msg")) S.msg=$("#msg").value.trim();
+  if($("#hidden")) S.hidden=$("#hidden").checked;
+  if($("#chId")) S.chId=v("chId");
+  if($("#sg")) S.sg=v("sg");
 }
-function validate(){
-  const now=new Date();
-  const futureOk=at=>at && new Date(at)>now;
-  switch(S.step){
-  case 0: if(!S.to||!S.from) return "Indique vos deux prénoms (ou surnoms)."; break;
-  case 1: if(!S.occ) return "Choisis une occasion."; break;
-  case 2:
+/* Chaque vérification indique où corriger : un écran (nombre) ou une section de « Personnaliser davantage » */
+const CHECKS = {
+  who(){ if(!S.to||!S.from) return {m:"Indique vos deux prénoms (ou surnoms).", go:2}; },
+  occ(){ if(!S.occ) return {m:"Choisis une occasion.", go:"occ"}; },
+  when(){
+    const go=S.choose?"when":3;
+    if(!S.choose){ if(!S.date) return {m:"Choisis une date.",go}; if(S.date<todayISO()) return {m:"Cette date est déjà passée.",go}; if(!S.time) return {m:"Choisis une heure.",go}; }
+    else { const ok=S.slots.filter(s=>s.d&&s.t); if(ok.length<2) return {m:"Propose au moins deux créneaux complets (date et heure).",go}; if(ok.some(s=>s.d<todayISO())) return {m:"Un des créneaux est déjà passé.",go}; }
+  },
+  plan(){
+    const now=new Date(), futureOk=at=>at && new Date(at)>now;
     if(S.mode==="one"){
-      if(S.act.v!=="s" && !S.act.x) return "Décris l'activité, ou choisis « Surprise ».";
-      for(const [k,n] of [["act","l'activité"],["lieu","le lieu"]]){ const it=S[k];
-        if(it.v==="r" && !it.x) return `Indique ${n} à révéler.`;
-        if(it.v==="r" && !futureOk(it.at)) return `Choisis une date de révélation à venir pour ${n}.`; }
+      if(S.act.v!=="s" && !S.act.x) return {m:"Décris ce qui est prévu, ou choisis « Surprise ».", go:S.act.v==="r"?"plan":3};
+      for(const [k,n] of [["act","ce qui est prévu"],["lieu","le lieu"]]){ const it=S[k];
+        if(it.v==="r" && !it.x) return {m:`Indique ${n} à révéler.`, go:"plan"};
+        if(it.v==="r" && !futureOk(it.at)) return {m:`Choisis une date de révélation à venir pour ${n}.`, go:"plan"}; }
     } else {
       for(const [i,st] of S.steps.entries()){
-        if(st.v!=="s" && !st.a) return `Indique l'activité de l'étape ${i+1}, ou choisis « Surprise ».`;
-        if(st.v==="r" && !futureOk(st.at)) return `Choisis une date de révélation à venir pour l'étape ${i+1}.`;
+        if(st.v!=="s" && !st.a) return {m:`Indique l'activité de l'étape ${i+1}, ou choisis « Surprise ».`, go:"plan"};
+        if(st.v==="r" && !futureOk(st.at)) return {m:`Choisis une date de révélation à venir pour l'étape ${i+1}.`, go:"plan"};
       }
-    } break;
-  case 3:
-    if(!S.choose){ if(!S.date) return "Choisis une date."; if(S.date<todayISO()) return "Cette date est déjà passée."; if(!S.time) return "Choisis une heure."; }
-    else { const ok=S.slots.filter(s=>s.d&&s.t); if(ok.length<2) return "Propose au moins deux créneaux complets (date et heure)."; if(ok.some(s=>s.d<todayISO())) return "Un des créneaux est déjà passé."; }
-    break;
-  case 4: if(!S.q) return "Écris la question à poser."; break;
-  case 5: if(CHANNELS.find(c=>c.id===S.ch).need && !S.chId) return "Indique où recevoir la réponse."; break;
-  }
-  return "";
+    }
+  },
+  words(){ if(!S.q) return {m:"Écris la question à poser.", go:"words"}; },
+  reply(){ if(CHANNELS.find(c=>c.id===S.ch).need && !S.chId) return {m:"Indique où recevoir la réponse.", go:"reply"}; }
+};
+function checkScreen(n){
+  const keys = n===2 ? ["who"] : n===3 ? ["when","plan"] : ["who","occ","when","plan","words","reply"];
+  for(const k of keys){ const e=CHECKS[k](); if(e) return e; }
+  return null;
+}
+function showErr(e){
+  if(e.go===S.step){ const el=$("#err"); el.textContent=e.m; el.classList.remove("hidden"); el.scrollIntoView({block:"center"}); return; }
+  S.err=e.m;
+  if(typeof e.go==="number") go(e.go);
+  else { S.errSec=e.go; openSection(e.go); }
+}
+function go(step){ S.step=step; S.link=""; renderCreator(); window.scrollTo({top:0}); }
+function openSection(key){
+  S.step=4; S.moreOpen=true; S.open.add(key); renderCreator();
+  $(`details[data-sec="${key}"]`)?.scrollIntoView({block:"start"});
 }
 
 function bindCreator(){
-  const f=$("#form");
-  f.addEventListener("submit",e=>{
-    e.preventDefault(); readStep();
-    const err=validate();
-    if(err){ const el=$("#err"); el.textContent=err; el.classList.remove("hidden"); return; }
-    S.step++; S.link=""; renderCreator(); window.scrollTo({top:0});
-  });
-  $("#back")?.addEventListener("click",()=>{ readStep(); S.step--; renderCreator(); window.scrollTo({top:0}); });
-  const rerender=()=>{ renderCreator(); };
+  // Toute modification relit les champs, puis réaffiche (le lien déjà créé n'est plus à jour)
+  const on=(sel, fn)=>$$(sel).forEach(b=>b.addEventListener("click",()=>{ readAll(); fn(b); S.link=""; renderCreator(); }));
+  const fixAccent=()=>{ if(S.ac && !accentOk(S.theme,S.ac)) S.ac=""; };
 
-  // Étape 1
-  $$("[data-occ]").forEach(b=>b.addEventListener("click",()=>{
-    readStep(); S.occ=b.dataset.occ; if(!S.themeManual) S.theme=OCC[S.occ].theme;
-    if(S.occ==="surprise" && S.mode==="one" && !S.act.x) S.mode="prog";
-    rerender();
-  }));
-  $$("[data-th]").forEach(b=>b.addEventListener("click",()=>{ readStep(); S.theme=b.dataset.th; S.themeManual=true; rerender(); }));
-  $$("[data-anim]").forEach(b=>b.addEventListener("click",()=>{ readStep(); S.anim=b.dataset.anim; rerender(); }));
-  // Étape 2
-  $$("[data-mode]").forEach(b=>b.addEventListener("click",()=>{ readStep(); S.mode=b.dataset.mode; rerender(); }));
-  $$("[data-vis]").forEach(box=>$$("[data-v]",box).forEach(b=>b.addEventListener("click",()=>{ readStep(); S[box.dataset.vis].v=b.dataset.v; rerender(); })));
-  $$(".prog-step").forEach(box=>$$("[data-sv]",box).forEach(b=>b.addEventListener("click",()=>{ readStep(); S.steps[+box.dataset.step].v=b.dataset.sv; rerender(); })));
-  $$("[data-del]").forEach(b=>b.addEventListener("click",()=>{ readStep(); S.steps.splice(+b.dataset.del,1); rerender(); }));
-  $("#addStep")?.addEventListener("click",()=>{ readStep(); S.steps.push({h:"",a:"",l:"",v:"v",hint:"",at:""}); rerender(); });
-  // Étape 3
-  $("#choose")?.addEventListener("change",e=>{ readStep(); S.choose=e.target.checked; rerender(); });
-  $$("[data-hour]").forEach(b=>b.addEventListener("click",()=>{ readStep(); S.time=b.dataset.hour; rerender(); }));
-  $("#addSlot")?.addEventListener("click",()=>{ readStep(); S.slots.push({d:"",t:""}); rerender(); });
-  // Étape 4
-  $("#msg")?.addEventListener("input",e=>{ $("#cnt").textContent=`${e.target.value.length} / 300`; });
-  $$("[data-sugg]").forEach(b=>b.addEventListener("click",()=>{ $("#msg").value=b.textContent; $("#cnt").textContent=`${b.textContent.length} / 300`; }));
-  // Étape 5
-  $$("[data-no]").forEach(b=>b.addEventListener("click",()=>{ readStep(); S.no=b.dataset.no; rerender(); }));
-  $$("[data-ch]").forEach(b=>b.addEventListener("click",()=>{ readStep(); if(S.ch!==b.dataset.ch) S.chId=""; S.ch=b.dataset.ch; rerender(); }));
-  // Étape 6
-  $("#preview")?.addEventListener("click",async()=>{ const url=await buildLink(); window.open(url,"_blank","noopener"); });
+  // Accueil et modèles
+  $$("[data-home]").forEach(b=>b.addEventListener("click",()=>{ S.tplCat=b.dataset.home; go(1); }));
+  $("#fromScratch")?.addEventListener("click",()=>{ applyTemplate("zero"); go(2); });
+  on("[data-cat]", b=>{ S.tplCat=b.dataset.cat; });
+  $$("[data-tpl]").forEach(b=>b.addEventListener("click",()=>{ applyTemplate(b.dataset.tpl); go(2); }));
+
+  const f=$("#form"); if(!f) return;
+  f.addEventListener("submit",e=>{
+    e.preventDefault(); readAll();
+    const err=checkScreen(S.step); if(err){ showErr(err); return; }
+    go(S.step+1);
+  });
+  f.addEventListener("input",()=>{ if(S.link){ S.link=""; $("#result")?.classList.add("hidden"); } });
+  $("#back")?.addEventListener("click",()=>{ readAll(); go(S.step===1 ? "home" : S.step-1); });
+  $$("[data-edit]").forEach(b=>b.addEventListener("click",()=>{ readAll(); go(+b.dataset.edit); }));
+  $$("[data-goto]").forEach(b=>b.addEventListener("click",()=>{ readAll(); openSection(b.dataset.goto); }));
+  $("#more")?.addEventListener("toggle",e=>{ S.moreOpen=e.target.open; });
+  $$("details[data-sec]").forEach(d=>d.addEventListener("toggle",()=>{ d.open ? S.open.add(d.dataset.sec) : S.open.delete(d.dataset.sec); }));
+
+  // Occasion et style
+  on("[data-occ]", b=>{ S.occ=b.dataset.occ; if(!S.themeManual){ S.theme=OCC[S.occ].theme; fixAccent(); } if(!S.qEdited) S.q=OCC[S.occ].q; });
+  on("[data-th]", b=>{ S.theme=b.dataset.th; S.themeManual=true; fixAccent(); });
+  on("[data-ac]", b=>{ S.ac=b.dataset.ac; });
+  on("[data-em]", b=>{ S.em=b.dataset.em; });
+  on("[data-anim]", b=>{ S.anim=b.dataset.anim; });
+  // Programme
+  on("[data-mode]", b=>{ S.mode=b.dataset.mode; });
+  $$("[data-vis]").forEach(box=>on(`[data-vis="${box.dataset.vis}"] [data-v]`, b=>{ S[box.dataset.vis].v=b.dataset.v; }));
+  $$(".prog-step").forEach(box=>on(`.prog-step[data-step="${box.dataset.step}"] [data-sv]`, b=>{ S.steps[+box.dataset.step].v=b.dataset.sv; }));
+  on("[data-del]", b=>{ S.steps.splice(+b.dataset.del,1); });
+  on("#addStep", ()=>{ S.steps.push({h:"",a:"",l:"",v:"v",hint:"",at:""}); });
+  // Quand
+  $("#choose")?.addEventListener("change",e=>{ readAll(); S.choose=e.target.checked; S.link=""; renderCreator(); });
+  on("[data-hour]", b=>{ S.time=b.dataset.hour; });
+  on("#addSlot", ()=>{ S.slots.push({d:"",t:""}); });
+  // Le Non, la réponse
+  on("[data-no]", b=>{ S.no=b.dataset.no; });
+  on("[data-ch]", b=>{ if(S.ch!==b.dataset.ch) S.chId=""; S.ch=b.dataset.ch; });
+
+  // Aperçu en direct pendant la saisie
+  const pv=(id,txt,show)=>{ const el=$("#"+id); if(el){ el.textContent=txt; el.hidden=!show; } };
+  const msgPv=()=>{ const m=$("#msg").value.trim(), h=$("#hidden").checked; $("#cnt").textContent=`${$("#msg").value.length} / 300`; pv("pvMsg",m,m&&!h); pv("pvHidden","🔒 Message caché jusqu'au Oui",m&&h); };
+  $("#q")?.addEventListener("input",e=>pv("pvQ",e.target.value,true));
+  $("#msg")?.addEventListener("input",msgPv);
+  $("#hidden")?.addEventListener("change",msgPv);
+  $("#sg")?.addEventListener("input",e=>pv("pvSign",e.target.value.trim(),!!e.target.value.trim()));
+  $$("[data-sugg]").forEach(b=>b.addEventListener("click",()=>{ $("#msg").value=b.textContent; msgPv(); }));
+
+  // Tester, créer, partager
+  const ready=()=>{ readAll(); const err=checkScreen(4); if(err){ showErr(err); return false; } return true; };
+  $("#preview")?.addEventListener("click",async()=>{ if(!ready()) return; const url=await buildLink(); window.open(url,"_blank","noopener"); });
   $("#make")?.addEventListener("click",async()=>{
+    if(!ready()) return;
+    $$(".sec-body .error").forEach(el=>el.remove()); // erreurs corrigées
     S.link=await buildLink(); $("#linkbox").textContent=S.link; $("#result").classList.remove("hidden");
     if(S.link.length>1800) toast("Le lien est long : raccourcis le message si l'appli le coupe.");
     // Historique : uniquement ici, côté créateur (jamais côté destinataire)
@@ -743,6 +1002,7 @@ function bindCreator(){
     $("#savedNote").textContent = saved ? "Ajoutée à « Mes invitations ». Ton historique reste uniquement sur cet appareil." : "";
     const n=loadHistory().length, badge=$("#histBadge");
     if(badge){ badge.textContent=n; badge.classList.toggle("hidden",!n); }
+    $("#result").scrollIntoView({block:"nearest"});
   });
   $("#copy")?.addEventListener("click",async()=>{ toast(await copyText(S.link)?"Lien copié":"Copie impossible, sélectionne le lien à la main"); });
   $("#share")?.addEventListener("click",()=>navigator.share({title:"Ose Demander",text:`${S.to}, j'ai une question pour toi 💌`,url:S.link}).catch(()=>{}));
@@ -939,7 +1199,8 @@ async function duplicateInvitation(it){
   };
   const o=OCC[d.o];
   Object.assign(S,{
-    step:0, from:d.f, to:d.t, occ:d.o, occFree:d.of||"", theme:d.th, themeManual:!o||d.th!==o.theme, anim:d.an||"n",
+    step:4, tpl:"", preset:{}, moreOpen:false, open:new Set(), err:"", errSec:"", // ouvre directement l'aperçu
+    from:d.f, to:d.t, occ:d.o, occFree:d.of||"", theme:d.th, themeManual:!o||d.th!==o.theme, anim:d.an||"n",
     mode:d.p?"prog":"one", act:unpack(d.a), lieu:unpack(d.l), details:d.dt||"",
     steps:d.p ? d.p.map(st=>{
       if(st.v==="v") return {h:st.h, a:st.a, l:st.l||"", v:"v", hint:"", at:""};
@@ -1009,6 +1270,15 @@ let D=null, chosenSlot=null, countTimer=null, yesDone=false;
 let noTries=0, refuseTimer=null, refused=false, refuseOffered=false, refuseWhy="pas";
 const REFUSE_TRIES=3, REFUSE_DELAY=10000;
 const SAFETY = "Une invitation ne vous demandera jamais de mot de passe, de code ni de paiement.";
+// « Voir un exemple » : une vraie invitation, mais aucune réponse n'est envoyée
+let EXAMPLE=false;
+function demoData(){
+  const d=new Date(); d.setDate(d.getDate()+7); d.setMinutes(d.getMinutes()-d.getTimezoneOffset());
+  return sanitize({f:"Keke", t:"Loulou", o:"date", th:"amour", q:"Ça te dit un rendez-vous avec moi ?", n:"fuit", c:"any",
+    m:"Prépare ton plus beau sourire, je m'occupe du reste.", sg:"Ton Keke", em:"💌",
+    a:{v:"v", x:"Dîner aux chandelles"}, l:{v:"s", h:"Pas loin de chez toi"}, d:d.toISOString().slice(0,10), h:"19:30"});
+}
+const demoBanner = () => EXAMPLE ? `<p class="demo-banner">Exemple · aucune réponse n'est envoyée · <a href="./">Créer la mienne</a></p>` : "";
 const REDUCED = matchMedia("(prefers-reduced-motion: reduce)").matches;
 const invAnim = () => REDUCED ? "0" : (D && D.an) || "n";
 const buzz = pat => { if(invAnim()!=="0" && navigator.vibrate) try{ navigator.vibrate(pat); }catch(e){} };
@@ -1021,7 +1291,7 @@ function renderEnvelope(){
   const initial = (D.f||"?").trim().charAt(0).toUpperCase();
   $("#app").innerHTML = `
   <main class="env-screen">
-    ${soundBtn()}
+    ${soundBtn()}${demoBanner()}
     <p class="env-from">${esc(D.f)} t'a envoyé une invitation</p>
     <button type="button" class="envelope ${invAnim()==="n"?"wiggle":""}" id="env" aria-label="Ouvrir l'invitation">
       <span class="env-back"></span>
@@ -1065,7 +1335,7 @@ function renderInvite(){
   const occ = D.o==="libre" ? (D.of||"") : (OCC[D.o]?.label||"");
   document.title = `${D.f} a une question pour toi`;
   $("#app").innerHTML = `
-  ${soundBtn()}
+  ${soundBtn()}${demoBanner()}
   <main class="inv">
     <div class="ticket pop-in">
       <div class="stub"><div>De<b>${esc(D.f)}</b></div><div style="text-align:right">Pour<b>${esc(D.t)}</b></div></div>
@@ -1290,6 +1560,7 @@ async function reply(){
 }
 /* Envoie une réponse (Oui ou vrai refus) par le canal choisi par l'expéditeur */
 async function sendReply(txt){
+  if(EXAMPLE){ toast("C'est un exemple : aucune réponse n'est envoyée"); return; }
   const id=D.ci||"";
   const open=u=>{ window.location.href=u; };
   switch(D.c){
@@ -1530,9 +1801,10 @@ if("serviceWorker" in navigator && (location.protocol==="https:" || location.hos
 async function route(){
   if(location.hash==="#mes-invitations"){ renderHistory(); return; }
   const m=location.hash.match(/^#i=(.+)$/);
-  if(m){
+  EXAMPLE = location.hash==="#exemple";
+  if(m || EXAMPLE){
     try{
-      D=await decodeData(m[1]); chosenSlot=null; yesDone=false;
+      D = EXAMPLE ? demoData() : await decodeData(m[1]); chosenSlot=null; yesDone=false;
       noTries=0; refused=false; refuseOffered=false; refuseWhy="pas"; clearTimeout(refuseTimer);
       renderEnvelope(); return;
     }
