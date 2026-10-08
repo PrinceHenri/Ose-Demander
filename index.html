@@ -1719,6 +1719,8 @@ const Decor = (() => {
   }
   function start(){ if(!raf && eff()!=="0" && !document.hidden) raf=requestAnimationFrame(step); }
   function stop(){ if(raf) cancelAnimationFrame(raf); raf=null; }
+  // Lance (ou arrête) l'animation selon le niveau voulu ; sans effet si elle tourne déjà
+  function run(){ if(eff()==="0"){ stop(); bx.clearRect(0,0,W,H); } else start(); }
 
   function fstep(){
     fx.clearRect(0,0,W,H);
@@ -1734,9 +1736,9 @@ const Decor = (() => {
 
   return {
     set(th, lv){
-      if(th===theme && lv===level && (P.length || lv==="0")) return;
-      theme=th; level=lv; shoot=null; gust=0;
-      populate(); if(eff()==="0"){ stop(); bx.clearRect(0,0,W,H); } else start();
+      // Même thème et même niveau : on garde les éléments, mais on s'assure que l'animation tourne
+      if(!(th===theme && lv===level && (P.length || lv==="0"))){ theme=th; level=lv; shoot=null; gust=0; populate(); }
+      run();
     },
     react(){
       if(eff()==="0" || !P.length) return;
@@ -1753,7 +1755,7 @@ const Decor = (() => {
       for(let i=0;i<count;i++) B.push({x,y,vx:rnd(-9,9)*sp,vy:rnd(-15,-5)*sp,s:rnd(6,12),r:rnd(0,6.28),vr:rnd(-.2,.2),c:pick(cols),k:pick(kinds),life:0,max:rnd(90,150)});
       if(!fraf) fraf=requestAnimationFrame(fstep);
     },
-    resize(){ size(); populate(); }
+    resize(){ size(); populate(); run(); }
   };
 })();
 const REDUCED_ANIM = matchMedia("(prefers-reduced-motion: reduce)").matches;
