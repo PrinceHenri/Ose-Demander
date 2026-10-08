@@ -225,6 +225,13 @@ textarea.input{min-height:90px;resize:vertical}
 .env-flap{position:absolute;left:0;right:0;top:0;height:58%;z-index:3;transform-origin:top center;transition:transform .45s ease,z-index 0s .2s}
 .env-flap svg{width:100%;height:100%;display:block;overflow:visible}
 .seal{position:absolute;left:50%;top:100%;transform:translate(-50%,-62%);width:50px;height:50px;border-radius:50%;background:var(--ink);color:var(--accent);display:grid;place-items:center;font-weight:800;font-size:21px;border:3px solid var(--surface);transition:opacity .2s}
+.seal.emoji{font-size:25px;font-weight:400;line-height:1}
+.safety{font-size:13px;color:var(--muted);max-width:36ch;margin:0 auto}
+.env-screen .safety{margin-top:6px}
+.sign{font-family:var(--hand);font-size:26px;line-height:1.1;text-align:right;margin:14px 0 0;color:var(--ink);overflow-wrap:anywhere}
+.refuse-slot{min-height:28px;margin:6px 0 0}
+.refuse{background:none;border:0;padding:4px;color:var(--muted);font-size:14px;cursor:pointer;text-decoration:underline;text-underline-offset:3px}
+.refuse-text{font-size:24px;margin:18px 0 6px}
 .envelope.open .env-flap{transform:rotateX(180deg);z-index:0}
 .envelope.open .seal{opacity:0}
 .envelope.open .env-paper{transform:translateY(-52%)}
@@ -249,7 +256,7 @@ textarea.input{min-height:90px;resize:vertical}
 const OCCASIONS = [
   {cat:"Amour", items:[
     {id:"date", label:"Un rendez-vous", theme:"amour", q:"Ça te dit un rendez-vous avec moi ?"},
-    {id:"valentin", label:"La Saint-Valentin", theme:"amour", q:"Tu veux être ma Valentine ?"},
+    {id:"valentin", label:"La Saint-Valentin", theme:"amour", q:"Tu passes la Saint-Valentin avec moi ?"},
     {id:"annivamour", label:"L'anniversaire de mon amour", theme:"amour", q:"Je peux t'emmener fêter ton anniversaire ?"},
     {id:"couple", label:"Notre anniversaire de couple", theme:"amour", q:"On fête notre anniversaire ensemble ?"},
     {id:"mariage", label:"Une demande en mariage", theme:"amour", q:"Veux-tu m'épouser ?"}
@@ -262,7 +269,7 @@ const OCCASIONS = [
   ]},
   {cat:"Amis", items:[
     {id:"sortie", label:"Une sortie entre amis", theme:"amis", q:"Tu viens avec moi ?"},
-    {id:"annivami", label:"L'anniversaire d'un·e ami·e", theme:"fete", q:"Je t'invite pour ton anniversaire ?"},
+    {id:"annivami", label:"Un anniversaire entre amis", theme:"fete", q:"Je t'invite pour ton anniversaire ?"},
     {id:"temoin", label:"Être mon témoin", theme:"amis", q:"Tu veux être mon témoin ?"}
   ]},
   {cat:"Autre", items:[
@@ -280,8 +287,27 @@ const THEMES = [
   {id:"papa", name:"Cravate", c:"#E3EAF6", a:"#D99A1E"},
   {id:"amis", name:"Pop", c:"#FFF2B3", a:"#2F5BFF"},
   {id:"fete", name:"Confettis", c:"#E6F6EF", a:"#F2484B"},
-  {id:"mystere", name:"Mystère", c:"#1C1838", a:"#FFC94A"}
+  {id:"mystere", name:"Mystère", c:"#1C1838", a:"#FFC94A", s:"#29234D"}
 ];
+/* Couleurs d'accent (facultatives). Une couleur n'est utilisée que si elle reste lisible sur le thème. */
+const ACCENTS = [
+  {id:"framboise", name:"Framboise", c:"#D6246E"},
+  {id:"corail", name:"Corail", c:"#E5482A"},
+  {id:"mandarine", name:"Mandarine", c:"#C9561C"},
+  {id:"or", name:"Or", c:"#F2B33D"},
+  {id:"menthe", name:"Menthe", c:"#13896A"},
+  {id:"ocean", name:"Océan", c:"#2F5BFF"},
+  {id:"violet", name:"Violet", c:"#7B4DFF"},
+  {id:"nuit", name:"Nuit", c:"#1F1546"}
+];
+const EMOJIS = ["💌","❤️","🌹","💍","🌷","👔","🎂","🎉","🎁","✨","🍕","☕"];
+function lum(h){ const c=[1,3,5].map(i=>parseInt(h.slice(i,i+2),16)/255).map(v=>v<=.03928?v/12.92:((v+.055)/1.055)**2.4); return .2126*c[0]+.7152*c[1]+.0722*c[2]; }
+function contrast(a,b){ const x=lum(a), y=lum(b); return (Math.max(x,y)+.05)/(Math.min(x,y)+.05); }
+function accentOk(themeId, acId){
+  const t=THEMES.find(x=>x.id===themeId)||THEMES[0], a=ACCENTS.find(x=>x.id===acId);
+  return !!a && Math.min(contrast(a.c,t.c), contrast(a.c,t.s||"#FFFFFF"))>=3;
+}
+const accentInk = c => contrast(c,"#FFFFFF")>=contrast(c,"#1F1546") ? "#FFFFFF" : "#1F1546";
 const MSG_SUGG = {
   Amour:["J'ai envie de passer ce moment avec toi, rien qu'avec toi.","Prépare ton plus beau sourire, je m'occupe du reste.","Tu n'as rien à prévoir, juste à dire oui."],
   Famille:["Merci pour tout. Ce moment, c'est pour toi.","Tu t'occupes toujours de nous, cette fois c'est mon tour.","Un petit moment rien que pour toi, tu l'as bien mérité."],
@@ -292,7 +318,7 @@ const NO_MODES = [
   {id:"fuit", t:"Il s'enfuit", d:"Le bouton Non s'échappe dès qu'on approche."},
   {id:"retrecit", t:"Il rétrécit", d:"Chaque Non rapetisse, et le Oui grossit."},
   {id:"supplie", t:"Il supplie", d:"Des messages de plus en plus dramatiques."},
-  {id:"transforme", t:"Il se transforme", d:"Au survol, Non devient Oui."}
+  {id:"transforme", t:"Il se transforme", d:"Au survol, Non devient « Oui ? »."}
 ];
 const CHANNELS = [
   {id:"any", t:"Peu importe", ph:"", need:false},
@@ -310,7 +336,14 @@ const $ = (s, r=document) => r.querySelector(s);
 const $$ = (s, r=document) => [...r.querySelectorAll(s)];
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const todayISO = () => { const d=new Date(); d.setMinutes(d.getMinutes()-d.getTimezoneOffset()); return d.toISOString().slice(0,10); };
-function setTheme(id, lv="n"){ document.documentElement.dataset.theme = id === "base" ? "" : id; Decor.set(id||"base", lv); }
+function setTheme(id, lv="n", ac=""){
+  const root=document.documentElement;
+  root.dataset.theme = id === "base" ? "" : id;
+  const a = accentOk(id||"base", ac) ? ACCENTS.find(x=>x.id===ac) : null;
+  if(a){ root.style.setProperty("--accent",a.c); root.style.setProperty("--accent-ink",accentInk(a.c)); }
+  else { root.style.removeProperty("--accent"); root.style.removeProperty("--accent-ink"); }
+  Decor.set(id||"base", lv);
+}
 function toast(msg){ const t=document.createElement("div"); t.className="toast"; t.setAttribute("role","status"); t.textContent=msg; document.body.appendChild(t); setTimeout(()=>t.remove(),2600); }
 async function copyText(txt){
   try{ await navigator.clipboard.writeText(txt); return true; }
@@ -363,6 +396,10 @@ function sanitize(x){
   d.th=one(x.th,THEMES.map(t=>t.id),"base");
   d.n=one(x.n,NO_MODES.map(m=>m.id),"fuit");
   d.an=one(x.an,["n","d","0"],"n");
+  // Personnalisation (facultative, absente des anciens liens) : listes fermées et longueur limitée
+  const ac=one(x.ac,ACCENTS.map(a=>a.id),""); if(ac) d.ac=ac;
+  const em=one(x.em,EMOJIS,""); if(em) d.em=em;
+  const sg=str(x.sg,30); if(sg) d.sg=sg;
   d.c=one(x.c,CHANNELS.map(c=>c.id),"any");
   if(d.c!=="any"){
     const ci=str(x.ci,40);
@@ -415,7 +452,8 @@ const S = {
   end:"", bring:"", meet:"",
   date:"", time:"", choose:false, slots:[{d:"",t:""},{d:"",t:""}],
   q:"", qEdited:false, msg:"", hidden:false,
-  no:"fuit", ch:"any", chId:"", link:""
+  no:"fuit", ch:"any", chId:"", link:"",
+  ac:"", em:"", sg:""
 };
 
 const SITE_TITLE = document.title;
@@ -431,7 +469,7 @@ function topHTML(onHistory){
 }
 
 function renderCreator(){
-  setTheme(S.theme, S.anim);
+  setTheme(S.theme, S.anim, S.ac);
   document.title = SITE_TITLE;
   $("#app").innerHTML = `
   <div class="wrap">
@@ -720,6 +758,7 @@ async function buildLink(){
   if(S.occ==="libre") d.of=S.occFree;
   if(S.chId) d.ci=S.chId;
   if(S.anim!=="n") d.an=S.anim;
+  if(S.ac) d.ac=S.ac; if(S.em) d.em=S.em; if(S.sg) d.sg=S.sg;
   if(S.msg){ d.m=S.msg; if(S.hidden) d.mh=1; }
   if(S.mode==="one"){
     d.a=packItem(S.act); const l=packItem(S.lieu); if(l) d.l=l; if(S.details) d.dt=S.details;
@@ -912,7 +951,8 @@ async function duplicateInvitation(it){
     choose:!!d.sl, date:d.sl?"":d.d, time:d.sl?"":d.h,
     slots:d.sl ? d.sl.map(s=>({d:s[0],t:s[1]})) : [{d:"",t:""},{d:"",t:""}],
     q:d.q, qEdited:!o||d.q!==o.q, msg:d.m||"", hidden:!!d.mh,
-    no:d.n, ch:d.c, chId:d.ci||"", link:""
+    no:d.n, ch:d.c, chId:d.ci||"", link:"",
+    ac:d.ac||"", em:d.em||"", sg:d.sg||""
   });
   location.hash=""; // retour au formulaire (voir route)
   window.scrollTo({top:0});
@@ -965,6 +1005,10 @@ async function importHistory(file){
    INVITATION (côté destinataire)
    ========================================================= */
 let D=null, chosenSlot=null, countTimer=null, yesDone=false;
+// Vrai refus : proposé après 3 tentatives sur le Non ou 10 s sans réponse (le premier des deux)
+let noTries=0, refuseTimer=null, refused=false, refuseOffered=false, refuseWhy="pas";
+const REFUSE_TRIES=3, REFUSE_DELAY=10000;
+const SAFETY = "Une invitation ne vous demandera jamais de mot de passe, de code ni de paiement.";
 const REDUCED = matchMedia("(prefers-reduced-motion: reduce)").matches;
 const invAnim = () => REDUCED ? "0" : (D && D.an) || "n";
 const buzz = pat => { if(invAnim()!=="0" && navigator.vibrate) try{ navigator.vibrate(pat); }catch(e){} };
@@ -972,7 +1016,7 @@ function soundBtn(){ return `<button type="button" class="snd" id="snd" aria-pre
 function bindSound(){ $("#snd")?.addEventListener("click",()=>{ Sound.on=!Sound.on; Sound.init(); const b=$("#snd"); b.setAttribute("aria-pressed",Sound.on); b.textContent=Sound.on?"🔊 Son":"🔇 Son"; Sound.pop(); }); }
 
 function renderEnvelope(){
-  setTheme(D.th||"base", invAnim());
+  setTheme(D.th||"base", invAnim(), D.ac);
   document.title = `${D.f} a une question pour toi`;
   const initial = (D.f||"?").trim().charAt(0).toUpperCase();
   $("#app").innerHTML = `
@@ -990,9 +1034,10 @@ function renderEnvelope(){
       <span class="env-flap"><svg viewBox="0 0 300 116" preserveAspectRatio="none" aria-hidden="true">
         <path d="M2 2 L298 2 L150 114 Z" style="fill:var(--accent);stroke:var(--ink)" stroke-width="2.5" stroke-linejoin="round"/>
         <path d="M2 2 L298 2 L150 114 Z" fill="rgba(255,255,255,.14)"/>
-      </svg><span class="seal" aria-hidden="true">${esc(initial)}</span></span>
+      </svg><span class="seal ${D.em?"emoji":""}" aria-hidden="true">${esc(D.em||initial)}</span></span>
     </button>
     <p class="env-hint">Touche l'enveloppe pour l'ouvrir</p>
+    <p class="safety">${SAFETY}</p>
   </main>`;
   bindSound();
   let opened=false;
@@ -1013,8 +1058,10 @@ function enableTilt(){
   };
 }
 
+const signHTML = () => D.sg ? `<p class="sign">${esc(D.sg)}</p>` : "";
 function renderInvite(){
-  setTheme(D.th||"base", invAnim());
+  setTheme(D.th||"base", invAnim(), D.ac);
+  refused=false;
   const occ = D.o==="libre" ? (D.of||"") : (OCC[D.o]?.label||"");
   document.title = `${D.f} a une question pour toi`;
   $("#app").innerHTML = `
@@ -1032,22 +1079,74 @@ function renderInvite(){
           <button class="no" id="no" type="button">Non</button>
         </div>
         <p class="tease" id="tease" aria-live="polite"></p>
+        <p class="refuse-slot" id="refuseSlot"></p>
+        ${signHTML()}
       </div>
     </div>
-    <p class="foot">Invitation créée par un utilisateur d'Ose Demander.<br><a href="./">Crée la tienne</a> · <a href="mentions-legales.html#signaler">Signaler un abus</a></p>
+    <p class="foot"><span class="safety">${SAFETY}</span><br>Invitation créée par un utilisateur d'Ose Demander.<br><a href="./">Crée la tienne</a> · <a href="mentions-legales.html#signaler">Signaler un abus</a></p>
   </main>`;
   bindSound();
   bindNo();
   $("#yes").addEventListener("click", sayYes);
   enableTilt();
+  clearTimeout(refuseTimer);
+  if(noTries>=REFUSE_TRIES || refuseOffered) showRefuseLink();
+  else refuseTimer=setTimeout(showRefuseLink, REFUSE_DELAY);
+}
+/* Le lien discret « Répondre non, pour de vrai » */
+function showRefuseLink(){
+  const slot=$("#refuseSlot");
+  if(!slot || yesDone || refused || slot.firstChild) return;
+  refuseOffered=true; clearTimeout(refuseTimer);
+  slot.innerHTML=`<button type="button" class="refuse" id="refuse">Répondre non, pour de vrai</button>`;
+  $("#refuse").addEventListener("click", openRefuse);
+}
+function refuseText(){
+  const when = D.sl ? "à ces dates" : "à cette date";
+  return refuseWhy==="date"
+    ? `Merci pour ton invitation, ${D.f} 💛 Je ne suis pas dispo ${when}, on trouve un autre moment ?`
+    : `Merci pour ton invitation, ${D.f} 💛 Ce ne sera pas possible cette fois.`;
+}
+function openRefuse(){
+  if(yesDone) return;
+  refused=true; clearTimeout(refuseTimer);
+  $$(".no.flee").forEach(b=>b.remove());
+  const main=$("#main");
+  main.innerHTML = `
+    <div class="pop-in">
+      <h1 class="question" style="margin-bottom:8px">Pas cette fois ?</h1>
+      <p style="color:var(--muted);margin:0 0 16px">Pas de souci, ${esc(D.f)} comprendra.</p>
+      <div class="chips" role="group" aria-label="Ta réponse" style="justify-content:center">
+        <button type="button" class="chip" data-why="pas" aria-pressed="${refuseWhy==="pas"}">Pas cette fois</button>
+        <button type="button" class="chip" data-why="date" aria-pressed="${refuseWhy==="date"}">${D.sl?"Pas dispo à ces dates":"Pas dispo ce jour-là"}</button>
+      </div>
+      <p class="handnote refuse-text" id="refuseText">${esc(refuseText())}</p>
+      <div class="after-actions">
+        <button type="button" class="btn primary" id="replyNo">${replyLabel()}</button>
+        <button type="button" class="btn ghost" id="copyNo">Copier ma réponse</button>
+        <button type="button" class="refuse" id="undoNo">← Finalement, je reviens en arrière</button>
+      </div>
+      ${signHTML()}
+    </div>`;
+  $$("[data-why]",main).forEach(b=>b.addEventListener("click",()=>{
+    refuseWhy=b.dataset.why;
+    $$("[data-why]",main).forEach(x=>x.setAttribute("aria-pressed", x===b));
+    $("#refuseText").textContent=refuseText();
+  }));
+  $("#replyNo").addEventListener("click",()=>sendReply(refuseText()));
+  $("#copyNo").addEventListener("click",async()=>toast(await copyText(refuseText())?"Réponse copiée":"Copie impossible"));
+  $("#undoNo").addEventListener("click",renderInvite);
+  $("#replyNo").focus();
 }
 
 function bindNo(){
   const no=$("#no"), yes=$("#yes"), tease=$("#tease");
   let n=0;
-  const lines=["Raté !","Essaie encore","Tu es sûr·e ?","Le Non est en grève aujourd'hui","Il reste un bouton, regarde à gauche 👀","Allez…"];
+  const lines=["Raté !","Essaie encore","Vraiment ?","Le Non est en grève aujourd'hui","Il reste un bouton, regarde à gauche 👀","Allez…"];
   let last=0;
-  const hit=()=>{ const now=Date.now(); if(now-last<250) return; last=now; Decor.react(); Sound.no(); buzz(25); };
+  // Chaque tentative sur le Non compte (une seule fois par geste)
+  const hit=()=>{ const now=Date.now(); if(now-last<250) return; last=now; Decor.react(); Sound.no(); buzz(25);
+    if(++noTries>=REFUSE_TRIES) showRefuseLink(); };
   const say=()=>{ tease.textContent=lines[Math.min(n,lines.length-1)]; n++; hit(); };
   if(D.n==="fuit"){
     const flee=e=>{
@@ -1066,27 +1165,30 @@ function bindNo(){
   } else if(D.n==="retrecit"){
     let s=1, ys=1;
     no.addEventListener("click",()=>{
-      s*=.78; ys=Math.min(ys*1.15,1.9);
+      s=Math.max(s*.78,.35); ys=Math.min(ys*1.15,1.9);
       no.style.transform=`scale(${s})`; yes.style.transform=`scale(${ys})`;
-      if(s<.3){ no.remove(); tease.textContent="Il ne reste qu'une option 😇"; } else say();
+      if(s<=.35){ tease.textContent="Il ne peut pas être plus petit 😇"; hit(); } else say();
     });
   } else if(D.n==="supplie"){
-    const beg=["Tu es sûr·e ?","Vraiment vraiment ?","Réfléchis bien…","Je vais pleurer 🥺","Tu me brises le cœur","Dernière chance…"];
+    const beg=["Vraiment ?","Vraiment vraiment ?","Réfléchis bien…","Je vais pleurer 🥺","Tu me brises le cœur","Dernière chance…"];
     let i=0;
     no.addEventListener("click",()=>{
       if(i<beg.length){ no.textContent=beg[i++]; tease.textContent=""; hit(); }
-      else { no.textContent="Oui"; no.className="yes"; no.onclick=sayYes; }
+      else if(i===beg.length){ no.textContent="Bon… d'accord 🥲"; i++; hit(); }
+      else openRefuse(); // il a supplié, il accepte le refus
     });
-  } else { // transforme
-    const turn=()=>{ if(no.textContent!=="Oui") hit(); no.textContent="Oui"; no.classList.add("yes"); no.classList.remove("no"); };
+  } else { // transforme : il tente « Oui ? », mais ne dit jamais oui à ta place
+    const turn=()=>{ if(no.textContent==="Non"){ no.textContent="Oui ?"; hit(); } };
+    const back=()=>{ no.textContent="Non"; };
     no.addEventListener("pointerenter",turn); no.addEventListener("focus",turn);
-    no.addEventListener("touchstart",turn,{passive:true});
-    no.addEventListener("click",e=>{ turn(); sayYes(e); });
+    no.addEventListener("pointerleave",back); no.addEventListener("blur",back);
+    no.addEventListener("click",()=>{ turn(); tease.textContent="Il voulait tellement que tu dises oui…"; hit(); });
   }
 }
 
 function sayYes(e){
-  if(yesDone) return;
+  if(yesDone || refused) return;
+  clearTimeout(refuseTimer);
   let x=innerWidth/2, y=innerHeight*.5;
   const src=e && e.currentTarget && e.currentTarget.getBoundingClientRect ? e.currentTarget : $("#yes");
   if(src){ const r=src.getBoundingClientRect(); x=r.left+r.width/2; y=r.top+r.height/2; }
@@ -1099,8 +1201,9 @@ function sayYes(e){
     <div class="pop-in">
       <p class="occ">${esc(occ)}</p>
       <h1 class="question" style="margin-bottom:8px">C'est un oui !</h1>
-      <p style="color:var(--muted);margin:0">${esc(D.f)} va être ravi·e.</p>
+      <p style="color:var(--muted);margin:0">${esc(D.f)} va être aux anges.</p>
       ${D.m ? `<p class="handnote">${esc(D.m)}</p>` : ""}
+      ${signHTML()}
       <div class="details" id="details">${detailsHTML()}</div>
       <div class="after-actions" id="actions">${actionsHTML()}</div>
     </div>`;
@@ -1155,12 +1258,14 @@ function detailsHTML(){
   }
   return h;
 }
-function actionsHTML(){
+function replyLabel(){
   const ch=CHANNELS.find(c=>c.id===D.c)||CHANNELS[0];
-  const label = ch.id==="any" ? "Envoyer ma réponse" : `Répondre sur ${ch.t}`;
+  return ch.id==="any" ? "Envoyer ma réponse" : `Répondre sur ${ch.t}`;
+}
+function actionsHTML(){
   const canCal = !D.sl || chosenSlot!==null;
   return `
-    <button type="button" class="btn primary" id="reply">${label}</button>
+    <button type="button" class="btn primary" id="reply">${replyLabel()}</button>
     ${canCal?`<button type="button" class="btn" id="cal">Ajouter à mon agenda</button>`:""}
     <button type="button" class="btn ghost" id="copyR">Copier ma réponse</button>`;
 }
@@ -1181,7 +1286,11 @@ function bindAfter(){
 function refreshAfter(){ $("#details").innerHTML=detailsHTML(); $("#actions").innerHTML=actionsHTML(); bindAfter(); }
 async function reply(){
   if(D.sl && chosenSlot===null){ toast("Choisis d'abord ton créneau"); return; }
-  const txt=replyText(), id=D.ci||"";
+  sendReply(replyText());
+}
+/* Envoie une réponse (Oui ou vrai refus) par le canal choisi par l'expéditeur */
+async function sendReply(txt){
+  const id=D.ci||"";
   const open=u=>{ window.location.href=u; };
   switch(D.c){
     case "wa": open(`https://wa.me/${cleanPhone(id)}?text=${encodeURIComponent(txt)}`); break;
@@ -1422,7 +1531,11 @@ async function route(){
   if(location.hash==="#mes-invitations"){ renderHistory(); return; }
   const m=location.hash.match(/^#i=(.+)$/);
   if(m){
-    try{ D=await decodeData(m[1]); chosenSlot=null; yesDone=false; renderEnvelope(); return; }
+    try{
+      D=await decodeData(m[1]); chosenSlot=null; yesDone=false;
+      noTries=0; refused=false; refuseOffered=false; refuseWhy="pas"; clearTimeout(refuseTimer);
+      renderEnvelope(); return;
+    }
     catch(e){
       setTheme("base","n");
       $("#app").innerHTML=`<main class="inv"><div class="ticket"><div class="main"><h1 class="question">Ce lien est incomplet</h1><p>Il a peut-être été coupé en le copiant. Demande à la personne de te le renvoyer en entier.</p><p><a class="btn primary" href="./" style="display:inline-block;text-decoration:none">Créer une invitation</a></p></div></div></main>`;
