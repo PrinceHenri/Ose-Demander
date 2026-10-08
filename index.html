@@ -79,6 +79,8 @@ button,input,textarea,select{font:inherit;color:inherit}
 .top{flex-wrap:wrap}
 .top-actions{display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:8px;margin-left:auto}
 .hist-btn{display:inline-flex;align-items:center;gap:6px;border:2px solid var(--ink);background:var(--surface);color:var(--ink);border-radius:999px;padding:7px 14px;font-weight:700;font-size:14px;text-decoration:none;box-shadow:2px 2px 0 var(--ink)}
+.snd-inline{border:2px solid var(--ink);background:var(--surface);color:var(--ink);border-radius:999px;width:38px;height:36px;padding:0;font-size:16px;line-height:1;cursor:pointer;box-shadow:2px 2px 0 var(--ink)}
+.snd-inline[aria-pressed="false"]{opacity:.75}
 .hist-btn .badge{background:var(--accent);color:var(--accent-ink);border-radius:999px;padding:0 7px;min-width:20px;font-size:12px;line-height:20px;text-align:center}
 @media (max-width:460px){.top small{display:none}}
 
@@ -463,6 +465,7 @@ function sanitize(x){
   const ac=one(x.ac,ACCENTS.map(a=>a.id),""); if(ac) d.ac=ac;
   const em=one(x.em,EMOJIS,""); if(em) d.em=em;
   const sg=str(x.sg,30); if(sg) d.sg=sg;
+  if(x.so===0) d.so=0; // son coupé par le créateur (absent = son activé, comme les anciens liens)
   d.c=one(x.c,CHANNELS.map(c=>c.id),"any");
   if(d.c!=="any"){
     const ci=str(x.ci,40);
@@ -553,7 +556,7 @@ const S = {
   date:"", time:"", choose:false, slots:[{d:"",t:""},{d:"",t:""}],
   q:"", qEdited:false, msg:"", hidden:false,
   no:"fuit", ch:"any", chId:"", link:"",
-  ac:"", em:"", sg:"",
+  ac:"", em:"", sg:"", snd:true,
   moreOpen:false, open:new Set(), err:"", errSec:""
 };
 
@@ -579,6 +582,7 @@ function topHTML(onHistory){
   return `<header class="top">
       <a class="logo" href="./">Ose Demander<span class="q">?</span></a>
       <div class="top-actions">
+        <button type="button" class="snd-inline" id="snd" aria-pressed="${Sound.on}" aria-label="${Sound.on?"Couper le son":"Activer le son"}">${Sound.on?"🔊":"🔇"}</button>
         ${onHistory ? "" : `<a class="hist-btn" href="#mes-invitations">Mes invitations<span class="badge ${n?"":"hidden"}" id="histBadge">${n}</span></a>`}
         <span id="installSlot"><small>Gratuit, sans compte</small></span>
       </div>
@@ -607,6 +611,7 @@ function renderCreator(){
   </div>`;
   S.err=""; S.errSec="";
   bindCreator();
+  bindSound(true);
   refreshInstall();
 }
 
@@ -745,7 +750,7 @@ function whenRecap(){
 function styleRecap(){
   const a=ACCENTS.find(x=>x.id===S.ac);
   return [themeName(S.theme), a ? "accent "+a.name : "", "enveloppe "+(S.em||"avec l'initiale"),
-    S.sg ? "signé « "+S.sg+" »" : "", {n:"",d:"animations discrètes","0":"sans animation"}[S.anim]].filter(Boolean).map(esc).join(" · ");
+    S.sg ? "signé « "+S.sg+" »" : "", {n:"",d:"animations discrètes","0":"sans animation"}[S.anim], S.snd ? "" : "sans son"].filter(Boolean).map(esc).join(" · ");
 }
 
 /* ---------- Sections de « Personnaliser davantage » ---------- */
@@ -859,7 +864,8 @@ function secStyle(){
       <button type="button" data-anim="d" aria-pressed="${S.anim==="d"}">Discrètes</button>
       <button type="button" data-anim="0" aria-pressed="${S.anim==="0"}">Aucune</button>
     </div>
-    <p class="hint">Le décor bouge en fond, et explose au moment du Oui. Choisis « Aucune » pour une invitation sobre.</p>`;
+    <p class="hint">Le décor bouge en fond, et explose au moment du Oui. Choisis « Aucune » pour une invitation sobre.</p>
+    <label class="check" style="margin-top:14px"><input type="checkbox" id="sndInv" ${S.snd?"checked":""}><span>Sons dans l'invitation <em style="color:var(--muted)">(sons brefs à l'ouverture, au Non et au Oui ; la personne invitée peut toujours les couper)</em></span></label>`;
 }
 function secNo(){
   return `<div class="cards">${NO_MODES.map(m=>`<button type="button" class="optcard" data-no="${m.id}" aria-pressed="${S.no===m.id}"><b>${m.t}</b><span>${m.d}</span></button>`).join("")}</div>
@@ -897,6 +903,7 @@ function readAll(){
   if($("#hidden")) S.hidden=$("#hidden").checked;
   if($("#chId")) S.chId=v("chId");
   if($("#sg")) S.sg=v("sg");
+  if($("#sndInv")) S.snd=$("#sndInv").checked;
 }
 /* Chaque vérification indique où corriger : un écran (nombre) ou une section de « Personnaliser davantage » */
 const CHECKS = {
@@ -942,7 +949,7 @@ function showErr(e){
   if(typeof e.go==="number") go(e.go);
   else { S.errSec=e.go; openSection(e.go); }
 }
-function go(step){ S.step=step; S.link=""; renderCreator(); window.scrollTo({top:0}); }
+function go(step){ S.step=step; S.link=""; renderCreator(); window.scrollTo({top:0}); Sound.step(); }
 function openSection(key){
   S.step=4; S.moreOpen=true; S.open.add(key); renderCreator();
   $(`details[data-sec="${key}"]`)?.scrollIntoView({block:"start"});
@@ -950,7 +957,7 @@ function openSection(key){
 
 function bindCreator(){
   // Toute modification relit les champs, puis réaffiche (le lien déjà créé n'est plus à jour)
-  const on=(sel, fn)=>$$(sel).forEach(b=>b.addEventListener("click",()=>{ readAll(); fn(b); S.link=""; renderCreator(); }));
+  const on=(sel, fn)=>$$(sel).forEach(b=>b.addEventListener("click",()=>{ readAll(); fn(b); S.link=""; renderCreator(); Sound.tick(); }));
   const fixAccent=()=>{ if(S.ac && !accentOk(S.theme,S.ac)) S.ac=""; };
 
   // Accueil et modèles
@@ -985,7 +992,8 @@ function bindCreator(){
   on("[data-del]", b=>{ S.steps.splice(+b.dataset.del,1); });
   on("#addStep", ()=>{ S.steps.push({h:"",a:"",l:"",v:"v",hint:"",at:""}); });
   // Quand
-  $("#choose")?.addEventListener("change",e=>{ readAll(); S.choose=e.target.checked; S.link=""; renderCreator(); });
+  $("#choose")?.addEventListener("change",e=>{ readAll(); S.choose=e.target.checked; S.link=""; renderCreator(); Sound.tick(); });
+  $("#sndInv")?.addEventListener("change",()=>{ readAll(); S.link=""; renderCreator(); Sound.tick(); });
   on("[data-hour]", b=>{ S.time=b.dataset.hour; });
   on("#addSlot", ()=>{ if(S.slots.length<3) S.slots.push({d:"",t:""}); });
   on("[data-delslot]", b=>{ S.slots.splice(+b.dataset.delslot,1); });
@@ -1008,7 +1016,7 @@ function bindCreator(){
   $("#make")?.addEventListener("click",async()=>{
     if(!ready()) return;
     $$(".sec-body .error").forEach(el=>el.remove()); // erreurs corrigées
-    S.link=await buildLink(); $("#linkbox").textContent=S.link; $("#result").classList.remove("hidden");
+    S.link=await buildLink(); $("#linkbox").textContent=S.link; $("#result").classList.remove("hidden"); Sound.done();
     if(S.link.length>1800) toast("Le lien est long : raccourcis le message si l'appli le coupe.");
     // Historique : uniquement ici, côté créateur (jamais côté destinataire)
     const saved=await addToHistory(S.link);
@@ -1032,6 +1040,7 @@ async function buildLink(){
   if(S.chId) d.ci=S.chId;
   if(S.anim!=="n") d.an=S.anim;
   if(S.ac) d.ac=S.ac; if(S.em) d.em=S.em; if(S.sg) d.sg=S.sg;
+  if(!S.snd) d.so=0;
   if(S.msg){ d.m=S.msg; if(S.hidden) d.mh=1; }
   if(S.mode==="one"){
     d.a=packItem(S.act); const l=packItem(S.lieu); if(l) d.l=l; if(S.details) d.dt=S.details;
@@ -1160,6 +1169,7 @@ function renderHistory(){
     <p class="foot">Rien n'est envoyé en ligne : l'historique est enregistré dans ce navigateur.<br><a href="mentions-legales.html#historique">En savoir plus</a></p>
   </div>`;
   refreshInstall();
+  bindSound(true);
 
   $("#histList")?.addEventListener("click", async e=>{
     const b=e.target.closest("[data-act]"); if(!b) return;
@@ -1226,7 +1236,7 @@ async function duplicateInvitation(it){
     slots:d.sl ? d.sl.map(s=>({d:s[0],t:s[1]})) : [{d:"",t:""},{d:"",t:""}],
     q:d.q, qEdited:!o||d.q!==o.q, msg:d.m||"", hidden:!!d.mh,
     no:d.n, ch:d.c, chId:d.ci||"", link:"",
-    ac:d.ac||"", em:d.em||"", sg:d.sg||""
+    ac:d.ac||"", em:d.em||"", sg:d.sg||"", snd:d.so!==0
   });
   location.hash=""; // retour au formulaire (voir route)
   window.scrollTo({top:0});
@@ -1295,8 +1305,16 @@ const demoBanner = () => EXAMPLE ? `<p class="demo-banner">Exemple · aucune ré
 const REDUCED = matchMedia("(prefers-reduced-motion: reduce)").matches;
 const invAnim = () => REDUCED ? "0" : (D && D.an) || "n";
 const buzz = pat => { if(invAnim()!=="0" && navigator.vibrate) try{ navigator.vibrate(pat); }catch(e){} };
-function soundBtn(){ return `<button type="button" class="snd" id="snd" aria-pressed="${Sound.on}">${Sound.on?"🔊 Son":"🔇 Son"}</button>`; }
-function bindSound(){ $("#snd")?.addEventListener("click",()=>{ Sound.on=!Sound.on; Sound.init(); const b=$("#snd"); b.setAttribute("aria-pressed",Sound.on); b.textContent=Sound.on?"🔊 Son":"🔇 Son"; Sound.pop(); }); }
+function soundBtn(){ return `<button type="button" class="snd" id="snd" aria-pressed="${Sound.on}" aria-label="${Sound.on?"Couper le son":"Activer le son"}">${Sound.on?"🔊 Son":"🔇 Son"}</button>`; }
+/* Bouton 🔊/🔇 : remember=true côté créateur seulement (choix gardé sur l'appareil) */
+function bindSound(remember=false){
+  $("#snd")?.addEventListener("click",()=>{
+    Sound.on=!Sound.on; if(remember) Sound.savePref();
+    const b=$("#snd"); b.setAttribute("aria-pressed",Sound.on); b.setAttribute("aria-label",Sound.on?"Couper le son":"Activer le son");
+    b.textContent = b.classList.contains("snd-inline") ? (Sound.on?"🔊":"🔇") : (Sound.on?"🔊 Son":"🔇 Son");
+    if(Sound.on){ Sound.init(); Sound.pop(); }
+  });
+}
 
 function renderEnvelope(){
   setTheme(D.th||"base", invAnim(), D.ac);
@@ -1326,7 +1344,7 @@ function renderEnvelope(){
   let opened=false;
   $("#env").addEventListener("click",()=>{
     if(opened) return; opened=true;
-    $("#env").classList.add("open"); $(".env-screen").classList.add("opened"); Sound.pop(); buzz(20);
+    $("#env").classList.add("open"); $(".env-screen").classList.add("opened"); Sound.init(); Sound.pop(); buzz(20);
     setTimeout(renderInvite, invAnim()==="0" ? 0 : 1150);
   });
 }
@@ -1792,9 +1810,15 @@ const REDUCED_ANIM = matchMedia("(prefers-reduced-motion: reduce)").matches;
 Decor.resize();
 window.addEventListener("resize",()=>Decor.resize());
 
-/* ---------- Son (désactivé par défaut) ---------- */
+/* ---------- Son (activé par défaut, sons brefs seulement, jamais de musique) ----------
+   Les navigateurs n'autorisent le son qu'après un geste : il démarre au premier clic
+   (créateur) ou au toucher de l'enveloppe (destinataire).
+   Côté créateur, le choix 🔊/🔇 est gardé dans le stockage local. Côté destinataire, rien n'est enregistré. */
+const SOUND_KEY="ose-son";
 const Sound = {
-  on:false, ctx:null,
+  on:true, ctx:null,
+  pref(){ try{ return localStorage.getItem(SOUND_KEY)!=="0"; }catch(e){ return true; } },
+  savePref(){ try{ localStorage.setItem(SOUND_KEY, this.on?"1":"0"); }catch(e){} },
   init(){ try{ if(!this.ctx) this.ctx=new (window.AudioContext||window.webkitAudioContext)(); if(this.ctx.state==="suspended") this.ctx.resume(); }catch(e){} },
   tone(f1,f2,dur,type="sine",vol=.1,delay=0){
     if(!this.on||!this.ctx) return;
@@ -1805,8 +1829,14 @@ const Sound = {
   },
   pop(){ this.tone(700,1300,.09,"sine",.08); },
   no(){ this.tone(320,170,.18,"triangle",.09); },
-  yes(){ [523,659,784,1047].forEach((f,i)=>this.tone(f,f*1.01,.28,"sine",.09,i*.09)); }
+  yes(){ [523,659,784,1047].forEach((f,i)=>this.tone(f,f*1.01,.28,"sine",.09,i*.09)); },
+  // Créateur : sons courts et discrets
+  tick(){ this.tone(880,1040,.05,"sine",.035); },                                   // choix d'une option
+  step(){ this.tone(560,620,.06,"sine",.04); this.tone(760,820,.07,"sine",.04,.06); }, // passage d'étape
+  done(){ [660,880,1320].forEach((f,i)=>this.tone(f,f*1.01,.14,"sine",.05,i*.08)); }  // lien créé
 };
+// Le premier geste (clic, touche) débloque le son ; aucun son n'est joué sans geste
+["click","keydown"].forEach(t=>document.addEventListener(t,()=>{ if(Sound.on) Sound.init(); },{capture:true}));
 
 /* ---------- Appli installable (PWA) ---------- */
 let installEvt=null;
@@ -1842,12 +1872,14 @@ if("serviceWorker" in navigator && (location.protocol==="https:" || location.hos
 
 /* ---------- Routage ---------- */
 async function route(){
-  if(location.hash==="#mes-invitations"){ renderHistory(); return; }
   const m=location.hash.match(/^#i=(.+)$/);
   EXAMPLE = location.hash==="#exemple";
+  if(!m && !EXAMPLE) Sound.on=Sound.pref(); // côté créateur : le choix gardé sur cet appareil
+  if(location.hash==="#mes-invitations"){ renderHistory(); return; }
   if(m || EXAMPLE){
     try{
       D = EXAMPLE ? demoData() : await decodeData(m[1]); chosenSlot=null; yesDone=false;
+      Sound.on = D.so!==0; // côté destinataire : réglage de l'invitation, rien n'est lu ni enregistré
       noTries=0; refused=false; refuseOffered=false; refuseWhy="pas"; clearTimeout(refuseTimer);
       renderEnvelope(); return;
     }
