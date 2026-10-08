@@ -189,6 +189,8 @@ textarea.input{min-height:90px;resize:vertical}
 .tpl small{display:block;color:var(--muted);font-size:13px;margin-top:2px}
 .adv{display:flex;justify-content:space-between;align-items:center;gap:10px;border:2px dashed var(--line);border-radius:14px;padding:12px 14px;margin:0 0 16px;font-size:15px}
 .adv .linkbtn{flex:none}
+.slot-box{border:2px solid var(--line);border-radius:14px;padding:12px 14px 0;margin:0 0 12px;background:var(--soft)}
+.slot-box header{display:flex;justify-content:space-between;align-items:center;font-weight:700;margin:0 0 8px}
 .preview{margin:0 0 18px}
 .preview .ticket{box-shadow:5px 5px 0 var(--ink)}
 .preview .main{min-height:0;padding:20px 16px 18px}
@@ -653,24 +655,21 @@ function screenHTML(){
       <label class="field"><span>Son prénom</span><input class="input" id="to" maxlength="30" placeholder="Ex. Loulou" value="${esc(S.to)}" autocomplete="off"></label>
       <label class="field"><span>Ton prénom</span><input class="input" id="from" maxlength="30" placeholder="Ex. Keke" value="${esc(S.from)}" autocomplete="off"></label>
     </div>`;
-  case 3: {
-    const nSl=S.slots.filter(s=>s.d&&s.t).length;
-    return `
+  case 3: return `
     <h2>Quand et où ?</h2>
     <p class="lead">${S.mode==="prog" ? "Le jour et l'heure de début." : "Le jour, l'heure et ce qui est prévu."}</p>
-    ${S.choose ? advNote(`Tu proposes ${nSl>1?nSl+" créneaux":"plusieurs créneaux"} au choix.`, "when") : dateTimeHTML()}
+    ${whenHTML()}
     ${S.mode==="prog"
       ? advNote(`Un programme en ${S.steps.length} étape${S.steps.length>1?"s":""} est prévu.`, "plan")
       : visBlock("act","Ce qui est prévu","Ex. Dîner au restaurant, cinéma…",S.act,false) + visBlock("lieu","Le lieu","Ex. Le Petit Bistrot, 12 rue de Charonne, Paris",S.lieu,false)}
-    <p class="hint">Plusieurs créneaux, programme en étapes ou révélation programmée : dans « Personnaliser davantage », à l'étape suivante.</p>`;
-  }
+    <p class="hint">Programme en étapes, révélation programmée ou détails : dans « Personnaliser davantage », à l'étape suivante.</p>`;
   case 4: return `
     <h2>Voilà ce que ${esc(S.to)} va recevoir</h2>
     <p class="lead">Vérifie, teste, puis crée ton lien.</p>
     ${previewHTML()}
     <ul class="recap edit">
       ${recapRow("De / pour", `${esc(S.from)} → ${esc(S.to)}`, 'data-edit="2"')}
-      ${recapRow("Quand", whenRecap(), S.choose ? 'data-goto="when"' : 'data-edit="3"')}
+      ${recapRow("Quand", whenRecap(), 'data-edit="3"')}
       ${S.mode==="one"
         ? recapRow("Prévu", itemRecap(S.act), S.act.v==="r" ? 'data-goto="plan"' : 'data-edit="3"')
           + recapRow("Lieu", S.lieu.v==="v"&&!S.lieu.x ? "<em>Non précisé</em>" : itemRecap(S.lieu), S.lieu.v==="r" ? 'data-goto="plan"' : 'data-edit="3"')
@@ -688,7 +687,6 @@ function screenHTML(){
       ${section("words","Les mots",secWords())}
       ${section("style","Le style",secStyle())}
       ${section("plan","Le programme",secPlan())}
-      ${section("when","Quand (et créneaux au choix)",secWhen())}
       ${section("no","Le Non",secNo())}
       ${section("reply","La réponse",secReply())}
     </details>
@@ -756,14 +754,19 @@ function dateTimeHTML(){
     </div>
     <label class="field"><span>Ou une heure précise</span><input class="input" type="time" id="time" value="${esc(S.time)}" style="max-width:180px"></label>`;
 }
-function secWhen(){
-  return `<label class="check"><input type="checkbox" id="choose" ${S.choose?"checked":""}><span>Laisser choisir parmi plusieurs créneaux</span></label>
+/* Écran « Quand et où » : une date et une heure, ou 2 à 3 créneaux au choix */
+function whenHTML(){
+  return `<label class="check"><input type="checkbox" id="choose" ${S.choose?"checked":""}><span>Lui laisser choisir parmi plusieurs créneaux</span></label>
     ${!S.choose ? dateTimeHTML() : `
-      ${S.slots.map((sl,i)=>`<div class="row2" data-slot="${i}">
-        <label class="field"><span>Créneau ${i+1} : date</span><input class="input" type="date" data-sl="d" min="${todayISO()}" value="${esc(sl.d)}"></label>
-        <label class="field"><span>Heure</span><input class="input" type="time" data-sl="t" value="${esc(sl.t)}"></label>
+      <p class="hint" style="margin:0 0 12px">Propose 2 ou 3 créneaux : le choix se fera après le Oui.</p>
+      ${S.slots.map((sl,i)=>`<div class="slot-box" data-slot="${i}">
+        <header>Créneau ${i+1}${i>=2 ? `<button type="button" class="linkbtn" data-delslot="${i}">Retirer</button>` : ""}</header>
+        <div class="row2">
+          <label class="field"><span>Date</span><input class="input" type="date" data-sl="d" min="${todayISO()}" value="${esc(sl.d)}"></label>
+          <label class="field"><span>Heure</span><input class="input" type="time" data-sl="t" value="${esc(sl.t)}"></label>
+        </div>
       </div>`).join("")}
-      ${S.slots.length<3 ? `<button type="button" class="btn" id="addSlot">Ajouter un créneau</button>` : ""}`}`;
+      ${S.slots.length<3 ? `<button type="button" class="btn" id="addSlot" style="width:100%;margin-bottom:16px">Ajouter un 3ᵉ créneau</button>` : ""}`}`;
 }
 function visBlock(key, label, ph, it, reveal=true){
   if(!reveal && it.v==="r")
@@ -898,9 +901,16 @@ const CHECKS = {
   who(){ if(!S.to||!S.from) return {m:"Indique vos deux prénoms (ou surnoms).", go:2}; },
   occ(){ if(!S.occ) return {m:"Choisis une occasion.", go:"occ"}; },
   when(){
-    const go=S.choose?"when":3;
+    const go=3;
     if(!S.choose){ if(!S.date) return {m:"Choisis une date.",go}; if(S.date<todayISO()) return {m:"Cette date est déjà passée.",go}; if(!S.time) return {m:"Choisis une heure.",go}; }
-    else { const ok=S.slots.filter(s=>s.d&&s.t); if(ok.length<2) return {m:"Propose au moins deux créneaux complets (date et heure).",go}; if(ok.some(s=>s.d<todayISO())) return {m:"Un des créneaux est déjà passé.",go}; }
+    else {
+      const half=S.slots.findIndex(s=>!!s.d!==!!s.t);
+      if(half>=0) return {m:`Le créneau ${half+1} est incomplet : indique la date et l'heure${half>=2?", ou retire-le":""}.`,go};
+      const ok=S.slots.filter(s=>s.d&&s.t);
+      if(ok.length<2) return {m:"Propose au moins deux créneaux complets (date et heure).",go};
+      if(ok.some(s=>s.d<todayISO())) return {m:"Un des créneaux est déjà passé.",go};
+      if(new Set(ok.map(s=>s.d+" "+s.t)).size<ok.length) return {m:"Deux créneaux sont identiques.",go};
+    }
   },
   plan(){
     const now=new Date(), futureOk=at=>at && new Date(at)>now;
@@ -975,7 +985,8 @@ function bindCreator(){
   // Quand
   $("#choose")?.addEventListener("change",e=>{ readAll(); S.choose=e.target.checked; S.link=""; renderCreator(); });
   on("[data-hour]", b=>{ S.time=b.dataset.hour; });
-  on("#addSlot", ()=>{ S.slots.push({d:"",t:""}); });
+  on("#addSlot", ()=>{ if(S.slots.length<3) S.slots.push({d:"",t:""}); });
+  on("[data-delslot]", b=>{ S.slots.splice(+b.dataset.delslot,1); });
   // Le Non, la réponse
   on("[data-no]", b=>{ S.no=b.dataset.no; });
   on("[data-ch]", b=>{ if(S.ch!==b.dataset.ch) S.chId=""; S.ch=b.dataset.ch; });
