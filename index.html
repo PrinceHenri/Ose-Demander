@@ -259,6 +259,8 @@ textarea.input{min-height:90px;resize:vertical}
 .slots{display:flex;flex-direction:column;gap:8px;margin-top:8px}
 .after-actions{display:flex;flex-direction:column;gap:10px;margin-top:22px}
 .after-actions .btn{width:100%}
+.after-actions a.btn{display:block;text-align:center;text-decoration:none;color:inherit}
+.cal-alt{align-self:center;background:none;border:0;padding:4px;color:var(--muted);font-size:14px;cursor:pointer;text-decoration:underline;text-underline-offset:3px}
 .toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:12px;font-size:15px;z-index:50;max-width:90vw;text-align:center}
 #confetti{position:fixed;inset:0;pointer-events:none;z-index:40}
 .pop-in{animation:pop .5s cubic-bezier(.2,1.4,.4,1)}
@@ -1547,7 +1549,7 @@ function actionsHTML(){
   const canCal = !D.sl || chosenSlot!==null;
   return `
     <button type="button" class="btn primary" id="reply">${replyLabel()}</button>
-    ${canCal?`<button type="button" class="btn" id="cal">Ajouter à mon agenda</button>`:""}
+    ${canCal ? calButtonsHTML() : ""}
     <button type="button" class="btn ghost" id="copyR">Copier ma réponse</button>`;
 }
 function replyText(){
@@ -1585,25 +1587,53 @@ async function sendReply(txt){
       else toast(await copyText(txt)?"Réponse copiée, envoie-la où tu veux":"Copie impossible");
   }
 }
-function downloadICS(){
+/* ---------- Agenda ----------
+   Un site ne peut pas écrire dans l'agenda : on propose un lien Google Agenda ou un fichier .ics.
+   L'événement ne contient jamais d'info secrète (surprise, ou révélation pas encore atteinte). */
+const isAndroid = () => /android/i.test(navigator.userAgent);
+function shownValue(it){ // valeur affichable d'une info, ou "" si elle est encore secrète
+  if(!it) return "";
+  if(it.v==="v") return it.x;
+  if(it.v==="r" && revealable(it.at)){ try{ return unscramble(it.e).slice(0,120); }catch(e){} }
+  return "";
+}
+function calEvent(){
   let d,t;
   if(D.sl){ [d,t]=D.sl[chosenSlot]; } else { d=D.d; t=D.h; }
   const [Y,M,Dd]=d.split("-").map(Number), [hh,mm]=t.split(":").map(Number);
   const start=new Date(Y,M-1,Dd,hh,mm);
   let end=new Date(start.getTime()+2*3600e3);
   if(D.en){ const [eh,em]=D.en.split(":").map(Number); end=new Date(Y,M-1,Dd,eh,em); if(end<=start) end.setDate(end.getDate()+1); }
-  const fmt=x=>`${x.getFullYear()}${String(x.getMonth()+1).padStart(2,"0")}${String(x.getDate()).padStart(2,"0")}T${String(x.getHours()).padStart(2,"0")}${String(x.getMinutes()).padStart(2,"0")}00`;
-  const icsEsc=s=>String(s).replace(/[\\;,]/g,m=>"\\"+m).replace(/\n/g,"\\n");
   const occ = D.o==="libre" ? (D.of||"Invitation") : (OCC[D.o]?.label||"Invitation");
-  let title = D.p ? (D.p.some(s=>s.v!=="v")?"Journée surprise":"Journée") : (D.a && D.a.v==="v" ? D.a.x : "Surprise");
-  title += ` avec ${D.f}`;
-  let loc = (!D.p && D.l && D.l.v==="v") ? D.l.x : (D.me||"");
-  const desc = `${occ}. Invitation créée avec Ose Demander.`;
+  const act = D.p ? "" : shownValue(D.a);
+  const title = (D.p ? (D.p.some(s=>s.v!=="v")?"Journée surprise":"Journée") : (act || "Surprise")) + ` avec ${D.f}`;
+  const loc = D.p ? (D.me||"") : (shownValue(D.l) || "");
+  return {start, end, title, loc, desc:`${occ}. Invitation créée avec Ose Demander.`};
+}
+const calFmt=x=>`${x.getFullYear()}${String(x.getMonth()+1).padStart(2,"0")}${String(x.getDate()).padStart(2,"0")}T${String(x.getHours()).padStart(2,"0")}${String(x.getMinutes()).padStart(2,"0")}00`;
+function googleCalUrl(){
+  const ev=calEvent(), p=new URLSearchParams({action:"TEMPLATE", text:ev.title, dates:`${calFmt(ev.start)}/${calFmt(ev.end)}`, details:ev.desc});
+  try{ p.set("ctz", Intl.DateTimeFormat().resolvedOptions().timeZone); }catch(e){}
+  if(ev.loc) p.set("location", ev.loc);
+  return "https://calendar.google.com/calendar/render?"+p.toString();
+}
+function downloadICS(){
+  const ev=calEvent();
+  const icsEsc=s=>String(s).replace(/[\\;,]/g,m=>"\\"+m).replace(/\n/g,"\\n");
   const ics=["BEGIN:VCALENDAR","VERSION:2.0","PRODID:-//Ose Demander//FR","BEGIN:VEVENT",
-    `UID:${Date.now()}@ose-demander`,`DTSTAMP:${fmt(new Date())}`,`DTSTART:${fmt(start)}`,`DTEND:${fmt(end)}`,
-    `SUMMARY:${icsEsc(title)}`, loc?`LOCATION:${icsEsc(loc)}`:"", `DESCRIPTION:${icsEsc(desc)}`,
+    `UID:${Date.now()}@ose-demander`,`DTSTAMP:${calFmt(new Date())}`,`DTSTART:${calFmt(ev.start)}`,`DTEND:${calFmt(ev.end)}`,
+    `SUMMARY:${icsEsc(ev.title)}`, ev.loc?`LOCATION:${icsEsc(ev.loc)}`:"", `DESCRIPTION:${icsEsc(ev.desc)}`,
     "END:VEVENT","END:VCALENDAR"].filter(Boolean).join("\r\n");
   saveFile("invitation.ics", ics, "text/calendar");
+}
+/* iPhone : le fichier .ics ouvre directement Calendrier. Ailleurs : Google Agenda en premier. */
+function calButtonsHTML(){
+  const g=`href="${esc(googleCalUrl())}" target="_blank" rel="noopener noreferrer" id="gcal"`;
+  return isIOS()
+    ? `<button type="button" class="btn" id="cal">Ajouter à mon agenda</button>
+       <a class="cal-alt" ${g}>Google Agenda</a>`
+    : `<a class="btn" ${g}>Ajouter à Google Agenda</a>
+       <button type="button" class="cal-alt" id="cal">Autre agenda (fichier .ics)</button>`;
 }
 function startCountdowns(){
   clearInterval(countTimer);
