@@ -1,7 +1,7 @@
 /* Ose Demander — service worker
    Rend le site installable et utilisable hors connexion.
    Pour publier une mise à jour importante, change simplement la version ci-dessous. */
-const VERSION = "ose-v6";
+const VERSION = "ose-v7";
 const CORE = [
   "./",
   "./index.html",

@@ -296,7 +296,8 @@ textarea.input{min-height:90px;resize:vertical}
 .sign{font-family:var(--hand);font-size:26px;line-height:1.1;text-align:right;margin:14px 0 0;color:var(--ink);overflow-wrap:anywhere}
 .refuse-slot{min-height:28px;margin:6px 0 0}
 .refuse{background:none;border:0;padding:4px;color:var(--muted);font-size:14px;cursor:pointer;text-decoration:underline;text-underline-offset:3px}
-.refuse-text{font-size:24px;margin:18px 0 6px}
+.refuse-field{margin:18px 0 6px;text-align:left}
+textarea.refuse-input{font-family:var(--hand);font-size:23px;line-height:1.2;min-height:110px}
 .envelope.open .env-flap{transform:rotateX(180deg);z-index:0}
 .envelope.open .seal{opacity:0}
 .envelope.open .env-paper{transform:translateY(-52%)}
@@ -1522,7 +1523,7 @@ async function importHistory(file){
    ========================================================= */
 let D=null, chosenSlot=null, countTimer=null, yesDone=false;
 // Vrai refus : proposé après 3 tentatives sur le Non ou 10 s sans réponse (le premier des deux)
-let noTries=0, refuseTimer=null, refused=false, refuseOffered=false, refuseWhy="pas";
+let noTries=0, refuseTimer=null, refused=false, refuseOffered=false, refuseWhy="non";
 const REFUSE_TRIES=3, REFUSE_DELAY=10000;
 const SAFETY = "Une invitation ne vous demandera jamais de mot de passe, de code ni de paiement.";
 // « Voir un exemple » : une vraie invitation, mais aucune réponse n'est envoyée
@@ -1634,12 +1635,21 @@ function showRefuseLink(){
   slot.innerHTML=`<button type="button" class="refuse" id="refuse">Répondre non, pour de vrai</button>`;
   $("#refuse").addEventListener("click", openRefuse);
 }
-function refuseText(){
-  const when = D.sl ? "à ces dates" : "à cette date";
-  return refuseWhy==="date"
-    ? `Merci pour ton invitation, ${D.f} 💛 Je ne suis pas dispo ${when}, on trouve un autre moment ?`
-    : `Merci pour ton invitation, ${D.f} 💛 Ce ne sera pas possible cette fois.`;
+/* Réponses proposées pour le vrai refus : claires, sans ouverture ambiguë, neutres.
+   Chaque texte reste modifiable avant l'envoi (200 caractères max). Rien n'est mis dans le lien. */
+const REFUSE_MAX=200;
+const REFUSE_CHOICES=[
+  {id:"non", label:"Non merci"},
+  {id:"date", label:"Pas disponible"},
+  {id:"libre", label:"Écrire ma réponse"}
+];
+function refuseDefault(why, from, multi){
+  if(why==="non") return `Merci pour ton invitation, ${from}. Ma réponse est non, mais merci d'avoir osé demander 💛`;
+  if(why==="date") return `Merci pour ton invitation, ${from} 💛 Je ne suis pas disponible ${multi?"à ces dates":"à cette date"}.`;
+  return "";
 }
+let refuseDrafts={}; // textes modifiés, par choix, tant que la page est ouverte
+const refuseText = () => (refuseDrafts[refuseWhy] ?? refuseDefault(refuseWhy, D.f, !!D.sl)).slice(0,REFUSE_MAX);
 function openRefuse(){
   if(yesDone) return;
   refused=true; clearTimeout(refuseTimer);
@@ -1647,13 +1657,14 @@ function openRefuse(){
   const main=$("#main");
   main.innerHTML = `
     <div class="pop-in">
-      <h1 class="question" style="margin-bottom:8px">Pas cette fois ?</h1>
+      <h1 class="question" style="margin-bottom:8px">Répondre non</h1>
       <p style="color:var(--muted);margin:0 0 16px">Pas de souci, ${esc(D.f)} comprendra.</p>
       <div class="chips" role="group" aria-label="Ta réponse" style="justify-content:center">
-        <button type="button" class="chip" data-why="pas" aria-pressed="${refuseWhy==="pas"}">Pas cette fois</button>
-        <button type="button" class="chip" data-why="date" aria-pressed="${refuseWhy==="date"}">${D.sl?"Pas dispo à ces dates":"Pas dispo ce jour-là"}</button>
+        ${REFUSE_CHOICES.map(c=>`<button type="button" class="chip" data-why="${c.id}" aria-pressed="${refuseWhy===c.id}">${c.label}</button>`).join("")}
       </div>
-      <p class="handnote refuse-text" id="refuseText">${esc(refuseText())}</p>
+      <label class="field refuse-field"><span>Ta réponse <em>(modifiable avant l'envoi)</em></span>
+        <textarea class="input refuse-input" id="refuseText" maxlength="${REFUSE_MAX}" placeholder="Écris ta réponse…">${esc(refuseText())}</textarea>
+        <div class="counter" id="refuseCnt">${refuseText().length} / ${REFUSE_MAX}</div></label>
       <div class="after-actions">
         <button type="button" class="btn primary" id="replyNo">${replyLabel()}</button>
         <button type="button" class="btn ghost" id="copyNo">Copier ma réponse</button>
@@ -1661,13 +1672,18 @@ function openRefuse(){
       </div>
       ${signHTML()}
     </div>`;
+  const ta=$("#refuseText"), cnt=$("#refuseCnt");
+  const current=()=>ta.value.slice(0,REFUSE_MAX).trim();
+  ta.addEventListener("input",()=>{ refuseDrafts[refuseWhy]=ta.value; cnt.textContent=`${ta.value.length} / ${REFUSE_MAX}`; });
   $$("[data-why]",main).forEach(b=>b.addEventListener("click",()=>{
     refuseWhy=b.dataset.why;
     $$("[data-why]",main).forEach(x=>x.setAttribute("aria-pressed", x===b));
-    $("#refuseText").textContent=refuseText();
+    ta.value=refuseText(); cnt.textContent=`${ta.value.length} / ${REFUSE_MAX}`;
+    if(refuseWhy==="libre") ta.focus();
   }));
-  $("#replyNo").addEventListener("click",()=>sendReply(refuseText()));
-  $("#copyNo").addEventListener("click",async()=>toast(await copyText(refuseText())?"Réponse copiée":"Copie impossible"));
+  const withText=fn=>()=>{ const t=current(); if(!t){ toast("Écris d'abord ta réponse"); ta.focus(); return; } fn(t); };
+  $("#replyNo").addEventListener("click",withText(t=>sendReply(t)));
+  $("#copyNo").addEventListener("click",withText(async t=>toast(await copyText(t)?"Réponse copiée":"Copie impossible")));
   $("#undoNo").addEventListener("click",renderInvite);
   $("#replyNo").focus();
 }
@@ -2147,7 +2163,7 @@ async function route(){
     try{
       D = EXAMPLE ? demoData() : await decodeData(m[1]); chosenSlot=null; yesDone=false;
       Sound.on = D.so!==0; // côté destinataire : réglage de l'invitation, rien n'est lu ni enregistré
-      noTries=0; refused=false; refuseOffered=false; refuseWhy="pas"; clearTimeout(refuseTimer);
+      noTries=0; refused=false; refuseOffered=false; refuseWhy="non"; refuseDrafts={}; clearTimeout(refuseTimer);
       renderEnvelope(); return;
     }
     catch(e){
