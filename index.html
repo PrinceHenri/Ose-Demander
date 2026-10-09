@@ -324,7 +324,8 @@ const OCCASIONS = [
     {id:"valentin", label:"La Saint-Valentin", theme:"amour", q:"Tu passes la Saint-Valentin avec moi ?"},
     {id:"annivamour", label:"L'anniversaire de mon amour", theme:"amour", q:"Je peux t'emmener fêter ton anniversaire ?"},
     {id:"couple", label:"Notre anniversaire de couple", theme:"amour", q:"On fête notre anniversaire ensemble ?"},
-    {id:"mariage", label:"Une demande en mariage", theme:"amour", q:"Veux-tu m'épouser ?"}
+    // Retirée de la création (old:1), gardée pour que les anciens liens s'ouvrent à l'identique
+    {id:"mariage", label:"Une demande en mariage", theme:"amour", q:"Veux-tu m'épouser ?", old:1}
   ]},
   {cat:"Famille", items:[
     {id:"meres", label:"La fête des mères", theme:"maman", q:"Maman, je t'emmène pour la fête des mères ?"},
@@ -738,14 +739,12 @@ function unpackLink(c){
    ========================================================= */
 /* Modèles prêts à l'emploi : ils pré-remplissent des champs existants, rien de nouveau n'est mis dans le lien */
 const TEMPLATES = [
-  {id:"rdv", cat:"Amour", label:"Premier rendez-vous", occ:"date", theme:"amour", no:"fuit", em:"💌",
+  {id:"rdv", cat:"Amour", label:"Proposer un date", occ:"date", theme:"amour", no:"fuit", em:"💌",
     q:"Ça te dit un rendez-vous avec moi ?", msg:"Prépare ton plus beau sourire, je m'occupe du reste."},
   {id:"valentin", cat:"Amour", label:"Saint-Valentin", occ:"valentin", theme:"amour", no:"retrecit", tone:"romantique", em:"🌹",
     q:"Tu passes la Saint-Valentin avec moi ?", msg:"Tu n'as rien à prévoir, juste à dire oui."},
   {id:"couple", cat:"Amour", label:"Anniversaire de couple", occ:"couple", theme:"amour", no:"supplie", tone:"romantique", em:"❤️",
     q:"On fête notre anniversaire ensemble ?", msg:"J'ai envie de passer ce moment avec toi, rien qu'avec toi."},
-  {id:"mariage", cat:"Amour", label:"Demande en mariage", occ:"mariage", theme:"amour", no:"supplie", tone:"romantique", em:"💍",
-    q:"Veux-tu m'épouser ?", msg:"Je veux passer tous mes moments avec toi."},
   {id:"meres", cat:"Famille", label:"Fête des mères", occ:"meres", theme:"maman", no:"transforme", tone:"mignon", em:"🌷",
     q:"Maman, je t'emmène pour la fête des mères ?", msg:"Tu t'occupes toujours de nous, cette fois c'est mon tour."},
   {id:"peres", cat:"Famille", label:"Fête des pères", occ:"peres", theme:"papa", no:"retrecit", tone:"drole", em:"👔",
@@ -1055,7 +1054,7 @@ function secPlan(){
     `}`;
 }
 function secOcc(){
-  return `${OCCASIONS.map(g=>`<p class="group-title">${g.cat}</p><div class="chips">${g.items.map(o=>`<button type="button" class="chip" data-occ="${o.id}" aria-pressed="${S.occ===o.id}">${o.label}</button>`).join("")}</div>`).join("")}
+  return `${OCCASIONS.map(g=>`<p class="group-title">${g.cat}</p><div class="chips">${g.items.filter(o=>!o.old||S.occ===o.id).map(o=>`<button type="button" class="chip" data-occ="${o.id}" aria-pressed="${S.occ===o.id}">${o.label}</button>`).join("")}</div>`).join("")}
     ${S.occ==="libre" ? `<label class="field" style="margin-top:14px"><span>Laquelle ?</span><input class="input" id="occFree" maxlength="40" placeholder="Ex. Ma pendaison de crémaillère" value="${esc(S.occFree)}"></label>` : ""}`;
 }
 function secWords(){
