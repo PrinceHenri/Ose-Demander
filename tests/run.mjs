@@ -10,6 +10,7 @@ import { fileURLToPath } from "node:url";
 import { charger } from "./charger.mjs";
 import { REFERENCES } from "./references.mjs";
 import * as FIGE from "./tables-figees.mjs";
+import { chargerPage, principales } from "./page.mjs";
 
 const RACINE = fileURLToPath(new URL("..", import.meta.url));
 const arg = (nom, def) => { const a = process.argv.find(x => x.startsWith(`--${nom}=`)); return a ? Number(a.split("=")[1]) : def; };
@@ -566,6 +567,43 @@ await test("Messages d'erreur lisibles", () => {
   exige("erreur", "#B3122E", "#FFE3E8", 4.5);
   exige("erreur (Mystère)", "#FFD0D8", "#4A1F3A", 4.5);
   for(const t of L.THEMES.filter(t => t.id !== "mystere")) exige(`bouton danger (${t.name})`, "#B3122E", THEME_CSS[t.id].surface, 4.5);
+});
+
+/* =========================================================
+   8. Écrans : HTML réellement produit par la page complète (skill ose-design)
+   ========================================================= */
+titre("8. Écrans");
+const PAGE = chargerPage();
+const INV = (extra = {}) => PAGE.lire("sanitize")({ f: "Alex", t: "Sam", o: "date", th: "amour", q: "Ça te dit un rendez-vous avec moi ?", n: "fuit",
+  c: "wa", ci: "06 00 00 00 01", m: "Prépare ton plus beau sourire.", a: { v: "v", x: "Dîner" }, d: "2026-11-14", h: "20:00", ...extra });
+const ouvrir = (d, slot = null, mode = "yes") => {
+  PAGE.ecrire("D", d); PAGE.ecrire("chosenSlot", slot); PAGE.ecrire("afterMode", mode);
+  PAGE.ecrire("remState", "ok"); PAGE.ecrire("remLink", "http://localhost:8000/#i=yExemple");
+  PAGE.lire("initReveals")();
+};
+const apresOui = () => PAGE.lire("afterHTML")("C'est un oui !", "");
+
+// O1 : la réponse n'est transmise qu'une fois envoyée, il faut le dire et le mettre en avant
+await test("Après le Oui : « Dernière étape », l'envoi juste sous le titre, seule action principale", () => {
+  ouvrir(INV());
+  const h = apresOui();
+  assert.ok(h.includes("<strong>Dernière étape :</strong> envoie ta réponse à Alex. Tant qu'elle n'est pas partie, Alex ne sait rien."));
+  assert.ok(!h.includes("aux anges"), "plus de phrase laissant croire que la réponse est partie");
+  assert.ok(h.indexOf('id="reply"') < h.indexOf('id="details"'), "le bouton de réponse vient avant les détails");
+  assert.ok(h.indexOf('id="reply"') < h.indexOf('id="actions"'), "et avant l'agenda");
+  assert.deepEqual(principales(h), ["Répondre sur WhatsApp"], "une seule action principale : la réponse");
+});
+await test("Après le Oui avec créneaux : choisir le créneau, puis envoyer", () => {
+  ouvrir(INV({ d: undefined, h: undefined, sl: [["2026-11-14", "20:00"], ["2026-11-21", "20:00"]] }));
+  assert.ok(apresOui().includes("choisis ton créneau plus bas, puis envoie ta réponse à Alex"));
+  ouvrir(INV({ d: undefined, h: undefined, sl: [["2026-11-14", "20:00"], ["2026-11-21", "20:00"]] }), 1);
+  assert.ok(apresOui().includes("Dernière étape :</strong> envoie ta réponse"));
+});
+await test("Carte ouverte depuis le rappel d'agenda : « Si ce n'est pas déjà fait », une seule action principale", () => {
+  ouvrir(PAGE.lire("reminderData")(INV(), null), null, "reminder");
+  const h = PAGE.lire("ticketHTML")(PAGE.lire("afterHTML")("Ton invitation", "Avec Alex"));
+  assert.ok(h.includes("Si ce n'est pas déjà fait, envoie ta réponse à Alex."));
+  assert.deepEqual(principales(h), ["Envoyer ma réponse"]);
 });
 
 /* ---------- Bilan ---------- */

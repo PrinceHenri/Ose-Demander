@@ -272,7 +272,12 @@ textarea.input{min-height:90px;resize:vertical}
 .timeline li.lock::before{background:var(--line)}
 .timeline .h{font-weight:800}
 .slots{display:flex;flex-direction:column;gap:8px;margin-top:8px}
+/* Après le Oui : l'envoi de la réponse, juste sous le titre (seule action principale de l'écran) */
+.send-step{display:flex;flex-direction:column;gap:10px;margin:18px 0 4px;padding:16px;border:2px solid var(--ink);border-radius:14px;background:var(--soft);text-align:left}
+.send-lead{margin:0;font-size:16px;line-height:1.4}
+.send-step .btn{width:100%}
 .after-actions{display:flex;flex-direction:column;gap:10px;margin-top:22px}
+.after-actions:empty{display:none}
 .after-actions .btn{width:100%}
 .after-actions a.btn{display:block;text-align:center;text-decoration:none;color:inherit}
 .cal-alt{align-self:center;background:none;border:0;padding:4px;color:var(--muted);font-size:14px;cursor:pointer;text-decoration:underline;text-underline-offset:3px}
@@ -1859,23 +1864,36 @@ function sayYes(e){
   yesDone=true;
   Decor.burst(x, y, 150); Sound.yes(); buzz([40,60,40]);
   initReveals();
-  $("#main").innerHTML = afterHTML("C'est un oui !", `${esc(D.f)} va être aux anges.`);
+  afterMode="yes";
+  $("#main").innerHTML = afterHTML("C'est un oui !", "");
   bindAfter();
   prepReminder();
   startCountdowns(1300); // la mise en scène attend la fin de l'explosion du Oui
 }
-/* La carte de l'invitation (après le Oui, ou ouverte depuis le rappel d'agenda). title et sub : déjà échappés */
+/* La carte de l'invitation (après le Oui, ou ouverte depuis le rappel d'agenda). title et sub : déjà échappés.
+   Juste sous le titre : l'envoi de la réponse, seule action principale (le Oui n'est pas transmis tant qu'il n'est pas envoyé). */
+let afterMode="yes"; // "yes" : juste après le Oui ; "reminder" : ouverte depuis le rappel d'agenda
 function afterHTML(title, sub){
   return `
     <div class="pop-in">
       <p class="occ">${esc(invOccLabel())}</p>
       <h1 class="question" style="margin-bottom:8px">${title}</h1>
-      <p style="color:var(--muted);margin:0">${sub}</p>
+      ${sub ? `<p style="color:var(--muted);margin:0">${sub}</p>` : ""}
+      <div class="send-step" id="send">${sendHTML()}</div>
       ${D.m ? `<p class="handnote">${esc(D.m)}</p>` : ""}
       ${signHTML()}
       <div class="details" id="details">${detailsHTML()}</div>
       <div class="after-actions" id="actions">${actionsHTML()}</div>
     </div>`;
+}
+function sendHTML(){
+  const who=esc(D.f);
+  const lead = afterMode==="reminder" ? `Si ce n'est pas déjà fait, envoie ta réponse à ${who}.`
+    : D.sl && chosenSlot===null ? `<strong>Dernière étape :</strong> choisis ton créneau plus bas, puis envoie ta réponse à ${who}.`
+    : `<strong>Dernière étape :</strong> envoie ta réponse à ${who}. Tant qu'elle n'est pas partie, ${who} ne sait rien.`;
+  return `<p class="send-lead">${lead}</p>
+    <button type="button" class="btn primary" id="reply">${replyLabel()}</button>
+    <button type="button" class="btn ghost" id="copyR">Copier ma réponse</button>`;
 }
 /* Ouverture depuis le rappel d'agenda : ni enveloppe ni question, directement la carte.
    Le lien du rappel n'a pas de canal : la réponse se partage ou se copie (« Peu importe »). */
@@ -1884,6 +1902,7 @@ function renderReminder(){
   document.title = `Ton invitation avec ${D.f}`;
   yesDone=true; refused=false; clearTimeout(refuseTimer);
   initReveals();
+  afterMode="reminder";
   $("#app").innerHTML = ticketHTML(afterHTML("Ton invitation", `Avec ${esc(D.f)}`));
   bindSound();
   bindAfter();
@@ -2001,12 +2020,10 @@ function replyLabel(){
   const ch=CHANNELS.find(c=>c.id===D.c)||CHANNELS[0];
   return ch.id==="any" ? "Envoyer ma réponse" : `Répondre sur ${ch.t}`;
 }
+/* Sous les détails : l'agenda (une fois le créneau choisi et le lien de rappel prêt) */
 function actionsHTML(){
   const canCal = (!D.sl || chosenSlot!==null) && remState!=="wait";
-  return `
-    <button type="button" class="btn primary" id="reply">${replyLabel()}</button>
-    ${canCal ? calButtonsHTML() : ""}
-    <button type="button" class="btn ghost" id="copyR">Copier ma réponse</button>`;
+  return canCal ? calButtonsHTML() : "";
 }
 function replyText(){
   const occ = D.o==="libre" ? (D.of||"ton invitation") : (OCC[D.o]?.label||"ton invitation");
@@ -2018,15 +2035,18 @@ function cleanPhone(p){ let n=p.replace(/[^\d+]/g,""); if(n.startsWith("+")) ret
 function bindAfter(){
   $$("[data-pick]").forEach(b=>b.addEventListener("click",()=>{ chosenSlot=+b.dataset.pick; prepReminder(); refreshAfter(); }));
   $("#repick")?.addEventListener("click",()=>{ chosenSlot=null; prepReminder(); refreshAfter(); });
+  bindSend();
   bindActions();
 }
-function bindActions(){
+function bindSend(){
   $("#reply").addEventListener("click",reply);
-  $("#cal")?.addEventListener("click",downloadICS);
-  $("#calRev")?.addEventListener("click",downloadRevealICS);
   $("#copyR").addEventListener("click",async()=>toast(await copyText(replyText())?"Réponse copiée":"Copie impossible"));
 }
-function refreshAfter(){ $("#details").innerHTML=detailsHTML(); $("#actions").innerHTML=actionsHTML(); bindAfter(); }
+function bindActions(){
+  $("#cal")?.addEventListener("click",downloadICS);
+  $("#calRev")?.addEventListener("click",downloadRevealICS);
+}
+function refreshAfter(){ $("#send").innerHTML=sendHTML(); $("#details").innerHTML=detailsHTML(); $("#actions").innerHTML=actionsHTML(); bindAfter(); }
 /* Lien du rappel d'agenda (version allégée, voir reminderData), préparé à l'avance :
    les boutons d'agenda n'apparaissent qu'une fois le lien prêt. "wait" | "ok" | "none" (échec : agenda sans lien) */
 let remLink="", remState="wait";
