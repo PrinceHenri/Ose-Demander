@@ -198,6 +198,13 @@ textarea.input{min-height:90px;resize:vertical}
 .home-card .ico{font-size:20px;margin-right:6px}
 .home-card b{font-size:19px;letter-spacing:-.01em}
 .home-card .hc-txt>span{font-size:14px;color:var(--muted);line-height:1.35}
+/* Bandeau de saison : miniature de la scène, phrase, bouton secondaire */
+.season{display:flex;align-items:stretch;background:var(--surface);color:var(--ink);border:2px solid var(--ink);border-radius:var(--r);box-shadow:4px 4px 0 var(--ink);overflow:hidden;margin:0 0 18px}
+.season .thumb{flex:0 0 38%;border-bottom:0;border-right:2px solid var(--ink)}
+.season .mini{height:100%;min-height:100px}
+.season-body{flex:1;display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:10px;padding:14px 16px}
+.season-t{margin:0;font-weight:800;font-size:19px;letter-spacing:-.01em;line-height:1.25}
+@media (max-width:460px){.season{flex-direction:column}.season .thumb{flex:none;border-right:0;border-bottom:2px solid var(--ink)}.season .mini{min-height:84px}}
 .home-actions{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;margin:0 0 26px}
 .home-actions a.btn{text-decoration:none;display:inline-block}
 
@@ -494,17 +501,31 @@ function nthSunday(y, m, n){ // n-ième dimanche du mois, ou le dernier si n = -
 }
 // Fête des mères (France) : dernier dimanche de mai, ou premier dimanche de juin si c'est la Pentecôte
 function mothersDay(y){ const d=nthSunday(y, 5, -1); return isoDay(d)===isoDay(addDays(easter(y), 49)) ? nthSunday(y, 6, 1) : d; }
+/* em : emoji de la saison (proposé sur l'enveloppe seulement pendant la période, sauf s'il l'est déjà toute l'année).
+   ban : textes du bandeau de l'accueil, avant le jour J, le jour J, après (l'emoji est ajouté à la fin). */
 const SEASONS = {
-  galette:   {day:y=>ymd(y,1,6),   from:[12,15], to:[1,31]},
-  valentin:  {day:y=>ymd(y,2,14),  from:[1,1],   to:[3,0]},
-  paques:    {day:easter,          from:-28,     to:7},
-  meres:     {day:mothersDay,      from:[5,1],   to:7},
-  peres:     {day:y=>nthSunday(y,6,3), from:[5,15], to:7},
-  musique:   {day:y=>ymd(y,6,21),  from:[6,1],   to:[6,30]},
-  halloween: {day:y=>ymd(y,10,31), from:[10,1],  to:[11,5]},
-  noel:      {day:y=>ymd(y,12,25), from:[11,1],  to:[12,31]},
-  reveillon: {day:y=>ymd(y,12,31), from:[12,1],  to:[1,10]}
+  galette:   {day:y=>ymd(y,1,6),   from:[12,15], to:[1,31], em:"👑",
+    ban:["Bientôt l'Épiphanie","C'est l'Épiphanie aujourd'hui","C'est la saison de la galette"]},
+  valentin:  {day:y=>ymd(y,2,14),  from:[1,1],   to:[3,0], em:"🌹",
+    ban:["Bientôt la Saint-Valentin","C'est la Saint-Valentin aujourd'hui","Il est encore temps de la fêter"]},
+  paques:    {day:easter,          from:-28,     to:7, em:"🐣",
+    ban:["Bientôt Pâques","C'est Pâques aujourd'hui","Il est encore temps de fêter Pâques"]},
+  meres:     {day:mothersDay,      from:[5,1],   to:7, em:"🌷",
+    ban:["Bientôt la fête des mères","C'est la fête des mères aujourd'hui","Il est encore temps de la fêter"]},
+  peres:     {day:y=>nthSunday(y,6,3), from:[5,15], to:7, em:"👔",
+    ban:["Bientôt la fête des pères","C'est la fête des pères aujourd'hui","Il est encore temps de la fêter"]},
+  musique:   {day:y=>ymd(y,6,21),  from:[6,1],   to:[6,30], em:"🎶",
+    ban:["Bientôt la fête de la musique","C'est la fête de la musique aujourd'hui","L'été commence en musique"]},
+  halloween: {day:y=>ymd(y,10,31), from:[10,1],  to:[11,5], em:"🎃",
+    ban:["Bientôt Halloween","C'est Halloween aujourd'hui","Il est encore temps de fêter Halloween"]},
+  noel:      {day:y=>ymd(y,12,25), from:[11,1],  to:[12,31], em:"🎄",
+    ban:["Bientôt Noël","C'est Noël aujourd'hui","Il est encore temps de fêter Noël"]},
+  reveillon: {day:y=>ymd(y,12,31), from:[12,1],  to:[1,10], em:"🥂",
+    ban:["Bientôt le réveillon","C'est le réveillon ce soir","Bonne année ! Il est encore temps de la fêter"]}
 };
+/* Date du jour des saisons : celle de l'appareil (le banc de test la remplace) */
+let SEASON_TODAY="";
+const seasonToday = () => SEASON_TODAY || todayISO();
 /* Période de l'année y : {from, to, day} en dates ISO */
 function seasonWindow(id, y){
   const s=SEASONS[id], day=s.day(y);
@@ -525,7 +546,10 @@ function seasonAt(id, iso){
   return null;
 }
 /* Proposée à la création ce jour-là : permanente, ou saisonnière dans sa période */
-const seasonOpen = (id, iso=todayISO()) => !SEASONS[id] || !!seasonAt(id, iso);
+const seasonOpen = (id, iso=seasonToday()) => !SEASONS[id] || !!seasonAt(id, iso);
+/* Emoji réservé à une saison (absent des emojis proposés toute l'année avant les saisons) */
+const SEASON_EMOJI = {"👑":"galette","🐣":"paques","🎶":"musique","🎃":"halloween","🎄":"noel","🥂":"reveillon"};
+const emojiOpen = e => !SEASON_EMOJI[e] || seasonOpen(SEASON_EMOJI[e]);
 /* c : fond, a : accent, s : surface (blanc par défaut), so : --soft, i : --ink (mêmes valeurs que le CSS, vérifié par le banc) */
 const THEMES = [
   {id:"base", name:"Lilas", c:"#ECE6FF", a:"#E83F86", so:"#F6F2FF", i:"#1F1546"},
@@ -1032,37 +1056,49 @@ function icsText(events, stamp=new Date()){
    ========================================================= */
 /* Modèles prêts à l'emploi : ils pré-remplissent des champs existants, rien de nouveau n'est mis dans le lien */
 const TEMPLATES = [
-  {id:"rdv", cat:"Amour", label:"Proposer un date", occ:"date", theme:"amour", no:"fuit", em:"💌",
+  {id:"rdv", cat:"Amour", label:"Proposer un date", short:"rendez-vous", occ:"date", theme:"amour", no:"fuit", em:"💌",
     q:"Ça te dit un rendez-vous avec moi ?", msg:"Prépare ton plus beau sourire, je m'occupe du reste."},
-  {id:"valentin", cat:"Amour", label:"Saint-Valentin", occ:"valentin", theme:"amour", no:"retrecit", tone:"romantique", em:"🌹",
+  {id:"valentin", cat:"Amour", label:"Saint-Valentin", short:"Saint-Valentin", occ:"valentin", theme:"amour", no:"retrecit", tone:"romantique", em:"🌹",
     q:"Tu passes la Saint-Valentin avec moi ?", msg:"Tu n'as rien à prévoir, juste à dire oui."},
-  {id:"couple", cat:"Amour", label:"Anniversaire de couple", occ:"couple", theme:"amour", no:"supplie", tone:"romantique", em:"❤️",
+  {id:"couple", cat:"Amour", label:"Anniversaire de couple", short:"couple", occ:"couple", theme:"amour", no:"supplie", tone:"romantique", em:"❤️",
     q:"On fête notre anniversaire ensemble ?", msg:"J'ai envie de passer ce moment avec toi, rien qu'avec toi."},
-  {id:"meres", cat:"Famille", label:"Fête des mères", occ:"meres", theme:"maman", no:"transforme", tone:"mignon", em:"🌷",
+  {id:"meres", cat:"Famille", label:"Fête des mères", short:"fête des mères", occ:"meres", theme:"maman", no:"transforme", tone:"mignon", em:"🌷",
     q:"Maman, je t'emmène pour la fête des mères ?", msg:"Tu t'occupes toujours de nous, cette fois c'est mon tour."},
-  {id:"peres", cat:"Famille", label:"Fête des pères", occ:"peres", theme:"papa", no:"retrecit", tone:"drole", em:"👔",
+  {id:"peres", cat:"Famille", label:"Fête des pères", short:"fête des pères", occ:"peres", theme:"papa", no:"retrecit", tone:"drole", em:"👔",
     q:"Papa, je t'emmène pour la fête des pères ?", msg:"Merci pour tout. Ce moment, c'est pour toi."},
-  {id:"grands", cat:"Famille", label:"Fête des grands-parents", occ:"grands", theme:"maman", no:"supplie", tone:"mignon", em:"🎁",
+  {id:"grands", cat:"Famille", label:"Fête des grands-parents", short:"grands-parents", occ:"grands", theme:"maman", no:"supplie", tone:"mignon", em:"🎁",
     q:"Je vous invite pour la fête des grands-parents ?", msg:"Un petit moment rien que pour vous, vous l'avez bien mérité."},
-  {id:"soiree", cat:"Amis", label:"Soirée entre amis", occ:"sortie", theme:"amis", no:"fuit", tone:"drole", em:"🍕",
+  {id:"soiree", cat:"Amis", label:"Soirée entre amis", short:"soirée", occ:"sortie", theme:"amis", no:"fuit", tone:"drole", em:"🍕",
     q:"Tu viens avec moi ?", msg:"Ça fait trop longtemps, on rattrape le temps perdu."},
-  {id:"anniv", cat:"Amis", label:"Un anniversaire", occ:"annivami", theme:"fete", no:"fuit", tone:"drole", em:"🎂",
+  {id:"anniv", cat:"Amis", label:"Un anniversaire", short:"anniversaire", occ:"annivami", theme:"fete", no:"fuit", tone:"drole", em:"🎂",
     q:"Je t'invite pour ton anniversaire ?", msg:"Ce ne sera pas pareil sans toi."},
-  {id:"temoin", cat:"Amis", label:"Être mon témoin", occ:"temoin", theme:"amis", no:"supplie", tone:"theatral", em:"🎉",
+  {id:"temoin", cat:"Amis", label:"Être mon témoin", short:"témoin", occ:"temoin", theme:"amis", no:"supplie", tone:"theatral", em:"🎉",
     q:"Tu veux être mon témoin ?", msg:"Je ne vois personne d'autre à mes côtés ce jour-là."},
-  {id:"mystere", cat:"Surprise", label:"Journée mystère", occ:"surprise", theme:"mystere", no:"fuit", em:"✨",
+  {id:"mystere", cat:"Surprise", label:"Journée mystère", short:"journée mystère", occ:"surprise", theme:"mystere", no:"fuit", em:"✨",
     q:"Tu me confies ta journée ?", msg:"Fais-moi confiance, tu vas aimer.",
     plan:{steps:[{h:"10 h",hint:"Prévois des baskets"},{h:"13 h",hint:"Tu vas te régaler"},{h:"17 h",hint:"Garde des forces"}]}},
-  {id:"diner", cat:"Surprise", label:"Dîner surprise", occ:"juste", theme:"mystere", no:"transforme", em:"💌",
+  {id:"diner", cat:"Surprise", label:"Dîner surprise", short:"dîner surprise", occ:"juste", theme:"mystere", no:"transforme", em:"💌",
     q:"Je t'emmène dîner, sans rien te dire ?", msg:"Je ne dis rien de plus, c'est une surprise.",
     plan:{act:"Un dîner", lieuHint:"Habille-toi bien"}}
 ];
 const HOME_CATS = [
-  {cat:"Amour", theme:"amour", ico:"❤️", d:"Rendez-vous, Saint-Valentin, couple"},
-  {cat:"Famille", theme:"maman", ico:"🌷", d:"Fête des mères, des pères, grands-parents"},
-  {cat:"Amis", theme:"amis", ico:"🎉", d:"Soirée, anniversaire, témoin"},
-  {cat:"Surprise", theme:"mystere", ico:"✨", d:"Journée mystère, dîner surprise"}
+  {cat:"Amour", theme:"amour", ico:"❤️"},
+  {cat:"Famille", theme:"maman", ico:"🌷"},
+  {cat:"Amis", theme:"amis", ico:"🎉"},
+  {cat:"Surprise", theme:"mystere", ico:"✨"}
 ];
+/* Modèles proposés ce jour-là dans une catégorie : saisonniers ouverts d'abord (jour J le plus proche), puis permanents.
+   keep : modèle déjà choisi, gardé même si sa saison vient de se terminer pendant la création. */
+function catTemplates(cat, keep=""){
+  const today=seasonToday(), day=t=>seasonAt(t.occ, today)?.day;
+  const list=TEMPLATES.filter(t=>t.cat===cat && (seasonOpen(t.occ, today) || t.id===keep));
+  return [...list.filter(day).sort((a,b)=>day(a)<day(b)?-1:1), ...list.filter(t=>!day(t))];
+}
+/* Description d'une carte de l'accueil : les trois premiers modèles proposés (jamais un modèle hors saison) */
+function catDesc(cat){
+  const d=catTemplates(cat).slice(0,3).map(t=>t.short).join(", ");
+  return d.charAt(0).toUpperCase()+d.slice(1);
+}
 
 const S = {
   step:"home", tplCat:"Amour", tpl:"", preset:{},
@@ -1151,12 +1187,30 @@ function homeHTML(){
         <p class="tease" id="demoTease" aria-live="polite">Essaie de dire non… puis dis oui pour créer la tienne.</p>
       </div>
     </div>
+    ${seasonBannerHTML()}
     <div class="home-cards">${HOME_CATS.map(c=>`<button type="button" class="home-card" data-home="${c.cat}">${sceneMini(c.theme)}
-      <span class="hc-txt"><b><span class="ico" aria-hidden="true">${c.ico}</span>${c.cat}</b><span>${c.d}</span></span></button>`).join("")}</div>
+      <span class="hc-txt"><b><span class="ico" aria-hidden="true">${c.ico}</span>${c.cat}</b><span>${esc(catDesc(c.cat))}</span></span></button>`).join("")}</div>
     <div class="home-actions">
       <a class="btn" href="#exemple">Voir un exemple</a>
       <button type="button" class="linkbtn" id="fromScratch">Partir de zéro →</button>
     </div>`;
+}
+
+/* Bandeau de saison : l'occasion ouverte dont le jour J à venir est le plus proche (sinon la dernière passée),
+   seulement si son modèle existe. Bouton secondaire : le Oui du mini-billet reste la seule action principale. */
+function seasonPick(){
+  const today=seasonToday(), open=TEMPLATES.map(t=>({t, w:seasonAt(t.occ, today)})).filter(x=>x.w);
+  const next=open.filter(x=>x.w.day>=today).sort((a,b)=>a.w.day<b.w.day?-1:1);
+  const past=open.filter(x=>x.w.day<today).sort((a,b)=>a.w.day>b.w.day?-1:1);
+  return next[0] || past[0] || null;
+}
+function seasonBannerHTML(){
+  const p=seasonPick(); if(!p) return "";
+  const s=SEASONS[p.t.occ], today=seasonToday(), i = today<p.w.day ? 0 : today===p.w.day ? 1 : 2;
+  return `<section class="season" aria-labelledby="seasonT">${sceneMini(p.t.theme)}
+      <div class="season-body"><p class="season-t" id="seasonT">${esc(s.ban[i])} <span aria-hidden="true">${s.em}</span></p>
+      <button type="button" class="btn" data-season="${p.t.id}" aria-label="Créer mon invitation : ${esc(p.t.label)}">Créer mon invitation</button></div>
+    </section>`;
 }
 
 /* ---------- Les 4 écrans ---------- */
@@ -1165,7 +1219,7 @@ function screenHTML(){
   case 1: {
     const cats=HOME_CATS.map(c=>c.cat); // une catégorie toujours ouverte (Amour par défaut) ; « Partir de zéro » dans chacune
     if(!cats.includes(S.tplCat)) S.tplCat="Amour";
-    const list=TEMPLATES.filter(t=>t.cat===S.tplCat);
+    const list=catTemplates(S.tplCat, S.tpl);
     return `
     <h2 tabindex="-1">Choisis un modèle</h2>
     <p class="lead">Il règle l'occasion, les couleurs, la question et le message. Tu pourras tout changer.</p>
@@ -1366,7 +1420,7 @@ function secPlan(){
     `}`;
 }
 function secOcc(){
-  return `${OCCASIONS.map(g=>`<p class="group-title">${g.cat}</p><div class="chips">${g.items.filter(o=>!o.old||S.occ===o.id).map(o=>`<button type="button" class="chip" data-occ="${o.id}" aria-pressed="${S.occ===o.id}">${o.label}</button>`).join("")}</div>`).join("")}
+  return `${OCCASIONS.map(g=>`<p class="group-title">${g.cat}</p><div class="chips">${g.items.filter(o=>(!o.old && seasonOpen(o.id))||S.occ===o.id).map(o=>`<button type="button" class="chip" data-occ="${o.id}" aria-pressed="${S.occ===o.id}">${o.label}</button>`).join("")}</div>`).join("")}
     ${S.occ==="libre" ? `<label class="field" style="margin-top:14px"><span>Laquelle ?</span><input class="input" id="occFree" maxlength="40" placeholder="Ex. Ma pendaison de crémaillère" value="${esc(S.occFree)}"></label>` : ""}`;
 }
 function secWords(){
@@ -1381,7 +1435,7 @@ function secWords(){
 function secStyle(){
   const th=THEMES.find(t=>t.id===S.theme)||THEMES[0], initial=(S.from||"?").trim().charAt(0).toUpperCase();
   return `<p class="group-title">Thème</p>
-    <div class="swatches">${THEMES.map(t=>`<button type="button" class="swatch" data-th="${t.id}" aria-pressed="${S.theme===t.id}" title="${t.name}" aria-label="Thème ${t.name}" style="background:linear-gradient(135deg,${t.c} 55%,${t.a} 55%)"></button>`).join("")}</div>
+    <div class="swatches">${THEMES.filter(t=>!t.season||seasonOpen(t.season)||S.theme===t.id).map(t=>`<button type="button" class="swatch" data-th="${t.id}" aria-pressed="${S.theme===t.id}" title="${t.name}" aria-label="Thème ${t.name}" style="background:linear-gradient(135deg,${t.c} 55%,${t.a} 55%)"></button>`).join("")}</div>
     <p class="group-title">Couleur d'accent</p>
     <div class="swatches">
       <button type="button" class="swatch acc" data-ac="" aria-pressed="${!S.ac}" title="Celle du thème" aria-label="Couleur du thème" style="background:${th.a}"></button>
@@ -1392,7 +1446,7 @@ function secStyle(){
     <p class="group-title">Sur l'enveloppe</p>
     <div class="chips">
       <button type="button" class="chip" data-em="" aria-pressed="${!S.em}">L'initiale (${esc(initial)})</button>
-      ${EMOJIS.map(e=>`<button type="button" class="chip emo" data-em="${e}" aria-pressed="${S.em===e}" aria-label="Emoji ${e}">${e}</button>`).join("")}
+      ${EMOJIS.filter(e=>emojiOpen(e)||S.em===e).map(e=>`<button type="button" class="chip emo" data-em="${e}" aria-pressed="${S.em===e}" aria-label="Emoji ${e}">${e}</button>`).join("")}
     </div>
     <label class="field" style="margin-top:16px"><span>Signature manuscrite <em>(facultatif)</em></span><input class="input" id="sg" maxlength="30" placeholder="Ex. Ton Keke" value="${esc(S.sg)}"></label>
     <p class="group-title">Animations</p>
@@ -1545,6 +1599,7 @@ function bindCreator(){
   bindDemoTicket();
   on("[data-cat]", b=>{ S.tplCat=b.dataset.cat; });
   $$("[data-tpl]").forEach(b=>b.addEventListener("click",()=>{ applyTemplate(b.dataset.tpl); go(2); }));
+  $$("[data-season]").forEach(b=>b.addEventListener("click",()=>{ const t=TEMPLATES.find(x=>x.id===b.dataset.season); S.tplCat=t.cat; applyTemplate(t.id); go(2); }));
 
   const f=$("#form"); if(!f) return;
   f.addEventListener("submit",e=>{

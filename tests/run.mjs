@@ -574,6 +574,7 @@ await test("Messages d'erreur lisibles", () => {
    ========================================================= */
 titre("8. Écrans");
 const PAGE = chargerPage();
+PAGE.ecrire("SEASON_TODAY", "2026-10-15"); // date fixe : les écrans de la création dépendent des saisons
 const INV = (extra = {}) => PAGE.lire("sanitize")({ f: "Alex", t: "Sam", o: "date", th: "amour", q: "Ça te dit un rendez-vous avec moi ?", n: "fuit",
   c: "wa", ci: "06 00 00 00 01", m: "Prépare ton plus beau sourire.", a: { v: "v", x: "Dîner" }, d: "2026-11-14", h: "20:00", ...extra });
 const ouvrir = (d, slot = null, mode = "yes") => {
@@ -625,6 +626,7 @@ await test("Écran de refus : pas de flèche décorative", () => {
 
 // C1 : le moment d'envoyer le lien
 const PAGE_PARTAGE = chargerPage({ share: true });
+PAGE_PARTAGE.ecrire("SEASON_TODAY", "2026-10-15");
 const etape4 = (P, lien) => {
   const S = P.lire("S");
   Object.assign(S, { step: 4, from: "Alex", to: "Sam", link: lien });
@@ -839,11 +841,11 @@ await test("Miniatures : une par carte de catégorie et de modèle, immobiles, i
   const uniques = (nom, h) => { const ids = [...h.matchAll(/\bid="([^"]+)"/g)].map(m => m[1]); assert.equal(new Set(ids).size, ids.length, `${nom} : identifiant en double`); };
   const home = PAGE.lire("homeHTML")();
   assert.deepEqual(minis(home), CATS.map(c => c.theme), "accueil : une miniature par catégorie");
-  for(const c of CATS) assert.equal(TPL.find(t => t.cat === c.cat).theme, c.theme, `${c.cat} : miniature du thème de son premier modèle`);
+  for(const c of CATS) assert.equal(TPL.find(t => t.cat === c.cat && !PAGE.lire("SEASONS")[t.occ]).theme, c.theme, `${c.cat} : miniature du thème de son premier modèle`);
   uniques("accueil", home);
   for(const c of CATS){
     Object.assign(S, { step: 1, tplCat: c.cat, link: "" }); PAGE.lire("renderCreator")();
-    const h = PAGE.zones["#app"].innerHTML, liste = TPL.filter(t => t.cat === c.cat);
+    const h = PAGE.zones["#app"].innerHTML, liste = PAGE.lire("catTemplates")(c.cat);
     assert.deepEqual(minis(h), [...liste.map(t => t.theme), "base"], `${c.cat} : une miniature par modèle, et « Partir de zéro »`);
     assert.ok(h.includes('data-tpl="zero"'), `${c.cat} : « Partir de zéro » visible`);
     assert.ok(!/anim-[nd]/.test(h.slice(h.indexOf('class="tpls"'))), `${c.cat} : miniatures immobiles`);
@@ -988,6 +990,52 @@ await test("Le décodage des liens ne dépend jamais de la date", () => {
     let src = ""; try{ src = PAGE.lire(nom).toString(); }catch(e){ continue; }
     assert.ok(!/season|SEASONS|todayISO\(\)/.test(src), `${nom} ne doit pas regarder la date du jour`);
   }
+});
+
+await test("Création selon la date : modèles, descriptions, occasions, emojis", () => {
+  const S = PAGE.lire("S"), cat = c => PAGE.lire("catTemplates")(c).map(t => t.id), desc = PAGE.lire("catDesc");
+  const le = iso => PAGE.ecrire("SEASON_TODAY", iso);
+  le("2026-08-15");
+  assert.deepEqual(cat("Amour"), ["rdv", "couple"], "août : pas de Saint-Valentin");
+  assert.deepEqual(cat("Famille"), ["grands"], "août : ni fête des mères ni fête des pères");
+  assert.equal(desc("Amour"), "Rendez-vous, couple");
+  assert.equal(desc("Famille"), "Grands-parents");
+  assert.ok(PAGE.lire("catTemplates")("Amour", "valentin").some(t => t.id === "valentin"), "modèle choisi gardé après la fin de sa saison");
+  le("2027-01-20");
+  assert.deepEqual(cat("Amour"), ["valentin", "rdv", "couple"], "janvier : Saint-Valentin en tête");
+  assert.equal(desc("Amour"), "Saint-Valentin, rendez-vous, couple");
+  le("2027-05-20");
+  assert.deepEqual(cat("Famille"), ["meres", "peres", "grands"], "mai : jour J le plus proche d'abord");
+  le("2026-08-15");
+  Object.assign(S, { step: 4, occ: "date", tpl: "rdv", from: "Alex", to: "Sam", link: "", moreOpen: true, open: new Set(["occ", "style"]) });
+  PAGE.lire("renderCreator")();
+  let h = PAGE.zones["#app"].innerHTML;
+  assert.ok(!/data-occ="(valentin|meres|peres)"/.test(h) && h.includes('data-occ="grands"') && h.includes('data-occ="date"'), "occasions hors saison masquées, permanentes gardées");
+  S.occ = "valentin"; PAGE.lire("renderCreator")(); h = PAGE.zones["#app"].innerHTML;
+  assert.ok(h.includes('data-occ="valentin" aria-pressed="true"'), "occasion déjà choisie gardée");
+  const ouvert = PAGE.lire("emojiOpen");
+  assert.ok(ouvert("🌹") && ouvert("🌷") && ouvert("👔"), "emojis déjà proposés toute l'année : gardés");
+  assert.ok(!ouvert("🎃") && !ouvert("🎄"), "août : emojis de saison masqués");
+  le("2026-10-15"); assert.ok(ouvert("🎃") && !ouvert("🎄"));
+  le("2026-12-20"); assert.ok(ouvert("🎄") && ouvert("🥂") && ouvert("👑") && !ouvert("🎃"));
+  Object.assign(S, { step: "home", occ: "juste", tpl: "", moreOpen: false, open: new Set() });
+  le("2026-10-15");
+});
+await test("Bandeau de saison : une seule occasion, la plus proche, textes selon le jour J", () => {
+  const le = iso => PAGE.ecrire("SEASON_TODAY", iso), home = () => PAGE.lire("homeHTML")();
+  le("2026-08-15"); assert.ok(!home().includes('class="season"'), "août : pas de bandeau");
+  const cas = [["2027-01-20", "valentin", "Bientôt la Saint-Valentin"], ["2027-02-14", "valentin", "C'est la Saint-Valentin aujourd'hui"],
+    ["2027-02-20", "valentin", "Il est encore temps de la fêter"], ["2027-05-20", "meres", "Bientôt la fête des mères"], ["2027-06-10", "peres", "Bientôt la fête des pères"]];
+  for(const [iso, id, txt] of cas){
+    le(iso); const h = home();
+    assert.equal((h.match(/class="season"/g) || []).length, 1, `${iso} : un seul bandeau`);
+    assert.ok(h.includes(`data-season="${id}"`) && h.includes(`${txt.replace(/'/g, "&#39;")} <span aria-hidden="true">`), `${iso} : ${txt}`);
+    assert.deepEqual(principales(h), ["Oui"], `${iso} : le Oui reste la seule action principale`);
+    assert.ok(h.indexOf("demo-ticket") < h.indexOf('class="season"') && h.indexOf('class="season"') < h.indexOf("home-cards"), "sous le mini-billet, avant les cartes");
+  }
+  for(const s of Object.values(PAGE.lire("SEASONS"))) for(const t of s.ban) assert.ok(!/[→←]| · /.test(t) && t.length <= 60, `texte du bandeau : ${t}`);
+  assert.ok(PAGE.lire("bindCreator").toString().includes('$$("[data-season]")'), "le bouton ouvre le modèle");
+  le("2026-10-15");
 });
 
 /* ---------- Bilan ---------- */
