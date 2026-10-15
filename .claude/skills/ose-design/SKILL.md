@@ -1,0 +1,126 @@
+---
+name: ose-design
+description: Identité visuelle et ton d'Ose Demander (couleurs des 7 thèmes, contours épais et ombres décalées, billet, enveloppe, motifs, typographie Bricolage Grotesque / Caveat, trois niveaux d'animation, accessibilité, textes tutoyés et neutres). À charger AVANT toute création ou modification d'interface, de style, d'animation ou de texte visible dans index.html ou mentions-legales.html (intro scénarisée, « Partager la surprise », nouveaux écrans, boutons, messages). Prime sur les conseils de design génériques.
+---
+
+# Design d'Ose Demander
+
+Ose Demander a déjà une identité forte : **papier découpé, BD, jeu**. Tout ce qui s'ajoute doit avoir l'air d'avoir toujours été là. On **réutilise** les variables, les classes et les gestes existants de `index.html` ; on n'invente pas un second style. Ce skill décrit l'existant (relevé dans `index.html`, octobre 2026) : en cas de doute, c'est le code qui fait foi, et on met ce skill à jour.
+
+## 1. Couleurs : uniquement les variables des thèmes
+
+Chaque thème redéfinit les mêmes variables CSS (`:root` = thème « base », puis `[data-theme="…"]`). **Ne jamais écrire une couleur en dur** dans un nouveau composant : toujours `var(--…)`.
+
+| Variable | Rôle |
+|---|---|
+| `--bg` | fond de page (porte aussi `--pattern`) |
+| `--surface` | cartes, billet, boutons secondaires |
+| `--ink` | texte, **contours et ombres** |
+| `--muted` | texte secondaire, indications, liens discrets |
+| `--line` | bordures douces, pointillés, éléments verrouillés |
+| `--accent` | bouton principal, Oui, compte à rebours, focus |
+| `--accent-ink` | texte posé sur `--accent` |
+| `--soft` | fond des champs, puces, encadrés |
+
+| Thème (`th`) | Nom affiché | `--bg` | `--ink` | `--accent` | Motif de fond |
+|---|---|---|---|---|---|
+| `base` | Lilas | #ECE6FF | #1F1546 | #E83F86 | points d'interrogation |
+| `amour` | Amour | #FFE4EC | #4B0F2E | #D9245F | cœurs |
+| `maman` | Pétales | #FFEBDD | #5A2416 | #E0592F | fleurs |
+| `papa` | Cravate | #E3EAF6 | #14254A | #D99A1E (texte #14254A) | rayures de cravate |
+| `amis` | Pop | #FFF2B3 | #22200F | #2F5BFF | bulles |
+| `fete` | Confettis | #E6F6EF | #10372B | #F2484B | confettis |
+| `mystere` | Mystère | #1C1838 (surface #29234D) | #F2EEFF | #FFC94A (texte #1C1838) | étoiles — **seul thème sombre** |
+
+- **Couleurs d'accent facultatives** (`ACCENTS` : framboise, corail, mandarine, or, menthe, océan, violet, nuit) : appliquées par `setTheme`, **seulement si `accentOk`** (contraste ≥ 3:1 avec le fond et la surface du thème). `accentInk` choisit le texte blanc ou #1F1546. Toute nouvelle couleur d'accent passe par cette table et ce contrôle.
+- **Motifs de fond** : SVG en `data:` dans `--pattern`, très transparents (opacité 0,07 à 0,35), petites formes du thème répétées. Un nouveau thème = un nouveau motif dans le même esprit.
+- **Exceptions existantes** (ne pas multiplier) : erreurs `#B3122E` sur `#FFE3E8` (variante sombre pour `mystere`), voile des feuilles `rgba(20,14,50,.45)`, surlignage de révélation doré `rgba(255,201,74,.5)` (l'accent de Mystère).
+- Toujours vérifier le rendu dans **les 7 thèmes**, et en particulier **Mystère** (sombre : `--surface` n'y est pas blanc).
+
+## 2. Formes : contours épais, ombres décalées, boutons qui s'enfoncent
+
+C'est la signature : **bordure pleine `2px solid var(--ink)` + ombre dure décalée `Xpx Xpx 0 var(--ink)`** (aucun flou, aucun dégradé).
+
+| Élément | Bordure | Rayon | Ombre |
+|---|---|---|---|
+| Billet `.ticket` | 2px `--ink` | 22px | 8px 8px 0 |
+| Enveloppe `.env-back` | 2px `--ink` | 12px | 8px 8px 0 |
+| Panneau `.panel`, feuille `.sheet-card` | 2px `--ink` | `--r` (18px) / 20px | 6px 6px 0 |
+| Carte d'accueil `.home-card` | 2px `--ink` | `--r` | 4px 4px 0 |
+| Bouton Oui `.yes` | 2px `--ink` | 16px | 4px 4px 0 |
+| Bouton principal `.btn.primary` | 2px `--ink` | 14px | 3px 3px 0 |
+| Option choisie (`.optcard`, `.tpl`) | 2px `--ink` | 14px | 3px 3px 0 |
+| Pastilles d'en-tête (`.hist-btn`, `.install`) | 2px `--ink` | 999px | 2px 2px 0 |
+| Champs, puces, encadrés | 2px `--line` | 12–14px / 999px | aucune |
+
+- **Bouton qui s'enfonce** : `:active{transform:translate(2px,2px)}` et l'ombre diminue d'autant (`3px` → `1px`, `4px` → `2px`), transition `.1s`. Tout nouveau bouton cliquable fait pareil.
+- **Hiérarchie** : principal = `--accent` + ombre ; secondaire = `--surface` (`.btn`) ; tertiaire = `.btn.ghost` transparent ; discret = lien souligné `--muted` (`.cal-alt`, `.refuse`, `.linkbtn`) avec `text-underline-offset:3px`.
+- **Pointillés** `2px dashed var(--line)` : séparations douces, zones facultatives (`.adv`, `.tip`, `.sec`, `.privacy` en `--ink`).
+- **Billet** : talon « De / Pour » (`.stub`), perforation en pointillés avec deux demi-cercles découpés (`.perf::before/::after`, couleur `--bg`), corps centré (`.main`). Pour un nouvel écran côté personne invitée, **réutiliser `ticketHTML(inner)`** plutôt que recréer une carte.
+- **Enveloppe** : rabat qui pivote (`rotateX(180deg)`), papier qui sort avec « Pour {prénom} » en Caveat, sceau rond (`.seal`) en `--ink` portant l'emoji ou l'initiale.
+- Cadre de la page invitation : `max-width:480px`, création : `600px`. Pensé d'abord pour le **téléphone** (règles `max-width:460px`, zones sûres `env(safe-area-inset-*)`).
+
+## 3. Typographie : deux polices, pas une de plus
+
+Polices **hébergées dans `fonts/`** (licence SIL OFL, aucun appel à Google Fonts — RGPD).
+
+- **Bricolage Grotesque** (`var(--display)`, variable 200–800) : **toute l'interface**. Titres en 800, interlettrage serré (`-.02em` à `-.035em`), `font-variation-settings:"opsz" 96` sur les grands titres (`.question`, `.hero h1`), tailles fluides `clamp()`. Texte courant 17px, interligne 1,5. Chiffres qui défilent : `font-variant-numeric:tabular-nums` (`.count`).
+- **Caveat** (`var(--hand)`) : **uniquement ce qui doit paraître écrit à la main par une personne** — le message manuscrit (`.handnote`), la signature (`.sign`), « Pour {prénom} » sur le papier de l'enveloppe, la réponse de refus que l'on écrit soi-même (`.refuse-input`). Jamais pour un titre, un bouton, une indication ou une étiquette.
+- Pas de nouvelle police, pas de police système en remplacement voulu, pas d'italique décorative (les `<em>` d'indication sont droits, en `--muted`).
+
+## 4. Animations : trois niveaux, toujours respectés
+
+Niveau de l'invitation `an` (`invAnim()`), choisi par le créateur : **`n` Normales**, **`d` Discrètes**, **`0` Aucune**. Si le téléphone demande **moins de mouvement** (`prefers-reduced-motion`), c'est `0`, quoi qu'ait choisi le créateur (et la règle CSS globale coupe transitions et animations).
+
+| | `n` Normales | `d` Discrètes | `0` Aucune |
+|---|---|---|---|
+| Décor animé (canvas `Decor`) | 18 éléments (téléphone) / 26 | 10, plus lents | aucun |
+| Explosions (`Decor.burst`) | pleines | 45 % des éléments | aucune |
+| Enveloppe qui frétille, billet qui s'incline | oui | non | non |
+| Vibrations (`buzz`) | oui | oui | non |
+| Mise en scène (révélation…) | complète | raccourcie, plus sobre | **affichage direct**, sans attente |
+
+Règles pour toute nouvelle animation (intro, partage…) :
+- La **brancher sur `invAnim()`** (côté invitation) et prévoir le cas `0` : le contenu apparaît tout de suite, rien n'est caché derrière une animation, aucune attente imposée.
+- Courtes et vives : apparition `pop` (0,5 s, léger rebond `cubic-bezier(.2,1.4,.4,1)`), boutons 0,1–0,2 s, transitions de page ≤ 1,2 s. Animer `transform` et `opacity` seulement.
+- Les explosions et le décor reprennent les formes du thème (`DECOR` : cœurs, pétales, étoiles, bulles, confettis, étincelles) : pas de nouvel effet hors thème.
+- **Son** : `Sound` (sons brefs synthétisés, jamais de musique), activé par défaut mais respecte le réglage de l'invitation (`so:0`) et le bouton 🔊/🔇 toujours visible ; aucun son avant un geste. Un nouveau moment fort peut avoir **son** son bref (`Sound.xxx`), dans la même famille.
+- Une séquence (plusieurs étapes) se joue **l'une après l'autre**, avec défilement jusqu'à l'élément, et peut toujours être passée ou ignorée (bouton « Passer » pour l'intro).
+
+## 5. Accessibilité
+
+- **Contrastes mesurés** (texte sur fond) : encre ≥ 10,7:1 et texte atténué ≥ 5,2:1 dans tous les thèmes — conserver ces niveaux. Texte courant ≥ 4,5:1, grands textes et éléments d'interface ≥ 3:1.
+- **Points faibles connus** (existants, à ne pas reproduire, à corriger un jour) : texte du bouton sur l'accent à 3,6–3,8:1 en Lilas, Pétales et Confettis (suffisant pour le Oui en 20px gras, trop juste pour `.btn.primary` en 17px) ; accent Cravate #D99A1E sur blanc à 2,4:1 (le compte à rebours, les `.linkbtn` et le contour de focus y sont peu visibles). Ne jamais utiliser `--accent` comme couleur de texte fin sur `--surface` dans un nouveau composant.
+- **Focus visible** : `:focus-visible{outline:3px solid var(--accent);outline-offset:2px}` partout ; les champs remplacent le contour par une bordure `--accent`. Ne jamais supprimer le focus sans remplacement.
+- **Clavier** : de vrais `<button>` (y compris l'enveloppe), des liens `<a>` pour naviguer ; état des choix par `aria-pressed` ; le Non qui « se transforme » réagit aussi au focus. Après un changement d'écran, placer le focus sur l'action principale quand c'est utile (ex. `#replyNo`).
+- **Lecteurs d'écran** : décor et explosions en `aria-hidden="true"`, emojis décoratifs aussi (`.lk`) ; messages qui changent en `aria-live="polite"` (`.tease`), notifications `role="status"` (`toast`) ; feuilles en `role="dialog" aria-modal="true"` ; texte réservé aux lecteurs d'écran : classe `.sr`.
+- Le **vrai refus** reste toujours accessible au clavier et au lecteur d'écran (lien « Répondre non, pour de vrai »).
+- Cibles tactiles : les boutons d'action (`.btn`, Oui/Non) font environ 50px de haut, en faire autant (≥ 44px). Les liens discrets existants (`.cal-alt`, `.refuse`) sont plus petits : ne jamais y mettre une action essentielle. Rien d'essentiel au survol seul.
+
+## 6. Textes
+
+- **Tutoiement** partout (personne qui crée comme personne invitée) : « Crée la tienne », « Touche l'enveloppe pour l'ouvrir ».
+- **Ton ludique et bienveillant** : complice, jamais insistant ni culpabilisant ; le refus est respecté (« Pas de souci, {prénom} comprendra. »). Le Non joue, mais un vrai non reste toujours possible.
+- **Formulations neutres** : aucun accord au masculin ou au féminin pour la personne qui crée ni pour la personne invitée. Tourner la phrase : « {prénom} va être aux anges » (pas « ravi·e »), « Merci d'avoir osé demander » (pas « tu es gentil »), « Ta surprise de {prénom} » (pas « ton ami »), « la personne invitée ». Pas d'écriture inclusive à point médian : on reformule.
+- Français soigné : guillemets « » avec espaces, espace avant `?` `!` `:`, « 20 h », dates longues (« samedi 14 novembre »). Phrases courtes. Un emoji au plus, à la fin, s'il ajoute du sens (💌 💛 🔓 ✨).
+- Rassurer sur la confidentialité sans jargon (« Ton historique reste uniquement sur cet appareil »). Mention anti-phishing visible sur l'invitation.
+- **Rappel du projet** : un texte mis dans un lien (question, message, intro, ton) **ne change jamais** ; une nouvelle formulation = un nouveau code (voir CLAUDE.md et le banc de test).
+
+## 7. À éviter
+
+- Les styles génériques : dégradés, ombres floues, glassmorphisme, cartes plates sans contour, coins très arrondis « appli bancaire », grilles d'icônes au trait fin, illustrations de banque d'images.
+- Toute nouvelle police (y compris Google Fonts ou une police système choisie pour l'effet), et Caveat hors de l'écriture manuscrite.
+- Toute couleur hors des variables de thème (sauf les exceptions listées au § 1) ; une couleur d'accent qui ne passe pas `accentOk`.
+- Les animations qui ignorent `invAnim()` ou « moins de mouvement », qui bloquent la lecture, qui bouclent sans fin (hors frétillement léger de l'enveloppe), ou qui retardent la réponse.
+- Les sons sans geste, la musique, le son qui ignore 🔇.
+- Les bibliothèques d'interface, frameworks CSS, icônes externes, scripts tiers : le site est un seul `index.html` autonome, hors connexion, sans appel externe.
+- Les textes genrés, culpabilisants (« Tu ne peux pas dire non ») ou qui forcent le Oui.
+
+## Avant de valider une interface
+
+1. Vérifiée dans les 7 thèmes (dont Mystère) et avec une couleur d'accent.
+2. Testée en animations `n`, `d`, `0` et avec « moins de mouvement ».
+3. Parcourue au clavier seul ; focus toujours visible.
+4. Lisible à 360px de large ; zones sûres respectées.
+5. Textes tutoyés, neutres, sans faute ; aucun texte de lien existant modifié.
+6. `node tests/run.mjs` passe.
