@@ -21,16 +21,15 @@ export function chargerPage({ share = false, ios = false } = {}){
     apply: () => neutre(), construct: () => neutre(), set: () => true
   });
   const zones = { "#app": { innerHTML: "" }, "#main": { innerHTML: "" } };
-  const focus = [];
-  for(const z of Object.values(zones)) z.querySelector = () => ({ focus: o => focus.push(o) });
+  const vus = []; // sélecteurs demandés à la page, dans l'ordre (pour vérifier où va le focus)
   const document = {
     title: "Ose Demander", hidden: false,
-    querySelector: sel => zones[sel] || neutre(), querySelectorAll: () => [],
+    querySelector: sel => { vus.push(sel); return zones[sel] || neutre(); }, querySelectorAll: () => [],
     getElementById: () => neutre(), createElement: () => neutre(), body: neutre(), documentElement: neutre(),
     addEventListener: rien
   };
   const location = { origin: "http://localhost:8000", pathname: "/", hash: "", hostname: "localhost", protocol: "http:", href: "http://localhost:8000/" };
-  const window = { CompressionStream, addEventListener: rien, devicePixelRatio: 1, location };
+  const window = { CompressionStream, addEventListener: rien, devicePixelRatio: 1, location, scrollTo: rien };
   const navigator = { userAgent: ios ? "iPhone" : "Android", platform: "", maxTouchPoints: 0, ...(share ? { share: async () => {} } : {}) };
   const globaux = {
     window, document, navigator, location,
@@ -43,7 +42,7 @@ export function chargerPage({ share = false, ios = false } = {}){
   const f = new Function(...Object.keys(globaux),
     src + `\nreturn { lire: nom => eval(nom), ecrire: (nom, v) => eval(nom + " = v") };`);
   const P = f(...Object.values(globaux));
-  return { ...P, zones, focus, navigator };
+  return { ...P, zones, vus, navigator };
 }
 
 /* Boutons « action principale » visibles d'un morceau de HTML : bouton principal, Oui, installation.

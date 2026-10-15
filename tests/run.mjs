@@ -674,6 +674,39 @@ await test("Accueil : le Non respecte les animations coupées, le Oui mène aux 
   assert.ok(src.includes('noTone("taquin")'), "phrases du ton taquin (existantes)");
 });
 
+// T1 : à chaque changement d'écran, le focus va au titre du nouvel écran
+const dernierFocus = (P, action) => { P.vus.length = 0; action(); return P.vus.filter(s => s !== "#app" && s !== "#main").pop(); };
+await test("Chaque écran a un titre qui peut recevoir le focus (tabindex=-1)", () => {
+  const S = PAGE.lire("S");
+  const ecrans = [["accueil", () => PAGE.lire("homeHTML")(), /<h1 tabindex="-1">/]];
+  for(const n of [1, 2, 3, 4]) ecrans.push([`étape ${n}`, () => { Object.assign(S, { step: n, from: "Alex", to: "Sam", link: "" }); PAGE.lire("renderCreator")(); return PAGE.zones["#app"].innerHTML; }, /<h2 tabindex="-1">/]);
+  ecrans.push(["enveloppe", () => { ouvrir(INV()); PAGE.lire("renderEnvelope")(); return PAGE.zones["#app"].innerHTML; }, /class="env-from" tabindex="-1"/]);
+  ecrans.push(["question", () => { PAGE.lire("renderInvite")(); return PAGE.zones["#app"].innerHTML; }, /<h1 class="question" tabindex="-1">/]);
+  ecrans.push(["après le Oui", () => apresOui(), /<h1 class="question" tabindex="-1"/]);
+  for(const [nom, rendu, re] of ecrans) assert.match(rendu(), re, `titre focalisable : ${nom}`);
+  assert.ok(regleCSS('[tabindex="-1"]:focus').includes("outline:none"), "pas de contour sur un titre focalisé");
+});
+await test("Changements d'écran : le focus va au bon titre", () => {
+  const S = PAGE.lire("S"); Object.assign(S, { from: "Alex", to: "Sam" });
+  assert.equal(dernierFocus(PAGE, () => PAGE.lire("go")(2)), ".panel h2", "création : étape suivante");
+  assert.equal(dernierFocus(PAGE, () => PAGE.lire("go")("home")), ".hero h1", "retour à l'accueil");
+  ouvrir(INV());
+  assert.equal(dernierFocus(PAGE, () => PAGE.lire("renderEnvelope")()), ".env-from", "enveloppe");
+  assert.equal(dernierFocus(PAGE, () => PAGE.lire("renderInvite")()), ".question", "question");
+  PAGE.ecrire("yesDone", false); PAGE.ecrire("refused", false);
+  PAGE.vus.length = 0; PAGE.lire("sayYes")();
+  assert.ok(PAGE.vus.includes("#main .question"), "après le Oui : le titre « C'est un oui ! » (le bouton Oui a disparu)");
+  ouvrir(PAGE.lire("reminderData")(INV(), null), null, "reminder");
+  assert.equal(dernierFocus(PAGE, () => PAGE.lire("renderReminder")()), ".question", "carte ouverte depuis le rappel");
+});
+await test("Réaffichage après un choix : le focus revient sur le même contrôle", () => {
+  const src = PAGE.lire("bindCreator").toString();
+  assert.ok(src.includes("const k=focusKey(b);") && src.includes('refocus(k, ".panel h2")'), "options de la création");
+  assert.ok(src.includes('refocus("#choose")') && src.includes('focusScreen(".ready-title")'), "créneaux au choix, lien prêt");
+  const apres = PAGE.lire("bindAfter").toString();
+  assert.ok(apres.includes('refocus("#repick")') && apres.includes('refocus("[data-pick]")'), "choix du créneau après le Oui");
+});
+
 /* ---------- Bilan ---------- */
 console.log(`\n${ko ? "❌" : "✅"} ${ok} tests réussis, ${ko} en échec (graine ${GRAINE}${ko ? ` — pour rejouer : node tests/run.mjs --graine=${GRAINE}` : ""})`);
 if(ko){ console.log(echecs.map(e => "  - " + e).join("\n")); process.exitCode = 1; }

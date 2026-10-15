@@ -73,6 +73,8 @@ body{margin:0;min-height:100%;font-family:var(--display);font-size:17px;line-hei
 a{color:inherit}
 button,input,textarea,select{font:inherit;color:inherit}
 :focus-visible{outline:3px solid var(--accent-text);outline-offset:2px}
+/* Titres qui reçoivent le focus à chaque changement d'écran (lecteurs d'écran) : pas de contour, ce ne sont pas des commandes */
+[tabindex="-1"]:focus{outline:none}
 .wrap{max-width:600px;margin:0 auto;padding:20px 18px 60px}
 .hidden{display:none!important}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
@@ -156,7 +158,6 @@ textarea.input{min-height:90px;resize:vertical}
 /* Le lien est prêt : carte de réussite, adresse repliée */
 .ready{margin-top:20px;padding:18px 16px;border:2px solid var(--ink);border-radius:var(--r);background:var(--soft);box-shadow:4px 4px 0 var(--ink)}
 .ready-title{margin:0 0 6px;font-size:22px;line-height:1.15;letter-spacing:-.01em}
-.ready-title:focus{outline:none}
 .ready-lead{margin:0 0 14px}
 .ready-btns{display:flex;flex-wrap:wrap;gap:10px}
 .ready-btns .btn{flex:1 1 180px}
@@ -500,6 +501,18 @@ function setTheme(id, lv="n", ac=""){
   for(const [k,prop] of Object.entries(ACCENT_PROPS)){ if(v) root.style.setProperty(prop,v[k]); else root.style.removeProperty(prop); }
   Decor.set(id||"base", lv);
 }
+/* Changement d'écran : le focus va au titre du nouvel écran (annoncé par les lecteurs d'écran), sans faire défiler.
+   Ces titres ont tabindex="-1" : ils reçoivent le focus sans entrer dans l'ordre de tabulation. */
+function focusScreen(sel){ const el=$(sel); if(el) try{ el.focus({preventScroll:true}); }catch(e){} }
+/* Après un réaffichage complet (choix d'une option), le focus revient sur le même contrôle */
+function focusKey(el){
+  if(el.id) return "#"+el.id;
+  const own=[...el.attributes].find(a=>a.name.startsWith("data-")); if(!own) return null;
+  const sel=`[${own.name}=${JSON.stringify(own.value)}]`, box=el.parentElement?.closest("[data-vis],[data-step],[data-slot]");
+  const ba=box && [...box.attributes].find(a=>/^data-(vis|step|slot)$/.test(a.name));
+  return ba ? `[${ba.name}=${JSON.stringify(ba.value)}] ${sel}` : sel;
+}
+function refocus(key, fallback){ const el=key && $(key); if(el) try{ el.focus({preventScroll:true}); }catch(e){} else if(fallback) focusScreen(fallback); }
 function toast(msg){ const t=document.createElement("div"); t.className="toast"; t.setAttribute("role","status"); t.textContent=msg; document.body.appendChild(t); setTimeout(()=>t.remove(),2600); }
 async function copyText(txt){
   try{ await navigator.clipboard.writeText(txt); return true; }
@@ -978,7 +991,7 @@ function renderCreator(){
 /* ---------- Accueil ---------- */
 function homeHTML(){
   return `<section class="hero">
-      <h1><span>Tu as quelque chose à demander ?</span><span>Fais-le autrement.</span></h1>
+      <h1 tabindex="-1"><span>Tu as quelque chose à demander ?</span><span>Fais-le autrement.</span></h1>
       <p>Une invitation animée à envoyer par message. On te répond en un clic, et le Non résiste… un peu.</p>
     </section>
     <div class="ticket demo-ticket" role="group" aria-label="Essaie : un exemple d'invitation">
@@ -1017,7 +1030,7 @@ function screenHTML(){
     const cats=["Tous","Amour","Famille","Amis","Surprise"];
     const list=TEMPLATES.filter(t=>S.tplCat==="Tous"||t.cat===S.tplCat);
     return `
-    <h2>Choisis un modèle</h2>
+    <h2 tabindex="-1">Choisis un modèle</h2>
     <p class="lead">Il règle l'occasion, les couleurs, la question et le message. Tu pourras tout changer.</p>
     <div class="chips" role="group" aria-label="Catégorie" style="margin-bottom:16px">${cats.map(c=>`<button type="button" class="chip" data-cat="${c}" aria-pressed="${S.tplCat===c}">${c}</button>`).join("")}</div>
     <div class="tpls">${list.map(t=>`<button type="button" class="tpl" data-tpl="${t.id}" aria-pressed="${S.tpl===t.id}">
@@ -1028,14 +1041,14 @@ function screenHTML(){
     </div>`;
   }
   case 2: return `
-    <h2>Qui invite qui ?</h2>
+    <h2 tabindex="-1">Qui invite qui ?</h2>
     <p class="lead">Un prénom ou un surnom, celui que vous utilisez entre vous.</p>
     <div class="row2">
       <label class="field"><span>Son prénom</span><input class="input" id="to" maxlength="30" placeholder="Ex. Loulou" value="${esc(S.to)}" autocomplete="off"></label>
       <label class="field"><span>Ton prénom</span><input class="input" id="from" maxlength="30" placeholder="Ex. Keke" value="${esc(S.from)}" autocomplete="off"></label>
     </div>`;
   case 3: return `
-    <h2>Quand et où ?</h2>
+    <h2 tabindex="-1">Quand et où ?</h2>
     <p class="lead">${S.mode==="prog" ? "Le jour et l'heure de début." : "Le jour, l'heure et ce qui est prévu."}</p>
     ${whenHTML()}
     ${S.mode==="prog"
@@ -1043,7 +1056,7 @@ function screenHTML(){
       : visBlock("act","Ce qui est prévu","Ex. Dîner au restaurant, cinéma…",S.act,false) + visBlock("lieu","Le lieu","Ex. Le Petit Bistrot, 12 rue de Charonne, Paris",S.lieu,false)}
     <p class="hint">Programme en étapes, révélation programmée ou détails : dans « Personnaliser davantage », à l'étape suivante.</p>`;
   case 4: return `
-    <h2>Voilà ce que ${esc(S.to)} va recevoir</h2>
+    <h2 tabindex="-1">Voilà ce que ${esc(S.to)} va recevoir</h2>
     <p class="lead">Vérifie, teste, puis crée ton lien.</p>
     ${previewHTML()}
     <ul class="recap edit">
@@ -1338,7 +1351,7 @@ function showErr(e){
   if(typeof e.go==="number") go(e.go);
   else { S.errSec=e.go; openSection(e.go); }
 }
-function go(step){ S.step=step; S.link=""; renderCreator(); window.scrollTo({top:0}); Sound.step(); }
+function go(step){ S.step=step; S.link=""; renderCreator(); window.scrollTo({top:0}); focusScreen(step==="home" ? ".hero h1" : ".panel h2"); Sound.step(); }
 function openSection(key){
   S.step=4; S.moreOpen=true; S.open.add(key); renderCreator();
   $(`details[data-sec="${key}"]`)?.scrollIntoView({block:"start"});
@@ -1374,7 +1387,7 @@ function bindDemoTicket(){
 }
 function bindCreator(){
   // Toute modification relit les champs, puis réaffiche (le lien déjà créé n'est plus à jour)
-  const on=(sel, fn)=>$$(sel).forEach(b=>b.addEventListener("click",()=>{ readAll(); fn(b); S.link=""; renderCreator(); Sound.tick(); }));
+  const on=(sel, fn)=>$$(sel).forEach(b=>b.addEventListener("click",()=>{ const k=focusKey(b); readAll(); fn(b); S.link=""; renderCreator(); refocus(k, ".panel h2"); Sound.tick(); }));
   const fixAccent=()=>{ if(S.ac && !accentOk(S.theme,S.ac)) S.ac=""; };
 
   // Accueil et modèles
@@ -1410,8 +1423,8 @@ function bindCreator(){
   on("[data-del]", b=>{ S.steps.splice(+b.dataset.del,1); });
   on("#addStep", ()=>{ S.steps.push({h:"",a:"",l:"",v:"v",hint:"",at:""}); });
   // Quand
-  $("#choose")?.addEventListener("change",e=>{ readAll(); S.choose=e.target.checked; S.link=""; renderCreator(); Sound.tick(); });
-  $("#sndInv")?.addEventListener("change",()=>{ readAll(); S.link=""; renderCreator(); Sound.tick(); });
+  $("#choose")?.addEventListener("change",e=>{ readAll(); S.choose=e.target.checked; S.link=""; renderCreator(); refocus("#choose"); Sound.tick(); });
+  $("#sndInv")?.addEventListener("change",()=>{ readAll(); S.link=""; renderCreator(); refocus("#sndInv"); Sound.tick(); });
   on("[data-hour]", b=>{ S.time=b.dataset.hour; });
   on("#addSlot", ()=>{ if(S.slots.length<3) S.slots.push({d:"",t:""}); });
   on("[data-delslot]", b=>{ S.slots.splice(+b.dataset.delslot,1); });
@@ -1437,6 +1450,7 @@ function bindCreator(){
     $$(".sec-body .error").forEach(el=>el.remove()); // erreurs corrigées
     S.link=await buildLink(); $("#linkbox").textContent=S.link; $("#result").classList.remove("hidden"); Sound.done();
     $("#make").classList.add("hidden"); // le lien affiché est à jour : une seule action principale, Partager ou Copier
+    focusScreen(".ready-title");
     if(S.link.length>1800) toast("Le lien est long : raccourcis le message si l'appli le coupe.");
     // Historique : uniquement ici, côté créateur (jamais côté destinataire)
     const saved=await addToHistory(S.link);
@@ -1566,7 +1580,7 @@ function renderHistory(){
     ${topHTML(true)}
     <section class="panel">
       <a class="back" href="#">← Retour</a>
-      <h2>Mes invitations</h2>
+      <h2 tabindex="-1">Mes invitations</h2>
       <p class="lead">Ton historique reste uniquement sur cet appareil.</p>
       ${isStandalone() ? "" : `<p class="tip">💡 Installe l'appli pour mieux conserver ton historique.</p>`}
       ${list.length ? `<ul class="hist" id="histList">${list.map(it=>`
@@ -1748,7 +1762,7 @@ function renderEnvelope(){
   $("#app").innerHTML = `
   <main class="env-screen">
     ${soundBtn()}${demoBanner()}
-    <p class="env-from">${esc(D.f)} t'a envoyé une invitation</p>
+    <p class="env-from" tabindex="-1">${esc(D.f)} t'a envoyé une invitation</p>
     <button type="button" class="envelope ${invAnim()==="n"?"wiggle":""}" id="env" aria-label="Ouvrir l'invitation">
       <span class="env-back"></span>
       <span class="env-paper">Pour ${esc(D.t)}</span>
@@ -1772,6 +1786,7 @@ function renderEnvelope(){
     $("#env").classList.add("open"); $(".env-screen").classList.add("opened"); Sound.init(); Sound.pop(); buzz(20);
     setTimeout(renderInvite, invAnim()==="0" ? 0 : 1150);
   });
+  focusScreen(".env-from");
 }
 
 function enableTilt(){
@@ -1805,7 +1820,7 @@ function renderInvite(){
   document.title = `${D.f} a une question pour toi`;
   $("#app").innerHTML = ticketHTML(`
         ${occ?`<p class="occ">${esc(occ)}</p>`:""}
-        <h1 class="question">${esc(D.q)}</h1>
+        <h1 class="question" tabindex="-1">${esc(D.q)}</h1>
         ${D.m && !D.mh ? `<p class="handnote" style="margin:-8px 0 22px">${esc(D.m)}</p>` : ""}
         <div class="answer" id="answer">
           <button class="yes" id="yes" type="button">Oui</button>
@@ -1821,6 +1836,7 @@ function renderInvite(){
   clearTimeout(refuseTimer);
   if(noTries>=REFUSE_TRIES || refuseOffered) showRefuseLink();
   else refuseTimer=setTimeout(showRefuseLink, REFUSE_DELAY);
+  focusScreen(".question");
 }
 /* Le lien discret « Répondre non, pour de vrai » */
 function showRefuseLink(){
@@ -1852,7 +1868,7 @@ function openRefuse(){
   const main=$("#main");
   main.innerHTML = `
     <div class="pop-in">
-      <h1 class="question" style="margin-bottom:8px">Répondre non</h1>
+      <h1 class="question" tabindex="-1" style="margin-bottom:8px">Répondre non</h1>
       <p style="color:var(--muted);margin:0 0 16px">Pas de souci, ${esc(D.f)} comprendra.</p>
       <div class="chips" role="group" aria-label="Ta réponse" style="justify-content:center">
         ${REFUSE_CHOICES.map(c=>`<button type="button" class="chip" data-why="${c.id}" aria-pressed="${refuseWhy===c.id}">${c.label}</button>`).join("")}
@@ -1945,6 +1961,7 @@ function sayYes(e){
   afterMode="yes";
   $("#main").innerHTML = afterHTML("C'est un oui !", "");
   bindAfter();
+  focusScreen("#main .question"); // le bouton Oui, qui avait le focus, a disparu
   prepReminder();
   startCountdowns(1300); // la mise en scène attend la fin de l'explosion du Oui
 }
@@ -1955,7 +1972,7 @@ function afterHTML(title, sub){
   return `
     <div class="pop-in">
       <p class="occ">${esc(invOccLabel())}</p>
-      <h1 class="question" style="margin-bottom:8px">${title}</h1>
+      <h1 class="question" tabindex="-1" style="margin-bottom:8px">${title}</h1>
       ${sub ? `<p style="color:var(--muted);margin:0">${sub}</p>` : ""}
       <div class="send-step" id="send">${sendHTML()}</div>
       ${D.m ? `<p class="handnote">${esc(D.m)}</p>` : ""}
@@ -1985,6 +2002,7 @@ function renderReminder(){
   bindSound();
   bindAfter();
   enableTilt();
+  focusScreen(".question");
   prepReminder();
   startCountdowns(700);
 }
@@ -2111,8 +2129,8 @@ function replyText(){
 }
 function cleanPhone(p){ let n=p.replace(/[^\d+]/g,""); if(n.startsWith("+")) return n.slice(1); if(n.startsWith("00")) return n.slice(2); if(n.startsWith("0")) return "33"+n.slice(1); return n; }
 function bindAfter(){
-  $$("[data-pick]").forEach(b=>b.addEventListener("click",()=>{ chosenSlot=+b.dataset.pick; prepReminder(); refreshAfter(); }));
-  $("#repick")?.addEventListener("click",()=>{ chosenSlot=null; prepReminder(); refreshAfter(); });
+  $$("[data-pick]").forEach(b=>b.addEventListener("click",()=>{ chosenSlot=+b.dataset.pick; prepReminder(); refreshAfter(); refocus("#repick"); }));
+  $("#repick")?.addEventListener("click",()=>{ chosenSlot=null; prepReminder(); refreshAfter(); refocus("[data-pick]"); });
   bindSend();
   bindActions();
 }
@@ -2476,7 +2494,7 @@ async function route(){
   const m=location.hash.match(/^#i=(.+)$/);
   EXAMPLE = location.hash==="#exemple";
   if(!m && !EXAMPLE) Sound.on=Sound.pref(); // côté créateur : le choix gardé sur cet appareil
-  if(location.hash==="#mes-invitations"){ renderHistory(); return; }
+  if(location.hash==="#mes-invitations"){ renderHistory(); focusScreen(".panel h2"); return; }
   if(m || EXAMPLE){
     try{
       D = EXAMPLE ? demoData() : await decodeData(m[1]); chosenSlot=null; yesDone=false;
@@ -2488,7 +2506,8 @@ async function route(){
     }
     catch(e){
       setTheme("base","n");
-      $("#app").innerHTML=`<main class="inv"><div class="ticket"><div class="main"><h1 class="question">Ce lien est incomplet</h1><p>Il a peut-être été coupé en le copiant. Demande à la personne de te le renvoyer en entier.</p><p><a class="btn primary" href="./" style="display:inline-block;text-decoration:none">Créer une invitation</a></p></div></div></main>`;
+      $("#app").innerHTML=`<main class="inv"><div class="ticket"><div class="main"><h1 class="question" tabindex="-1">Ce lien est incomplet</h1><p>Il a peut-être été coupé en le copiant. Demande à la personne de te le renvoyer en entier.</p><p><a class="btn primary" href="./" style="display:inline-block;text-decoration:none">Créer une invitation</a></p></div></div></main>`;
+      focusScreen(".question");
       return;
     }
   }
