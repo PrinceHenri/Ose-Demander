@@ -153,6 +153,15 @@ textarea.input{min-height:90px;resize:vertical}
 @media (max-width:460px){.recap li{grid-template-columns:1fr;gap:2px}}
 .linkbox{word-break:break-all;font-size:13px;background:var(--soft);border:2px solid var(--line);border-radius:12px;padding:12px;margin:10px 0}
 .btns{display:flex;flex-wrap:wrap;gap:10px}
+/* Le lien est prêt : carte de réussite, adresse repliée */
+.ready{margin-top:20px;padding:18px 16px;border:2px solid var(--ink);border-radius:var(--r);background:var(--soft);box-shadow:4px 4px 0 var(--ink)}
+.ready-title{margin:0 0 6px;font-size:22px;line-height:1.15;letter-spacing:-.01em}
+.ready-title:focus{outline:none}
+.ready-lead{margin:0 0 14px}
+.ready-btns{display:flex;flex-wrap:wrap;gap:10px}
+.ready-btns .btn{flex:1 1 180px}
+.linkbox.one{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;word-break:normal;margin:14px 0 2px}
+#showLink{font-size:14px}
 .foot{margin-top:28px;font-size:14px;color:var(--muted);text-align:center}
 .foot a{color:var(--muted)}
 
@@ -1043,19 +1052,31 @@ function screenHTML(){
     </details>
     <div class="btns" style="margin-top:18px">
       <button type="button" class="btn" id="preview">Tester l'invitation</button>
-      <button type="button" class="btn primary" id="make">Créer mon lien</button>
+      <button type="button" class="btn primary ${S.link?"hidden":""}" id="make">Créer mon lien</button>
     </div>
-    <div id="result" class="${S.link?"":"hidden"}">
-      <p class="group-title">Ton lien est prêt</p>
-      <div class="linkbox" id="linkbox">${esc(S.link)}</div>
-      <div class="btns">
-        <button type="button" class="btn primary" id="copy">Copier le lien</button>
-        ${navigator.share ? `<button type="button" class="btn" id="share">Partager</button>` : ""}
-      </div>
-      <p class="hint" id="savedNote"></p>
-      <p class="hint">Envoie-le par message. Rien n'expire, rien n'est envoyé à un serveur. Toute personne qui a ce lien peut lire l'invitation : ne le partage qu'avec la bonne personne.</p>
-    </div>`;
+    ${readyHTML()}`;
   }
+}
+/* Le lien est prêt : une seule action principale (Partager si le téléphone le permet, sinon Copier),
+   le message qui part avec le lien, et l'adresse repliée sur une ligne (elle est longue et intimidante) */
+const shareText = () => `${S.to}, j'ai une question pour toi 💌`;
+function readyHTML(){
+  const share=!!navigator.share;
+  return `<div id="result" class="ready ${S.link?"":"hidden"}">
+      <h3 class="ready-title" tabindex="-1">Ton lien est prêt 💌</h3>
+      <p class="ready-lead">${share
+        ? `Envoie-le à ${esc(S.to)} : il partira avec le message « ${esc(shareText())} ».`
+        : `Copie-le, puis colle-le dans ta conversation avec ${esc(S.to)}.`}</p>
+      <div class="ready-btns">
+        ${share ? `<button type="button" class="btn primary" id="share">Partager le lien</button>
+        <button type="button" class="btn" id="copy">Copier le lien</button>`
+        : `<button type="button" class="btn primary" id="copy">Copier le lien</button>`}
+      </div>
+      <div class="linkbox one" id="linkbox">${esc(S.link)}</div>
+      <button type="button" class="linkbtn" id="showLink" aria-expanded="false" aria-controls="linkbox">Afficher le lien en entier</button>
+      <p class="hint" id="savedNote"></p>
+      <p class="hint">Rien n'expire, rien n'est envoyé à un serveur. Toute personne qui a ce lien peut lire l'invitation : ne le partage qu'avec la bonne personne.</p>
+    </div>`;
 }
 const themeName = id => (THEMES.find(t=>t.id===id)||THEMES[0]).name;
 const noLabel = id => "le Non "+NO_MODES.find(m=>m.id===id).t.replace(/^Il /,"");
@@ -1321,7 +1342,7 @@ function bindCreator(){
     const err=checkScreen(S.step); if(err){ showErr(err); return; }
     go(S.step+1);
   });
-  f.addEventListener("input",()=>{ if(S.link){ S.link=""; $("#result")?.classList.add("hidden"); } });
+  f.addEventListener("input",()=>{ if(S.link){ S.link=""; $("#result")?.classList.add("hidden"); $("#make")?.classList.remove("hidden"); } });
   $("#back")?.addEventListener("click",()=>{ readAll(); go(S.step===1 ? "home" : S.step-1); });
   $$("[data-edit]").forEach(b=>b.addEventListener("click",()=>{ readAll(); go(+b.dataset.edit); }));
   $$("[data-goto]").forEach(b=>b.addEventListener("click",()=>{ readAll(); openSection(b.dataset.goto); }));
@@ -1367,6 +1388,7 @@ function bindCreator(){
     if(!ready()) return;
     $$(".sec-body .error").forEach(el=>el.remove()); // erreurs corrigées
     S.link=await buildLink(); $("#linkbox").textContent=S.link; $("#result").classList.remove("hidden"); Sound.done();
+    $("#make").classList.add("hidden"); // le lien affiché est à jour : une seule action principale, Partager ou Copier
     if(S.link.length>1800) toast("Le lien est long : raccourcis le message si l'appli le coupe.");
     // Historique : uniquement ici, côté créateur (jamais côté destinataire)
     const saved=await addToHistory(S.link);
@@ -1376,7 +1398,11 @@ function bindCreator(){
     $("#result").scrollIntoView({block:"nearest"});
   });
   $("#copy")?.addEventListener("click",async()=>{ toast(await copyText(S.link)?"Lien copié":"Copie impossible, sélectionne le lien à la main"); });
-  $("#share")?.addEventListener("click",()=>navigator.share({title:"Ose Demander",text:`${S.to}, j'ai une question pour toi 💌`,url:S.link}).catch(()=>{}));
+  $("#share")?.addEventListener("click",()=>navigator.share({title:"Ose Demander",text:shareText(),url:S.link}).catch(()=>{}));
+  $("#showLink")?.addEventListener("click",e=>{
+    const open=$("#linkbox").classList.toggle("one")===false;
+    e.currentTarget.setAttribute("aria-expanded",open); e.currentTarget.textContent = open ? "Replier le lien" : "Afficher le lien en entier";
+  });
 }
 
 function packItem(it){

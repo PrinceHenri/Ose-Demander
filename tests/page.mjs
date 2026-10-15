@@ -46,5 +46,9 @@ export function chargerPage({ share = false, ios = false } = {}){
   return { ...P, zones, focus, navigator };
 }
 
-/* Boutons « action principale » d'un morceau de HTML : bouton principal, Oui, installation */
-export const principales = html => [...html.matchAll(/<(?:button|a)\b[^>]*class="(?:btn primary|yes|install)(?:\s[^"]*)?"[^>]*>([\s\S]*?)<\/(?:button|a)>/g)].map(m => m[1].replace(/<[^>]+>/g, "").trim());
+/* Boutons « action principale » visibles d'un morceau de HTML : bouton principal, Oui, installation.
+   Un bouton de classe « hidden » est ignoré (retirer du HTML les blocs masqués avant l'appel). */
+export const principales = html => {
+  return [...html.matchAll(/<(?:button|a)\b[^>]*class="((?:btn primary|yes|install)(?:\s[^"]*)?)"[^>]*>([\s\S]*?)<\/(?:button|a)>/g)]
+    .filter(m => !/\bhidden\b/.test(m[1])).map(m => m[2].replace(/<[^>]+>/g, "").trim());
+};

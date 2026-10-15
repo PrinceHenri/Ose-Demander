@@ -623,6 +623,41 @@ await test("Écran de refus : pas de flèche décorative", () => {
   assert.ok(!/[←→]/.test(PAGE.lire("openRefuse").toString()));
 });
 
+// C1 : le moment d'envoyer le lien
+const PAGE_PARTAGE = chargerPage({ share: true });
+const etape4 = (P, lien) => {
+  const S = P.lire("S");
+  Object.assign(S, { step: 4, from: "Alex", to: "Sam", link: lien });
+  P.lire("renderCreator")();
+  let h = P.zones["#app"].innerHTML;
+  if(!lien) h = h.replace(P.lire("readyHTML")(), ""); // carte « lien prêt » masquée : retirée avant de compter
+  return h;
+};
+const LIEN_EX = "http://localhost:8000/#i=y" + "A".repeat(400);
+await test("Création, avant le lien : une seule action principale « Créer mon lien », carte masquée", () => {
+  const h = etape4(PAGE, "");
+  assert.ok(PAGE.zones["#app"].innerHTML.includes('id="result" class="ready hidden"'), "carte du lien masquée");
+  assert.deepEqual(principales(h), ["Créer mon lien"]);
+});
+await test("Lien prêt (sans partage natif) : « Copier le lien » seule action principale, adresse repliée", () => {
+  const h = etape4(PAGE, LIEN_EX);
+  assert.deepEqual(principales(h), ["Copier le lien"]);
+  assert.ok(h.includes('class="linkbox one" id="linkbox"'), "adresse repliée sur une ligne");
+  assert.ok(h.includes("Afficher le lien en entier") && h.includes('aria-expanded="false"'));
+  assert.ok(h.includes("Copie-le, puis colle-le dans ta conversation avec Sam."));
+  assert.ok(h.includes("Ton lien est prêt 💌"));
+});
+await test("Lien prêt (partage natif) : « Partager le lien » principale, message envoyé visible", () => {
+  const h = etape4(PAGE_PARTAGE, LIEN_EX);
+  assert.deepEqual(principales(h), ["Partager le lien"]);
+  assert.ok(h.includes("il partira avec le message « Sam, j&#39;ai une question pour toi 💌 »"));
+  assert.ok(h.includes('id="copy">Copier le lien</button>'), "copie toujours possible, en secondaire");
+});
+await test("Partage : le texte affiché est exactement celui envoyé", () => {
+  const src = PAGE.lire("bindCreator").toString();
+  assert.ok(src.includes("text:shareText()"));
+});
+
 /* ---------- Bilan ---------- */
 console.log(`\n${ko ? "❌" : "✅"} ${ok} tests réussis, ${ko} en échec (graine ${GRAINE}${ko ? ` — pour rejouer : node tests/run.mjs --graine=${GRAINE}` : ""})`);
 if(ko){ console.log(echecs.map(e => "  - " + e).join("\n")); process.exitCode = 1; }
