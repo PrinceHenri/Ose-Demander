@@ -475,6 +475,57 @@ const OCCASIONS = [
   ]}
 ];
 const OCC = Object.fromEntries(OCCASIONS.flatMap(g => g.items.map(i => [i.id, {...i, cat:g.cat}])));
+/* ---------- Saisons ----------
+   Une occasion saisonnière n'est proposée à la création que pendant sa période, chaque année, selon la date du jour.
+   Le décodage des liens ne regarde JAMAIS la date : une invitation envoyée s'ouvre à l'identique toute l'année.
+   day : jour J de l'année y. from / to : [mois, jour] fixes (l'année est celle qui encadre le jour J,
+   d'où les périodes à cheval sur deux années), ou un décalage en jours depuis le jour J. Dates en UTC : pas d'heure d'été. */
+const ymd = (y, m, d) => new Date(Date.UTC(y, m-1, d)); // ymd(y, 3, 0) = dernier jour de février
+const addDays = (d, n) => new Date(d.getTime() + n*864e5);
+const isoDay = d => d.toISOString().slice(0,10);
+function easter(y){ // dimanche de Pâques, calendrier grégorien (algorithme anonyme, Meeus)
+  const a=y%19, b=Math.floor(y/100), c=y%100, d=Math.floor(b/4), e=b%4, f=Math.floor((b+8)/25), g=Math.floor((b-f+1)/3);
+  const h=(19*a+b-d-g+15)%30, i=Math.floor(c/4), k=c%4, l=(32+2*e+2*i-h-k)%7, m=Math.floor((a+11*h+22*l)/451);
+  return ymd(y, Math.floor((h+l-7*m+114)/31), (h+l-7*m+114)%31+1);
+}
+function nthSunday(y, m, n){ // n-ième dimanche du mois, ou le dernier si n = -1
+  if(n<0){ const last=ymd(y, m+1, 0); return addDays(last, -last.getUTCDay()); }
+  const first=ymd(y, m, 1); return addDays(first, (7-first.getUTCDay())%7 + 7*(n-1));
+}
+// Fête des mères (France) : dernier dimanche de mai, ou premier dimanche de juin si c'est la Pentecôte
+function mothersDay(y){ const d=nthSunday(y, 5, -1); return isoDay(d)===isoDay(addDays(easter(y), 49)) ? nthSunday(y, 6, 1) : d; }
+const SEASONS = {
+  galette:   {day:y=>ymd(y,1,6),   from:[12,15], to:[1,31]},
+  valentin:  {day:y=>ymd(y,2,14),  from:[1,1],   to:[3,0]},
+  paques:    {day:easter,          from:-28,     to:7},
+  meres:     {day:mothersDay,      from:[5,1],   to:7},
+  peres:     {day:y=>nthSunday(y,6,3), from:[5,15], to:7},
+  musique:   {day:y=>ymd(y,6,21),  from:[6,1],   to:[6,30]},
+  halloween: {day:y=>ymd(y,10,31), from:[10,1],  to:[11,5]},
+  noel:      {day:y=>ymd(y,12,25), from:[11,1],  to:[12,31]},
+  reveillon: {day:y=>ymd(y,12,31), from:[12,1],  to:[1,10]}
+};
+/* Période de l'année y : {from, to, day} en dates ISO */
+function seasonWindow(id, y){
+  const s=SEASONS[id], day=s.day(y);
+  const bound=(b, dir)=>{
+    if(typeof b==="number") return addDays(day, b);
+    let d=ymd(y, b[0], b[1]);
+    if(dir<0 && d>day) d=ymd(y-1, b[0], b[1]);
+    if(dir>0 && d<day) d=ymd(y+1, b[0], b[1]);
+    return d;
+  };
+  return {from:isoDay(bound(s.from,-1)), to:isoDay(bound(s.to,1)), day:isoDay(day)};
+}
+/* Période ouverte le jour iso (AAAA-MM-JJ), ou null. Les années voisines couvrent les périodes à cheval sur deux années. */
+function seasonAt(id, iso){
+  if(!SEASONS[id]) return null;
+  const y=+iso.slice(0,4);
+  for(const yy of [y-1, y, y+1]){ const w=seasonWindow(id, yy); if(w.from<=iso && iso<=w.to) return w; }
+  return null;
+}
+/* Proposée à la création ce jour-là : permanente, ou saisonnière dans sa période */
+const seasonOpen = (id, iso=todayISO()) => !SEASONS[id] || !!seasonAt(id, iso);
 /* c : fond, a : accent, s : surface (blanc par défaut), so : --soft, i : --ink (mêmes valeurs que le CSS, vérifié par le banc) */
 const THEMES = [
   {id:"base", name:"Lilas", c:"#ECE6FF", a:"#E83F86", so:"#F6F2FF", i:"#1F1546"},

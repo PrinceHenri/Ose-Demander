@@ -925,6 +925,71 @@ await test("Textes des éléments vedettes : tutoiement, neutres, sans flèche n
   }
 });
 
+/* =========================================================
+   10. Saisons : occasions proposées à la création seulement pendant leur période, chaque année
+   ========================================================= */
+titre("10. Saisons");
+const SAISONS = PAGE.lire("SEASONS"), fenetre = PAGE.lire("seasonWindow"), saisonA = PAGE.lire("seasonAt"), ouverte = PAGE.lire("seasonOpen");
+const jourJ = (f, y) => PAGE.lire("isoDay")(f(y));
+const decale = (iso, n) => new Date(Date.parse(iso + "T00:00:00Z") + n * 864e5).toISOString().slice(0, 10);
+await test("Pâques : dates connues (calendrier grégorien)", () => {
+  const paques = { 2000: "2000-04-23", 2008: "2008-03-23", 2011: "2011-04-24", 2019: "2019-04-21", 2024: "2024-03-31", 2025: "2025-04-20",
+    2026: "2026-04-05", 2027: "2027-03-28", 2028: "2028-04-16", 2038: "2038-04-25", 2285: "2285-03-22" };
+  for(const [y, d] of Object.entries(paques)) assert.equal(jourJ(PAGE.lire("easter"), +y), d, `Pâques ${y}`);
+});
+await test("Fête des mères (repoussée si Pentecôte) et fête des pères", () => {
+  const meres = { 2009: "2009-06-07", 2020: "2020-06-07", 2024: "2024-05-26", 2025: "2025-05-25", 2026: "2026-05-31", 2027: "2027-05-30", 2028: "2028-05-28" };
+  for(const [y, d] of Object.entries(meres)) assert.equal(jourJ(PAGE.lire("mothersDay"), +y), d, `fête des mères ${y}`);
+  const peres = { 2024: "2024-06-16", 2025: "2025-06-15", 2026: "2026-06-21", 2027: "2027-06-20" };
+  for(const [y, d] of Object.entries(peres)) assert.equal(fenetre("peres", +y).day, d, `fête des pères ${y}`);
+});
+await test("Périodes attendues (dont deux années à cheval et dates variables)", () => {
+  const attendu = [
+    ["galette", 2027, "2026-12-15", "2027-01-31"], ["valentin", 2027, "2027-01-01", "2027-02-28"], ["valentin", 2028, "2028-01-01", "2028-02-29"],
+    ["paques", 2027, "2027-02-28", "2027-04-04"], ["paques", 2026, "2026-03-08", "2026-04-12"],
+    ["meres", 2027, "2027-05-01", "2027-06-06"], ["meres", 2020, "2020-05-01", "2020-06-14"], ["peres", 2027, "2027-05-15", "2027-06-27"],
+    ["musique", 2027, "2027-06-01", "2027-06-30"], ["halloween", 2026, "2026-10-01", "2026-11-05"],
+    ["noel", 2026, "2026-11-01", "2026-12-31"], ["reveillon", 2026, "2026-12-01", "2027-01-10"]
+  ];
+  for(const [id, y, from, to] of attendu){ const w = fenetre(id, y); assert.deepEqual([w.from, w.to], [from, to], `${id} ${y}`); }
+});
+await test("Premier et dernier jour inclus, veille et lendemain exclus, de 2000 à 2100", () => {
+  for(const id of Object.keys(SAISONS)) for(let y = 2000; y <= 2100; y++){
+    const w = fenetre(id, y);
+    assert.ok(w.from <= w.day && w.day <= w.to, `${id} ${y} : le jour J est dans la période`);
+    assert.ok(saisonA(id, w.from) && saisonA(id, w.to) && saisonA(id, w.day), `${id} ${y} : ouverte du ${w.from} au ${w.to}`);
+    assert.ok(!saisonA(id, decale(w.from, -1)) && !saisonA(id, decale(w.to, 1)), `${id} ${y} : fermée la veille et le lendemain`);
+  }
+});
+await test("Années bissextiles et chevauchement de deux années", () => {
+  const cas = [
+    ["valentin", "2028-02-29", true], ["valentin", "2028-03-01", false], ["valentin", "2027-02-28", true], ["valentin", "2027-03-01", false],
+    ["valentin", "2100-02-28", true], ["valentin", "2100-03-01", false], ["valentin", "2026-12-31", false],
+    ["galette", "2026-12-14", false], ["galette", "2026-12-15", true], ["galette", "2027-01-01", true], ["galette", "2027-01-31", true], ["galette", "2027-02-01", false],
+    ["reveillon", "2026-11-30", false], ["reveillon", "2026-12-31", true], ["reveillon", "2027-01-01", true], ["reveillon", "2027-01-10", true], ["reveillon", "2027-01-11", false],
+    ["noel", "2026-12-31", true], ["noel", "2027-01-01", false], ["halloween", "2026-11-05", true], ["halloween", "2026-11-06", false]
+  ];
+  for(const [id, iso, ok] of cas) assert.equal(!!saisonA(id, iso), ok, `${id} le ${iso}`);
+  assert.equal(saisonA("reveillon", "2027-01-05").day, "2026-12-31", "réveillon de janvier : celui du 31 décembre précédent");
+  assert.equal(saisonA("galette", "2026-12-20").day, "2027-01-06", "galette de décembre : celle du 6 janvier suivant");
+});
+await test("Occasions ouvertes selon la date du jour ; permanentes toute l'année", () => {
+  const ouvertes = iso => Object.keys(SAISONS).filter(id => saisonA(id, iso)).sort();
+  assert.deepEqual(ouvertes("2026-10-15"), ["halloween"]);
+  assert.deepEqual(ouvertes("2026-11-03"), ["halloween", "noel"]);
+  assert.deepEqual(ouvertes("2027-01-05"), ["galette", "reveillon", "valentin"]);
+  assert.deepEqual(ouvertes("2026-08-15"), []);
+  for(const id of ["date", "annivamour", "couple", "grands", "annivfam", "sortie", "annivami", "temoin", "surprise", "pardon", "juste", "libre"])
+    for(const iso of ["2026-01-01", "2026-08-15", "2026-12-31"]) assert.ok(ouverte(id, iso), `${id} : permanente`);
+  assert.ok(!SAISONS.grands, "la fête des grands-parents reste permanente");
+});
+await test("Le décodage des liens ne dépend jamais de la date", () => {
+  for(const nom of ["sanitize", "unpackLink", "packLink", "decodeLink"]){
+    let src = ""; try{ src = PAGE.lire(nom).toString(); }catch(e){ continue; }
+    assert.ok(!/season|SEASONS|todayISO\(\)/.test(src), `${nom} ne doit pas regarder la date du jour`);
+  }
+});
+
 /* ---------- Bilan ---------- */
 console.log(`\n${ko ? "❌" : "✅"} ${ok} tests réussis, ${ko} en échec (graine ${GRAINE}${ko ? ` — pour rejouer : node tests/run.mjs --graine=${GRAINE}` : ""})`);
 if(ko){ console.log(echecs.map(e => "  - " + e).join("\n")); process.exitCode = 1; }
