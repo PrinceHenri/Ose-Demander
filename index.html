@@ -181,6 +181,13 @@ textarea.input{min-height:90px;resize:vertical}
 
 /* ---------- Accueil (refonte) ---------- */
 .hero h1{font-size:clamp(36px,9.5vw,60px)}
+/* Mini-billet vivant de l'accueil : le Non s'esquive à l'intérieur de .demo-answer */
+.demo-ticket{margin:0 0 24px}
+.demo-main{min-height:0;padding:20px 16px 16px}
+.demo-ticket .question{font-size:clamp(28px,7vw,36px);margin:0 0 12px}
+.demo-answer{position:relative;min-height:96px}
+.demo-answer .no.dodge{position:absolute;margin:0;transition:left .25s ease, top .25s ease}
+.demo-ticket .tease{margin-top:8px}
 .home-cards{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:0 0 18px}
 .home-card{display:flex;flex-direction:column;align-items:flex-start;gap:2px;text-align:left;background:var(--surface);border:2px solid var(--ink);border-radius:var(--r);padding:14px;cursor:pointer;box-shadow:4px 4px 0 var(--ink);transition:transform .1s,box-shadow .1s}
 .home-card:active{transform:translate(2px,2px);box-shadow:2px 2px 0 var(--ink)}
@@ -974,6 +981,18 @@ function homeHTML(){
       <h1><span>Tu as quelque chose à demander ?</span><span>Fais-le autrement.</span></h1>
       <p>Une invitation animée à envoyer par message. On te répond en un clic, et le Non résiste… un peu.</p>
     </section>
+    <div class="ticket demo-ticket" role="group" aria-label="Essaie : un exemple d'invitation">
+      <div class="stub"><div>De<b>toi</b></div><div style="text-align:right">Pour<b>qui tu veux</b></div></div>
+      <div class="perf" aria-hidden="true"></div>
+      <div class="main demo-main">
+        <p class="question">Tu viens ?</p>
+        <div class="answer demo-answer" id="demoAnswer">
+          <button type="button" class="yes" id="demoYes" aria-label="Oui : créer mon invitation">Oui</button>
+          <button type="button" class="no" id="demoNo">Non</button>
+        </div>
+        <p class="tease" id="demoTease" aria-live="polite">Essaie de dire non… puis dis oui pour créer la tienne.</p>
+      </div>
+    </div>
     <div class="home-cards">${HOME_CATS.map(c=>`<button type="button" class="home-card" data-home="${c.cat}">
       <span class="ico" aria-hidden="true">${c.ico}</span><b>${c.cat}</b><span>${c.d}</span></button>`).join("")}</div>
     <div class="home-actions">
@@ -1325,6 +1344,34 @@ function openSection(key){
   $(`details[data-sec="${key}"]`)?.scrollIntoView({block:"start"});
 }
 
+/* Accueil : le mini-billet vivant. Le Non s'esquive dans le billet (ton taquin), le Oui lance la création.
+   Animations coupées (réglage ou « moins de mouvement ») : le Non ne bouge pas, seule la phrase change. */
+function bindDemoTicket(){
+  const yes=$("#demoYes"), no=$("#demoNo"), box=$("#demoAnswer"), tease=$("#demoTease");
+  if(!yes) return;
+  const still=()=>REDUCED || S.anim==="0", lines=noTone("taquin").lines;
+  let n=0, last=0;
+  const dodge=e=>{
+    if(e) e.preventDefault();
+    const now=Date.now(); if(now-last<250) return; last=now; // un seul effet par geste
+    tease.textContent=lines[Math.min(n++,lines.length-1)]; Sound.no();
+    if(still()) return;
+    const b=box.getBoundingClientRect(), r=no.getBoundingClientRect(), y=yes.getBoundingClientRect();
+    if(!no.classList.contains("dodge")){ no.style.left=(r.left-b.left)+"px"; no.style.top=(r.top-b.top)+"px"; no.classList.add("dodge"); no.offsetHeight; }
+    const yl=y.left-b.left, yt=y.top-b.top, cl=r.left-b.left, ct=r.top-b.top;
+    let x, t, tries=0;
+    do{ x=Math.random()*Math.max(0,b.width-r.width); t=Math.random()*Math.max(0,b.height-r.height); tries++; }
+    while(tries<30 && ((x<yl+y.width+12 && x+r.width>yl-12 && t<yt+y.height+12 && t+r.height>yt-12) || Math.hypot(x-cl,t-ct)<60));
+    no.style.left=x+"px"; no.style.top=t+"px";
+  };
+  no.addEventListener("pointerenter",e=>{ if(e.pointerType==="mouse") dodge(); });
+  no.addEventListener("touchstart",dodge,{passive:false});
+  no.addEventListener("click",dodge);
+  yes.addEventListener("click",()=>{
+    const r=yes.getBoundingClientRect(); Decor.burst(r.left+r.width/2, r.top+r.height/2, 60, true); Sound.yes();
+    S.tplCat="Tous"; setTimeout(()=>go(1), still() ? 0 : 450);
+  });
+}
 function bindCreator(){
   // Toute modification relit les champs, puis réaffiche (le lien déjà créé n'est plus à jour)
   const on=(sel, fn)=>$$(sel).forEach(b=>b.addEventListener("click",()=>{ readAll(); fn(b); S.link=""; renderCreator(); Sound.tick(); }));
@@ -1333,6 +1380,7 @@ function bindCreator(){
   // Accueil et modèles
   $$("[data-home]").forEach(b=>b.addEventListener("click",()=>{ S.tplCat=b.dataset.home; go(1); }));
   $("#fromScratch")?.addEventListener("click",()=>{ applyTemplate("zero"); go(2); });
+  bindDemoTicket();
   on("[data-cat]", b=>{ S.tplCat=b.dataset.cat; });
   $$("[data-tpl]").forEach(b=>b.addEventListener("click",()=>{ applyTemplate(b.dataset.tpl); go(2); }));
 

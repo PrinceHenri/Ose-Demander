@@ -658,6 +658,22 @@ await test("Partage : le texte affiché est exactement celui envoyé", () => {
   assert.ok(src.includes("text:shareText()"));
 });
 
+// A1 : l'accueil montre le produit (mini-billet vivant)
+await test("Accueil : mini-billet vivant, le Oui est la seule action principale", () => {
+  const h = PAGE.lire("homeHTML")();
+  assert.ok(/class="ticket demo-ticket"/.test(h) && h.includes('id="demoNo"'), "mini-billet avec Oui et Non");
+  assert.ok(h.indexOf("demo-ticket") < h.indexOf("home-cards"), "le billet vient avant les cartes");
+  assert.deepEqual(principales(h), ["Oui"]);
+  assert.ok(h.includes('aria-label="Oui : créer mon invitation"'), "le Oui dit ce qu'il fait");
+  assert.ok(/id="demoTease" aria-live="polite"/.test(h), "les phrases du Non sont annoncées");
+});
+await test("Accueil : le Non respecte les animations coupées, le Oui mène aux modèles", () => {
+  const src = PAGE.lire("bindDemoTicket").toString();
+  assert.ok(src.includes('REDUCED || S.anim==="0"') && src.includes("if(still()) return;"), "pas de mouvement si animations coupées");
+  assert.ok(src.includes("go(1)"), "le Oui ouvre le choix du modèle");
+  assert.ok(src.includes('noTone("taquin")'), "phrases du ton taquin (existantes)");
+});
+
 /* ---------- Bilan ---------- */
 console.log(`\n${ko ? "❌" : "✅"} ${ok} tests réussis, ${ko} en échec (graine ${GRAINE}${ko ? ` — pour rejouer : node tests/run.mjs --graine=${GRAINE}` : ""})`);
 if(ko){ console.log(echecs.map(e => "  - " + e).join("\n")); process.exitCode = 1; }
