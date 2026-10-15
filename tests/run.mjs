@@ -755,7 +755,7 @@ await test("Scènes : uniquement les couleurs du thème, aucune image externe, p
   }
   assert.ok(total < 90000, `scènes trop lourdes au total (${total} caractères)`);
 });
-await test("Décor de fond : ton sur ton, texte et texte atténué lisibles (≥ 4,5:1) dans les 7 thèmes", () => {
+await test("Décor de fond : ton sur ton, texte et texte atténué lisibles (≥ 4,5:1) dans chaque thème", () => {
   const surfaces = [".sc-bg", ".sc-a", ".sc-b", ".sc-speck-d"].map(s => varDe(s, "fill"));
   assert.ok(surfaces.every(Boolean), "couleurs du décor introuvables");
   for(const [sel] of [[".sc-out"], [".sc-line"]]){
@@ -764,7 +764,7 @@ await test("Décor de fond : ton sur ton, texte et texte atténué lisibles (≥
   }
   for(const [id, sc] of Object.entries(SCENES)){
     const classes = new Set([...sc.wall.matchAll(/class="([^"]+)"/g)].flatMap(m => m[1].split(" ")));
-    for(const c of classes) assert.ok(/^sc-(bg|a|b|out|line|speck-[ld])$/.test(c), `${id} : classe « ${c} » dans le décor de fond (réservée à l'élément vedette ?)`);
+    for(const c of classes) assert.ok(/^(sc-(bg|a|b|out|line|speck-[ld])|hs-wide)$/.test(c), `${id} : classe « ${c} » dans le décor de fond (réservée à l'élément vedette ?)`);
     const v = THEME_CSS[id];
     for(const c of surfaces){ exige(`${id} : encre sur --${c}`, v.ink, v[c], 4.5); exige(`${id} : texte atténué sur --${c}`, v.muted, v[c], 4.5); }
   }
@@ -1060,6 +1060,50 @@ await test("Thèmes de saison : proposés en période, toujours affichés dans u
     assert.ok(["fall", "break", "pop", "gust", "scatter"].includes(d.react || "fall"), `${t.name} : réaction au Non inconnue`);
   }
   Object.assign(S, { step: "home", theme: "base", moreOpen: false, open: new Set() }); le("2026-10-15");
+});
+
+await test("Modèles de saison : catégorie, première position, « De saison », bandeau, disparition hors saison", () => {
+  const CATEGORIE = { valentin: "Amour", noel: "Famille", paques: "Famille", meres: "Famille", peres: "Famille",
+    halloween: "Amis", reveillon: "Amis", galette: "Amis", musique: "Amis" };
+  const A_VENIR = ["galette", "paques", "musique"]; // modèles des lots suivants (à retirer de cette liste quand ils arrivent)
+  const THEME_A_VENIR = ["valentin", "meres", "peres"]; // gardent leur thème actuel jusqu'à leur thème de saison
+  const TPL = PAGE.lire("TEMPLATES"), SAIS = PAGE.lire("SEASONS"), S = PAGE.lire("S"), le = iso => PAGE.ecrire("SEASON_TODAY", iso);
+  assert.deepEqual(Object.keys(CATEGORIE).sort(), Object.keys(SAIS).sort(), "une catégorie prévue pour chaque saison");
+  for(const id of Object.keys(SAIS)) if(!A_VENIR.includes(id)) assert.ok(TPL.some(t => t.occ === id), `saison ${id} sans modèle`);
+  const etape1 = cat => { Object.assign(S, { step: 1, tplCat: cat, tpl: "", link: "" }); PAGE.lire("renderCreator")(); return PAGE.zones["#app"].innerHTML; };
+  for(const t of TPL.filter(t => SAIS[t.occ])){
+    assert.equal(t.cat, CATEGORIE[t.occ], `${t.label} : catégorie`);
+    assert.ok(t.q && t.msg && t.no && t.tone && t.em, `${t.label} : question, message, Non, ton et emoji`);
+    if(!THEME_A_VENIR.includes(t.occ)) assert.equal(t.theme, t.occ, `${t.label} : thème de saison`);
+    const w = fenetre(t.occ, 2027);
+    for(const iso of [w.from, w.day, w.to]){
+      le(iso); const h = etape1(t.cat), cartes = [...h.matchAll(/data-tpl="([a-z]+)"/g)].map(m => m[1]);
+      const saison = cartes.filter(id => id !== "zero" && SAIS[TPL.find(x => x.id === id).occ]);
+      assert.deepEqual(cartes.slice(0, saison.length), saison, `${t.label} le ${iso} : modèles de saison avant les permanents`);
+      assert.ok(saison.includes(t.id), `${t.label} le ${iso} : proposé`);
+      if(iso === w.day) assert.equal(cartes[0], t.id, `${t.label} : en première position le jour J`);
+      const carte = h.slice(h.indexOf(`data-tpl="${t.id}"`), h.indexOf("</button>", h.indexOf(`data-tpl="${t.id}"`)));
+      assert.ok(carte.includes('<span class="tpl-tag">De saison</span>'), `${t.label} : étiquette « De saison »`);
+    }
+    le(w.day);
+    assert.equal(PAGE.lire("seasonPick")().t.id, t.id, `${t.label} : le bandeau du jour J ouvre ce modèle`);
+    assert.ok(PAGE.lire("homeHTML")().includes(`data-season="${t.id}"`));
+    for(const iso of [decale(w.from, -1), decale(w.to, 1)]){
+      le(iso);
+      assert.ok(!etape1(t.cat).includes(`data-tpl="${t.id}"`), `${t.label} le ${iso} : modèle absent hors saison`);
+      assert.ok(!PAGE.lire("homeHTML")().includes(`data-season="${t.id}"`), `${t.label} le ${iso} : pas de bandeau`);
+    }
+  }
+  le("2026-10-15"); const h = etape1("Amis");
+  assert.equal((h.match(/class="tpl-tag"/g) || []).length, 1, "seuls les modèles de saison portent l'étiquette");
+  const clic = PAGE.lire("bindCreator").toString();
+  assert.ok(clic.includes('$$("[data-season]")') && clic.includes("S.tplCat=t.cat; applyTemplate(t.id); go(2);"), "le bandeau ouvre directement le modèle");
+  for(const [iso, id] of [["2026-11-03", "noel"], ["2026-12-20", "noel"], ["2026-12-27", "reveillon"], ["2026-10-31", "halloween"], ["2027-05-20", "meres"], ["2027-06-05", "peres"]]){
+    le(iso); assert.equal(PAGE.lire("seasonPick")().t.id, id, `${iso} : bandeau ${id} (jour J à venir le plus proche)`);
+  }
+  le("2026-12-20"); assert.deepEqual(PAGE.lire("catTemplates")("Amis").slice(0, 1).map(t => t.id), ["reveillon"], "décembre : réveillon en tête des Amis");
+  le("2027-06-05"); assert.deepEqual(PAGE.lire("catTemplates")("Famille").map(t => t.id), ["peres", "meres", "grands"], "juin : fête des pères (à venir) avant fête des mères (passée)");
+  Object.assign(S, { step: "home", tplCat: "Amour", tpl: "" }); le("2026-10-15");
 });
 
 /* ---------- Bilan ---------- */

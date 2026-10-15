@@ -522,5 +522,55 @@ export const REFERENCES = [
       "d": "2026-10-31",
       "h": "20:00"
     }
+  },
+  {
+    "nom": "Occasion et thème de saison (format compact y) : repas de Noël",
+    "lien": "yHYyxCsIwGAZfpdzi8g_G2Crf3k0dfIOAKRSSptKKBfHdxSw33MF9GBCX8sJYEdewYRTkzsYT-daYkDdulT1yRyMj3xkBcY9zWJpHbIaQx5QiRqqjcSnT36ddv8U81_JGresOp_33Bw",
+    "attendu": {
+      "f": "Lou",
+      "t": "Max",
+      "q": "Tu viens au repas de Noël ?",
+      "o": "noel",
+      "th": "noel",
+      "n": "supplie",
+      "tn": "mignon",
+      "an": "n",
+      "em": "🎄",
+      "c": "any",
+      "m": "La table ne sera pas complète sans toi.",
+      "a": {
+        "v": "v",
+        "x": "Repas de famille"
+      },
+      "l": {
+        "v": "v",
+        "x": "Maison de l'Exemple"
+      },
+      "d": "2026-12-25",
+      "h": "12:30"
+    }
+  },
+  {
+    "nom": "Occasion et thème de saison (format compact y) : réveillon, activité surprise",
+    "lien": "yHcS9CsIwGIbRWwnP_A02Najv3rV0Lw6BROhgQv90EC_I6_DGBM9wXtwQfY0YG6JLuWBU1FyMGbUnoyBv9P871ATjjtqzEdHIsHw_jzqtLmU373VyKZY1L1yNJwo-HP3h_QM",
+    "attendu": {
+      "f": "Noa",
+      "t": "Eden",
+      "q": "On passe le réveillon ensemble ?",
+      "o": "reveillon",
+      "th": "reveillon",
+      "n": "retrecit",
+      "tn": "drole",
+      "an": "n",
+      "em": "🥂",
+      "c": "any",
+      "m": "On finit l'année ensemble, et on commence la suivante pareil.",
+      "a": {
+        "v": "s",
+        "h": "Prévois de quoi danser"
+      },
+      "d": "2026-12-31",
+      "h": "21:00"
+    }
   }
 ];

@@ -37,7 +37,12 @@ export const LINK_PHRASES = {
   "32": "Je ne vois personne d'autre à mes côtés ce jour-là.",
   // Ajoutés le 2026-10-15 (occasion saisonnière Halloween)
   "33": "Tu oses venir fêter Halloween avec moi ?",
-  "34": "Viens avec ton meilleur déguisement."
+  "34": "Viens avec ton meilleur déguisement.",
+  // Ajoutés le 2026-10-15 (occasions saisonnières Noël et réveillon)
+  "35": "Tu viens au repas de Noël ?",
+  "36": "La table ne sera pas complète sans toi.",
+  "37": "On passe le réveillon ensemble ?",
+  "38": "On finit l'année ensemble, et on commence la suivante pareil."
 };
 
 export const LINK_OCC = {
@@ -57,7 +62,9 @@ export const LINK_OCC = {
   "14": "pardon",
   "15": "juste",
   "16": "libre",
-  "17": "halloween"
+  "17": "halloween",
+  "18": "noel",
+  "19": "reveillon"
 };
 
 export const LINK_TH = {
@@ -68,7 +75,9 @@ export const LINK_TH = {
   "5": "amis",
   "6": "fete",
   "7": "mystere",
-  "8": "halloween"
+  "8": "halloween",
+  "9": "noel",
+  "10": "reveillon"
 };
 
 export const LINK_NO = {
@@ -117,7 +126,9 @@ export const LINK_EM = {
   "10": "✨",
   "11": "🍕",
   "12": "☕",
-  "13": "🎃"
+  "13": "🎃",
+  "14": "🎄",
+  "15": "🥂"
 };
 
 export const LINK_TONE = {
