@@ -606,6 +606,23 @@ await test("Carte ouverte depuis le rappel d'agenda : « Si ce n'est pas déjà 
   assert.deepEqual(principales(h), ["Envoyer ma réponse"]);
 });
 
+// I1 : le vrai refus est une action essentielle, donc une vraie cible tactile
+const regleCSS = sel => { const m = CSS.match(new RegExp(`(?:^|[\\n}])\\s*${sel.replace(/[.[\]()]/g, "\\$&")}\\{([^}]*)\\}`)); return m ? m[1] : ""; };
+await test("Vrai refus : cible de 44 px au moins, toujours discrète", () => {
+  const r = regleCSS(".refuse");
+  const h = +(r.match(/min-height:(\d+)px/) || [])[1];
+  assert.ok(h >= 44, `.refuse : min-height ${h || "absent"} (44 px minimum)`);
+  assert.ok(r.includes("color:var(--muted)"), "le refus reste discret (texte atténué)");
+  assert.ok(!/background:var\(--accent/.test(r), "le refus n'est jamais une action principale");
+});
+await test("Le Non qui s'enfuit ne se pose ni sur le Oui ni sur le vrai refus", () => {
+  const src = PAGE.lire("bindNo").toString();
+  assert.ok(src.includes('$("#refuse")') && src.includes("covers(rf,x,y)") && src.includes("covers(yr,x,y)"));
+});
+await test("Écran de refus : pas de flèche décorative", () => {
+  assert.ok(!/[←→]/.test(PAGE.lire("openRefuse").toString()));
+});
+
 /* ---------- Bilan ---------- */
 console.log(`\n${ko ? "❌" : "✅"} ${ok} tests réussis, ${ko} en échec (graine ${GRAINE}${ko ? ` — pour rejouer : node tests/run.mjs --graine=${GRAINE}` : ""})`);
 if(ko){ console.log(echecs.map(e => "  - " + e).join("\n")); process.exitCode = 1; }

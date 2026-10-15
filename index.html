@@ -312,8 +312,10 @@ textarea.input{min-height:90px;resize:vertical}
 .safety{font-size:13px;color:var(--muted);max-width:36ch;margin:0 auto}
 .env-screen .safety{margin-top:6px}
 .sign{font-family:var(--hand);font-size:26px;line-height:1.1;text-align:right;margin:14px 0 0;color:var(--ink);overflow-wrap:anywhere}
-.refuse-slot{min-height:28px;margin:6px 0 0}
-.refuse{background:none;border:0;padding:4px;color:var(--muted);font-size:14px;cursor:pointer;text-decoration:underline;text-underline-offset:3px}
+.refuse-slot{min-height:52px;margin:6px 0 0}
+/* Vrai refus : discret (texte atténué, bordure douce), mais une vraie cible de 44 px : c'est une action essentielle */
+.refuse{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:8px 16px;background:transparent;border:2px solid var(--line);border-radius:999px;color:var(--muted);font-size:15px;font-weight:600;cursor:pointer;transition:border-color .15s}
+.refuse:hover{border-color:var(--muted)}
 .refuse-field{margin:18px 0 6px;text-align:left}
 textarea.refuse-input{font-family:var(--hand);font-size:23px;line-height:1.2;min-height:110px}
 .envelope.open .env-flap{transform:rotateX(180deg);z-index:0}
@@ -1787,7 +1789,7 @@ function openRefuse(){
       <div class="after-actions">
         <button type="button" class="btn primary" id="replyNo">${replyLabel()}</button>
         <button type="button" class="btn ghost" id="copyNo">Copier ma réponse</button>
-        <button type="button" class="refuse" id="undoNo">← Finalement, je reviens en arrière</button>
+        <button type="button" class="refuse" id="undoNo">Finalement, je reviens en arrière</button>
       </div>
       ${signHTML()}
     </div>`;
@@ -1819,11 +1821,13 @@ function bindNo(){
   if(D.n==="fuit"){
     const flee=e=>{
       if(e) e.preventDefault();
-      const r=no.getBoundingClientRect(), yr=yes.getBoundingClientRect();
+      const r=no.getBoundingClientRect(), yr=yes.getBoundingClientRect(), rf=$("#refuse")?.getBoundingClientRect();
       const W=window.innerWidth, H=window.innerHeight, m=16;
+      // Le Non ne se pose jamais sur le Oui ni sur le vrai refus (qui doit rester facile à toucher)
+      const covers=(b,x,y)=>b && x<b.right+20 && x+r.width>b.left-20 && y<b.bottom+20 && y+r.height>b.top-20;
       let x,y,tries=0;
       do{ x=m+Math.random()*(W-r.width-2*m); y=m+Math.random()*(H-r.height-2*m); tries++; }
-      while(tries<30 && (Math.abs(x-r.left)<90 && Math.abs(y-r.top)<60 || (x<yr.right+20 && x+r.width>yr.left-20 && y<yr.bottom+20 && y+r.height>yr.top-20)));
+      while(tries<30 && (Math.abs(x-r.left)<90 && Math.abs(y-r.top)<60 || covers(yr,x,y) || covers(rf,x,y)));
       if(!no.classList.contains("flee")){ document.body.appendChild(no); no.style.left=r.left+"px"; no.style.top=r.top+"px"; no.classList.add("flee"); no.offsetHeight; }
       no.style.left=x+"px"; no.style.top=y+"px"; say();
     };
