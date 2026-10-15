@@ -18,21 +18,26 @@ Chaque thème redéfinit les mêmes variables CSS (`:root` = thème « base », 
 | `--ink` | texte, **contours et ombres** |
 | `--muted` | texte secondaire, indications, liens discrets |
 | `--line` | bordures douces, pointillés, éléments verrouillés |
-| `--accent` | bouton principal, Oui, compte à rebours, focus |
-| `--accent-ink` | texte posé sur `--accent` |
+| `--accent` | **remplissages et décors** : enveloppe, pastilles du programme, barre de progression, « ? » du logo, décor animé |
+| `--accent-btn` | fond des boutons qui portent du texte (Oui, `.btn.primary`, `.install`, pastille de compteur) : ≥ 4,5:1 avec `--accent-ink` |
+| `--accent-ink` | texte posé sur `--accent-btn` |
+| `--accent-text` | **texte, liens, compte à rebours, contour de focus, bordure de champ actif** : ≥ 4,5:1 sur `--bg`, `--surface` et `--soft` |
+| `--accent-seal` | initiale du sceau, posée sur `--ink` (grand texte gras : ≥ 3:1) |
 | `--soft` | fond des champs, puces, encadrés |
 
-| Thème (`th`) | Nom affiché | `--bg` | `--ink` | `--accent` | Motif de fond |
-|---|---|---|---|---|---|
-| `base` | Lilas | #ECE6FF | #1F1546 | #E83F86 | points d'interrogation |
-| `amour` | Amour | #FFE4EC | #4B0F2E | #D9245F | cœurs |
-| `maman` | Pétales | #FFEBDD | #5A2416 | #E0592F | fleurs |
-| `papa` | Cravate | #E3EAF6 | #14254A | #D99A1E (texte #14254A) | rayures de cravate |
-| `amis` | Pop | #FFF2B3 | #22200F | #2F5BFF | bulles |
-| `fete` | Confettis | #E6F6EF | #10372B | #F2484B | confettis |
-| `mystere` | Mystère | #1C1838 (surface #29234D) | #F2EEFF | #FFC94A (texte #1C1838) | étoiles — **seul thème sombre** |
+| Thème (`th`) | Nom affiché | `--bg` | `--ink` | `--accent` | `--accent-text` | `--accent-btn` | `--accent-seal` | Motif de fond |
+|---|---|---|---|---|---|---|---|---|
+| `base` | Lilas | #ECE6FF | #1F1546 | #E83F86 | #C9196D | #D82D79 | = accent | points d'interrogation |
+| `amour` | Amour | #FFE4EC | #4B0F2E | #D9245F | #CE1257 | = accent | = accent | cœurs |
+| `maman` | Pétales | #FFEBDD | #5A2416 | #E0592F | #C23D09 | #CE491C | = accent | fleurs |
+| `papa` | Cravate | #E3EAF6 | #14254A | #D99A1E (texte des boutons #14254A) | #8C6101 | = accent | = accent | rayures de cravate |
+| `amis` | Pop | #FFF2B3 | #22200F | #2F5BFF | = accent | = accent | = accent | bulles |
+| `fete` | Confettis | #E6F6EF | #10372B | #F2484B | #D32532 | #DE333B | = accent | confettis |
+| `mystere` | Mystère | #1C1838 (surface #29234D) | #F2EEFF | #FFC94A (texte des boutons #1C1838) | = accent | = accent | #AF8406 | étoiles — **seul thème sombre** |
 
-- **Couleurs d'accent facultatives** (`ACCENTS` : framboise, corail, mandarine, or, menthe, océan, violet, nuit) : appliquées par `setTheme`, **seulement si `accentOk`** (contraste ≥ 3:1 avec le fond et la surface du thème). `accentInk` choisit le texte blanc ou #1F1546. Toute nouvelle couleur d'accent passe par cette table et ce contrôle.
+Les variantes viennent de `readable(couleur, fonds, seuil)` : même teinte (OKLCH), plus foncée sur fond clair, plus claire sur fond sombre, juste assez pour atteindre le seuil (inchangée si elle l'atteint déjà). Les valeurs CSS des thèmes sont écrites en dur et **le banc vérifie qu'elles égalent ce calcul** ; la table `THEMES` (JS) reprend `--bg`, `--surface`, `--soft`, `--ink`. Nouveau thème = ajouter ses 3 variantes (calculées avec `readable`) et ses valeurs dans `THEMES`.
+
+- **Couleurs d'accent facultatives** (`ACCENTS` : framboise, corail, mandarine, or, menthe, océan, violet, nuit) : appliquées par `setTheme` via `accentVars(thème, accent)`, **seulement si `accentOk`** (contraste ≥ 3:1 avec le fond et la surface du thème). `accentVars` calcule les 5 variables (`--accent`, `--accent-ink` choisi par `accentInk`, `--accent-text`, `--accent-btn`, `--accent-seal`) avec `readable`. Toute nouvelle couleur d'accent passe par cette table : le banc vérifie chaque combinaison thème × accent.
 - **Motifs de fond** : SVG en `data:` dans `--pattern`, très transparents (opacité 0,07 à 0,35), petites formes du thème répétées. Un nouveau thème = un nouveau motif dans le même esprit.
 - **Exceptions existantes** (ne pas multiplier) : erreurs `#B3122E` sur `#FFE3E8` (variante sombre pour `mystere`), voile des feuilles `rgba(20,14,50,.45)`, surlignage de révélation doré `rgba(255,201,74,.5)` (l'accent de Mystère).
 - Toujours vérifier le rendu dans **les 7 thèmes**, et en particulier **Mystère** (sombre : `--surface` n'y est pas blanc).
@@ -47,14 +52,14 @@ C'est la signature : **bordure pleine `2px solid var(--ink)` + ombre dure décal
 | Enveloppe `.env-back` | 2px `--ink` | 12px | 8px 8px 0 |
 | Panneau `.panel`, feuille `.sheet-card` | 2px `--ink` | `--r` (18px) / 20px | 6px 6px 0 |
 | Carte d'accueil `.home-card` | 2px `--ink` | `--r` | 4px 4px 0 |
-| Bouton Oui `.yes` | 2px `--ink` | 16px | 4px 4px 0 |
-| Bouton principal `.btn.primary` | 2px `--ink` | 14px | 3px 3px 0 |
+| Bouton Oui `.yes` (fond `--accent-btn`) | 2px `--ink` | 16px | 4px 4px 0 |
+| Bouton principal `.btn.primary` (fond `--accent-btn`) | 2px `--ink` | 14px | 3px 3px 0 |
 | Option choisie (`.optcard`, `.tpl`) | 2px `--ink` | 14px | 3px 3px 0 |
 | Pastilles d'en-tête (`.hist-btn`, `.install`) | 2px `--ink` | 999px | 2px 2px 0 |
 | Champs, puces, encadrés | 2px `--line` | 12–14px / 999px | aucune |
 
 - **Bouton qui s'enfonce** : `:active{transform:translate(2px,2px)}` et l'ombre diminue d'autant (`3px` → `1px`, `4px` → `2px`), transition `.1s`. Tout nouveau bouton cliquable fait pareil.
-- **Hiérarchie** : principal = `--accent` + ombre ; secondaire = `--surface` (`.btn`) ; tertiaire = `.btn.ghost` transparent ; discret = lien souligné `--muted` (`.cal-alt`, `.refuse`, `.linkbtn`) avec `text-underline-offset:3px`.
+- **Hiérarchie** : principal = `--accent-btn` + ombre ; secondaire = `--surface` (`.btn`) ; tertiaire = `.btn.ghost` transparent ; discret = lien souligné `--muted` (`.cal-alt`, `.refuse`, `.linkbtn`) avec `text-underline-offset:3px`.
 - **Pointillés** `2px dashed var(--line)` : séparations douces, zones facultatives (`.adv`, `.tip`, `.sec`, `.privacy` en `--ink`).
 - **Billet** : talon « De / Pour » (`.stub`), perforation en pointillés avec deux demi-cercles découpés (`.perf::before/::after`, couleur `--bg`), corps centré (`.main`). Pour un nouvel écran côté personne invitée, **réutiliser `ticketHTML(inner)`** plutôt que recréer une carte.
 - **Enveloppe** : rabat qui pivote (`rotateX(180deg)`), papier qui sort avec « Pour {prénom} » en Caveat, sceau rond (`.seal`) en `--ink` portant l'emoji ou l'initiale.
@@ -89,8 +94,9 @@ Règles pour toute nouvelle animation (intro, partage…) :
 
 ## 5. Accessibilité
 
-- **Contrastes mesurés** (texte sur fond) : encre ≥ 10,7:1 et texte atténué ≥ 5,2:1 dans tous les thèmes — conserver ces niveaux. Texte courant ≥ 4,5:1, grands textes et éléments d'interface ≥ 3:1.
-- **Points faibles connus** (existants, à ne pas reproduire, à corriger un jour) : texte du bouton sur l'accent à 3,6–3,8:1 en Lilas, Pétales et Confettis (suffisant pour le Oui en 20px gras, trop juste pour `.btn.primary` en 17px) ; accent Cravate #D99A1E sur blanc à 2,4:1 (le compte à rebours, les `.linkbtn` et le contour de focus y sont peu visibles). Ne jamais utiliser `--accent` comme couleur de texte fin sur `--surface` dans un nouveau composant.
+- **Seuils, vérifiés par le banc de test (section « Contrastes ») dans les 7 thèmes et pour chaque couleur d'accent autorisée** : texte ≥ 4,5:1 (encre, texte atténué, `--accent-text` sur `--bg`/`--surface`/`--soft` ; `--accent-ink` sur `--accent-btn`) ; grands textes et éléments graphiques ≥ 3:1 (initiale du sceau, contour de focus). Mesures actuelles : encre ≥ 10,7:1, texte atténué ≥ 5,2:1.
+- **Règle d'usage** : du texte, un lien, un chiffre, un contour de focus ou une bordure d'état en couleur d'accent → `var(--accent-text)` ; un fond qui porte du texte → `var(--accent-btn)` avec `color:var(--accent-ink)` ; `var(--accent)` seulement pour les remplissages et décors sans texte. Le banc refuse `color:var(--accent)` (sauf le « ? » du logo, logotype exempté), un contour ou une bordure de focus en `--accent`, et un texte `--accent-ink` sans fond `--accent-btn`.
+- Les remplissages purement décoratifs (enveloppe, pastilles du programme, barre de progression doublée du texte « Étape x sur 4 ») gardent `--accent` même sous 3:1 (Cravate) : ils ne portent aucune information seule.
 - **Focus visible** : `:focus-visible{outline:3px solid var(--accent);outline-offset:2px}` partout ; les champs remplacent le contour par une bordure `--accent`. Ne jamais supprimer le focus sans remplacement.
 - **Clavier** : de vrais `<button>` (y compris l'enveloppe), des liens `<a>` pour naviguer ; état des choix par `aria-pressed` ; le Non qui « se transforme » réagit aussi au focus. Après un changement d'écran, placer le focus sur l'action principale quand c'est utile (ex. `#replyNo`).
 - **Lecteurs d'écran** : décor et explosions en `aria-hidden="true"`, emojis décoratifs aussi (`.lk`) ; messages qui changent en `aria-live="polite"` (`.tease`), notifications `role="status"` (`toast`) ; feuilles en `role="dialog" aria-modal="true"` ; texte réservé aux lecteurs d'écran : classe `.sr`.
@@ -118,7 +124,7 @@ Règles pour toute nouvelle animation (intro, partage…) :
 
 ## Avant de valider une interface
 
-1. Vérifiée dans les 7 thèmes (dont Mystère) et avec une couleur d'accent.
+1. Vérifiée dans les 7 thèmes (dont Mystère) et avec une couleur d'accent ; couleurs d'accent utilisées selon la règle d'usage (`--accent-text` / `--accent-btn` / `--accent`).
 2. Testée en animations `n`, `d`, `0` et avec « moins de mouvement ».
 3. Parcourue au clavier seul ; focus toujours visible.
 4. Lisible à 360px de large ; zones sûres respectées.

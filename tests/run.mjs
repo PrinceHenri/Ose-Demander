@@ -502,6 +502,72 @@ await test("Fichier .ics : caractères spéciaux échappés, événement du rend
   assert.ok(!plat.includes("VALARM") && !plat.includes("URL:"), "pas d'alerte ni de lien s'il n'y en a pas");
 });
 
+/* =========================================================
+   7. Contrastes : 4,5:1 pour le texte, 3:1 pour les grands textes et les éléments graphiques
+   ========================================================= */
+titre("7. Contrastes des 7 thèmes");
+// Variables CSS de chaque thème, lues dans index.html (:root = base, puis [data-theme="…"])
+const CSS = (() => { const h = readFileSync(RACINE + "index.html", "utf8"); return h.slice(h.indexOf("<style>"), h.indexOf("</style>")); })();
+const varsDe = bloc => Object.fromEntries([...bloc.matchAll(/--([a-z-]+)\s*:\s*(#[0-9A-Fa-f]{6})/g)].map(m => [m[1], m[2].toUpperCase()]));
+const RACINE_CSS = varsDe(CSS.match(/:root\{([^}]*--bg:[^}]*)\}/)[1]);
+const THEME_CSS = Object.fromEntries(L.THEMES.map(t => {
+  const m = t.id === "base" ? [null, ""] : CSS.match(new RegExp(`\\[data-theme="${t.id}"\\]\\{([^}]*)\\}`));
+  assert.ok(m, `thème ${t.id} absent du CSS`);
+  return [t.id, { ...RACINE_CSS, ...varsDe(m[1]) }];
+}));
+const ratio = (a, b) => Math.round(L.contrast(a, b) * 100) / 100;
+const exige = (quoi, a, b, min) => { const r = ratio(a, b); assert.ok(r >= min, `${quoi} : ${a} sur ${b} = ${r}:1 (minimum ${min}:1)`); };
+for(const t of L.THEMES){
+  await test(`Thème ${t.name} : texte ≥ 4,5:1, sceau et éléments graphiques ≥ 3:1`, () => {
+    const v = THEME_CSS[t.id], fonds = [["fond", v.bg], ["surface", v.surface], ["fond doux", v.soft]];
+    for(const [nom, f] of fonds){
+      exige(`encre sur ${nom}`, v.ink, f, 4.5);
+      exige(`texte atténué sur ${nom}`, v.muted, f, 4.5);
+      exige(`accent texte (liens, compte à rebours) sur ${nom}`, v["accent-text"], f, 4.5);
+    }
+    exige("texte des boutons sur leur fond", v["accent-ink"], v["accent-btn"], 4.5);
+    exige("initiale du sceau (grand texte gras)", v["accent-seal"], v.ink, 3);
+    for(const [nom, f] of fonds) exige(`contour de focus sur ${nom}`, v["accent-text"], f, 3);
+  });
+  await test(`Thème ${t.name} : variantes = calcul de readable(), table THEMES = CSS`, () => {
+    const v = THEME_CSS[t.id];
+    assert.equal(t.c, v.bg); assert.equal(t.a, v.accent); assert.equal(t.s || "#FFFFFF", v.surface); assert.equal(t.so, v.soft); assert.equal(t.i, v.ink);
+    assert.equal(v["accent-text"], L.readable(v.accent, [v.bg, v.surface, v.soft], 4.5), "--accent-text");
+    assert.equal(v["accent-btn"], L.readable(v.accent, [v["accent-ink"]], 4.5), "--accent-btn");
+    assert.equal(v["accent-seal"], L.readable(v.accent, [v.ink], 3), "--accent-seal");
+  });
+}
+await test("Couleurs d'accent facultatives : chaque combinaison autorisée respecte les mêmes seuils", () => {
+  let n = 0;
+  for(const t of L.THEMES) for(const a of L.ACCENTS){
+    const x = L.accentVars(t.id, a.id);
+    assert.equal(!!x, L.accentOk(t.id, a.id));
+    if(!x) continue; n++;
+    const v = THEME_CSS[t.id], ou = `${t.name} + ${a.name}`;
+    assert.equal(x.accent, a.c, "le remplissage garde la couleur choisie");
+    for(const f of [v.bg, v.surface, v.soft]){ exige(`${ou} : accent texte`, x.text, f, 4.5); }
+    exige(`${ou} : texte des boutons`, x.ink, x.btn, 4.5);
+    exige(`${ou} : sceau`, x.seal, v.ink, 3);
+  }
+  assert.ok(n >= 20, `seulement ${n} combinaisons autorisées`);
+});
+await test("Règles CSS : le texte n'utilise jamais l'accent brut, les boutons utilisent --accent-btn", () => {
+  const regles = [...CSS.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map(m => [m[1].trim(), m[2]]);
+  const DECOR_PERMIS = [".logo .q"]; // le « ? » du logo : logotype, exempté
+  for(const [sel, decl] of regles){
+    if(/(^|;)\s*color\s*:\s*var\(--accent\)/.test(decl)) assert.ok(DECOR_PERMIS.includes(sel), `${sel} : texte en var(--accent), utiliser var(--accent-text)`);
+    assert.ok(!/outline[^;]*var\(--accent\)/.test(decl), `${sel} : contour en var(--accent)`);
+    assert.ok(!/border-color\s*:\s*var\(--accent\)/.test(decl), `${sel} : bordure de focus en var(--accent)`);
+    if(/color\s*:\s*var\(--accent-ink\)/.test(decl)) assert.ok(/background\s*:\s*var\(--accent-btn\)/.test(decl), `${sel} : texte --accent-ink sans fond --accent-btn`);
+  }
+  assert.ok(regles.some(([s, d]) => s === ":focus-visible" && d.includes("var(--accent-text)")), "focus visible");
+});
+await test("Messages d'erreur lisibles", () => {
+  exige("erreur", "#B3122E", "#FFE3E8", 4.5);
+  exige("erreur (Mystère)", "#FFD0D8", "#4A1F3A", 4.5);
+  for(const t of L.THEMES.filter(t => t.id !== "mystere")) exige(`bouton danger (${t.name})`, "#B3122E", THEME_CSS[t.id].surface, 4.5);
+});
+
 /* ---------- Bilan ---------- */
 console.log(`\n${ko ? "❌" : "✅"} ${ok} tests réussis, ${ko} en échec (graine ${GRAINE}${ko ? ` — pour rejouer : node tests/run.mjs --graine=${GRAINE}` : ""})`);
 if(ko){ console.log(echecs.map(e => "  - " + e).join("\n")); process.exitCode = 1; }

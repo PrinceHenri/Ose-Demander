@@ -40,22 +40,28 @@
 :root{
   --bg:#ECE6FF; --surface:#FFFFFF; --ink:#1F1546; --muted:#5D5482; --line:#CFC4F5;
   --accent:#E83F86; --accent-ink:#FFFFFF; --soft:#F6F2FF;
+  /* Variantes lisibles de l'accent (contraste vérifié par le banc de test) :
+     --accent-text : texte, liens, compte à rebours, focus (≥ 4,5:1 sur fond, surface et --soft)
+     --accent-btn : fond des boutons qui portent --accent-ink (≥ 4,5:1 avec leur texte)
+     --accent-seal : initiale du sceau sur --ink (≥ 3:1, grand texte gras)
+     --accent reste la couleur des remplissages et des décors (enveloppe, pastilles, barre de progression). */
+  --accent-text:#C9196D; --accent-btn:#D82D79; --accent-seal:#E83F86;
   --pattern:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='90' height='90'%3E%3Ctext x='12' y='38' font-family='Georgia' font-size='30' fill='%23E83F86' fill-opacity='.10'%3E%3F%3C/text%3E%3Ctext x='56' y='80' font-family='Georgia' font-size='22' fill='%231F1546' fill-opacity='.07'%3E%3F%3C/text%3E%3C/svg%3E");
   --display:"Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif;
   --hand:"Caveat", "Comic Sans MS", cursive;
   --r:18px;
 }
-[data-theme="amour"]{--bg:#FFE4EC;--ink:#4B0F2E;--muted:#8A4562;--line:#F3B6C9;--accent:#D9245F;--soft:#FFF3F6;
+[data-theme="amour"]{--bg:#FFE4EC;--ink:#4B0F2E;--muted:#8A4562;--line:#F3B6C9;--accent:#D9245F;--soft:#FFF3F6;--accent-text:#CE1257;--accent-btn:#D9245F;--accent-seal:#D9245F;
   --pattern:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80'%3E%3Cpath d='M20 30c-6-8-18-2-12 8l12 12 12-12c6-10-6-16-12-8z' fill='%23D9245F' fill-opacity='.10'/%3E%3Cpath d='M60 64c-4-5-12-1-8 5l8 8 8-8c4-6-4-10-8-5z' fill='%23D9245F' fill-opacity='.07'/%3E%3C/svg%3E");}
-[data-theme="maman"]{--bg:#FFEBDD;--ink:#5A2416;--muted:#8F5442;--line:#F5C6AA;--accent:#E0592F;--soft:#FFF5EE;
+[data-theme="maman"]{--bg:#FFEBDD;--ink:#5A2416;--muted:#8F5442;--line:#F5C6AA;--accent:#E0592F;--soft:#FFF5EE;--accent-text:#C23D09;--accent-btn:#CE491C;--accent-seal:#E0592F;
   --pattern:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='90' height='90'%3E%3Cg fill='%23E0592F' fill-opacity='.10'%3E%3Ccircle cx='25' cy='17' r='7'/%3E%3Ccircle cx='17' cy='25' r='7'/%3E%3Ccircle cx='33' cy='25' r='7'/%3E%3Ccircle cx='25' cy='33' r='7'/%3E%3C/g%3E%3Ccircle cx='25' cy='25' r='5' fill='%23F2A33A' fill-opacity='.25'/%3E%3Ccircle cx='68' cy='68' r='4' fill='%23E0592F' fill-opacity='.10'/%3E%3C/svg%3E");}
-[data-theme="papa"]{--bg:#E3EAF6;--ink:#14254A;--muted:#4A5D85;--line:#BCCBE6;--accent:#D99A1E;--accent-ink:#14254A;--soft:#F1F5FC;
+[data-theme="papa"]{--bg:#E3EAF6;--ink:#14254A;--muted:#4A5D85;--line:#BCCBE6;--accent:#D99A1E;--accent-ink:#14254A;--soft:#F1F5FC;--accent-text:#8C6101;--accent-btn:#D99A1E;--accent-seal:#D99A1E;
   --pattern:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40'%3E%3Cpath d='M0 40L40 0' stroke='%2314254A' stroke-opacity='.07' stroke-width='6'/%3E%3Cpath d='M-10 10L10 -10M30 50L50 30' stroke='%23D99A1E' stroke-opacity='.14' stroke-width='3'/%3E%3C/svg%3E");}
-[data-theme="amis"]{--bg:#FFF2B3;--ink:#22200F;--muted:#5E5730;--line:#EDD86A;--accent:#2F5BFF;--soft:#FFFBE3;
+[data-theme="amis"]{--bg:#FFF2B3;--ink:#22200F;--muted:#5E5730;--line:#EDD86A;--accent:#2F5BFF;--soft:#FFFBE3;--accent-text:#2F5BFF;--accent-btn:#2F5BFF;--accent-seal:#2F5BFF;
   --pattern:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='70' height='70'%3E%3Ccircle cx='15' cy='15' r='9' fill='none' stroke='%232F5BFF' stroke-opacity='.16' stroke-width='3'/%3E%3Ccircle cx='52' cy='50' r='5' fill='%23FF5B3A' fill-opacity='.16'/%3E%3C/svg%3E");}
-[data-theme="fete"]{--bg:#E6F6EF;--ink:#10372B;--muted:#456B5E;--line:#B5DECB;--accent:#F2484B;--soft:#F3FBF7;
+[data-theme="fete"]{--bg:#E6F6EF;--ink:#10372B;--muted:#456B5E;--line:#B5DECB;--accent:#F2484B;--soft:#F3FBF7;--accent-text:#D32532;--accent-btn:#DE333B;--accent-seal:#F2484B;
   --pattern:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='90' height='90'%3E%3Crect x='10' y='14' width='10' height='4' rx='2' transform='rotate(30 15 16)' fill='%23F2484B' fill-opacity='.22'/%3E%3Crect x='60' y='22' width='10' height='4' rx='2' transform='rotate(-25 65 24)' fill='%233D7CF2' fill-opacity='.22'/%3E%3Crect x='34' y='60' width='10' height='4' rx='2' transform='rotate(70 39 62)' fill='%23F2B33D' fill-opacity='.3'/%3E%3Ccircle cx='75' cy='72' r='3' fill='%2310372B' fill-opacity='.12'/%3E%3C/svg%3E");}
-[data-theme="mystere"]{--bg:#1C1838;--surface:#29234D;--ink:#F2EEFF;--muted:#B3AAD9;--line:#3F3773;--accent:#FFC94A;--accent-ink:#1C1838;--soft:#231E44;
+[data-theme="mystere"]{--bg:#1C1838;--surface:#29234D;--ink:#F2EEFF;--muted:#B3AAD9;--line:#3F3773;--accent:#FFC94A;--accent-ink:#1C1838;--soft:#231E44;--accent-text:#FFC94A;--accent-btn:#FFC94A;--accent-seal:#AF8406;
   --pattern:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Cpath d='M20 10l2 6 6 2-6 2-2 6-2-6-6-2 6-2z' fill='%23FFC94A' fill-opacity='.35'/%3E%3Ccircle cx='70' cy='40' r='1.5' fill='%23F2EEFF' fill-opacity='.5'/%3E%3Ccircle cx='40' cy='80' r='1' fill='%23F2EEFF' fill-opacity='.5'/%3E%3Ccircle cx='88' cy='86' r='1.5' fill='%23FFC94A' fill-opacity='.4'/%3E%3C/svg%3E");}
 
 *{box-sizing:border-box}
@@ -66,7 +72,7 @@ body{margin:0;min-height:100%;font-family:var(--display);font-size:17px;line-hei
   -webkit-font-smoothing:antialiased}
 a{color:inherit}
 button,input,textarea,select{font:inherit;color:inherit}
-:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+:focus-visible{outline:3px solid var(--accent-text);outline-offset:2px}
 .wrap{max-width:600px;margin:0 auto;padding:20px 18px 60px}
 .hidden{display:none!important}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
@@ -81,7 +87,7 @@ button,input,textarea,select{font:inherit;color:inherit}
 .hist-btn{display:inline-flex;align-items:center;gap:6px;border:2px solid var(--ink);background:var(--surface);color:var(--ink);border-radius:999px;padding:7px 14px;font-weight:700;font-size:14px;text-decoration:none;box-shadow:2px 2px 0 var(--ink)}
 .snd-inline{border:2px solid var(--ink);background:var(--surface);color:var(--ink);border-radius:999px;width:38px;height:36px;padding:0;font-size:16px;line-height:1;cursor:pointer;box-shadow:2px 2px 0 var(--ink)}
 .snd-inline[aria-pressed="false"]{opacity:.75}
-.hist-btn .badge{background:var(--accent);color:var(--accent-ink);border-radius:999px;padding:0 7px;min-width:20px;font-size:12px;line-height:20px;text-align:center}
+.hist-btn .badge{background:var(--accent-btn);color:var(--accent-ink);border-radius:999px;padding:0 7px;min-width:20px;font-size:12px;line-height:20px;text-align:center}
 @media (max-width:460px){.top small{display:none}}
 
 /* ---------- Accueil ---------- */
@@ -103,7 +109,7 @@ button,input,textarea,select{font:inherit;color:inherit}
 .field > span{display:block;font-weight:600;font-size:15px;margin:0 0 6px}
 .field > span em{font-style:normal;font-weight:400;color:var(--muted)}
 .input,textarea.input{width:100%;padding:12px 14px;border:2px solid var(--line);border-radius:12px;background:var(--soft);transition:border-color .15s}
-.input:focus{border-color:var(--accent);outline:none}
+.input:focus{border-color:var(--accent-text);outline:none}
 textarea.input{min-height:90px;resize:vertical}
 .hint{font-size:14px;color:var(--muted);margin:6px 0 0}
 .row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
@@ -124,9 +130,9 @@ textarea.input{min-height:90px;resize:vertical}
 .vis-note{font-size:14px;color:var(--muted);margin:0 0 10px}
 .prog-step{border:2px solid var(--line);border-radius:14px;padding:14px;margin:0 0 12px;background:var(--soft)}
 .prog-step header{display:flex;justify-content:space-between;align-items:center;margin:0 0 10px;font-weight:700}
-.linkbtn{background:none;border:0;color:var(--accent);font-weight:600;cursor:pointer;padding:4px;text-decoration:underline;text-underline-offset:3px}
+.linkbtn{background:none;border:0;color:var(--accent-text);font-weight:600;cursor:pointer;padding:4px;text-decoration:underline;text-underline-offset:3px}
 .check{display:flex;gap:10px;align-items:flex-start;margin:0 0 14px;cursor:pointer}
-.check input{width:20px;height:20px;margin-top:3px;accent-color:var(--accent)}
+.check input{width:20px;height:20px;margin-top:3px;accent-color:var(--accent-text)}
 .counter{font-size:13px;color:var(--muted);text-align:right;margin-top:4px}
 .cards{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:0 0 16px}
 .optcard{text-align:left;border:2px solid var(--line);background:var(--soft);border-radius:14px;padding:12px;cursor:pointer}
@@ -136,7 +142,7 @@ textarea.input{min-height:90px;resize:vertical}
 .nav{display:flex;justify-content:space-between;gap:10px;margin-top:22px}
 .btn{border:2px solid var(--ink);border-radius:14px;padding:13px 20px;font-weight:700;cursor:pointer;background:var(--surface);transition:transform .1s, box-shadow .1s}
 .btn:active{transform:translate(2px,2px)}
-.btn.primary{background:var(--accent);color:var(--accent-ink);box-shadow:3px 3px 0 var(--ink)}
+.btn.primary{background:var(--accent-btn);color:var(--accent-ink);box-shadow:3px 3px 0 var(--ink)}
 .btn.primary:active{box-shadow:1px 1px 0 var(--ink)}
 .btn.ghost{background:transparent}
 .error{color:#B3122E;background:#FFE3E8;border-radius:10px;padding:8px 12px;font-size:14px;margin:12px 0 0}
@@ -240,7 +246,7 @@ textarea.input{min-height:90px;resize:vertical}
 .question{font-size:clamp(30px,8vw,42px);line-height:1.05;letter-spacing:-.03em;font-weight:800;margin:0 0 26px;font-variation-settings:"opsz" 96}
 .answer{display:flex;justify-content:center;align-items:center;gap:14px;flex-wrap:wrap;min-height:70px}
 .yes,.no{font-weight:800;font-size:20px;border-radius:16px;padding:14px 30px;border:2px solid var(--ink);cursor:pointer;transition:transform .2s ease}
-.yes{background:var(--accent);color:var(--accent-ink);box-shadow:4px 4px 0 var(--ink)}
+.yes{background:var(--accent-btn);color:var(--accent-ink);box-shadow:4px 4px 0 var(--ink)}
 .no{background:var(--surface);transition:left .25s ease, top .25s ease, transform .2s ease}
 .no.flee{position:fixed;z-index:20}
 .tease{min-height:26px;margin:16px 0 0;font-size:16px;color:var(--muted)}
@@ -259,7 +265,7 @@ textarea.input{min-height:90px;resize:vertical}
 .rv-flash{border-radius:10px;animation:rvflash 2.2s ease-out}
 @keyframes rvflash{0%,25%{background:rgba(255,201,74,.5);box-shadow:0 0 0 6px rgba(255,201,74,.5)}100%{background:transparent;box-shadow:0 0 0 6px transparent}}
 .cal-note{align-self:center;margin:-4px 0 0;font-size:13px;color:var(--muted);text-align:center}
-.count{font-variant-numeric:tabular-nums;font-weight:700;color:var(--accent)}
+.count{font-variant-numeric:tabular-nums;font-weight:700;color:var(--accent-text)}
 .timeline{list-style:none;margin:6px 0 0;padding:0 0 0 18px;border-left:3px solid var(--line)}
 .timeline li{position:relative;padding:0 0 18px 14px}
 .timeline li::before{content:"";position:absolute;left:-27px;top:6px;width:14px;height:14px;border-radius:50%;background:var(--accent);border:2px solid var(--surface)}
@@ -278,7 +284,7 @@ textarea.input{min-height:90px;resize:vertical}
 .wrap,.inv{position:relative;z-index:1}
 .ticket{transition:transform .3s ease-out}
 .snd{position:fixed;top:calc(12px + env(safe-area-inset-top,0px));right:12px;z-index:30;border:2px solid var(--ink);background:var(--surface);color:var(--ink);border-radius:999px;padding:6px 12px;font-size:14px;font-weight:600;cursor:pointer}
-.install{border:2px solid var(--ink);background:var(--accent);color:var(--accent-ink);border-radius:999px;padding:7px 14px;font-weight:700;font-size:14px;cursor:pointer;box-shadow:2px 2px 0 var(--ink)}
+.install{border:2px solid var(--ink);background:var(--accent-btn);color:var(--accent-ink);border-radius:999px;padding:7px 14px;font-weight:700;font-size:14px;cursor:pointer;box-shadow:2px 2px 0 var(--ink)}
 .sheet{position:fixed;inset:0;z-index:60;background:rgba(20,14,50,.45);display:flex;align-items:flex-end;justify-content:center;padding:16px}
 .sheet-card{width:100%;max-width:440px;background:var(--surface);color:var(--ink);border:2px solid var(--ink);border-radius:20px;box-shadow:6px 6px 0 var(--ink);padding:22px 20px calc(18px + env(safe-area-inset-bottom,0px))}
 .sheet-card h3{margin:0 0 10px;font-size:22px;letter-spacing:-.01em}
@@ -296,7 +302,7 @@ textarea.input{min-height:90px;resize:vertical}
 .env-front{position:absolute;inset:0;width:100%;height:100%;z-index:2;overflow:visible}
 .env-flap{position:absolute;left:0;right:0;top:0;height:58%;z-index:3;transform-origin:top center;transition:transform .45s ease,z-index 0s .2s}
 .env-flap svg{width:100%;height:100%;display:block;overflow:visible}
-.seal{position:absolute;left:50%;top:100%;transform:translate(-50%,-62%);width:50px;height:50px;border-radius:50%;background:var(--ink);color:var(--accent);display:grid;place-items:center;font-weight:800;font-size:21px;border:3px solid var(--surface);transition:opacity .2s}
+.seal{position:absolute;left:50%;top:100%;transform:translate(-50%,-62%);width:50px;height:50px;border-radius:50%;background:var(--ink);color:var(--accent-seal);display:grid;place-items:center;font-weight:800;font-size:21px;border:3px solid var(--surface);transition:opacity .2s}
 .seal.emoji{font-size:25px;font-weight:400;line-height:1}
 .safety{font-size:13px;color:var(--muted);max-width:36ch;margin:0 auto}
 .env-screen .safety{margin-top:6px}
@@ -354,14 +360,15 @@ const OCCASIONS = [
   ]}
 ];
 const OCC = Object.fromEntries(OCCASIONS.flatMap(g => g.items.map(i => [i.id, {...i, cat:g.cat}])));
+/* c : fond, a : accent, s : surface (blanc par défaut), so : --soft, i : --ink (mêmes valeurs que le CSS, vérifié par le banc) */
 const THEMES = [
-  {id:"base", name:"Lilas", c:"#ECE6FF", a:"#E83F86"},
-  {id:"amour", name:"Amour", c:"#FFE4EC", a:"#D9245F"},
-  {id:"maman", name:"Pétales", c:"#FFEBDD", a:"#E0592F"},
-  {id:"papa", name:"Cravate", c:"#E3EAF6", a:"#D99A1E"},
-  {id:"amis", name:"Pop", c:"#FFF2B3", a:"#2F5BFF"},
-  {id:"fete", name:"Confettis", c:"#E6F6EF", a:"#F2484B"},
-  {id:"mystere", name:"Mystère", c:"#1C1838", a:"#FFC94A", s:"#29234D"}
+  {id:"base", name:"Lilas", c:"#ECE6FF", a:"#E83F86", so:"#F6F2FF", i:"#1F1546"},
+  {id:"amour", name:"Amour", c:"#FFE4EC", a:"#D9245F", so:"#FFF3F6", i:"#4B0F2E"},
+  {id:"maman", name:"Pétales", c:"#FFEBDD", a:"#E0592F", so:"#FFF5EE", i:"#5A2416"},
+  {id:"papa", name:"Cravate", c:"#E3EAF6", a:"#D99A1E", so:"#F1F5FC", i:"#14254A"},
+  {id:"amis", name:"Pop", c:"#FFF2B3", a:"#2F5BFF", so:"#FFFBE3", i:"#22200F"},
+  {id:"fete", name:"Confettis", c:"#E6F6EF", a:"#F2484B", so:"#F3FBF7", i:"#10372B"},
+  {id:"mystere", name:"Mystère", c:"#1C1838", a:"#FFC94A", s:"#29234D", so:"#231E44", i:"#F2EEFF"}
 ];
 /* Couleurs d'accent (facultatives). Une couleur n'est utilisée que si elle reste lisible sur le thème. */
 const ACCENTS = [
@@ -382,6 +389,33 @@ function accentOk(themeId, acId){
   return !!a && Math.min(contrast(a.c,t.c), contrast(a.c,t.s||"#FFFFFF"))>=3;
 }
 const accentInk = c => contrast(c,"#FFFFFF")>=contrast(c,"#1F1546") ? "#FFFFFF" : "#1F1546";
+/* Variante lisible d'une couleur : même teinte (OKLCH), plus foncée sur fond clair, plus claire sur fond sombre,
+   jusqu'à atteindre « target » face à toutes les couleurs « backs ». Inchangée si elle les atteint déjà. */
+function readable(hex, backs, target){
+  if(backs.every(b=>contrast(hex,b)>=target)) return hex;
+  const lin=v=>v<=.04045?v/12.92:((v+.055)/1.055)**2.4, delin=v=>v<=.0031308?12.92*v:1.055*v**(1/2.4)-.055;
+  const [r,g,b]=[1,3,5].map(i=>lin(parseInt(hex.slice(i,i+2),16)/255));
+  const l=Math.cbrt(.4122214708*r+.5363325363*g+.0514459929*b), m=Math.cbrt(.2119034982*r+.6806995451*g+.1073969566*b), s=Math.cbrt(.0883024619*r+.2817188376*g+.6299787005*b);
+  let L=.2104542553*l+.7936177850*m-.0040720468*s; const A=1.9779984951*l-2.4285922050*m+.4505937099*s, B=.0259040371*l+.7827717662*m-.8086757660*s;
+  const C=Math.hypot(A,B), H=Math.atan2(B,A), darker=backs.every(x=>lum(x)>.18);
+  const rgb=(L,c)=>{ const a=c*Math.cos(H), bb=c*Math.sin(H), l=(L+.3963377774*a+.2158037573*bb)**3, m=(L-.1055613458*a-.0638541728*bb)**3, s=(L-.0894841775*a-1.2914855480*bb)**3;
+    return [4.0767416621*l-3.3077115913*m+.2309699292*s, -1.2684380046*l+2.6097574011*m-.3413193965*s, -.0041960863*l-.7034186147*m+1.7076147010*s].map(delin); };
+  for(let i=0;i<200;i++){
+    L+=darker?-.005:.005;
+    let c=C, x=rgb(L,c); while(x.some(v=>v<-1e-4||v>1+1e-4) && c>0){ c-=.002; x=rgb(L,c); } // reste dans les couleurs affichables
+    const out="#"+x.map(v=>Math.round(Math.min(1,Math.max(0,v))*255).toString(16).padStart(2,"0")).join("").toUpperCase();
+    if(backs.every(b=>contrast(out,b)>=target)) return out;
+  }
+  return darker?"#000000":"#FFFFFF";
+}
+/* Couleurs d'un thème avec une couleur d'accent : accent (remplissages), ink (texte des boutons),
+   text (texte, liens, focus), btn (fond des boutons), seal (initiale du sceau). null si l'accent n'est pas lisible. */
+function accentVars(themeId, acId){
+  if(!accentOk(themeId, acId)) return null;
+  const t=THEMES.find(x=>x.id===themeId)||THEMES[0], c=ACCENTS.find(x=>x.id===acId).c, ink=accentInk(c);
+  return {accent:c, ink, text:readable(c,[t.c,t.s||"#FFFFFF",t.so],4.5), btn:readable(c,[ink],4.5), seal:readable(c,[t.i],3)};
+}
+const ACCENT_PROPS = {accent:"--accent", ink:"--accent-ink", text:"--accent-text", btn:"--accent-btn", seal:"--accent-seal"};
 const MSG_SUGG = {
   Amour:["J'ai envie de passer ce moment avec toi, rien qu'avec toi.","Prépare ton plus beau sourire, je m'occupe du reste.","Tu n'as rien à prévoir, juste à dire oui."],
   Famille:["Merci pour tout. Ce moment, c'est pour toi.","Tu t'occupes toujours de nous, cette fois c'est mon tour.","Un petit moment rien que pour toi, tu l'as bien mérité."],
@@ -439,9 +473,8 @@ const todayISO = () => { const d=new Date(); d.setMinutes(d.getMinutes()-d.getTi
 function setTheme(id, lv="n", ac=""){
   const root=document.documentElement;
   root.dataset.theme = id === "base" ? "" : id;
-  const a = accentOk(id||"base", ac) ? ACCENTS.find(x=>x.id===ac) : null;
-  if(a){ root.style.setProperty("--accent",a.c); root.style.setProperty("--accent-ink",accentInk(a.c)); }
-  else { root.style.removeProperty("--accent"); root.style.removeProperty("--accent-ink"); }
+  const v = accentVars(id||"base", ac);
+  for(const [k,prop] of Object.entries(ACCENT_PROPS)){ if(v) root.style.setProperty(prop,v[k]); else root.style.removeProperty(prop); }
   Decor.set(id||"base", lv);
 }
 function toast(msg){ const t=document.createElement("div"); t.className="toast"; t.setAttribute("role","status"); t.textContent=msg; document.body.appendChild(t); setTimeout(()=>t.remove(),2600); }
