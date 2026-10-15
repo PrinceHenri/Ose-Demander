@@ -734,55 +734,88 @@ await test("Règle : pas de nouvelle flèche décorative ni de séparateur « ·
    ========================================================= */
 titre("9. Scènes illustrées");
 const SCENES = PAGE.lire("SCENES"), sceneZone = PAGE.zones["#scene"];
-const reglesScene = [...CSS.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map(m => [m[1].trim().split("\n").pop().trim(), m[2]]).filter(([s]) => /(#scene|scene-sign|\.sc-)/.test(s));
+const reglesScene = [...CSS.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map(m => [m[1].trim().split("\n").pop().trim(), m[2]]).filter(([s]) => /(#scene|scene-sign|\.sc-|\.sg-)/.test(s));
+const declScene = sel => (reglesScene.find(([s]) => s === sel) || [, ""])[1];
+const varDe = (sel, prop) => (declScene(sel).match(new RegExp(`${prop}:var\\(--([a-z-]+)\\)`)) || [])[1];
+await test("Scènes : une scène (décor + élément vedette) pour chacun des 7 thèmes", () => {
+  assert.deepEqual(Object.keys(SCENES).sort(), L.THEMES.map(t => t.id).sort());
+  for(const [id, sc] of Object.entries(SCENES)) assert.ok(sc.wall.includes("<svg") && sc.sign.includes("<svg"), `${id} : décor ou élément vedette manquant`);
+});
 await test("Scènes : uniquement les couleurs du thème, aucune image externe, poids léger", () => {
-  assert.ok(reglesScene.length > 5, "règles CSS des scènes introuvables");
+  assert.ok(reglesScene.length > 20, "règles CSS des scènes introuvables");
   for(const [sel, decl] of reglesScene) assert.ok(!/#[0-9A-Fa-f]{3,6}\b|rgba?\(/.test(decl), `${sel} : couleur écrite en dur (utiliser les variables du thème)`);
+  let total = 0;
   for(const [id, sc] of Object.entries(SCENES)){
-    const tout = sc.wall + (sc.sign || "");
+    const tout = sc.wall + sc.sign; total += tout.length;
     assert.ok(!/<image|href="http|url\(http|data:image\/(png|jpe?g|webp)/i.test(tout), `${id} : image externe ou photo`);
-    assert.ok(!/fill="#|stroke="#/.test(tout), `${id} : couleur écrite dans le SVG (passer par une classe CSS)`);
+    assert.ok(!/(fill|stroke)="#|style="[^"]*(fill|stroke|color)/.test(tout), `${id} : couleur écrite dans le SVG (passer par une classe CSS)`);
     assert.ok(tout.length < 8000, `${id} : scène trop lourde (${tout.length} caractères)`);
   }
+  assert.ok(total < 30000, `scènes trop lourdes au total (${total} caractères)`);
 });
-await test("Scènes : texte et texte atténué lisibles (≥ 4,5:1) sur chaque couleur de la scène", () => {
-  const couleurs = new Set(reglesScene.filter(([s]) => /^\.sc-(mortar|brick|edge|mount|speck-d)/.test(s)).flatMap(([, d]) => [...d.matchAll(/(?:fill|stroke):var\(--([a-z-]+)\)/g)].map(m => m[1])));
-  assert.ok(couleurs.size >= 3, "couleurs de la scène introuvables");
-  for(const id of Object.keys(SCENES)){
+await test("Décor de fond : ton sur ton, texte et texte atténué lisibles (≥ 4,5:1) dans les 7 thèmes", () => {
+  const surfaces = [".sc-bg", ".sc-a", ".sc-b", ".sc-speck-d"].map(s => varDe(s, "fill"));
+  assert.ok(surfaces.every(Boolean), "couleurs du décor introuvables");
+  for(const [sel] of [[".sc-out"], [".sc-line"]]){
+    const w = +(declScene(sel).match(/stroke-width:([\d.]+)/) || [])[1];
+    assert.ok(w && w <= 2, `${sel} : trait de ${w} px (2 px au plus : la couleur --line ne sert qu'aux traits fins)`);
+  }
+  for(const [id, sc] of Object.entries(SCENES)){
+    const classes = new Set([...sc.wall.matchAll(/class="([^"]+)"/g)].flatMap(m => m[1].split(" ")));
+    for(const c of classes) assert.ok(/^sc-(bg|a|b|out|line|speck-[ld])$/.test(c), `${id} : classe « ${c} » dans le décor de fond (réservée à l'élément vedette ?)`);
     const v = THEME_CSS[id];
-    for(const c of couleurs){ exige(`${id} : encre sur --${c}`, v.ink, v[c], 4.5); exige(`${id} : texte atténué sur --${c}`, v.muted, v[c], 4.5); }
+    for(const c of surfaces){ exige(`${id} : encre sur --${c}`, v.ink, v[c], 4.5); exige(`${id} : texte atténué sur --${c}`, v.muted, v[c], 4.5); }
   }
 });
-await test("Mystère : mur sur l'enveloppe et l'invitation, enseigne au-dessus (jamais sous un texte)", () => {
-  ouvrir(INV({ th: "mystere", o: "surprise", q: "Tu me confies ta journée ?" }));
-  PAGE.lire("renderEnvelope")();
-  assert.ok(sceneZone.innerHTML.includes('id="sc-briques"') && sceneZone.className === "scene-mystere", "mur de briques derrière l'enveloppe");
-  let h = PAGE.zones["#app"].innerHTML;
-  assert.ok(h.includes('class="scene-sign anim-n" aria-hidden="true"') && h.indexOf("scene-sign") < h.indexOf("env-from"), "enseigne avant le titre");
-  assert.ok(h.includes("Chut<tspan") && h.includes("c'est une surprise"));
-  PAGE.lire("renderInvite")();
-  h = PAGE.zones["#app"].innerHTML;
-  assert.ok(sceneZone.innerHTML.includes("sc-briques"), "mur derrière l'invitation");
-  assert.ok(h.indexOf("scene-sign") < h.indexOf('class="ticket'), "enseigne au-dessus du billet");
-  assert.ok(/class="ticket[^"]*"[\s\S]*class="question"[\s\S]*id="yes"/.test(h), "question et boutons sur le billet");
-  assert.ok(regleCSS(".ticket").includes("background:var(--surface)"), "billet au fond uni");
+await test("Éléments vedettes : textes à l'encre sur panneau, police de l'interface", () => {
+  assert.equal(varDe(".sg-text", "fill"), "ink"); assert.equal(varDe(".sg-t-acc", "fill"), "accent-text");
+  assert.ok(declScene(".sg-text").includes("font-family:var(--display)") && declScene(".sc-neon text").includes("font-family:var(--display)"), "Caveat réservée à l'écriture manuscrite");
+  for(const [id, sc] of Object.entries(SCENES)){
+    for(const m of sc.sign.matchAll(/<text class="([^"]+)"/g)) assert.ok(/^(sg-text|sc-neon-big|sc-neon-small)$/.test(m[1]), `${id} : texte de classe « ${m[1]} »`);
+    const v = THEME_CSS[id];
+    exige(`${id} : texte des panneaux`, v.ink, v.surface, 4.5);
+    exige(`${id} : « ? » en accent`, v["accent-text"], v.surface, 4.5);
+  }
+  exige("Mystère : néon sur le mur", THEME_CSS.mystere.accent, THEME_CSS.mystere.bg, 4.5);
 });
-await test("Scènes : absentes des autres thèmes (pour l'instant) et de la création", () => {
-  ouvrir(INV({ th: "amour" })); PAGE.lire("renderEnvelope")();
-  assert.equal(sceneZone.innerHTML, ""); assert.ok(!PAGE.zones["#app"].innerHTML.includes("scene-sign"));
+await test("Chaque thème : décor derrière l'enveloppe et l'invitation, élément vedette au-dessus", () => {
+  for(const t of L.THEMES){
+    ouvrir(INV({ th: t.id }));
+    PAGE.lire("renderEnvelope")();
+    let h = PAGE.zones["#app"].innerHTML;
+    assert.equal(sceneZone.className, `scene-${t.id}`, `${t.name} : décor derrière l'enveloppe`);
+    assert.ok(sceneZone.innerHTML === SCENES[t.id].wall);
+    assert.ok(h.includes('class="scene-sign anim-n" aria-hidden="true"') && h.indexOf("scene-sign") < h.indexOf("env-from"), `${t.name} : élément vedette avant le titre`);
+    PAGE.lire("renderInvite")();
+    h = PAGE.zones["#app"].innerHTML;
+    assert.equal(sceneZone.className, `scene-${t.id}`, `${t.name} : décor derrière l'invitation`);
+    assert.ok(h.indexOf("scene-sign") < h.indexOf('class="ticket'), `${t.name} : élément vedette au-dessus du billet`);
+    assert.ok(/class="ticket[^"]*"[\s\S]*class="question"[\s\S]*id="yes"/.test(h), `${t.name} : question et boutons sur le billet`);
+  }
+  assert.ok(regleCSS(".ticket").includes("background:var(--surface)"), "billet au fond uni");
+  ouvrir(INV({ th: "mystere" })); PAGE.lire("renderEnvelope")();
+  assert.ok(PAGE.zones["#app"].innerHTML.includes("Chut<tspan"), "Mystère : enseigne néon");
+});
+await test("Scènes : jamais côté création", () => {
   ouvrir(INV({ th: "mystere" })); PAGE.lire("renderInvite")(); assert.ok(sceneZone.innerHTML !== "");
   Object.assign(PAGE.lire("S"), { step: 2, theme: "mystere" }); PAGE.lire("renderCreator")();
-  assert.equal(sceneZone.innerHTML, "", "pas de scène côté création");
+  assert.equal(sceneZone.innerHTML, "", "pas de scène pendant la création");
 });
 await test("Scènes : immobiles en animations « Aucune » et avec « moins de mouvement »", () => {
-  ouvrir(INV({ th: "mystere", an: "0" })); PAGE.lire("renderEnvelope")();
+  ouvrir(INV({ th: "fete", an: "0" })); PAGE.lire("renderEnvelope")();
   assert.ok(PAGE.zones["#app"].innerHTML.includes('class="scene-sign anim-0"'));
   for(const [sel, decl] of reglesScene) if(/animation\s*:/.test(decl)) assert.ok(/\.anim-(n|d)\b/.test(sel), `${sel} : animation hors des niveaux Normales / Discrètes`);
+  assert.ok(!/<animate|<set\b/.test(Object.values(SCENES).map(s => s.wall + s.sign).join("")), "pas d'animation SVG interne (incontrôlable)");
   assert.ok(CSS.includes("@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}"), "règle globale « moins de mouvement »");
 });
-await test("Enseigne : police de l'interface (Caveat réservée à l'écriture manuscrite)", () => {
-  const r = reglesScene.find(([s]) => s === ".sc-neon text");
-  assert.ok(r && r[1].includes("font-family:var(--display)") && !/--hand|Caveat/.test(r[1]));
+await test("Textes des éléments vedettes : tutoiement, neutres, sans flèche ni « · »", () => {
+  const textes = Object.values(SCENES).flatMap(s => [...s.sign.matchAll(/<text[^>]*>([\s\S]*?)<\/text>/g)].map(m => m[1].replace(/<[^>]+>/g, "")));
+  assert.ok(textes.length >= 8);
+  for(const t of textes){
+    assert.ok(!/[→←]| · /.test(t), `« ${t} » : flèche ou « · »`);
+    assert.ok(!/(?<![-\p{L}])(vous|votre|vos)(?![-\p{L}])/iu.test(t), `« ${t} » : vouvoiement`);
+    assert.ok(!/·|\(e\)|\b(ravie?|prête?|invitée?)\b/i.test(t), `« ${t} » : formulation genrée`);
+  }
 });
 
 /* ---------- Bilan ---------- */

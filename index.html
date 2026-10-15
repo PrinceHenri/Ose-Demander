@@ -313,19 +313,36 @@ textarea.input{min-height:90px;resize:vertical}
 .sheet-card ol{margin:0 0 16px;padding-left:22px}
 .sheet-card li{margin:0 0 8px}
 /* ---------- Scènes illustrées (écrans de la personne invitée) ----------
-   Couleurs du thème uniquement. Animations seulement sous .anim-n / .anim-d (immobile en anim-0,
-   et la règle globale « moins de mouvement » coupe tout). */
+   Couleurs du thème uniquement. Décor de fond ton sur ton (.sc-*), élément vedette coloré (.sg-*).
+   Animations seulement sous .anim-n / .anim-d : immobile en anim-0, et la règle globale « moins de mouvement » coupe tout. */
 #scene{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden}
 #scene:empty{display:none}
 #scene svg{display:block}
-.sc-mortar{fill:var(--bg)}
-.sc-brick-a{fill:var(--soft)}
-.sc-brick-b{fill:var(--surface)}
-.sc-edge{stroke:var(--line);stroke-width:1.5;stroke-linecap:round;fill:none}
+.sc-bg{fill:var(--bg)}
+.sc-a{fill:var(--soft)}
+.sc-b{fill:var(--surface)}
+.sc-out{stroke:var(--line);stroke-width:1.5;stroke-linejoin:round}
+.sc-line{fill:none;stroke:var(--line);stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
 .sc-speck-l{fill:var(--ink);opacity:.06}
 .sc-speck-d{fill:var(--bg);opacity:.5}
 .scene-sign{display:flex;justify-content:center;margin:0 auto 10px;pointer-events:none}
 .scene-sign svg{width:min(300px,76vw);height:auto;overflow:visible}
+.env-screen .scene-sign{margin:0}
+/* Élément vedette : contours épais à l'encre, texte à l'encre sur un panneau --surface */
+.sg-ink{fill:var(--ink)}
+.sg-acc{fill:var(--accent)}
+.sg-surf{fill:var(--surface)}
+.sg-soft{fill:var(--soft)}
+.sg-lin{fill:var(--line)}
+.sg-out{stroke:var(--ink);stroke-width:3;stroke-linejoin:round}
+.sg-wire{fill:none;stroke:var(--ink);stroke-width:3;stroke-linecap:round;stroke-linejoin:round}
+.sg-string{fill:none;stroke:var(--ink);stroke-width:1.5;stroke-linecap:round}
+.sg-lline{fill:none;stroke:var(--line);stroke-width:3;stroke-linecap:round}
+.sg-hand{fill:none;stroke:var(--ink);stroke-width:5;stroke-linecap:round}
+.sg-sec{fill:none;stroke:var(--accent-text);stroke-width:2.5;stroke-linecap:round}
+.sg-text{font-family:var(--display);font-weight:800;fill:var(--ink);letter-spacing:-.01em}
+.sg-t-acc{fill:var(--accent-text)}
+/* Mystère : enseigne néon (halo en aplat, sans flou) */
 .sc-wire{fill:none;stroke:var(--line);stroke-width:3;stroke-linecap:round;stroke-linejoin:round}
 .sc-mount{fill:var(--line);stroke:var(--bg);stroke-width:2}
 .sc-neon text{font-family:var(--display);font-weight:700}
@@ -333,14 +350,36 @@ textarea.input{min-height:90px;resize:vertical}
 .sc-neon-small{font-size:24px;font-weight:600}
 .sc-halo text{fill:none;stroke:var(--accent);stroke-width:9;stroke-linejoin:round;opacity:.2}
 .sc-tube text{fill:var(--accent)}
-/* Néon : scintillement doux (Normales), respiration lente (Discrètes), immobile (Aucune) */
+/* Animations des éléments vedettes : Normales, et une version plus sobre en Discrètes */
+.sg-swing,.sg-flutter,.sg-float,.sg-bloom{transform-box:fill-box}
+.sg-swing{transform-origin:50% 0}
+.sg-flutter{transform-origin:50% 0}
+.sg-bloom{transform-origin:50% 50%}
+.scene-sign.anim-n .sg-swing{animation:sg-swing 5s ease-in-out infinite}
+.scene-sign.anim-d .sg-swing{animation:sg-swing-d 9s ease-in-out infinite}
+.scene-sign.anim-n .sg-lamp{animation:sg-lamp 3.6s ease-in-out infinite both}
+.scene-sign.anim-n .sg-bloom{animation:sg-bloom 1.8s cubic-bezier(.2,1.2,.4,1) both}
+.scene-sign.anim-d .sg-bloom{animation:sg-bloom 2.6s ease-out both}
+.scene-sign.anim-n .sg-sec{animation:sg-tick 60s steps(60) infinite;transform-box:view-box;transform-origin:160px 66px}
+.scene-sign.anim-n .sg-flutter{animation:sg-flutter 3.2s ease-in-out infinite}
+.scene-sign.anim-d .sg-flutter{animation:sg-flutter-d 7s ease-in-out infinite}
+.scene-sign.anim-n .sg-float{animation:sg-float 4s ease-in-out infinite alternate}
+.scene-sign.anim-d .sg-float{animation:sg-float-d 8s ease-in-out infinite alternate}
 .scene-sign.anim-n .sc-neon{animation:neon-hum 7s ease-in-out infinite}
 .scene-sign.anim-n .sc-flick{animation:neon-flick 4.6s linear infinite}
 .scene-sign.anim-d .sc-neon{animation:neon-breathe 10s ease-in-out infinite}
+@keyframes sg-swing{0%,100%{transform:rotate(-2deg)}50%{transform:rotate(2deg)}}
+@keyframes sg-swing-d{0%,100%{transform:rotate(-.8deg)}50%{transform:rotate(.8deg)}}
+@keyframes sg-lamp{0%,100%{opacity:.45}20%,70%{opacity:1}}
+@keyframes sg-bloom{from{transform:scale(.4) rotate(-30deg);opacity:.4}to{transform:none;opacity:1}}
+@keyframes sg-tick{to{transform:rotate(360deg)}}
+@keyframes sg-flutter{0%,100%{transform:rotate(0)}40%{transform:rotate(2.5deg)}70%{transform:rotate(-1deg)}}
+@keyframes sg-flutter-d{0%,100%{transform:rotate(0)}50%{transform:rotate(1deg)}}
+@keyframes sg-float{from{transform:translateY(0)}to{transform:translateY(-7px)}}
+@keyframes sg-float-d{from{transform:translateY(0)}to{transform:translateY(-3px)}}
 @keyframes neon-hum{0%,86%,100%{opacity:1}88%{opacity:.8}89.5%{opacity:1}92%{opacity:.86}94%{opacity:1}}
 @keyframes neon-flick{0%,70%,100%{opacity:1}72%{opacity:.35}74%{opacity:1}76%{opacity:.5}79%{opacity:1}}
 @keyframes neon-breathe{0%,100%{opacity:1}50%{opacity:.88}}
-.env-screen .scene-sign{margin:0}
 
 /* ---------- Enveloppe ---------- */
 .env-screen{position:relative;z-index:1;min-height:100vh;min-height:100dvh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;padding:24px;text-align:center}
@@ -1789,39 +1828,123 @@ function bindSound(remember=false){
 }
 
 /* ---------- Scènes illustrées (fond des écrans de la personne invitée) ----------
-   SVG intégré, formes plates, couleurs du thème uniquement (classes CSS .sc-*), aucune image externe.
-   wall : la scène de fond (couche fixe #scene, sous le décor animé) ; sign : un élément placé dans la page,
-   au-dessus de l'enveloppe ou du billet (jamais sous un texte). Les textes posés sur la scène restent lisibles :
-   le banc vérifie le contraste de l'encre et du texte atténué sur chaque couleur de la scène.
-   Immobile en animations « Aucune » et avec « moins de mouvement » (classe anim-0, règle CSS globale). */
+   SVG intégré, formes plates, couleurs du thème uniquement (classes CSS), aucune image externe.
+   wall : le décor de fond (couche fixe #scene, sous le décor animé). Ton sur ton : grandes surfaces en
+     --bg / --soft / --surface (.sc-bg, .sc-a, .sc-b), --line seulement en traits fins (.sc-line, .sc-out) :
+     les textes posés dessus (titre de l'enveloppe, indications) restent lisibles, le banc le vérifie.
+   sign : l'élément vedette, coloré et animé, placé dans la page au-dessus de l'enveloppe ou du billet
+     (jamais sous un texte) : contours épais à l'encre, texte à l'encre sur un panneau --surface.
+   Animations seulement sous .anim-n / .anim-d : immobile en « Aucune » et avec « moins de mouvement ». */
+const GRAIN = `<pattern id="sc-grain" width="37" height="41" patternUnits="userSpaceOnUse">${
+  [[3,5],[17,2],[29,11],[8,19],[22,24],[34,30],[12,33],[27,38],[5,28],[19,14]].map(([x,y],i)=>`<circle class="${i%2?"sc-speck-l":"sc-speck-d"}" cx="${x}" cy="${y}" r="0.9"/>`).join("")}</pattern>`;
+// Décor de fond : tons du thème, motifs en pixels réels (même taille sur téléphone et ordinateur)
+const sceneWall = (defs, body) => `<svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" focusable="false"><defs>${defs}${GRAIN}</defs>
+  <rect class="sc-bg" width="100%" height="100%"/>${body}<rect width="100%" height="100%" fill="url(#sc-grain)"/></svg>`;
+const fill = id => `<rect width="100%" height="100%" fill="url(#${id})"/>`;
+// Élément placé en % de l'écran (x, y), dessiné en pixels à partir de ce point
+const at = (x, y, inner) => `<svg x="${x}" y="${y}" overflow="visible">${inner}</svg>`;
+const sceneSign = (h, inner) => `<svg viewBox="0 0 320 ${h}" xmlns="http://www.w3.org/2000/svg" focusable="false">${inner}</svg>`;
+// Panneau avec ombre décalée (signature Ose Demander) et texte à l'encre
+const panel = (x, y, w, h, r=10) => `<rect class="sg-ink" x="${x+5}" y="${y+5}" width="${w}" height="${h}" rx="${r}"/><rect class="sg-surf sg-out" x="${x}" y="${y}" width="${w}" height="${h}" rx="${r}"/>`;
+const label = (x, y, size, txt) => `<text class="sg-text" x="${x}" y="${y}" font-size="${size}" text-anchor="middle">${txt}</text>`;
 function brickTile(){ // 4 rangées décalées, deux tons de briques, arête claire façon papier découpé
   let s=""; const bw=60, bh=28, tons="abbabaab";
   for(let r=0;r<4;r++) for(let c=-1;c<5;c++){
     const x=c*bw+(r%2?30:0), y=r*bh, t=tons[(r*3+c+8)%8];
-    s+=`<rect class="sc-brick-${t}" x="${x+2}" y="${y+2}" width="${bw-4}" height="${bh-4}" rx="3"/><path class="sc-edge" d="M${x+6} ${y+5}h${bw-12}"/>`;
+    s+=`<rect class="sc-${t}" x="${x+2}" y="${y+2}" width="${bw-4}" height="${bh-4}" rx="3"/><path class="sc-line" d="M${x+6} ${y+5}h${bw-12}"/>`;
   }
   return s;
 }
-const GRAIN_DOTS = [[3,5],[17,2],[29,11],[8,19],[22,24],[34,30],[12,33],[27,38],[5,28],[19,14]];
+const BRICKS = `<pattern id="sc-briques" width="240" height="112" patternUnits="userSpaceOnUse">${brickTile()}</pattern>`;
+// Guirlande : n points le long d'une courbe (x de 8 à 312, creux de « sag » au milieu)
+const garland = (n, y0, sag) => Array.from({length:n}, (_,i) => { const t=(i+.5)/n; return [8+304*t, y0+4*sag*t*(1-t)]; });
+const CYCLE = ["sg-acc","sg-surf","sg-lin"];
+
 const SCENES = {
+  // Lilas : papier peint à rayures, étagère et objets en papier ; pancarte suspendue qui se balance
+  base: {
+    wall: sceneWall(
+      `<pattern id="sc-rayures" width="96" height="120" patternUnits="userSpaceOnUse"><rect class="sc-a" width="48" height="120"/><path class="sc-line" d="M72 52l7 8-7 8-7-8z"/></pattern>`,
+      fill("sc-rayures") +
+      at("0","92%",`<rect class="sc-b sc-out" x="-4" width="4000" height="12"/>`) +
+      at("9%","92%",`<g transform="translate(0,-38)"><rect class="sc-b sc-out" width="30" height="38" rx="4"/><path class="sc-line" d="M30 10h6a8 8 0 0 1 0 16h-6"/></g>`) +
+      at("40%","92%",`<g transform="translate(0,-56)"><rect class="sc-b sc-out" width="44" height="56" rx="2"/><rect class="sc-a sc-out" x="7" y="7" width="30" height="42"/></g>`) +
+      at("78%","92%",`<path class="sc-a sc-out" d="M17-30c-14-10-18-26-6-34 6 8 8 20 6 34zm0 0c10-12 24-14 30-4-8 6-18 8-30 4z"/><path class="sc-b sc-out" d="M0-30h34l-4 30H4z"/>`)),
+    sign: sceneSign(150, `<g class="sg-swing">
+      <path class="sg-wire" d="M160 8 96 52M160 8l64 44"/><circle class="sg-ink" cx="160" cy="8" r="5"/>
+      ${panel(58,50,204,86,12)}${label(160,86,26,"Une question")}
+      <text class="sg-text" x="160" y="120" font-size="26" text-anchor="middle">pour toi <tspan class="sg-t-acc">?</tspan></text></g>`)
+  },
+  // Amour : façade de café (planches, fenêtres) ; enseigne, store rayé et lampions qui s'allument
+  amour: {
+    wall: sceneWall(
+      `<pattern id="sc-planches" width="44" height="200" patternUnits="userSpaceOnUse"><rect class="sc-a" width="42" height="200"/><path class="sc-line" d="M43 0v200M8 60h2M30 150h2"/></pattern>`,
+      fill("sc-planches") +
+      [["5%","52%"],["74%","56%"]].map(([x,y]) => at(x,y,`<rect class="sc-b sc-out" width="104" height="140" rx="6"/><rect class="sc-a sc-out" x="10" y="10" width="84" height="120" rx="3"/><path class="sc-line" d="M52 10v120M10 70h84"/><rect class="sc-b sc-out" x="-6" y="136" width="116" height="12" rx="3"/>`)).join("")),
+    sign: sceneSign(172, `<path class="sg-wire" d="M8 8Q160 36 312 8"/>
+      ${garland(7,8,14).map(([x,y],i)=>`<g class="sg-lamp" style="animation-delay:${i*.45}s"><path class="sg-string" d="M${x} ${y}v6"/><circle class="${i%2?"sg-surf":"sg-acc"} sg-out" cx="${x}" cy="${y+16}" r="10"/></g>`).join("")}
+      ${panel(40,62,240,62)}${label(160,88,18,"Le café des")}${label(160,114,26,"rendez-vous")}
+      ${Array.from({length:8},(_,i)=>`<path class="${i%2?"sg-surf":"sg-acc"} sg-out" d="M${40+30*i} 130h30v20a15 15 0 0 1-30 0z"/>`).join("")}`)
+  },
+  // Pétales : jardin de grandes fleurs en papier et clôture basse ; pot de fleurs « Pour toi », la fleur s'ouvre
+  maman: {
+    wall: sceneWall(
+      `<pattern id="sc-fleurs" width="240" height="240" patternUnits="userSpaceOnUse">${[[60,70,"sc-b"],[180,180,"sc-a"]].map(([x,y,c]) =>
+        [0,72,144,216,288].map(a=>`<ellipse class="${c} sc-out" cx="${x}" cy="${y-22}" rx="13" ry="22" transform="rotate(${a} ${x} ${y})"/>`).join("") + `<circle class="sc-b sc-out" cx="${x}" cy="${y}" r="9"/>`).join("")}
+        <path class="sc-a sc-out" d="M150 60c20-24 50-20 56-4-20 14-40 14-56 4zM50 170c-6-26 12-46 30-40-4 22-14 36-30 40z"/></pattern>
+       <pattern id="sc-cloture" width="30" height="120" patternUnits="userSpaceOnUse"><path class="sc-b sc-out" d="M5 120V16l10-12 10 12v104z"/></pattern>`,
+      fill("sc-fleurs") + at("0","89%",`<rect width="4000" height="400" fill="url(#sc-cloture)"/><path class="sc-line" d="M0 40h4000M0 80h4000"/>`)),
+    sign: sceneSign(172, `<path class="sg-wire" d="M150 150C150 120 148 96 150 70"/>
+      <path class="sg-soft sg-out" d="M150 124c-26-2-40-18-38-30 18 0 32 12 38 30zM151 108c18-16 36-16 44-6-12 12-28 14-44 6z"/>
+      <g class="sg-bloom">${[0,60,120,180,240,300].map(a=>`<ellipse class="sg-surf sg-out" cx="150" cy="38" rx="12" ry="22" transform="rotate(${a} 150 60)"/>`).join("")}<circle class="sg-acc sg-out" cx="150" cy="60" r="12"/></g>
+      <rect class="sg-acc sg-out" x="104" y="132" width="92" height="14" rx="3"/><path class="sg-acc sg-out" d="M110 146h80l-8 24h-64z"/>
+      <path class="sg-wire" d="M244 170v-44"/>${panel(198,92,96,36,6)}${label(246,116,19,"Pour toi")}`)
+  },
+  // Cravate : bureau rétro (papier peint à losanges, lambris) ; horloge murale dont l'aiguille avance
+  papa: {
+    wall: sceneWall(
+      `<pattern id="sc-losanges" width="72" height="72" patternUnits="userSpaceOnUse"><path class="sc-line" d="M36 22l14 14-14 14-14-14z"/></pattern>
+       <pattern id="sc-lambris" width="140" height="400" patternUnits="userSpaceOnUse"><rect class="sc-b sc-out" x="16" y="34" width="108" height="170" rx="4"/></pattern>`,
+      fill("sc-losanges") + at("0","70%",`<rect class="sc-a" width="4000" height="1000"/><rect width="4000" height="1000" fill="url(#sc-lambris)"/><rect class="sc-b sc-out" x="-4" width="4000" height="14"/>`)),
+    sign: sceneSign(172, `<circle class="sg-ink" cx="166" cy="72" r="54"/><circle class="sg-surf sg-out" cx="160" cy="66" r="54"/>
+      ${Array.from({length:12},(_,i)=>{ const a=i*Math.PI/6, r1=i%3?44:40; return `<path class="sg-wire" d="M${(160+r1*Math.sin(a)).toFixed(1)} ${(66-r1*Math.cos(a)).toFixed(1)}L${(160+48*Math.sin(a)).toFixed(1)} ${(66-48*Math.cos(a)).toFixed(1)}"/>`; }).join("")}
+      <path class="sg-hand" d="M160 66l-18-14M160 66l20-30"/><path class="sg-sec" d="M160 76V24"/><circle class="sg-ink" cx="160" cy="66" r="5"/>
+      ${panel(98,132,124,34,6)}${label(160,155,18,"C'est l'heure ?")}`)
+  },
+  // Pop : mur de briques claires et affiches ; bulle de BD « Tu viens ? », une affiche frémit
+  amis: {
+    wall: sceneWall(
+      BRICKS + `<pattern id="sc-affiches" width="440" height="520" patternUnits="userSpaceOnUse">
+        <g transform="rotate(-4 70 95)"><rect class="sc-b sc-out" x="20" y="30" width="100" height="130" rx="2"/><circle class="sc-a sc-out" cx="70" cy="80" r="18"/><path class="sc-line" d="M36 118h68M36 132h48M36 146h60"/></g>
+        <g transform="rotate(5 340 380)"><rect class="sc-b sc-out" x="296" y="326" width="88" height="110" rx="2"/><path class="sc-line" d="M310 352h60M310 366h40M316 392l24 24 24-24z"/></g></pattern>`,
+      fill("sc-briques") + fill("sc-affiches")),
+    sign: sceneSign(160, `<g transform="rotate(-8 64 40)"><g class="sg-flutter"><rect class="sg-soft sg-out" x="18" y="34" width="90" height="112" rx="3"/><path class="sg-lline" d="M34 62h58M34 78h42M34 120h58"/><rect class="sg-lin" x="48" y="24" width="30" height="16" rx="2"/></g></g>
+      <path class="sg-acc sg-out" d="${Array.from({length:24},(_,i)=>{ const a=i*Math.PI/12, r=i%2?50:74; return `${i?"L":"M"}${(244+r*Math.cos(a)).toFixed(1)} ${(66+r*Math.sin(a)).toFixed(1)}`; }).join("")}z"/>
+      <path class="sg-ink" d="M140 42h146a16 16 0 0 1 16 16v40a16 16 0 0 1-16 16H198l-22 22 4-22h-40a16 16 0 0 1-16-16V58a16 16 0 0 1 16-16z" transform="translate(5 5)"/>
+      <path class="sg-surf sg-out" d="M140 42h146a16 16 0 0 1 16 16v40a16 16 0 0 1-16 16H198l-22 22 4-22h-40a16 16 0 0 1-16-16V58a16 16 0 0 1 16-16z"/>
+      ${label(213,90,32,"Tu viens ?")}`)
+  },
+  // Confettis : rideau de scène et lambrequin ; banderole, fanions et ballons qui flottent
+  fete: {
+    wall: sceneWall(
+      `<pattern id="sc-rideau" width="72" height="200" patternUnits="userSpaceOnUse"><rect class="sc-a" width="36" height="200"/><path class="sc-line" d="M36 0v200M72 0v200"/></pattern>
+       <pattern id="sc-lambrequin" width="60" height="60" patternUnits="userSpaceOnUse"><path class="sc-b sc-out" d="M0 0h60v24a30 18 0 0 1-60 0z"/></pattern>`,
+      fill("sc-rideau") + `<rect width="100%" height="56" fill="url(#sc-lambrequin)"/>`),
+    sign: sceneSign(172, `<path class="sg-wire" d="M6 10Q160 50 314 10"/>
+      ${garland(9,10,20).map(([x,y],i)=>`<path class="${CYCLE[i%3]} sg-out" d="M${(x-11).toFixed(1)} ${y.toFixed(1)}h22l-11 24z"/>`).join("")}
+      <path class="sg-acc sg-out" d="M58 82h30v40H58l10-20zM262 82h-30v40h30l-10-20z"/>
+      ${panel(78,70,164,48,4)}${label(160,102,26,"C'est la fête")}
+      ${[[30,92,"sg-acc",0],[286,80,"sg-lin",.8],[300,118,"sg-surf",1.6]].map(([x,y,c,d])=>`<g class="sg-float" style="animation-delay:-${d}s"><path class="sg-string" d="M${x} ${y+22}q-6 22 4 46"/><ellipse class="${c} sg-out" cx="${x}" cy="${y}" rx="15" ry="19"/></g>`).join("")}`)
+  },
+  // Mystère : mur de briques sombres ; enseigne néon qui scintille
   mystere: {
-    wall: `<svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" focusable="false">
-      <defs>
-        <pattern id="sc-briques" width="240" height="112" patternUnits="userSpaceOnUse">${brickTile()}</pattern>
-        <pattern id="sc-grain" width="37" height="41" patternUnits="userSpaceOnUse">${GRAIN_DOTS.map(([x,y],i)=>`<circle class="${i%2?"sc-speck-l":"sc-speck-d"}" cx="${x}" cy="${y}" r="0.9"/>`).join("")}</pattern>
-      </defs>
-      <rect class="sc-mortar" width="100%" height="100%"/>
-      <rect width="100%" height="100%" fill="url(#sc-briques)"/>
-      <rect width="100%" height="100%" fill="url(#sc-grain)"/>
-    </svg>`,
+    wall: sceneWall(BRICKS, fill("sc-briques")),
     sign: (()=>{
       const txt=`<text class="sc-neon-big" x="160" y="70" text-anchor="middle">Chut<tspan class="sc-flick">…</tspan></text>
         <text class="sc-neon-small" x="160" y="108" text-anchor="middle">c'est une surprise</text>`;
-      return `<svg viewBox="0 0 320 124" xmlns="http://www.w3.org/2000/svg" focusable="false">
-        <path class="sc-wire" d="M160 0V14M96 24V14h128v10"/>
+      return sceneSign(124, `<path class="sc-wire" d="M160 0V14M96 24V14h128v10"/>
         <rect class="sc-mount" x="90" y="22" width="12" height="8" rx="2"/><rect class="sc-mount" x="218" y="22" width="12" height="8" rx="2"/>
-        <g class="sc-neon"><g class="sc-halo">${txt}</g><g class="sc-tube">${txt}</g></g>
-      </svg>`;
+        <g class="sc-neon"><g class="sc-halo">${txt}</g><g class="sc-tube">${txt}</g></g>`);
     })()
   }
 };
