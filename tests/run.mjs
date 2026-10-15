@@ -800,7 +800,10 @@ await test("Création : scène atténuée pendant la saisie, entière sur l'aper
   const S = PAGE.lire("S"), app = () => PAGE.zones["#app"].innerHTML;
   for(const t of L.THEMES){
     Object.assign(S, { step: "home", theme: t.id, from: "Alex", to: "Sam", link: "", anim: "n" });
-    for(const step of ["home", 1, 2, 3]){
+    PAGE.lire("renderCreator")();
+    assert.equal(sceneZone.className, "scene-home", `${t.name}, accueil : sa propre scène`);
+    assert.equal(sceneZone.innerHTML, PAGE.lire("HOME_SCENE"));
+    for(const step of [1, 2, 3]){
       S.step = step; PAGE.lire("renderCreator")();
       assert.equal(sceneZone.className, `scene-${t.id} dim`, `${t.name}, étape ${step} : scène atténuée`);
       assert.equal(sceneZone.innerHTML, SCENES[t.id].wall);
@@ -858,6 +861,40 @@ await test("Choisis un modèle : pas de filtre « Tous », Amour par défaut, ca
   const src = PAGE.lire("bindCreator").toString(), demo = PAGE.lire("bindDemoTicket").toString();
   assert.ok(src.includes("S.tplCat=b.dataset.home; go(1)"), "carte de l'accueil : sa catégorie");
   assert.ok(demo.includes('S.tplCat="Amour"') && !/Tous/.test(src + demo), "sinon Amour");
+});
+await test("Scène de l'accueil : ton sur ton, légère, immobile, version simplifiée sur téléphone", () => {
+  const H = PAGE.lire("HOME_SCENE");
+  assert.ok(H.length < 8000, `scène de l'accueil trop lourde (${H.length} caractères)`);
+  assert.ok(!/<image|href="http|url\(http|data:image|(fill|stroke)="#|style="|<animate|<set\b/.test(H), "ni image, ni couleur écrite, ni animation SVG");
+  const classes = new Set([...H.matchAll(/class="([^"]+)"/g)].flatMap(m => m[1].split(" ")));
+  for(const c of classes) assert.ok(/^(sc-(bg|a|b|out|line|dash|speck-[ld])|hs-(wide|tint))$/.test(c), `classe « ${c} » dans la scène de l'accueil (ton sur ton seulement)`);
+  for(const m of H.matchAll(/transform="scale\(([\d.]+)\)"/g)) assert.ok(+m[1] <= 1 || H.includes('vector-effect="non-scaling-stroke" transform="scale(' + m[1]), "trait agrandi au-delà de 2 px");
+  for(const mot of ["sc-courrier", "hs-wide", "hs-tint", "M0-78v-32a34 26"]) assert.ok(H.includes(mot), `élément manquant : ${mot}`);
+  const hors = H.replace(/<g class="hs-wide">[\s\S]*?<\/g><svg x="74%"/, "");
+  assert.ok(hors.includes("M0-78v-32a34 26") && !hors.includes('x="90%"'), "téléphone : boîte aux lettres gardée, éléments des côtés retirés");
+  assert.ok(/@media \(max-width:640px\)\{#scene \.hs-wide\{display:none\}\}/.test(CSS), "éléments des côtés masqués sur téléphone");
+  for(const sel of [".sc-dash", ".hs-tint", "#scene.tinted .hs-tint"]) assert.ok(!/animation\s*:/.test(regleCSS(sel)), `${sel} : aucune animation`);
+  const h = PAGE.lire("homeHTML")();
+  assert.ok(h.indexOf("demo-ticket") < h.indexOf("home-cards") && !/scene-sign/.test(h), "le mini-billet reste l'élément principal");
+});
+await test("Scène de l'accueil : couleur de la catégorie au survol, au focus et au toucher, textes lisibles", () => {
+  const a = +(regleCSS("#scene.tinted .hs-tint").match(/opacity:([\d.]+)/) || [])[1];
+  assert.ok(a > 0 && a <= .2, `opacité du voile : ${a}`);
+  assert.ok(regleCSS(".hs-tint").includes("fill:var(--tint,none)") && regleCSS(".hs-tint").includes("opacity:0"), "voile invisible au repos");
+  assert.ok(CSS.includes("#scene.tinted .sc-line,#scene.tinted .sc-out{stroke:var(--tint)}"), "contours fins à la couleur de la catégorie (aucun texte ne repose dessus)");
+  const mix = (f, c) => "#" + [1, 3, 5].map(i => Math.round(parseInt(f.slice(i, i + 2), 16) * (1 - a) + parseInt(c.slice(i, i + 2), 16) * a).toString(16).padStart(2, "0")).join("").toUpperCase();
+  for(const cat of PAGE.lire("HOME_CATS")){
+    const teinte = L.THEMES.find(t => t.id === cat.theme).a;
+    for(const t of L.THEMES){ const v = THEME_CSS[t.id];
+      for(const c of ["bg", "soft", "surface"]){
+        exige(`${t.name}, voile ${cat.cat} : encre sur --${c}`, v.ink, mix(v[c], teinte), 4.5);
+        exige(`${t.name}, voile ${cat.cat} : texte atténué sur --${c}`, v.muted, mix(v[c], teinte), 4.5);
+      }
+    }
+  }
+  const src = PAGE.lire("bindCreator").toString();
+  for(const ev of ["pointerenter", "pointerleave", "focus", "blur", "touchstart"]) assert.ok(src.includes(`"${ev}"`), `carte de catégorie : ${ev}`);
+  assert.ok(PAGE.lire("tintScene").toString().includes('"scene-home"'), "voile seulement sur la scène de l'accueil");
 });
 await test("Accueil : plus de bloc « Privé par conception », lien « Confidentialité » vers les mentions légales", () => {
   const h = PAGE.lire("homeHTML")();
