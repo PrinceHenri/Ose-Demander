@@ -16,6 +16,7 @@ ose-demander/
 ├── sw.js                   ← service worker : installation + hors connexion
 ├── og-image.png            ← image d'aperçu des liens
 ├── CNAME                   ← créé par GitHub pour le domaine, ne pas supprimer
+├── tests/                  ← banc de test (node tests/run.mjs)
 ├── icons/
 │   ├── icon-192.png
 │   ├── icon-512.png
@@ -54,6 +55,24 @@ Si tu achètes un domaine (ex. `osedemander.fr`, environ 10 €/an) :
 Le site s'installe comme une appli depuis le navigateur (bouton « Installer l'appli » en haut de la page d'accueil, ou « Partager » → « Sur l'écran d'accueil » sur iPhone). Il fonctionne aussi hors connexion.
 
 **Après une mise à jour importante** de `index.html`, ouvre `sw.js` et change `ose-v1` en `ose-v2` (puis `ose-v3`…) : les appareils qui ont installé l'appli téléchargeront la nouvelle version.
+
+## Banc de test
+
+Avant chaque commit, depuis la racine du dépôt (Node 18 ou plus récent, aucune installation) :
+
+```
+node tests/run.mjs
+```
+
+Il charge le vrai code de `index.html` et vérifie :
+1. les **liens de référence** figés (`tests/references.mjs`, formats `z`, `p`, `y`, `x`) : ils doivent toujours s'ouvrir à l'identique ;
+2. des **invitations aléatoires** : encodage puis décodage = invitation d'origine (aussi avec la décompression de secours) ;
+3. des **liens trafiqués** : ils doivent être refusés ;
+4. les **tables de codes** (`tests/tables-figees.mjs`) : aucun code existant ne change de texte ;
+5. l'absence de **secrets** dans le dépôt et de **données personnelles** dans les tests.
+
+En cas d'échec, la commande affiche la graine du tirage pour le rejouer (`node tests/run.mjs --graine=N`).
+Ne jamais modifier une référence ou une table figée : pour une nouveauté, on **ajoute** une référence ou un code.
 
 ## Sécurité
 

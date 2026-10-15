@@ -1,0 +1,366 @@
+/* Liens de référence, figés le 2026-10-15 avec le code publié (commit 036fa28, sw ose-v7).
+   NE JAMAIS MODIFIER NI SUPPRIMER une référence existante : chaque lien doit toujours se relire
+   exactement comme « attendu ». Pour couvrir une nouvelle fonctionnalité, AJOUTER une référence à la fin.
+   « reveles » : texte attendu après unscramble pour les éléments « Révélé plus tard » (chemin : champ ou p.<étape>).
+   Toutes les données sont fictives (prénoms d'exemple, numéros en 06 00 00 00 0x, lieux « de l'Exemple »). */
+export const REFERENCES = [
+  {
+    "nom": "Ancien format z : rendez-vous simple, réponse WhatsApp, message (sans ton du Non)",
+    "lien": "zXZAxTsQwFESv8jXNNg5yVmiL3yAktkfABT72X21QbAfHDhGrrTlLGi6Ri6Eg0SBNMXozzcwFJzDue51hUMB4lgCDBIaXohs8gyEh1QyDdzDWL6Gi5LtCNVLW6PWzmVIdSSZ1FFJHdzCIYJxqV2DgwPiQzXRg2ANZ-6cWBgGMx7wug2SlkiINfR3pVaXSmGrushp6Uwq75FwdlHylrGPRGxgI-IIJjAkGMxgP63fUjKtB_z960rFIzRILeaV-d5w1DL1uXb9Nf9FYlfy6uBRLFlfWZTvAg7G3-0PTtk17C4PzL2Brcf0B",
+    "attendu": {
+      "f": "Alex",
+      "t": "Sam",
+      "q": "Ça te dit un rendez-vous avec moi ?",
+      "o": "date",
+      "th": "amour",
+      "n": "fuit",
+      "an": "n",
+      "c": "wa",
+      "ci": "06 00 00 00 01",
+      "m": "Prépare ton plus beau sourire, je m'occupe du reste.",
+      "a": {
+        "v": "v",
+        "x": "Dîner"
+      },
+      "l": {
+        "v": "v",
+        "x": "Restaurant de l'Exemple"
+      },
+      "dt": "Tenue décontractée",
+      "d": "2026-11-14",
+      "h": "20:00"
+    }
+  },
+  {
+    "nom": "Ancien format p : invitation courte non compressée, tout en surprise",
+    "lien": "peyJmIjoiTG91IiwidCI6Ik1heCIsIm8iOiJqdXN0ZSIsInRoIjoiYmFzZSIsInEiOiLDh2EgdGUgZGl0IHF1J29uIHNlIHZvaWUgPyIsIm4iOiJyZXRyZWNpdCIsImMiOiJhbnkiLCJhIjp7InYiOiJzIn0sImQiOiIyMDI2LTEwLTIwIiwiaCI6IjE4OjAwIn0",
+    "attendu": {
+      "f": "Lou",
+      "t": "Max",
+      "q": "Ça te dit qu'on se voie ?",
+      "o": "juste",
+      "th": "base",
+      "n": "retrecit",
+      "an": "n",
+      "c": "any",
+      "a": {
+        "v": "s",
+        "h": ""
+      },
+      "d": "2026-10-20",
+      "h": "18:00"
+    }
+  },
+  {
+    "nom": "Ancien format z : programme en 3 étapes (visible, surprise, révélé plus tard) et créneaux au choix",
+    "lien": "zbVDLahtBEPyVpi45ZASzK8fguYRdPRJbhFhYCQihw2i3Fa09-8jM7JJg9D1G37E_FmYtIx8CfeiqpqqaesYeChNdFsYwBHxAB21NEVANBdfaxhZuOB6gUP51nm2Av6GwaqlkyupqX7Ajr-mxbm3Vn5g-Q6Aa9E3z6pYFVLqwFVD4OB7TNUn5NjEEGqjNM0JMJJWUEOig0EFAQ-GefeFHeX965LZiCwEzPL_vT5QzmQ-zP1w2hnEUZ5Ori0nIDbH3tj91deEoZ0c77Z7Yu4vg5iKwZ8FtlRcZk6L-RdPOnovSoalYxtejKB7JT6soflUyFObz9ZeZubv9llyl6VLOkrm_mybN4kEuq3RZr-dR9v3n03LxMJktpsl68jVNF6sEx60Ah8risRoHrzKYTbnTlSej6Zceat9ZKPyomDp2nik76DYPvDNQm827nyDOLW7FhY7i_9M3gY4Genv8Bw",
+    "attendu": {
+      "f": "Camille",
+      "t": "Charlie",
+      "q": "Tu me confies ta journée ?",
+      "o": "surprise",
+      "th": "mystere",
+      "n": "supplie",
+      "an": "n",
+      "c": "sms",
+      "ci": "+33 6 00 00 00 02",
+      "p": [
+        {
+          "h": "10:00",
+          "v": "v",
+          "a": "Petit-déjeuner",
+          "l": "Café de l'Exemple"
+        },
+        {
+          "h": "14:00",
+          "v": "s",
+          "i": "Prévois des baskets"
+        },
+        {
+          "h": "19:00",
+          "v": "r",
+          "i": "Indice : ça brille",
+          "at": "2026-12-05T12:00",
+          "e": "FFYGElJIMA4BBQ0EAFtJDApKS0QnBQoYF1cOVkQKSCEKDAYCHBBKTA"
+        }
+      ],
+      "en": "23:30",
+      "me": "Devant la gare",
+      "br": "Une veste chaude",
+      "sl": [
+        [
+          "2026-12-05",
+          "10:00"
+        ],
+        [
+          "2026-12-12",
+          "10:00"
+        ],
+        [
+          "2026-12-19",
+          "11:00"
+        ]
+      ]
+    },
+    "reveles": {
+      "p.2": "{\"a\":\"Concert\",\"l\":\"Salle de l'Exemple\"}"
+    }
+  },
+  {
+    "nom": "Ancien format z : occasion libre, accent, emoji, signature, son coupé, message caché, animation douce",
+    "lien": "zXZBNSgNBEIWvUrx1J8xE8Kc2gn8Q1JCEINm2mUoy2NMzdncSNeQAbryCW_UauZBHkAoRxN3j1fseVbXGFIxebWGQwLgsxMOgBsOV90FUa-LW0iRsPytbOrf92PlpDsZUkupHMEYLWpbiIzXiiyDk_iF0CgMPRgrWx2kdKiWtOoWKCRiV-DRXWyowvt_fXmEQZ2DcCB0IbT-Tnek81uDMQJnobQODSQmGPEnVOGnvPS3pOnomuwiWCom60Vcjsa3DOTg3sOA1ltoDAz2p64tyIsRkm6YOSWjhhRpnfRJsDNxvPuzzfRvJ1aW-zeoLO1nnsJXnrSwfZSecZXoNGGM3uBsO8uur1bB__nD8cnG26o5ndU87i7_Y0b4338GbHw",
+    "attendu": {
+      "f": "Noa",
+      "t": "Eden",
+      "q": "Tu viens pendre la crémaillère ?",
+      "o": "libre",
+      "of": "Ma crémaillère",
+      "th": "fete",
+      "n": "transforme",
+      "an": "d",
+      "ac": "menthe",
+      "em": "🎉",
+      "sg": "Le 3e étage",
+      "so": 0,
+      "c": "snap",
+      "ci": "exemple.snap",
+      "m": "Il y aura des crêpes.",
+      "mh": 1,
+      "a": {
+        "v": "s",
+        "h": "Indice : apporte une plante"
+      },
+      "l": {
+        "v": "r",
+        "h": "Pas loin",
+        "at": "2026-11-01T09:00",
+        "e": "XlQVRQ1KFwRPCk8zDBwIXgoN"
+      },
+      "d": "2026-11-07",
+      "h": "19:00"
+    },
+    "reveles": {
+      "l": "1 rue de l'Exemple"
+    }
+  },
+  {
+    "nom": "Format compact y : ton romantique, lieu révélé plus tard",
+    "lien": "yHckxCsIwFAbgq4R_fkOsVvBtUeMgKsZSQcQhtKmWxhRriwXxSl7Ci4ku3_I9UYChvOtBaMFI7BWEGhwRbn_D3w04JmjwkHAFR5JgwZh_3sE1wna9yC425M57dwfBg49Ig3Ahb-qyFbfOibYTNq-b38cTKUeSsN3pdKeqQhk11dU50ftqOUvWZqHueqY2h7TMVsbIPU6EBzieyMFYvr4",
+    "attendu": {
+      "f": "Alex",
+      "t": "Sam",
+      "q": "Tu passes la Saint-Valentin avec moi ?",
+      "o": "valentin",
+      "th": "amour",
+      "n": "retrecit",
+      "tn": "romantique",
+      "an": "n",
+      "em": "🌹",
+      "c": "any",
+      "m": "Tu n'as rien à prévoir, juste à dire oui.",
+      "a": {
+        "v": "v",
+        "x": "Dîner aux chandelles"
+      },
+      "l": {
+        "v": "r",
+        "h": "Un endroit que tu adores",
+        "at": "2027-02-14T18:00",
+        "e": "PREURAkfAQABEkgSEVkJCSMQFAsECANYUicLQQ0V"
+      },
+      "d": "2027-02-14",
+      "h": "20:00"
+    },
+    "reveles": {
+      "l": "Restaurant de l'Exemple, Paris"
+    }
+  },
+  {
+    "nom": "Format compact y : programme (visible, surprise, révélé), ton théâtral, fin, rendez-vous, à apporter",
+    "lien": "yJYzBToNAGAZfhXzn_7Bst0D-k4QCKUQT2qaxIcRAsxWkLFhBicYH8jl8MdN6mskc5gsnMLblsS5BGMHY9FVjQOjBtiS8_sOAF4QHsCKEYI9wBC8JDRh3etbdcNZPjXkbr5sOvJCEAZznsCULARKE1e_Pi56MvqCgHPby1u2rS3FzSQApx3WFIETRIQ7PyXrtqzhK30_hfkxW_pBuRdYOnlfGcxbs2ywI2kzvGpVGm-fDYzYnoY-iIGiwIwj3YAS1_rS6vgGhAmNXWlVvjLbqqdPTBYQPsHJc6YnvPw",
+    "attendu": {
+      "f": "Sacha",
+      "t": "Robin",
+      "q": "Tu veux être mon témoin ?",
+      "o": "temoin",
+      "th": "amis",
+      "n": "supplie",
+      "tn": "theatral",
+      "an": "n",
+      "em": "🎉",
+      "c": "ig",
+      "ci": "@exemple_insta",
+      "m": "Je ne vois personne d'autre à mes côtés ce jour-là.",
+      "p": [
+        {
+          "h": "12:00",
+          "v": "v",
+          "a": "Déjeuner",
+          "l": ""
+        },
+        {
+          "h": "15:00",
+          "v": "s",
+          "i": ""
+        },
+        {
+          "h": "20:00",
+          "v": "r",
+          "i": "",
+          "at": "2026-11-21T19:00",
+          "e": "FFYGElJIIA4GFKvfEVtJDApKS0Qkp88aGxQCVkQCCkQeTi4KFRgYXQxJEA"
+        }
+      ],
+      "en": "01:00",
+      "me": "Chez moi",
+      "br": "Ta bonne humeur",
+      "d": "2026-11-21",
+      "h": "12:00"
+    },
+    "reveles": {
+      "p.2": "{\"a\":\"Soirée\",\"l\":\"Péniche de l'Exemple\"}"
+    }
+  },
+  {
+    "nom": "Format compact y : 3 créneaux au choix, ton drôle, réponse Messenger",
+    "lien": "yJczBCoJAFEDRX5G7fsSok8nbRjuL9tFC4lWG41QqiNG_R7U6u_PijFLFEWFA2dYTQkRTJzz-7NBM2KBpKpzQQmhQbLJwb20RrO-tu9gTIaCZF2qUfTPPdWJDcrPxe7Yo66vNSYgNQoUefF64zInPV8sfpS_d8f0B",
+    "attendu": {
+      "f": "Lou",
+      "t": "Max",
+      "q": "Tu viens avec moi ?",
+      "o": "sortie",
+      "th": "amis",
+      "n": "fuit",
+      "tn": "drole",
+      "an": "n",
+      "em": "🍕",
+      "c": "fb",
+      "ci": "exemple.messenger",
+      "m": "Ça fait trop longtemps, on rattrape le temps perdu.",
+      "a": {
+        "v": "v",
+        "x": "Pizza et jeux"
+      },
+      "l": {
+        "v": "v",
+        "x": "Chez moi"
+      },
+      "sl": [
+        [
+          "2026-10-30",
+          "19:00"
+        ],
+        [
+          "2026-10-31",
+          "20:00"
+        ],
+        [
+          "2026-11-01",
+          "12:00"
+        ]
+      ]
+    }
+  },
+  {
+    "nom": "Format compact x : invitation courte non compressée, ton mignon",
+    "lien": "xeyJmIjoiTG91IiwidCI6Ik1heCIsIm8iOjYsInEiOjYsIm4iOjQsIk4iOjMsImEiOltdLCJ3Ijo3NDA4ODB9",
+    "attendu": {
+      "f": "Lou",
+      "t": "Max",
+      "q": "Maman, je t'emmène pour la fête des mères ?",
+      "o": "meres",
+      "th": "maman",
+      "n": "transforme",
+      "tn": "mignon",
+      "an": "n",
+      "c": "any",
+      "a": {
+        "v": "s",
+        "h": ""
+      },
+      "d": "2027-05-30",
+      "h": "12:00"
+    }
+  },
+  {
+    "nom": "Format compact y : demande en mariage (masquée à la création, toujours lisible), 2 créneaux",
+    "lien": "yHcaxCoMwFIbRVynffAsxepd_cyg4FJeO4hAhhUBUCg4F6bsXXA7n5I3oa_5iHIhXWjF25MbnckOtMV5_oM5YURuMATVGQhNDWkqt-X7s5baUvDEbTzR54zEG8-hdDPPvDw",
+    "attendu": {
+      "f": "Alex",
+      "t": "Sam",
+      "q": "Veux-tu m'épouser ?",
+      "o": "mariage",
+      "th": "amour",
+      "n": "supplie",
+      "tn": "romantique",
+      "an": "n",
+      "em": "💍",
+      "c": "any",
+      "m": "Je veux passer tous mes moments avec toi.",
+      "mh": 1,
+      "a": {
+        "v": "s",
+        "h": "Habille-toi bien"
+      },
+      "sl": [
+        [
+          "2026-12-24",
+          "19:00"
+        ],
+        [
+          "2026-12-31",
+          "21:00"
+        ]
+      ]
+    }
+  },
+  {
+    "nom": "Format compact y : occasion libre, question personnelle, accent, signature, son coupé, ton taquin (absent du lien)",
+    "lien": "yPY09CsJAFAavskz9kJVohNeI-NdpoReI-oSA2eBmQUE8kNZ2lrmYqChMN8P3XdijLOoCIaFMdxYQarSbC7OPS9FctJBiezOEI8oyuH17T-YOxV85C41Vm4O5IcIIzYQxOhAalHUd3KYM7aN6b6xQL2w_TYni8473PzKEAmVet89kEWHyvWwsFq4pzwgnNOvnec9fXw",
+    "attendu": {
+      "f": "Noa",
+      "t": "Eden",
+      "q": "On fête la rentrée ensemble ?",
+      "o": "libre",
+      "of": "Notre rentrée",
+      "th": "base",
+      "n": "fuit",
+      "an": "0",
+      "ac": "violet",
+      "sg": "Ton binôme",
+      "so": 0,
+      "c": "sms",
+      "ci": "06.00.00.00.03",
+      "a": {
+        "v": "v",
+        "x": "Goûter"
+      },
+      "dt": "On sera six",
+      "d": "2026-09-05",
+      "h": "16:00"
+    }
+  },
+  {
+    "nom": "Repli ancien format z : date avant 2026 (hors de la plage du format compact)",
+    "lien": "zHY49agMxEIWvMnxNGjmsF1x4mhDSuc0JhniMBbvSRpKXBOMmB8gVcsUcwcjd4_1fOaG8Tv5FoKG820wgo1hKcbU5duGMcvLmBD5RDi7tKaY1NpclX4q0nOTh91ItFpcXAqmHLrH1go6PJU-9wWeU_7_fHwIfj6FvAp18c0ku1YvJYlUWKx4nqZaqtByfCRh6ZUWp3AJHlHEYd5vtuBkHAv3ndq_DwO0O",
+    "attendu": {
+      "f": "Alex",
+      "t": "Sam",
+      "q": "Je t'invite pour ton anniversaire ?",
+      "o": "annivami",
+      "th": "fete",
+      "n": "fuit",
+      "tn": "drole",
+      "an": "n",
+      "em": "🎂",
+      "c": "any",
+      "m": "Ce ne sera pas pareil sans toi.",
+      "a": {
+        "v": "s",
+        "h": ""
+      },
+      "d": "2025-12-20",
+      "h": "19:00"
+    }
+  }
+];
