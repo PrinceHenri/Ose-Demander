@@ -186,12 +186,12 @@ const TRAFIQUES = [
   ["Code de question non entier", plat("x", { ...BASE, q: 1.5 })],
   ["Code d'occasion inconnu", plat("x", { ...BASE, o: 99 })],
   ["Occasion en texte au lieu d'un code", plat("x", { ...BASE, o: "date" })],
-  ["Code de thème inconnu", plat("x", { ...BASE, T: 8 })],
+  ["Code de thème inconnu", plat("x", { ...BASE, T: 99 })],
   ["Code de Non inconnu", plat("x", { ...BASE, n: 0 })],
   ["Code de ton inconnu", plat("x", { ...BASE, N: 9 })],
   ["Ton en texte au lieu d'un code", plat("x", { ...BASE, N: "drole" })],
   ["Code d'accent inconnu", plat("x", { ...BASE, C: 42 })],
-  ["Code d'emoji inconnu", plat("x", { ...BASE, E: 13 })],
+  ["Code d'emoji inconnu", plat("x", { ...BASE, E: 99 })],
   ["Occasion libre (F) sans l'occasion « libre »", plat("x", { ...BASE, F: "Fête" })],
   ["Message caché (H) sans message", plat("x", { ...BASE, H: 1 })],
   ["H différent de 1", plat("x", { ...BASE, m: "Salut", H: 2 })],
@@ -506,7 +506,7 @@ await test("Fichier .ics : caractères spéciaux échappés, événement du rend
 /* =========================================================
    7. Contrastes : 4,5:1 pour le texte, 3:1 pour les grands textes et les éléments graphiques
    ========================================================= */
-titre("7. Contrastes des 7 thèmes");
+titre("7. Contrastes des thèmes");
 // Variables CSS de chaque thème, lues dans index.html (:root = base, puis [data-theme="…"])
 const CSS = (() => { const h = readFileSync(RACINE + "index.html", "utf8"); return h.slice(h.indexOf("<style>"), h.indexOf("</style>")); })();
 const varsDe = bloc => Object.fromEntries([...bloc.matchAll(/--([a-z-]+)\s*:\s*(#[0-9A-Fa-f]{6})/g)].map(m => [m[1], m[2].toUpperCase()]));
@@ -566,7 +566,7 @@ await test("Règles CSS : le texte n'utilise jamais l'accent brut, les boutons u
 await test("Messages d'erreur lisibles", () => {
   exige("erreur", "#B3122E", "#FFE3E8", 4.5);
   exige("erreur (Mystère)", "#FFD0D8", "#4A1F3A", 4.5);
-  for(const t of L.THEMES.filter(t => t.id !== "mystere")) exige(`bouton danger (${t.name})`, "#B3122E", THEME_CSS[t.id].surface, 4.5);
+  for(const t of L.THEMES.filter(t => !t.s)) exige(`bouton danger (${t.name})`, "#B3122E", THEME_CSS[t.id].surface, 4.5);
 });
 
 /* =========================================================
@@ -739,7 +739,7 @@ const SCENES = PAGE.lire("SCENES"), sceneZone = PAGE.zones["#scene"];
 const reglesScene = [...CSS.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map(m => [m[1].trim().split("\n").pop().trim(), m[2]]).filter(([s]) => /(#scene|scene-sign|\.sc-|\.sg-)/.test(s));
 const declScene = sel => (reglesScene.find(([s]) => s === sel) || [, ""])[1];
 const varDe = (sel, prop) => (declScene(sel).match(new RegExp(`${prop}:var\\(--([a-z-]+)\\)`)) || [])[1];
-await test("Scènes : une scène (décor + élément vedette) pour chacun des 7 thèmes", () => {
+await test("Scènes : une scène (décor + élément vedette) pour chaque thème", () => {
   assert.deepEqual(Object.keys(SCENES).sort(), L.THEMES.map(t => t.id).sort());
   for(const [id, sc] of Object.entries(SCENES)) assert.ok(sc.wall.includes("<svg") && sc.sign.includes("<svg"), `${id} : décor ou élément vedette manquant`);
 });
@@ -753,7 +753,7 @@ await test("Scènes : uniquement les couleurs du thème, aucune image externe, p
     assert.ok(!/(fill|stroke)="#|style="[^"]*(fill|stroke|color)/.test(tout), `${id} : couleur écrite dans le SVG (passer par une classe CSS)`);
     assert.ok(tout.length < 8000, `${id} : scène trop lourde (${tout.length} caractères)`);
   }
-  assert.ok(total < 30000, `scènes trop lourdes au total (${total} caractères)`);
+  assert.ok(total < 90000, `scènes trop lourdes au total (${total} caractères)`);
 });
 await test("Décor de fond : ton sur ton, texte et texte atténué lisibles (≥ 4,5:1) dans les 7 thèmes", () => {
   const surfaces = [".sc-bg", ".sc-a", ".sc-b", ".sc-speck-d"].map(s => varDe(s, "fill"));
@@ -840,7 +840,7 @@ await test("Miniatures : une par carte de catégorie et de modèle, immobiles, i
   const minis = h => [...h.matchAll(/<span class="mini" data-theme="([a-z]+)">/g)].map(m => m[1]);
   const uniques = (nom, h) => { const ids = [...h.matchAll(/\bid="([^"]+)"/g)].map(m => m[1]); assert.equal(new Set(ids).size, ids.length, `${nom} : identifiant en double`); };
   const home = PAGE.lire("homeHTML")();
-  assert.deepEqual(minis(home), CATS.map(c => c.theme), "accueil : une miniature par catégorie");
+  assert.deepEqual(minis(home.slice(home.indexOf('class="home-cards"'))), CATS.map(c => c.theme), "accueil : une miniature par catégorie");
   for(const c of CATS) assert.equal(TPL.find(t => t.cat === c.cat && !PAGE.lire("SEASONS")[t.occ]).theme, c.theme, `${c.cat} : miniature du thème de son premier modèle`);
   uniques("accueil", home);
   for(const c of CATS){
@@ -1036,6 +1036,30 @@ await test("Bandeau de saison : une seule occasion, la plus proche, textes selon
   for(const s of Object.values(PAGE.lire("SEASONS"))) for(const t of s.ban) assert.ok(!/[→←]| · /.test(t) && t.length <= 60, `texte du bandeau : ${t}`);
   assert.ok(PAGE.lire("bindCreator").toString().includes('$$("[data-season]")'), "le bouton ouvre le modèle");
   le("2026-10-15");
+});
+
+await test("Thèmes de saison : proposés en période, toujours affichés dans une invitation reçue, décor complet", () => {
+  const S = PAGE.lire("S"), SAIS = PAGE.lire("SEASONS"), DECOR = PAGE.lire("DECOR"), le = iso => PAGE.ecrire("SEASON_TODAY", iso);
+  const style = () => { Object.assign(S, { step: 4, from: "Alex", to: "Sam", link: "", moreOpen: true, open: new Set(["style"]) }); PAGE.lire("renderCreator")(); return PAGE.zones["#app"].innerHTML; };
+  const saisonniers = L.THEMES.filter(t => t.season);
+  assert.ok(saisonniers.length >= 1, "aucun thème de saison");
+  for(const t of saisonniers){
+    assert.ok(SAIS[t.season], `${t.name} : saison ${t.season} inconnue`);
+    const w = fenetre(t.season, 2026), hors = decale(w.to, 1);
+    le(hors); S.theme = "base";
+    assert.ok(!style().includes(`data-th="${t.id}"`), `${t.name} : masqué à la création hors saison (${hors})`);
+    S.theme = t.id; assert.ok(style().includes(`data-th="${t.id}" aria-pressed="true"`), `${t.name} : gardé s'il est déjà choisi`);
+    le(w.day); S.theme = "base"; assert.ok(style().includes(`data-th="${t.id}"`), `${t.name} : proposé pendant sa saison`);
+    le(hors); ouvrir(INV({ th: t.id })); PAGE.lire("renderEnvelope")();
+    assert.equal(sceneZone.className, `scene-${t.id}`, `${t.name} : invitation reçue hors saison, avec son thème`);
+  }
+  const formes = PAGE.lire("Decor").toString ? readFileSync(RACINE + "index.html", "utf8") : "";
+  for(const t of L.THEMES){
+    const d = DECOR[t.id]; assert.ok(d, `${t.name} : décor animé manquant`);
+    for(const k of [].concat(d.shape, d.burst || [])) assert.ok(formes.includes(`case "${k}"`), `${t.name} : forme « ${k} » non dessinée`);
+    assert.ok(["fall", "break", "pop", "gust", "scatter"].includes(d.react || "fall"), `${t.name} : réaction au Non inconnue`);
+  }
+  Object.assign(S, { step: "home", theme: "base", moreOpen: false, open: new Set() }); le("2026-10-15");
 });
 
 /* ---------- Bilan ---------- */

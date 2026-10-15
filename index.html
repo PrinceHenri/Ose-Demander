@@ -65,6 +65,9 @@
   --pattern:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='90' height='90'%3E%3Crect x='10' y='14' width='10' height='4' rx='2' transform='rotate(30 15 16)' fill='%23F2484B' fill-opacity='.22'/%3E%3Crect x='60' y='22' width='10' height='4' rx='2' transform='rotate(-25 65 24)' fill='%233D7CF2' fill-opacity='.22'/%3E%3Crect x='34' y='60' width='10' height='4' rx='2' transform='rotate(70 39 62)' fill='%23F2B33D' fill-opacity='.3'/%3E%3Ccircle cx='75' cy='72' r='3' fill='%2310372B' fill-opacity='.12'/%3E%3C/svg%3E");}
 [data-theme="mystere"]{--bg:#1C1838;--surface:#29234D;--ink:#F2EEFF;--muted:#B3AAD9;--line:#3F3773;--accent:#FFC94A;--accent-ink:#1C1838;--soft:#231E44;--accent-text:#FFC94A;--accent-btn:#FFC94A;--accent-seal:#AF8406;
   --pattern:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Cpath d='M20 10l2 6 6 2-6 2-2 6-2-6-6-2 6-2z' fill='%23FFC94A' fill-opacity='.35'/%3E%3Ccircle cx='70' cy='40' r='1.5' fill='%23F2EEFF' fill-opacity='.5'/%3E%3Ccircle cx='40' cy='80' r='1' fill='%23F2EEFF' fill-opacity='.5'/%3E%3Ccircle cx='88' cy='86' r='1.5' fill='%23FFC94A' fill-opacity='.4'/%3E%3C/svg%3E");}
+/* Thèmes de saison : proposés à la création seulement pendant leur période, toujours affichés dans une invitation reçue */
+[data-theme="halloween"]{--bg:#221432;--surface:#2F1C46;--ink:#FFF0DF;--muted:#C9B3DC;--line:#4B3266;--accent:#FF8C2A;--accent-ink:#221432;--soft:#28183B;--accent-text:#FF8C2A;--accent-btn:#FF8C2A;--accent-seal:#D77006;
+  --pattern:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='96' height='96'%3E%3Cpath d='M20 30c4-6 10-6 12-2 2-4 8-4 12 2-4-1-7 0-8 3-2-2-6-2-8 0-1-3-4-4-8-3z' fill='%23FF8C2A' fill-opacity='.22'/%3E%3Ccircle cx='70' cy='68' r='1.6' fill='%23FFF0DF' fill-opacity='.45'/%3E%3Ccircle cx='54' cy='18' r='1' fill='%23FFF0DF' fill-opacity='.4'/%3E%3C/svg%3E");}
 
 *{box-sizing:border-box}
 html{height:100%;scroll-padding-top:env(safe-area-inset-top,0px)}
@@ -150,7 +153,7 @@ textarea.input{min-height:90px;resize:vertical}
 .btn.primary:active{box-shadow:1px 1px 0 var(--ink)}
 .btn.ghost{background:transparent}
 .error{color:#B3122E;background:#FFE3E8;border-radius:10px;padding:8px 12px;font-size:14px;margin:12px 0 0}
-[data-theme="mystere"] .error{color:#FFD0D8;background:#4A1F3A}
+[data-theme="mystere"] .error,[data-theme="halloween"] .error{color:#FFD0D8;background:#4A1F3A}
 .recap{list-style:none;padding:0;margin:0 0 16px}
 .recap li{display:grid;grid-template-columns:120px 1fr;gap:10px;padding:10px 0;border-bottom:1px solid var(--line);font-size:15px}
 .recap li b{color:var(--muted);font-weight:600}
@@ -379,7 +382,10 @@ textarea.input{min-height:90px;resize:vertical}
 .sc-halo text{fill:none;stroke:var(--accent);stroke-width:9;stroke-linejoin:round;opacity:.2}
 .sc-tube text{fill:var(--accent)}
 /* Animations des éléments vedettes : Normales, et une version plus sobre en Discrètes */
-.sg-swing,.sg-flutter,.sg-float,.sg-bloom{transform-box:fill-box}
+.sg-swing,.sg-flutter,.sg-float,.sg-bloom,.sg-wobble,.sg-flap{transform-box:fill-box}
+.sg-wobble{transform-origin:50% 100%}
+.sg-flap{transform-origin:50% 50%}
+.sg-rib{fill:none;stroke:var(--accent-seal);stroke-width:3;stroke-linecap:round}
 .sg-swing{transform-origin:50% 0}
 .sg-flutter{transform-origin:50% 0}
 .sg-bloom{transform-origin:50% 50%}
@@ -396,6 +402,15 @@ textarea.input{min-height:90px;resize:vertical}
 .scene-sign.anim-n .sc-neon{animation:neon-hum 7s ease-in-out infinite}
 .scene-sign.anim-n .sc-flick{animation:neon-flick 4.6s linear infinite}
 .scene-sign.anim-d .sc-neon{animation:neon-breathe 10s ease-in-out infinite}
+.scene-sign.anim-n .sg-wobble{animation:sg-wobble 4s ease-in-out infinite}
+.scene-sign.anim-d .sg-wobble{animation:sg-wobble-d 8s ease-in-out infinite}
+.scene-sign.anim-n .sg-glow{animation:sg-glow 3s ease-in-out infinite}
+.scene-sign.anim-n .sg-flap{animation:sg-flap .5s ease-in-out infinite alternate}
+.scene-sign.anim-d .sg-flap{animation:sg-flap 1.4s ease-in-out infinite alternate}
+@keyframes sg-wobble{0%,100%{transform:rotate(-2deg)}50%{transform:rotate(2deg)}}
+@keyframes sg-wobble-d{0%,100%{transform:rotate(-.8deg)}50%{transform:rotate(.8deg)}}
+@keyframes sg-glow{0%,100%{opacity:1}50%{opacity:.7}}
+@keyframes sg-flap{from{transform:scaleY(1)}to{transform:scaleY(.55)}}
 @keyframes sg-swing{0%,100%{transform:rotate(-2deg)}50%{transform:rotate(2deg)}}
 @keyframes sg-swing-d{0%,100%{transform:rotate(-.8deg)}50%{transform:rotate(.8deg)}}
 @keyframes sg-lamp{0%,100%{opacity:.45}20%,70%{opacity:1}}
@@ -472,7 +487,9 @@ const OCCASIONS = [
   {cat:"Amis", items:[
     {id:"sortie", label:"Une sortie entre amis", theme:"amis", q:"Tu viens avec moi ?"},
     {id:"annivami", label:"Un anniversaire entre amis", theme:"fete", q:"Je t'invite pour ton anniversaire ?"},
-    {id:"temoin", label:"Être mon témoin", theme:"amis", q:"Tu veux être mon témoin ?"}
+    {id:"temoin", label:"Être mon témoin", theme:"amis", q:"Tu veux être mon témoin ?"},
+    // Saisonnières (SEASONS) : proposées à la création seulement pendant leur période
+    {id:"halloween", label:"Halloween", theme:"halloween", q:"Tu oses venir fêter Halloween avec moi ?"}
   ]},
   {cat:"Autre", items:[
     {id:"surprise", label:"Une journée surprise", theme:"mystere", q:"Tu me confies ta journée ?"},
@@ -558,7 +575,9 @@ const THEMES = [
   {id:"papa", name:"Cravate", c:"#E3EAF6", a:"#D99A1E", so:"#F1F5FC", i:"#14254A"},
   {id:"amis", name:"Pop", c:"#FFF2B3", a:"#2F5BFF", so:"#FFFBE3", i:"#22200F"},
   {id:"fete", name:"Confettis", c:"#E6F6EF", a:"#F2484B", so:"#F3FBF7", i:"#10372B"},
-  {id:"mystere", name:"Mystère", c:"#1C1838", a:"#FFC94A", s:"#29234D", so:"#231E44", i:"#F2EEFF"}
+  {id:"mystere", name:"Mystère", c:"#1C1838", a:"#FFC94A", s:"#29234D", so:"#231E44", i:"#F2EEFF"},
+  // Thèmes de saison (season : proposé à la création seulement pendant cette saison)
+  {id:"halloween", name:"Halloween", c:"#221432", a:"#FF8C2A", s:"#2F1C46", so:"#28183B", i:"#FFF0DF", season:"halloween"}
 ];
 /* Couleurs d'accent (facultatives). Une couleur n'est utilisée que si elle reste lisible sur le thème. */
 const ACCENTS = [
@@ -571,7 +590,7 @@ const ACCENTS = [
   {id:"violet", name:"Violet", c:"#7B4DFF"},
   {id:"nuit", name:"Nuit", c:"#1F1546"}
 ];
-const EMOJIS = ["💌","❤️","🌹","💍","🌷","👔","🎂","🎉","🎁","✨","🍕","☕"];
+const EMOJIS = ["💌","❤️","🌹","💍","🌷","👔","🎂","🎉","🎁","✨","🍕","☕","🎃"];
 function lum(h){ const c=[1,3,5].map(i=>parseInt(h.slice(i,i+2),16)/255).map(v=>v<=.03928?v/12.92:((v+.055)/1.055)**2.4); return .2126*c[0]+.7152*c[1]+.0722*c[2]; }
 function contrast(a,b){ const x=lum(a), y=lum(b); return (Math.max(x,y)+.05)/(Math.min(x,y)+.05); }
 function accentOk(themeId, acId){
@@ -876,16 +895,18 @@ const LINK_PHRASES = {
   26:"Ce ne sera pas pareil sans toi.", 27:"Fais-moi confiance, tu vas aimer.",
   28:"Je ne dis rien de plus, c'est une surprise.", 29:"Garde ton agenda libre, j'ai prévu quelque chose.",
   30:"Je veux passer tous mes moments avec toi.", 31:"Un petit moment rien que pour vous, vous l'avez bien mérité.",
-  32:"Je ne vois personne d'autre à mes côtés ce jour-là."
+  32:"Je ne vois personne d'autre à mes côtés ce jour-là.",
+  33:"Tu oses venir fêter Halloween avec moi ?", 34:"Viens avec ton meilleur déguisement."
 };
 const LINK_OCC = {1:"date",2:"valentin",3:"annivamour",4:"couple",5:"mariage",6:"meres",7:"peres",8:"grands",
-  9:"annivfam",10:"sortie",11:"annivami",12:"temoin",13:"surprise",14:"pardon",15:"juste",16:"libre"};
-const LINK_TH = {1:"base",2:"amour",3:"maman",4:"papa",5:"amis",6:"fete",7:"mystere"};
+  9:"annivfam",10:"sortie",11:"annivami",12:"temoin",13:"surprise",14:"pardon",15:"juste",16:"libre",
+  17:"halloween"};
+const LINK_TH = {1:"base",2:"amour",3:"maman",4:"papa",5:"amis",6:"fete",7:"mystere",8:"halloween"};
 const LINK_NO = {1:"fuit",2:"retrecit",3:"supplie",4:"transforme"};
 const LINK_CH = {1:"any",2:"wa",3:"sms",4:"snap",5:"ig",6:"fb"};
 const LINK_AN = {1:"n",2:"d",3:"0"};
 const LINK_AC = {1:"framboise",2:"corail",3:"mandarine",4:"or",5:"menthe",6:"ocean",7:"violet",8:"nuit"};
-const LINK_EM = {1:"💌",2:"❤️",3:"🌹",4:"💍",5:"🌷",6:"👔",7:"🎂",8:"🎉",9:"🎁",10:"✨",11:"🍕",12:"☕"};
+const LINK_EM = {1:"💌",2:"❤️",3:"🌹",4:"💍",5:"🌷",6:"👔",7:"🎂",8:"🎉",9:"🎁",10:"✨",11:"🍕",12:"☕",13:"🎃"};
 const LINK_TONE = {1:"taquin",2:"drole",3:"mignon",4:"theatral",5:"romantique"};
 const LINK_KEYS = ["f","t","o","F","q","T","n","N","A","C","E","s","S","c","i","m","H","a","l","D","p","e","M","b","w","L","R"];
 /* Dates : minutes depuis le 1er janvier 2026 (heure locale de l'invitation, sans fuseau) */
@@ -1079,7 +1100,10 @@ const TEMPLATES = [
     plan:{steps:[{h:"10 h",hint:"Prévois des baskets"},{h:"13 h",hint:"Tu vas te régaler"},{h:"17 h",hint:"Garde des forces"}]}},
   {id:"diner", cat:"Surprise", label:"Dîner surprise", short:"dîner surprise", occ:"juste", theme:"mystere", no:"transforme", em:"💌",
     q:"Je t'emmène dîner, sans rien te dire ?", msg:"Je ne dis rien de plus, c'est une surprise.",
-    plan:{act:"Un dîner", lieuHint:"Habille-toi bien"}}
+    plan:{act:"Un dîner", lieuHint:"Habille-toi bien"}},
+  // Saisonniers (SEASONS) : proposés seulement pendant leur période, en tête de leur catégorie
+  {id:"halloween", cat:"Amis", label:"Soirée Halloween", short:"Halloween", occ:"halloween", theme:"halloween", no:"fuit", tone:"theatral", em:"🎃",
+    q:"Tu oses venir fêter Halloween avec moi ?", msg:"Viens avec ton meilleur déguisement."}
 ];
 const HOME_CATS = [
   {cat:"Amour", theme:"amour", ico:"❤️"},
@@ -2078,6 +2102,31 @@ const SCENES = {
         <rect class="sc-mount" x="90" y="22" width="12" height="8" rx="2"/><rect class="sc-mount" x="218" y="22" width="12" height="8" rx="2"/>
         <g class="sc-neon"><g class="sc-halo">${txt}</g><g class="sc-tube">${txt}</g></g>`);
     })()
+  },
+  // Halloween : nuit, lune, maison hantée, clôture et citrouilles ; citrouille souriante qui oscille, chauve-souris
+  halloween: {
+    wall: sceneWall(
+      `<pattern id="sc-nuit" width="260" height="260" patternUnits="userSpaceOnUse"><path class="sc-line" d="M40 40v10M35 45h10M190 120v8M186 124h8M120 210v10M115 215h10"/>
+        <path class="sc-a" d="M200 40c5-7 12-7 14-2 2-5 9-5 14 2-5-1-8 0-9 4-2-3-7-3-10 0-1-4-4-5-9-4zM70 150c4-6 10-6 12-2 2-4 8-4 12 2-4-1-7 0-8 3-2-2-6-2-8 0-1-3-4-4-8-3z"/></pattern>
+       <pattern id="sc-grille" width="34" height="400" patternUnits="userSpaceOnUse"><path class="sc-b sc-out" d="M8 400V22l9-14 9 14v378z"/></pattern>`,
+      fill("sc-nuit") +
+      at("74%","5%",`<circle class="sc-b sc-out" cx="50" cy="50" r="46"/><circle class="sc-a" cx="34" cy="40" r="9"/><circle class="sc-a" cx="62" cy="66" r="6"/><circle class="sc-a" cx="62" cy="30" r="4"/>`) +
+      at("0","88%",`<path class="sc-a" d="M0 40Q300-20 700 30T1400 20T2100 30T2800 20T3500 30T4200 20V900H0z"/>`) +
+      at("3%","94%",`<g transform="translate(0 -200)"><path class="sc-b sc-out" d="M10 200V90h120v110z"/><path class="sc-a sc-out" d="M0 92L70 40l70 52z"/>
+        <path class="sc-b sc-out" d="M96 92V30h30v62z"/><path class="sc-a sc-out" d="M90 32l21-32 21 32z"/><rect class="sc-a sc-out" x="104" y="46" width="14" height="18" rx="7"/>
+        <rect class="sc-a sc-out" x="30" y="112" width="24" height="28" rx="12"/><rect class="sc-a sc-out" x="86" y="112" width="24" height="28" rx="12"/>
+        <path class="sc-line" d="M30 126h24M42 112v28M86 126h24M98 112v28"/><path class="sc-a sc-out" d="M58 200v-36a12 12 0 0 1 24 0v36z"/></g>`) +
+      at("86%","94%",`<path class="sc-a sc-out" d="M14 0l4-90-26-36 6-3 24 30 2-30h6v28l22-26 6 4-26 34 2 89z"/>`) +
+      at("0","92%",`<rect width="4000" height="400" fill="url(#sc-grille)"/><path class="sc-line" d="M0 40h4000M0 90h4000"/>`) +
+      at("66%","97%",`<g transform="translate(0 -34)"><ellipse class="sc-b sc-out" cx="24" cy="18" rx="24" ry="17"/><path class="sc-line" d="M24 2v32M12 4q-6 14 0 28M36 4q6 14 0 28"/><path class="sc-a sc-out" d="M22 2l2-8 5 1-3 8z"/></g>`)),
+    sign: sceneSign(170, `<g class="sg-wobble"><ellipse class="sg-ink" cx="96" cy="120" rx="66" ry="52"/>
+        <path class="sg-acc sg-out" d="M90 62c-40 0-66 22-66 52s26 52 66 52 66-22 66-52-26-52-66-52z"/>
+        <path class="sg-rib" d="M90 64c-22 14-22 86 0 100M90 64c22 14 22 86 0 100M58 72c-18 20-18 66 0 86M122 72c18 20 18 66 0 86"/>
+        <path class="sg-lin sg-out" d="M84 66l2-20c0-5 10-5 10 1l-2 19z"/>
+        <g class="sg-glow"><path class="sg-ink" d="M56 102l14-17 14 17zM96 102l14-17 14 17zM54 124q36 24 72 0q-6 20-36 22q-30-2-36-22z"/></g></g>
+      <path class="sg-wire" d="M240 132v34"/>
+      <g transform="rotate(-4 240 92)">${panel(176,58,128,74,8)}${label(240,90,24,"Même pas")}<text class="sg-text" x="240" y="120" font-size="24" text-anchor="middle">peur <tspan class="sg-t-acc">?</tspan></text></g>
+      <g transform="translate(270 24)"><g class="sg-flap"><path class="sg-lin sg-out" d="M0 2c-4-2-6-6-6-10 4 2 4 4 6 4s2-2 6-4c0 4-2 8-6 10zM-4 0c-10-10-22-10-28-2 6 0 8 4 8 8 4-4 10-2 12 2 2-4 6-6 8-8zM4 0c10-10 22-10 28-2-6 0-8 4-8 8-4-4-10-2-12 2-2-4-6-6-8-8z"/></g></g>`)
   }
 };
 /* Scène de l'accueil : envoyer une demande. Décor de fond seulement (le mini-billet est l'élément principal),
@@ -2630,7 +2679,10 @@ const DECOR = {
   papa:   {shape:"star5",    move:"drift",   cols:["#D99A1E","#14254A","#7C93C3"], react:"fall"},
   amis:   {shape:"bubble",   move:"bounce",  cols:["#2F5BFF","#FF5B3A","#22200F"], react:"pop",   burst:["bubble","confetti"]},
   fete:   {shape:"confetti", move:"fall",    cols:["#F2484B","#3D7CF2","#F2B33D","#3CC48A"], react:"gust"},
-  mystere:{shape:"sparkle",  move:"twinkle", cols:["#FFC94A","#F2EEFF"], react:"fall"}
+  mystere:{shape:"sparkle",  move:"twinkle", cols:["#FFC94A","#F2EEFF"], react:"fall"},
+  /* Thèmes de saison. shape peut être une liste ; kcols : couleurs propres à une forme (décor et explosion) */
+  halloween:{shape:["bat","ghost"], move:"fly", cols:["#9C7BC9","#FF8C2A"], react:"scatter", burst:["pumpkin","candy"],
+    kcols:{ghost:["#FFF0DF"], bat:["#9C7BC9","#6B4A99"], pumpkin:["#FF8C2A","#F57A12"], candy:["#FF8C2A","#9C7BC9","#7BD389","#FFF0DF"]}}
 };
 
 const Decor = (() => {
@@ -2649,7 +2701,8 @@ const Decor = (() => {
   }
   function make(initial){
     const c=cfg(), k=eff()==="d"?.6:1;
-    const p={x:rnd(0,W), y:rnd(0,H), s:rnd(6,11), r:rnd(0,6.28), vr:rnd(-.015,.015)*k, c:pick(c.cols), ph:rnd(0,6.28), a:rnd(.27,.62), st:null, n:0, vx:0, vy:0,
+    const kind=Array.isArray(c.shape) ? pick(c.shape) : c.shape;
+    const p={x:rnd(0,W), y:rnd(0,H), s:rnd(6,11), r:rnd(0,6.28), vr:rnd(-.015,.015)*k, k:kind, c:pick((c.kcols&&c.kcols[kind])||c.cols), ph:rnd(0,6.28), a:rnd(.27,.62), st:null, n:0, vx:0, vy:0,
       ox:0, oy:0, vox:0, voy:0}; // écart dû au pointeur (revient à 0 tout seul)
     if(eff()==="d") p.a*=.75;
     switch(c.move){
@@ -2658,6 +2711,7 @@ const Decor = (() => {
       case "drift": p.vx=rnd(-.35,.35)*k; p.vy=rnd(-.25,.25)*k; if(!initial) p.y=-15; break;
       case "bounce": p.vx=rnd(-.6,.6)*k; p.vy=rnd(-.6,.6)*k; p.s=rnd(7,14); break;
       case "twinkle": p.s=rnd(4,9); break;
+      case "fly": { const d=Math.random()<.5?-1:1; p.vx=d*rnd(.35,.8)*k; p.s=rnd(8,13); if(!initial) p.x=d>0?-25:W+25; break; }
     }
     return p;
   }
@@ -2686,6 +2740,26 @@ const Decor = (() => {
         ctx.lineWidth=2; ctx.arc(0,0,s,0,Math.PI*2); ctx.stroke(); ctx.beginPath(); ctx.arc(-s*.35,-s*.35,s*.2,0,Math.PI*2); ctx.fill(); break;
       case "confetti": ctx.fillRect(-s*.6,-s*.25,s*1.2,s*.5); break;
       case "q": { const d=s*2.2*Q_BOX/Q_FONT; ctx.drawImage(qSprite(col),-d/2,-d/2,d,d); break; }
+      // Halloween (amusant, jamais effrayant) : chauve-souris qui bat des ailes, petit fantôme souriant, citrouille, bonbon
+      case "bat": {
+        const f=.55+.45*Math.abs(Math.sin(t*.18));
+        ctx.ellipse(0,0,s*.28,s*.42,0,0,Math.PI*2);
+        for(const d of [-1,1]){ ctx.moveTo(d*s*.2,-s*.15); ctx.quadraticCurveTo(d*s*.9,-s*f,d*s*1.5,-s*.3*f); ctx.quadraticCurveTo(d*s*1.25,0,d*s*1.05,s*.15*f);
+          ctx.quadraticCurveTo(d*s*.85,-s*.05,d*s*.65,s*.25*f); ctx.quadraticCurveTo(d*s*.45,0,d*s*.2,s*.2); ctx.closePath(); }
+        ctx.moveTo(-s*.22,-s*.3); ctx.lineTo(-s*.14,-s*.62); ctx.lineTo(-s*.04,-s*.36); ctx.moveTo(s*.22,-s*.3); ctx.lineTo(s*.14,-s*.62); ctx.lineTo(s*.04,-s*.36);
+        ctx.fill(); break;
+      }
+      case "ghost":
+        ctx.moveTo(-s*.8,s*.9); ctx.lineTo(-s*.8,-s*.1); ctx.arc(0,-s*.1,s*.8,Math.PI,0); ctx.lineTo(s*.8,s*.9);
+        ctx.quadraticCurveTo(s*.53,s*.55,s*.27,s*.9); ctx.quadraticCurveTo(0,s*1.2,-s*.27,s*.9); ctx.quadraticCurveTo(-s*.53,s*.55,-s*.8,s*.9); ctx.fill();
+        ctx.fillStyle="#221432"; ctx.beginPath(); ctx.ellipse(-s*.28,-s*.15,s*.12,s*.17,0,0,Math.PI*2); ctx.ellipse(s*.28,-s*.15,s*.12,s*.17,0,0,Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(0,s*.2,s*.1,0,Math.PI*2); ctx.fill(); break;
+      case "pumpkin":
+        for(const [x,rx] of [[-s*.38,s*.55],[s*.38,s*.55],[0,s*.62]]){ ctx.beginPath(); ctx.ellipse(x,0,rx,s*.75,0,0,Math.PI*2); ctx.fill(); }
+        ctx.fillStyle="#3E7A3A"; ctx.fillRect(-s*.1,-s*1.05,s*.2,s*.35); break;
+      case "candy":
+        ctx.arc(0,0,s*.45,0,Math.PI*2); ctx.moveTo(-s*.4,0); ctx.lineTo(-s*1.05,-s*.4); ctx.lineTo(-s*1.05,s*.4); ctx.closePath();
+        ctx.moveTo(s*.4,0); ctx.lineTo(s*1.05,-s*.4); ctx.lineTo(s*1.05,s*.4); ctx.closePath(); ctx.fill(); break;
     }
   }
 
@@ -2722,7 +2796,7 @@ const Decor = (() => {
       else if(p.st==="pop"){ p.n++; if(p.n>18){ P[i]=make(true); continue; } }
       else {
         const sway = c.move==="rise" ? Math.sin(t*.02+p.ph)*.35 : 0;
-        p.x+=p.vx+gust+sway; p.y+=p.vy; p.r+=p.vr;
+        p.x+=p.vx+gust+sway; p.y+=p.vy+(c.move==="fly" ? Math.sin(t*.04+p.ph)*.5 : 0); p.r+=p.vr;
         if(c.move==="bounce"){ if(p.x<p.s||p.x>W-p.s) p.vx*=-1; if(p.y<p.s||p.y>H-p.s) p.vy*=-1; }
         else {
           if(p.y<-30||p.y>H+30){ P[i]=make(false); continue; }
@@ -2736,12 +2810,12 @@ const Decor = (() => {
         bx.globalAlpha=a*(1-p.n/70);
         for(const side of [-1,1]){
           bx.save(); bx.translate(side*p.n*.5,0); bx.rotate(side*p.n*.025);
-          bx.beginPath(); bx.rect(side<0?-p.s*2:0,-p.s*2,p.s*2,p.s*4); bx.clip(); shape(bx,c.shape,p.s,p.c); bx.restore();
+          bx.beginPath(); bx.rect(side<0?-p.s*2:0,-p.s*2,p.s*2,p.s*4); bx.clip(); shape(bx,p.k,p.s,p.c); bx.restore();
         }
       } else if(p.st==="pop"){
         bx.globalAlpha=a*(1-p.n/18); bx.lineWidth=2; bx.strokeStyle=p.c; bx.beginPath(); bx.arc(0,0,p.s*(1+p.n*.12),0,Math.PI*2); bx.stroke();
       } else {
-        bx.rotate(c.move==="rise" ? Math.sin(t*.02+p.ph)*.3 : p.r); shape(bx,c.shape,p.s,p.c);
+        bx.rotate(c.move==="rise" ? Math.sin(t*.02+p.ph)*.3 : c.move==="fly" ? Math.sin(t*.04+p.ph)*.12 : p.r); shape(bx,p.k,p.s,p.c);
       }
       bx.restore();
     }
@@ -2784,6 +2858,8 @@ const Decor = (() => {
       if(eff()==="0" || !P.length) return;
       const kind=cfg().react||"fall";
       if(kind==="gust"){ gust=(Math.random()<.5?-1:1)*5; return; }
+      // Les éléments s'éparpillent loin du centre, puis reviennent d'eux-mêmes sur leur trajet
+      if(kind==="scatter"){ const f=eff()==="d"?4:9; for(const p of P){ if(p.st) continue; const dx=p.x-W/2, dy=p.y-H/2, d=Math.hypot(dx,dy)||1; p.vox+=dx/d*f; p.voy+=dy/d*f; } return; }
       const free=P.filter(p=>!p.st).sort(()=>Math.random()-.5).slice(0,3);
       free.forEach(p=>{ p.st=kind; p.n=0; p.vy=kind==="fall"?1:.4; p.vx=rnd(-1,1); });
     },
@@ -2792,7 +2868,7 @@ const Decor = (() => {
       const c=cfg(), kinds=c.burst||[c.shape];
       const cols = theme==="fete"||theme==="base" ? [...c.cols,"#FFC94A","#3CC48A"] : c.cols;
       const count=Math.round(n*(e==="d"?.45:1)), sp=small?.45:1;
-      for(let i=0;i<count;i++) B.push({x,y,vx:rnd(-9,9)*sp,vy:rnd(-15,-5)*sp,s:rnd(6,12),r:rnd(0,6.28),vr:rnd(-.2,.2),c:pick(cols),k:pick(kinds),life:0,max:rnd(90,150)});
+      for(let i=0;i<count;i++){ const k=pick(kinds); B.push({x,y,vx:rnd(-9,9)*sp,vy:rnd(-15,-5)*sp,s:rnd(6,12),r:rnd(0,6.28),vr:rnd(-.2,.2),c:pick((c.kcols&&c.kcols[k])||cols),k,life:0,max:rnd(90,150)}); }
       if(!fraf) fraf=requestAnimationFrame(fstep);
     },
     resize(){ size(); populate(); run(); },

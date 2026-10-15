@@ -495,5 +495,32 @@ export const REFERENCES = [
     "reveles": {
       "l": "Salle de l'Exemple"
     }
+  },
+  {
+    "nom": "Occasion et thème de saison (format compact y) : Halloween, ouvert hors saison",
+    "lien": "yHcw9CsJAEEDhqyyvsZnCOCuB6SzS2niCoCMIs6w_kQTEA-UcuZjE-n28D1eMQ_iEMGCc-oJQsaYVHpiqcMSy0GGNCgXTLPSrrbfnMns619fwLsvsCPF_RHi6eIpNN3m5xxpGLGu7322_Pw",
+    "attendu": {
+      "f": "Alex",
+      "t": "Sam",
+      "q": "Tu oses venir fêter Halloween avec moi ?",
+      "o": "halloween",
+      "th": "halloween",
+      "n": "fuit",
+      "tn": "theatral",
+      "an": "n",
+      "em": "🎃",
+      "c": "any",
+      "m": "Viens avec ton meilleur déguisement.",
+      "a": {
+        "v": "v",
+        "x": "Soirée costumée"
+      },
+      "l": {
+        "v": "v",
+        "x": "Salle de l'Exemple"
+      },
+      "d": "2026-10-31",
+      "h": "20:00"
+    }
   }
 ];

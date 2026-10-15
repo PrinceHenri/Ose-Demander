@@ -34,7 +34,10 @@ export const LINK_PHRASES = {
   "29": "Garde ton agenda libre, j'ai prévu quelque chose.",
   "30": "Je veux passer tous mes moments avec toi.",
   "31": "Un petit moment rien que pour vous, vous l'avez bien mérité.",
-  "32": "Je ne vois personne d'autre à mes côtés ce jour-là."
+  "32": "Je ne vois personne d'autre à mes côtés ce jour-là.",
+  // Ajoutés le 2026-10-15 (occasion saisonnière Halloween)
+  "33": "Tu oses venir fêter Halloween avec moi ?",
+  "34": "Viens avec ton meilleur déguisement."
 };
 
 export const LINK_OCC = {
@@ -53,7 +56,8 @@ export const LINK_OCC = {
   "13": "surprise",
   "14": "pardon",
   "15": "juste",
-  "16": "libre"
+  "16": "libre",
+  "17": "halloween"
 };
 
 export const LINK_TH = {
@@ -63,7 +67,8 @@ export const LINK_TH = {
   "4": "papa",
   "5": "amis",
   "6": "fete",
-  "7": "mystere"
+  "7": "mystere",
+  "8": "halloween"
 };
 
 export const LINK_NO = {
@@ -111,7 +116,8 @@ export const LINK_EM = {
   "9": "🎁",
   "10": "✨",
   "11": "🍕",
-  "12": "☕"
+  "12": "☕",
+  "13": "🎃"
 };
 
 export const LINK_TONE = {
