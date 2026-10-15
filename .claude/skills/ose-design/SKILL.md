@@ -59,7 +59,8 @@ C'est la signature : **bordure pleine `2px solid var(--ink)` + ombre dure décal
 | Champs, puces, encadrés | 2px `--line` | 12–14px / 999px | aucune |
 
 - **Bouton qui s'enfonce** : `:active{transform:translate(2px,2px)}` et l'ombre diminue d'autant (`3px` → `1px`, `4px` → `2px`), transition `.1s`. Tout nouveau bouton cliquable fait pareil.
-- **Hiérarchie** : principal = `--accent-btn` + ombre ; secondaire = `--surface` (`.btn`) ; tertiaire = `.btn.ghost` transparent ; discret = lien souligné `--muted` (`.cal-alt`, `.refuse`, `.linkbtn`) avec `text-underline-offset:3px`.
+- **Hiérarchie** : principal = `--accent-btn` + ombre ; secondaire = `--surface` (`.btn`) ; tertiaire = `.btn.ghost` transparent ; discret = lien souligné `--muted` (`.cal-alt`, `.linkbtn`) avec `text-underline-offset:3px`, ou pastille discrète (`.refuse` : texte atténué, bordure `--line`, 44 px) quand l'action est essentielle.
+- **Une seule action principale par écran** (`.btn.primary`, le Oui `.yes`, `.install`) : c'est ce que la personne doit faire maintenant. Tout le reste est secondaire, tertiaire ou discret. Quand l'action principale change (ex. le lien est créé : « Créer mon lien » s'efface au profit de « Partager le lien » / « Copier le lien »), l'ancienne disparaît. Le banc compte les actions principales de chaque écran (section « Écrans »).
 - **Pointillés** `2px dashed var(--line)` : séparations douces, zones facultatives (`.adv`, `.tip`, `.sec`, `.privacy` en `--ink`).
 - **Billet** : talon « De / Pour » (`.stub`), perforation en pointillés avec deux demi-cercles découpés (`.perf::before/::after`, couleur `--bg`), corps centré (`.main`). Pour un nouvel écran côté personne invitée, **réutiliser `ticketHTML(inner)`** plutôt que recréer une carte.
 - **Enveloppe** : rabat qui pivote (`rotateX(180deg)`), papier qui sort avec « Pour {prénom} » en Caveat, sceau rond (`.seal`) en `--ink` portant l'emoji ou l'initiale.
@@ -97,18 +98,21 @@ Règles pour toute nouvelle animation (intro, partage…) :
 - **Seuils, vérifiés par le banc de test (section « Contrastes ») dans les 7 thèmes et pour chaque couleur d'accent autorisée** : texte ≥ 4,5:1 (encre, texte atténué, `--accent-text` sur `--bg`/`--surface`/`--soft` ; `--accent-ink` sur `--accent-btn`) ; grands textes et éléments graphiques ≥ 3:1 (initiale du sceau, contour de focus). Mesures actuelles : encre ≥ 10,7:1, texte atténué ≥ 5,2:1.
 - **Règle d'usage** : du texte, un lien, un chiffre, un contour de focus ou une bordure d'état en couleur d'accent → `var(--accent-text)` ; un fond qui porte du texte → `var(--accent-btn)` avec `color:var(--accent-ink)` ; `var(--accent)` seulement pour les remplissages et décors sans texte. Le banc refuse `color:var(--accent)` (sauf le « ? » du logo, logotype exempté), un contour ou une bordure de focus en `--accent`, et un texte `--accent-ink` sans fond `--accent-btn`.
 - Les remplissages purement décoratifs (enveloppe, pastilles du programme, barre de progression doublée du texte « Étape x sur 4 ») gardent `--accent` même sous 3:1 (Cravate) : ils ne portent aucune information seule.
-- **Focus visible** : `:focus-visible{outline:3px solid var(--accent);outline-offset:2px}` partout ; les champs remplacent le contour par une bordure `--accent`. Ne jamais supprimer le focus sans remplacement.
-- **Clavier** : de vrais `<button>` (y compris l'enveloppe), des liens `<a>` pour naviguer ; état des choix par `aria-pressed` ; le Non qui « se transforme » réagit aussi au focus. Après un changement d'écran, placer le focus sur l'action principale quand c'est utile (ex. `#replyNo`).
+- **Focus visible** : `:focus-visible{outline:3px solid var(--accent-text);outline-offset:2px}` partout ; les champs remplacent le contour par une bordure `--accent-text`. Ne jamais supprimer le focus d'une commande sans remplacement.
+- **Clavier** : de vrais `<button>` (y compris l'enveloppe), des liens `<a>` pour naviguer ; état des choix par `aria-pressed` ; le Non qui « se transforme » réagit aussi au focus.
+- **Changement d'écran** : chaque écran remplace la page, donc le focus doit être replacé. Le titre de chaque écran porte `tabindex="-1"` (focalisable sans entrer dans l'ordre de tabulation, sans contour : `[tabindex="-1"]:focus{outline:none}`) et reçoit le focus avec `focusScreen(sélecteur)` (sans défilement). Après un réaffichage dû au choix d'une option, `refocus(focusKey(bouton))` remet le focus sur le même contrôle. Exception : l'écran de refus met le focus sur sa réponse (`#replyNo`). Tout nouvel écran suit cette règle ; le banc le vérifie.
 - **Lecteurs d'écran** : décor et explosions en `aria-hidden="true"`, emojis décoratifs aussi (`.lk`) ; messages qui changent en `aria-live="polite"` (`.tease`), notifications `role="status"` (`toast`) ; feuilles en `role="dialog" aria-modal="true"` ; texte réservé aux lecteurs d'écran : classe `.sr`.
-- Le **vrai refus** reste toujours accessible au clavier et au lecteur d'écran (lien « Répondre non, pour de vrai »).
-- Cibles tactiles : les boutons d'action (`.btn`, Oui/Non) font environ 50px de haut, en faire autant (≥ 44px). Les liens discrets existants (`.cal-alt`, `.refuse`) sont plus petits : ne jamais y mettre une action essentielle. Rien d'essentiel au survol seul.
+- Le **vrai refus** reste toujours accessible au clavier, au lecteur d'écran et au toucher (« Répondre non, pour de vrai » : pastille de 44 px, que le Non qui s'enfuit ne recouvre jamais).
+- **Cibles de 44 px minimum pour toute action essentielle** (répondre, refuser, revenir en arrière, créer, partager, copier, continuer, ouvrir) : `.btn` et Oui/Non font environ 50 px ; une action essentielle d'aspect discret prend une `min-height:44px` (ex. `.refuse`). Les liens discrets plus petits (`.cal-alt`, `.linkbtn`) sont réservés aux actions facultatives ou qui ont une autre voie. Rien d'essentiel au survol seul.
 
 ## 6. Textes
 
 - **Tutoiement** partout (personne qui crée comme personne invitée) : « Crée la tienne », « Touche l'enveloppe pour l'ouvrir ».
 - **Ton ludique et bienveillant** : complice, jamais insistant ni culpabilisant ; le refus est respecté (« Pas de souci, {prénom} comprendra. »). Le Non joue, mais un vrai non reste toujours possible.
-- **Formulations neutres** : aucun accord au masculin ou au féminin pour la personne qui crée ni pour la personne invitée. Tourner la phrase : « {prénom} va être aux anges » (pas « ravi·e »), « Merci d'avoir osé demander » (pas « tu es gentil »), « Ta surprise de {prénom} » (pas « ton ami »), « la personne invitée ». Pas d'écriture inclusive à point médian : on reformule.
+- **Formulations neutres** : aucun accord au masculin ou au féminin pour la personne qui crée ni pour la personne invitée. Tourner la phrase : « Tant qu'elle n'est pas partie, {prénom} ne sait rien » (pas « il ou elle ne sait rien »), « Merci d'avoir osé demander » (pas « tu es gentil »), « Ta surprise de {prénom} » (pas « ton ami »), « la personne invitée ». Pas d'écriture inclusive à point médian : on reformule.
 - Français soigné : guillemets « » avec espaces, espace avant `?` `!` `:`, « 20 h », dates longues (« samedi 14 novembre »). Phrases courtes. Un emoji au plus, à la fin, s'il ajoute du sens (💌 💛 🔓 ✨).
+- **Pas de flèches décoratives ni de séparateurs « · »** : pas de `→` / `←` ajoutés à un bouton ou un lien (« Partir de zéro → », « ← Retour »), pas d'informations collées par « · » (« Lilas · le Non s'enfuit »). On écrit une courte phrase, on sépare par une virgule ou on met en forme (pastille, ligne à part). Il en reste 14 dans `index.html`, à retirer au point T2 de l'audit ; le banc refuse d'en ajouter.
+- Dire ce qui se passe vraiment : une réponse n'est transmise que lorsqu'elle est envoyée (« Dernière étape : envoie ta réponse à {prénom} »), jamais de phrase qui laisse croire le contraire.
 - Rassurer sur la confidentialité sans jargon (« Ton historique reste uniquement sur cet appareil »). Mention anti-phishing visible sur l'invitation.
 - **Rappel du projet** : un texte mis dans un lien (question, message, intro, ton) **ne change jamais** ; une nouvelle formulation = un nouveau code (voir CLAUDE.md et le banc de test).
 
@@ -121,12 +125,14 @@ Règles pour toute nouvelle animation (intro, partage…) :
 - Les sons sans geste, la musique, le son qui ignore 🔇.
 - Les bibliothèques d'interface, frameworks CSS, icônes externes, scripts tiers : le site est un seul `index.html` autonome, hors connexion, sans appel externe.
 - Les textes genrés, culpabilisants (« Tu ne peux pas dire non ») ou qui forcent le Oui.
+- Plusieurs actions principales sur un même écran ; une action essentielle sous 44 px ; les flèches décoratives et les séparateurs « · ».
 
 ## Avant de valider une interface
 
 1. Vérifiée dans les 7 thèmes (dont Mystère) et avec une couleur d'accent ; couleurs d'accent utilisées selon la règle d'usage (`--accent-text` / `--accent-btn` / `--accent`).
 2. Testée en animations `n`, `d`, `0` et avec « moins de mouvement ».
-3. Parcourue au clavier seul ; focus toujours visible.
+3. Parcourue au clavier seul ; focus toujours visible ; à chaque changement d'écran, le focus arrive sur le titre.
+3 bis. Une seule action principale ; actions essentielles d'au moins 44 px ; ni flèche décorative ni « · ».
 4. Lisible à 360px de large ; zones sûres respectées.
 5. Textes tutoyés, neutres, sans faute ; aucun texte de lien existant modifié.
 6. `node tests/run.mjs` passe.

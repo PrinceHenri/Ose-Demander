@@ -20,7 +20,8 @@ export function chargerPage({ share = false, ios = false } = {}){
     get: (t, k) => k === Symbol.toPrimitive ? () => "" : k === "matches" ? false : k === "length" ? 0 : k === "then" ? undefined : neutre(),
     apply: () => neutre(), construct: () => neutre(), set: () => true
   });
-  const zones = { "#app": { innerHTML: "" }, "#main": { innerHTML: "" } };
+  const zone = () => ({ innerHTML: "", querySelector: () => neutre(), querySelectorAll: () => [] });
+  const zones = { "#app": zone(), "#main": zone() };
   const vus = []; // sélecteurs demandés à la page, dans l'ordre (pour vérifier où va le focus)
   const document = {
     title: "Ose Demander", hidden: false,

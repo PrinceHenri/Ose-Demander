@@ -707,6 +707,28 @@ await test("Réaffichage après un choix : le focus revient sur le même contrô
   assert.ok(apres.includes('refocus("#repick")') && apres.includes('refocus("[data-pick]")'), "choix du créneau après le Oui");
 });
 
+// Règles du skill ose-design, sur tous les écrans
+await test("Règle : une seule action principale par écran", () => {
+  const S = PAGE.lire("S"), app = () => PAGE.zones["#app"].innerHTML;
+  const ecrans = [["accueil", PAGE.lire("homeHTML")()]];
+  for(const n of [1, 2, 3, 4]){ Object.assign(S, { step: n, from: "Alex", to: "Sam", link: "" }); PAGE.lire("renderCreator")(); ecrans.push([`création, étape ${n}`, app().replace(PAGE.lire("readyHTML")(), "")]); }
+  ecrans.push(["création, lien prêt", etape4(PAGE, LIEN_EX)], ["création, lien prêt (partage)", etape4(PAGE_PARTAGE, LIEN_EX)]);
+  ouvrir(INV());
+  PAGE.lire("renderEnvelope")(); ecrans.push(["enveloppe", app()]);
+  PAGE.ecrire("yesDone", false); PAGE.ecrire("refused", false);
+  PAGE.lire("renderInvite")(); ecrans.push(["question", app()]);
+  PAGE.lire("openRefuse")(); ecrans.push(["vrai refus", PAGE.zones["#main"].innerHTML]);
+  ecrans.push(["après le Oui", apresOui()]);
+  ouvrir(PAGE.lire("reminderData")(INV(), null), null, "reminder");
+  PAGE.lire("renderReminder")(); ecrans.push(["carte du rappel", app()]);
+  PAGE.lire("renderHistory")(); ecrans.push(["mes invitations", app()]);
+  for(const [nom, h] of ecrans){ const p = principales(h); assert.ok(p.length <= 1, `${nom} : ${p.length} actions principales (${p.join(", ")})`); }
+});
+await test("Règle : pas de nouvelle flèche décorative ni de séparateur « · »", () => {
+  const n = (readFileSync(RACINE + "index.html", "utf8").match(/[→←]| · /g) || []).length;
+  assert.ok(n <= 14, `${n} flèches ou « · » dans index.html (14 au plus, à retirer au point T2 de l'audit)`);
+});
+
 /* ---------- Bilan ---------- */
 console.log(`\n${ko ? "❌" : "✅"} ${ok} tests réussis, ${ko} en échec (graine ${GRAINE}${ko ? ` — pour rejouer : node tests/run.mjs --graine=${GRAINE}` : ""})`);
 if(ko){ console.log(echecs.map(e => "  - " + e).join("\n")); process.exitCode = 1; }
