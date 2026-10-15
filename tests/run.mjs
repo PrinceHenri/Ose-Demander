@@ -3,7 +3,7 @@
    Options : --graine=N (rejoue un tirage aléatoire précis), --nombre=N (invitations aléatoires, 400 par défaut).
    À faire passer avant chaque commit. Aucune dépendance : Node 18 ou plus récent. */
 import assert from "node:assert/strict";
-import { deflateRawSync } from "node:zlib";
+import { deflateRawSync, inflateRawSync } from "node:zlib";
 import { readFileSync, readdirSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
@@ -58,7 +58,8 @@ await test("Les quatre formats (z, p, y, x) et les cinq tons du Non sont couvert
   assert.deepEqual([...new Set(REFERENCES.map(r => r.lien[0]))].sort(), ["p", "x", "y", "z"]);
   const tons = new Set(REFERENCES.map(r => r.attendu.tn || "taquin"));
   for(const t of FIGE.NO_TONES.map(t => t.id)) assert.ok(tons.has(t), `ton ${t} absent des références`);
-  for(const k of ["p", "sl", "l"]) assert.ok(REFERENCES.some(r => r.attendu[k]), `aucune référence avec « ${k} »`);
+  for(const k of ["p", "sl", "l", "rv"]) assert.ok(REFERENCES.some(r => r.attendu[k]), `aucune référence avec « ${k} »`);
+  for(const f of ["p", "y", "z"]) assert.ok(REFERENCES.some(r => r.attendu.rv && r.lien[0] === f), `aucun lien de rappel au format ${f}`);
 });
 
 /* =========================================================
@@ -115,6 +116,7 @@ function invitation(){
   }
   if(pile(.3)) d.sl = Array.from({ length: ent(2, 3) }, () => [jour(), heure()]);
   else { d.d = pile(.05) ? jour(2025, 2025) : jour(); d.h = heure(); } // 2025 : hors plage du format compact
+  if(pile(.1)) d.rv = 1; // ouverture depuis le rappel d'agenda
   return JSON.parse(JSON.stringify(d)); // comme le navigateur : les champs « undefined » disparaissent
 }
 let compact = 0, ancien = 0, tropLong = 0;
@@ -216,6 +218,15 @@ const TRAFIQUES = [
   ["Un seul créneau", plat("x", { ...sans(BASE, "w"), L: [1] })],
   ["Quatre créneaux", plat("x", { ...sans(BASE, "w"), L: [1, 2, 3, 4] })],
   ["Compact trafiqué puis compressé (y)", zip("y", { ...BASE, o: 99 })],
+  // Indicateur « ouverture pour la révélation » : seule la valeur 1 est acceptée
+  ["Rappel : R = 2", plat("x", { ...BASE, R: 2 })],
+  ["Rappel : R = 0", plat("x", { ...BASE, R: 0 })],
+  ["Rappel : R en texte", plat("x", { ...BASE, R: "1" })],
+  ["Rappel : R = true", plat("x", { ...BASE, R: true })],
+  ["Rappel : R = null", plat("x", { ...BASE, R: null })],
+  ["Rappel : R = [1]", plat("x", { ...BASE, R: [1] })],
+  ["Rappel : rv (nom de l'ancien format) dans un lien compact", plat("x", { ...BASE, rv: 1 })],
+  ["Rappel : R = 2, compressé (y)", zip("y", { ...BASE, R: 2 })],
   // Ancien format : champs indispensables
   ["Ancien : prénom manquant", plat("p", sans(BASE_ANCIEN, "f"))],
   ["Ancien : question manquante", plat("p", sans(BASE_ANCIEN, "q"))],
@@ -254,7 +265,11 @@ const NETTOYES = [
   ["Ton « taquin » jamais conservé (valeur par défaut)", { ...BASE_ANCIEN, tn: "taquin" }, BASE_ANCIEN],
   ["Révélation sans date valable : devient une surprise", { ...BASE_ANCIEN, l: { v: "r", h: "Indice", at: "demain", e: "abc" } }, { ...BASE_ANCIEN, l: { v: "s", h: "Indice" } }],
   ["Révélation au texte brouillé invalide : devient une surprise", { ...BASE_ANCIEN, l: { v: "r", at: "2026-11-14T10:00", e: "a b" } }, { ...BASE_ANCIEN, l: { v: "s", h: "" } }],
-  ["Un seul créneau valable : la date simple est gardée", { ...BASE_ANCIEN, sl: [["2026-11-14", "20:00"], ["mauvais", "20:00"]] }, BASE_ANCIEN]
+  ["Un seul créneau valable : la date simple est gardée", { ...BASE_ANCIEN, sl: [["2026-11-14", "20:00"], ["mauvais", "20:00"]] }, BASE_ANCIEN],
+  ["Indicateur de rappel invalide (rv ≠ 1) : lien normal", { ...BASE_ANCIEN, rv: 2 }, BASE_ANCIEN],
+  ["Indicateur de rappel en texte : lien normal", { ...BASE_ANCIEN, rv: "1" }, BASE_ANCIEN],
+  ["Indicateur de rappel à true : lien normal", { ...BASE_ANCIEN, rv: true }, BASE_ANCIEN],
+  ["Indicateur au nom du format compact (R) dans l'ancien format : ignoré", { ...BASE_ANCIEN, R: 1 }, BASE_ANCIEN]
 ];
 const normal = d => { const x = { f: d.f, t: d.t, q: d.q, o: d.o, th: d.th, n: d.n, an: "n", c: "any", a: d.a.h !== undefined ? d.a : { v: "s", h: "" } }; if(d.l) x.l = d.l; x.d = d.d; x.h = d.h; return x; };
 for(const [nom, entree, sortie] of NETTOYES){
@@ -267,6 +282,12 @@ for(const [nom, entree, sortie] of NETTOYES){
    4. Tables de codes : aucun code existant ne change de texte
    ========================================================= */
 titre("4. Tables de codes");
+await test("Le script complet de la page se lit sans erreur (syntaxe, noms déclarés deux fois)", () => {
+  const html = readFileSync(RACINE + "index.html", "utf8");
+  const scripts = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map(m => m[1]);
+  assert.ok(scripts.length >= 1, "aucun script dans index.html");
+  for(const s of scripts) new Function(s); // lève une erreur si le script ne peut pas être lu par le navigateur
+});
 const TABLES = [
   ["LINK_PHRASES", "questions et messages"], ["LINK_OCC", "occasions"], ["LINK_TH", "thèmes"], ["LINK_NO", "comportements du Non"],
   ["LINK_TONE", "tons du Non"], ["LINK_CH", "canaux"], ["LINK_AN", "animations"], ["LINK_AC", "accents"], ["LINK_EM", "emojis"]
@@ -356,6 +377,129 @@ await test("Aucune adresse e-mail ni vrai numéro de téléphone dans les tests 
     const tels = (txt.match(TELEPHONE) || []).filter(t => !telFictif(t));
     assert.deepEqual(tels, [], `numéro de téléphone non fictif dans ${f} (utiliser 06 00 00 00 0x)`);
   }
+});
+
+/* =========================================================
+   6. Rappel d'agenda : lien allégé et révélations
+   ========================================================= */
+titre("6. Rappel d'agenda");
+// Texte JSON réellement contenu dans un lien (après décompression), pour y chercher l'identifiant du créateur
+const contenuBrut = lien => { const b = L.unb64url(lien.slice(1)); return Buffer.from(lien[0] === "y" || lien[0] === "z" ? inflateRawSync(b) : b).toString("utf8"); };
+const ID_CREATEUR = ["06 00 00 00 07", "+33 6 00 00 00 08", "@exemple_createur", "exemple.createur"];
+await test("Lien de rappel : jamais d'identifiant du créateur, quel que soit le canal (y, x, z, p)", async () => {
+  for(const ch of L.CHANNELS.filter(c => c.id !== "any")) for(const id of ID_CREATEUR){
+    if((ch.id === "wa" || ch.id === "sms") !== /\d{2} \d{2}/.test(id)) continue; // numéro pour WhatsApp/SMS, nom d'utilisateur sinon
+    const d = L.sanitize({ ...BASE_ANCIEN, c: ch.id, ci: id, l: { v: "r", at: "2026-11-14T18:00", e: L.scramble("Lieu de l'Exemple") } });
+    assert.equal(d.ci, id, "l'invitation de départ doit contenir l'identifiant");
+    for(const date of ["2026-11-14", "2025-11-14"]) for(const [, E] of [["compressé", L], ["non compressé", Lplat]]){
+      const lien = await E.encodeData(L.reminderData({ ...d, d: date }, null));
+      assert.ok(!contenuBrut(lien).includes(id), `identifiant « ${id} » présent dans le lien ${lien[0]}`);
+      const lu = await L.decodeData(lien);
+      assert.equal(lu.c, "any"); assert.equal(lu.ci, undefined); assert.equal(lu.rv, 1);
+    }
+  }
+});
+await test(`Lien de rappel : ${Math.min(NOMBRE, 400)} invitations aléatoires, tout ce qui sert à la révélation est gardé`, async () => {
+  for(let k = 0; k < Math.min(NOMBRE, 400); k++){
+    const d = L.sanitize(invitation()), slot = d.sl ? ent(0, d.sl.length - 1) : null;
+    const r = L.reminderData(d, slot);
+    // Attendu : la même invitation, sans canal ni identifiant, avec le créneau choisi, et l'indicateur
+    const attendu = { ...d, c: "any", rv: 1 }; delete attendu.ci;
+    if(d.sl){ delete attendu.sl; attendu.d = d.sl[slot][0]; attendu.h = d.sl[slot][1]; }
+    pareil(JSON.parse(JSON.stringify(r)), L.sanitize(JSON.parse(JSON.stringify(attendu))), `Rappel de l'invitation ${k + 1}`);
+    for(const [kk] of L.revealKeys(d)) assert.ok(L.revealKeys(r).some(([x]) => x === kk), `révélation ${kk} perdue`);
+    const lien = await L.encodeData(r);
+    if(d.ci) assert.ok(!contenuBrut(lien).includes(d.ci), `identifiant du créateur dans le lien de rappel ${k + 1}`);
+    pareil(await Lsecours.decodeData(lien), r, `Relecture du rappel ${k + 1}`);
+    pareil(L.reminderData(r, null), r, "Un rappel de rappel doit être identique");
+  }
+});
+// Plan de révélation : waiting (cadenas + compte à rebours), staged (mise en scène), shown (affichage direct)
+const H = 3600e3, AT = "2026-11-14T18:00", T = new Date(AT).getTime();
+const avecRev = (extra = {}) => L.sanitize({ ...BASE_ANCIEN, a: { v: "r", at: AT, e: L.scramble("Dîner") }, l: { v: "r", at: "2026-11-14T19:00", e: L.scramble("Ici") }, ...extra });
+const PLANS = [
+  ["Lien normal, avant l'heure : cadenas et compte à rebours", avecRev(), T - H, "n", { shown: [], staged: [], waiting: ["a", "l"] }],
+  ["Rappel, avant l'heure : cadenas et compte à rebours", avecRev({ rv: 1 }), T - 60e3, "n", { shown: [], staged: [], waiting: ["a", "l"] }],
+  ["Rappel, heure atteinte pile : mise en scène", avecRev({ rv: 1 }), T, "n", { shown: [], staged: ["a"], waiting: ["l"] }],
+  ["Rappel, après l'heure : mise en scène de chaque surprise, dans l'ordre", avecRev({ rv: 1 }), T + 2 * H, "n", { shown: [], staged: ["a", "l"], waiting: [] }],
+  ["Rappel, trois jours après : mise en scène quand même", avecRev({ rv: 1 }), T + 72 * H, "n", { shown: [], staged: ["a", "l"], waiting: [] }],
+  ["Lien normal, révélée depuis moins de 24 h : mise en scène", avecRev(), T + 23 * H, "n", { shown: [], staged: ["a", "l"], waiting: [] }],
+  ["Lien normal, 24 h pile pour l'une, moins pour l'autre", avecRev(), T + 24 * H, "n", { shown: ["a"], staged: ["l"], waiting: [] }],
+  ["Lien normal, révélée depuis plus de 24 h : affichage direct", avecRev(), T + 30 * H, "n", { shown: ["a", "l"], staged: [], waiting: [] }],
+  ["Animation douce : mise en scène gardée (en plus discret)", avecRev({ rv: 1 }), T + H / 2, "d", { shown: [], staged: ["a"], waiting: ["l"] }],
+  ["Animations coupées : affichage direct, même depuis le rappel", avecRev({ rv: 1 }), T + 2 * H, "0", { shown: ["a", "l"], staged: [], waiting: [] }],
+  ["Animations coupées, avant l'heure : compte à rebours", avecRev(), T - H, "0", { shown: [], staged: [], waiting: ["a", "l"] }],
+  ["Visible ou surprise simple : jamais de mise en scène", L.sanitize({ ...BASE_ANCIEN, a: { v: "v", x: "Dîner" }, l: { v: "s", h: "Indice" }, rv: 1 }), T, "n", { shown: [], staged: [], waiting: [] }],
+  ["Programme : seules les étapes révélées, dans l'ordre", L.sanitize({ ...sans(BASE_ANCIEN, "a"), rv: 1, p: [
+      { h: "10:00", v: "r", at: "2026-11-14T20:00", e: L.scramble("{}") }, { h: "12:00", v: "v", a: "Déjeuner" },
+      { h: "14:00", v: "r", at: AT, e: L.scramble("{}") }, { h: "16:00", v: "s" }, { h: "18:00", v: "r", at: "2026-11-14T08:00", e: L.scramble("{}") } ] }),
+    T + H, "n", { shown: [], staged: ["p2", "p4"], waiting: ["p0"] }]
+];
+for(const [nom, d, now, anim, attendu] of PLANS) await test(nom, () => pareil(L.revealPlan(d, now, anim), attendu, "Plan de révélation"));
+await test("Le délai de 24 h vaut bien 24 heures", () => assert.equal(L.REVEAL_FRESH, 24 * H));
+
+// Événements « Ta surprise de … se révèle 🔓 » : un par révélation encore à venir
+const ENC = s => L.scramble(JSON.stringify({ a: s, l: "Lieu de l'Exemple" }));
+const TROIS = L.sanitize({ ...sans(BASE_ANCIEN, "a"), c: "wa", ci: "06 00 00 00 07", p: [
+  { h: "10:00", v: "r", i: "Prévois un pull", at: "2026-11-14T08:00", e: ENC("Balade") },
+  { h: "12:00", v: "v", a: "Déjeuner" },
+  { h: "14:00", v: "r", at: "2026-11-14T13:30", e: ENC("Musée") },
+  { h: "18:00", v: "r", i: "Ça brille", at: "2026-11-14T17:45", e: ENC("Concert") } ] });
+const LIEN_RAPPEL = "https://osedemander.fr/#i=" + await L.encodeData(L.reminderData(TROIS, null));
+const heureLocale = at => new Date(at).getTime();
+await test("Rappels de révélation : un événement par révélation à venir, à l'heure exacte, deux alertes", () => {
+  const evs = L.revealEvents(TROIS, heureLocale("2026-11-14T09:00"), LIEN_RAPPEL);
+  assert.deepEqual(evs.map(e => e.key), ["p2", "p3"], "seules les révélations encore à venir, dans l'ordre");
+  for(const [ev, at] of [[evs[0], "2026-11-14T13:30"], [evs[1], "2026-11-14T17:45"]]){
+    assert.equal(ev.title, "Ta surprise de Alex se révèle 🔓");
+    assert.equal(ev.start.getTime(), heureLocale(at), "début à l'heure exacte de la révélation");
+    assert.equal(ev.end - ev.start, L.REVEAL_EVENT_MIN * 60e3);
+    assert.deepEqual([...ev.alarms], [10, 0], "alertes : 10 minutes avant et à l'heure exacte");
+    assert.ok(ev.desc.includes(LIEN_RAPPEL), "lien de rappel dans la description");
+    assert.equal(ev.url, LIEN_RAPPEL);
+  }
+  assert.ok(evs[1].desc.startsWith("Indice : Ça brille"), "l'indice (déjà visible sur la carte) est repris");
+  assert.ok(!evs[0].desc.includes("Indice"), "pas d'indice inventé");
+});
+await test("Rappels de révélation : toutes avant la première, aucune après la dernière, rien sans révélation", () => {
+  assert.deepEqual(L.revealEvents(TROIS, heureLocale("2026-11-14T07:00"), LIEN_RAPPEL).map(e => e.key), ["p0", "p2", "p3"]);
+  assert.deepEqual(L.revealEvents(TROIS, heureLocale("2026-11-14T17:45"), LIEN_RAPPEL), [], "à l'heure pile, la révélation n'est plus « à venir »");
+  assert.deepEqual(L.revealEvents(L.sanitize({ ...BASE_ANCIEN, a: { v: "v", x: "Dîner" }, l: { v: "s", h: "Indice" } }), 0, LIEN_RAPPEL), []);
+  const simple = L.sanitize({ ...BASE_ANCIEN, a: { v: "r", h: "Devine", at: AT, e: L.scramble("Dîner") }, l: { v: "r", at: "2026-11-14T19:00", e: L.scramble("Ici") } });
+  assert.deepEqual(L.revealEvents(simple, T - H, LIEN_RAPPEL).map(e => e.key), ["a", "l"]);
+});
+await test("Rappels de révélation : jamais l'identifiant ni le canal du créateur (événements, .ics, lien)", async () => {
+  const evs = L.revealEvents(TROIS, heureLocale("2026-11-14T07:00"), LIEN_RAPPEL), ics = L.icsText(evs);
+  for(const txt of [JSON.stringify(evs), ics.replace(/\r\n /g, ""), contenuBrut(LIEN_RAPPEL.split("#i=")[1])])
+    assert.ok(!txt.includes("06 00 00 00 07"), "identifiant du créateur présent");
+  const lu = await L.decodeData(LIEN_RAPPEL.split("#i=")[1]);
+  assert.equal(lu.c, "any"); assert.equal(lu.ci, undefined); assert.equal(lu.rv, 1);
+  assert.equal(L.revealKeys(lu).length, 3, "le lien de rappel garde les trois révélations");
+});
+await test("Fichier .ics : un VEVENT par révélation, deux VALARM chacun, lignes de 75 octets au plus", () => {
+  const evs = L.revealEvents(TROIS, heureLocale("2026-11-14T07:00"), LIEN_RAPPEL);
+  const ics = L.icsText(evs, new Date(Date.UTC(2026, 9, 15, 12, 0)));
+  const lignes = ics.split("\r\n"), plat = ics.replace(/\r\n /g, "");
+  assert.ok(!/[^\r]\n/.test(ics), "fins de ligne CRLF uniquement");
+  for(const l of lignes) assert.ok(Buffer.byteLength(l) <= 75, `ligne trop longue (${Buffer.byteLength(l)} octets)`);
+  const compte = re => (plat.match(re) || []).length;
+  assert.equal(compte(/^BEGIN:VEVENT$/gm), 3);
+  assert.equal(compte(/^BEGIN:VALARM$/gm), 6);
+  assert.equal(compte(/^TRIGGER:-PT10M$/gm), 3);
+  assert.equal(compte(/^TRIGGER:PT0M$/gm), 3);
+  assert.equal(compte(/^ACTION:DISPLAY$/gm), 6);
+  for(const d of ["20261114T080000", "20261114T133000", "20261114T174500"]) assert.ok(plat.includes(`DTSTART:${d}`), `DTSTART ${d}`);
+  assert.equal(compte(new RegExp(`^URL:${LIEN_RAPPEL.replace(/[.?*+^$()[\]{}|\\]/g, "\\$&")}$`, "gm")), 3, "lien complet après dépliage");
+  assert.ok(plat.includes("SUMMARY:Ta surprise de Alex se révèle 🔓"));
+  assert.ok(plat.includes("DTSTAMP:20261015T120000Z"));
+  assert.equal(new Set(plat.match(/^UID:.*$/gm)).size, 3, "identifiants d'événement distincts");
+});
+await test("Fichier .ics : caractères spéciaux échappés, événement du rendez-vous sans alerte", () => {
+  const ev = { start: new Date(2026, 10, 14, 20, 0), end: new Date(2026, 10, 14, 22, 0), title: "Dîner, cinéma; et\\ plus", loc: "", desc: "Ligne 1\nLigne 2", url: "" };
+  const plat = L.icsText([ev]).replace(/\r\n /g, "");
+  assert.ok(plat.includes("SUMMARY:Dîner\\, cinéma\\; et\\\\ plus"));
+  assert.ok(plat.includes("DESCRIPTION:Ligne 1\\nLigne 2"));
+  assert.ok(!plat.includes("VALARM") && !plat.includes("URL:"), "pas d'alerte ni de lien s'il n'y en a pas");
 });
 
 /* ---------- Bilan ---------- */

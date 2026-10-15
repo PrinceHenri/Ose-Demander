@@ -123,7 +123,7 @@ export const LINK_TONE = {
 };
 
 /* Clés du format compact : aucune ne doit disparaître (de nouvelles peuvent s'ajouter). */
-export const LINK_KEYS = ["f","t","o","F","q","T","n","N","A","C","E","s","S","c","i","m","H","a","l","D","p","e","M","b","w","L"];
+export const LINK_KEYS = ["f","t","o","F","q","T","n","N","A","C","E","s","S","c","i","m","H","a","l","D","p","e","M","b","w","L","R"];
 
 /* Origine des dates du format compact : ne doit jamais changer. */
 export const LINK_T0 = 1767225600000;

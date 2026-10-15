@@ -12,7 +12,9 @@ const NOMS = [
   "scramble", "unscramble", "b64url", "unb64url", "MAX_LINK", "MAX_DATA",
   "OCCASIONS", "OCC", "THEMES", "ACCENTS", "EMOJIS", "NO_MODES", "NO_TONES", "CHANNELS",
   "LINK_PHRASES", "LINK_OCC", "LINK_TH", "LINK_NO", "LINK_CH", "LINK_AN", "LINK_AC", "LINK_EM",
-  "LINK_TONE", "LINK_KEYS", "LINK_T0", "LINK_TMAX"
+  "LINK_TONE", "LINK_KEYS", "LINK_T0", "LINK_TMAX",
+  "reminderData", "revealKeys", "revealPlan", "REVEAL_FRESH",
+  "revealEvents", "icsText", "calFmt", "REVEAL_ALARMS", "REVEAL_EVENT_MIN"
 ];
 
 export function codeDeLaPage(){

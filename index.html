@@ -251,7 +251,14 @@ textarea.input{min-height:90px;resize:vertical}
 .d-row small{display:block;color:var(--muted);font-size:14px}
 .d-row strong{font-size:18px}
 .locked{display:flex;gap:10px;align-items:flex-start}
-.locked .lk{font-size:22px;line-height:1}
+.locked .lk{font-size:22px;line-height:1;display:inline-block;transition:transform .25s ease}
+/* Révélation : le cadenas tremble, s'ouvre, puis le contenu révélé est surligné */
+.lk.shake{animation:lkshake .75s ease-in-out}
+@keyframes lkshake{0%,100%{transform:rotate(0)}15%{transform:rotate(-14deg)}30%{transform:rotate(12deg)}45%{transform:rotate(-10deg)}60%{transform:rotate(8deg)}75%{transform:rotate(-4deg)}}
+.lk.open{transform:scale(1.35) rotate(-8deg)}
+.rv-flash{border-radius:10px;animation:rvflash 2.2s ease-out}
+@keyframes rvflash{0%,25%{background:rgba(255,201,74,.5);box-shadow:0 0 0 6px rgba(255,201,74,.5)}100%{background:transparent;box-shadow:0 0 0 6px transparent}}
+.cal-note{align-self:center;margin:-4px 0 0;font-size:13px;color:var(--muted);text-align:center}
 .count{font-variant-numeric:tabular-nums;font-weight:700;color:var(--accent)}
 .timeline{list-style:none;margin:6px 0 0;padding:0 0 0 18px;border-left:3px solid var(--line)}
 .timeline li{position:relative;padding:0 0 18px 14px}
@@ -601,6 +608,7 @@ function sanitize(x){
     if(sl.length>=2) d.sl=sl;
   }
   if(!d.sl){ if(!isDate(x.d)||!isTime(x.h)) throw new Error("no date"); d.d=x.d; d.h=x.h; }
+  if(x.rv===1) d.rv=1; // ouverture depuis le rappel d'agenda (absent = lien normal)
   return d;
 }
 /* Brouillage des infos à révélation programmée (pas lisibles en clair dans le lien) */
@@ -641,7 +649,7 @@ const LINK_AN = {1:"n",2:"d",3:"0"};
 const LINK_AC = {1:"framboise",2:"corail",3:"mandarine",4:"or",5:"menthe",6:"ocean",7:"violet",8:"nuit"};
 const LINK_EM = {1:"💌",2:"❤️",3:"🌹",4:"💍",5:"🌷",6:"👔",7:"🎂",8:"🎉",9:"🎁",10:"✨",11:"🍕",12:"☕"};
 const LINK_TONE = {1:"taquin",2:"drole",3:"mignon",4:"theatral",5:"romantique"};
-const LINK_KEYS = ["f","t","o","F","q","T","n","N","A","C","E","s","S","c","i","m","H","a","l","D","p","e","M","b","w","L"];
+const LINK_KEYS = ["f","t","o","F","q","T","n","N","A","C","E","s","S","c","i","m","H","a","l","D","p","e","M","b","w","L","R"];
 /* Dates : minutes depuis le 1er janvier 2026 (heure locale de l'invitation, sans fuseau) */
 const LINK_T0 = Date.UTC(2026,0,1), LINK_TMAX = 60*24*366*100;
 const own = (o,k) => Object.prototype.hasOwnProperty.call(o,k);
@@ -679,6 +687,7 @@ function packLink(d){
     c.a=item(d.a); if(d.l) c.l=item(d.l); if(d.dt) c.D=d.dt;
   }
   if(d.sl) c.L=d.sl.map(s=>min(s[0]+"T"+s[1])); else c.w=min(d.d+"T"+d.h);
+  if(d.rv) c.R=1;
   return c;
 }
 /* Objet compact -> ancien format, puis sanitize. Strict : clé inconnue, mauvais type ou code inconnu = lien refusé */
@@ -732,7 +741,76 @@ function unpackLink(c){
   }
   if(has("L")){ if(has("w")) bad(); x.sl=arr(c.L,2,3).map(v=>at(v).split("T")); }
   else { const w=at(c.w).split("T"); x.d=w[0]; x.h=w[1]; }
+  if(has("R")){ if(c.R!==1) bad(); x.rv=1; }
   return x;
+}
+
+/* Lien du rappel d'agenda : version allégée de l'invitation, avec l'indicateur « ouverture pour la révélation ».
+   Sans le canal de réponse ni l'identifiant du créateur (numéro, nom d'utilisateur) : ce sont ses données,
+   et le lien est enregistré dans l'agenda de la personne invitée. Tout ce qui sert à la révélation est gardé.
+   Créneaux au choix : seul le créneau choisi est gardé. */
+function reminderData(d, slot){
+  const x={...d, c:"any", rv:1};
+  delete x.ci;
+  if(x.sl){ const s=x.sl[slot] || x.sl[0]; delete x.sl; x.d=s[0]; x.h=s[1]; }
+  return sanitize(JSON.parse(JSON.stringify(x)));
+}
+/* Éléments « Révélé plus tard », dans l'ordre de la page : [clé, heure de révélation] */
+function revealKeys(d){
+  const k=[];
+  if(d.p) d.p.forEach((st,i)=>{ if(st.v==="r") k.push(["p"+i, st.at]); });
+  else for(const key of ["a","l"]) if(d[key] && d[key].v==="r") k.push([key, d[key].at]);
+  return k;
+}
+/* Que faire de chaque révélation à l'affichage de la carte ?
+   waiting : heure pas atteinte (cadenas + compte à rebours, mise en scène à zéro) ;
+   staged : mise en scène à l'ouverture (depuis le rappel, ou révélée depuis moins de 24 h) ;
+   shown : affichée directement (révélée depuis plus de 24 h sur le lien normal, ou animations coupées). */
+const REVEAL_FRESH=24*3600e3;
+function revealPlan(d, now, anim){
+  const plan={shown:[], staged:[], waiting:[]};
+  for(const [key,at] of revealKeys(d)){
+    const t=new Date(at).getTime();
+    if(t>now) plan.waiting.push(key);
+    else if(anim==="0" || (!d.rv && now-t>=REVEAL_FRESH)) plan.shown.push(key);
+    else plan.staged.push(key);
+  }
+  return plan;
+}
+/* Rappels de révélation : un événement d'agenda par révélation encore à venir, à son heure exacte,
+   avec deux alertes (10 min avant et à l'heure) et le lien de rappel allégé (link, voir reminderData).
+   Ne contient que le prénom de l'expéditeur, l'indice (déjà visible sur la carte) et le lien. */
+const REVEAL_ALARMS=[10,0], REVEAL_EVENT_MIN=15;
+function revealEvents(d, now, link){
+  return revealKeys(d).filter(([,at])=>new Date(at).getTime()>now).map(([key,at])=>{
+    const it = key[0]==="p" ? d.p[+key.slice(1)] : d[key], hint = key[0]==="p" ? it.i : it.h;
+    const start=new Date(at), end=new Date(start.getTime()+REVEAL_EVENT_MIN*60e3);
+    const desc=(hint?`Indice : ${hint}\n\n`:"") + (link ? `Ouvre ton invitation pour la découvrir : ${link}` : "Ouvre ton invitation pour la découvrir.");
+    return {key, start, end, title:`Ta surprise de ${d.f} se révèle 🔓`, loc:"", desc, url:link||"", alarms:REVEAL_ALARMS};
+  });
+}
+/* Agenda : heure locale sans fuseau (l'heure de l'invitation), au format AAAAMMJJTHHMMSS */
+const calFmt=x=>`${x.getFullYear()}${String(x.getMonth()+1).padStart(2,"0")}${String(x.getDate()).padStart(2,"0")}T${String(x.getHours()).padStart(2,"0")}${String(x.getMinutes()).padStart(2,"0")}00`;
+/* Fichier .ics (RFC 5545) : un ou plusieurs événements, alertes facultatives (minutes avant le début) */
+function icsText(events, stamp=new Date()){
+  const icsEsc=s=>String(s).replace(/[\\;,]/g,m=>"\\"+m).replace(/\n/g,"\\n");
+  // Lignes de 75 octets au plus, suite précédée d'une espace, sans couper un caractère
+  const fold=line=>{ const out=[]; let cur="", n=0;
+    for(const ch of line){ const b=new TextEncoder().encode(ch).length; if(n+b>(out.length?74:75)){ out.push(cur); cur=""; n=0; } cur+=ch; n+=b; }
+    out.push(cur); return out.join("\r\n "); };
+  const utc=stamp.toISOString().replace(/[-:]/g,"").slice(0,15)+"Z";
+  const lines=["BEGIN:VCALENDAR","VERSION:2.0","PRODID:-//Ose Demander//FR"];
+  events.forEach((ev,i)=>{
+    lines.push("BEGIN:VEVENT", `UID:${stamp.getTime()}-${i}@ose-demander`, `DTSTAMP:${utc}`, `DTSTART:${calFmt(ev.start)}`, `DTEND:${calFmt(ev.end)}`,
+      `SUMMARY:${icsEsc(ev.title)}`);
+    if(ev.loc) lines.push(`LOCATION:${icsEsc(ev.loc)}`);
+    lines.push(`DESCRIPTION:${icsEsc(ev.desc)}`);
+    if(ev.url) lines.push(`URL:${ev.url}`);
+    for(const m of ev.alarms||[]) lines.push("BEGIN:VALARM","ACTION:DISPLAY",`DESCRIPTION:${icsEsc(ev.title)}`,`TRIGGER:${m?`-PT${m}M`:"PT0M"}`,"END:VALARM");
+    lines.push("END:VEVENT");
+  });
+  lines.push("END:VCALENDAR");
+  return lines.map(fold).join("\r\n");
 }
 
 /* =========================================================
@@ -1593,18 +1671,25 @@ function enableTilt(){
 }
 
 const signHTML = () => D.sg ? `<p class="sign">${esc(D.sg)}</p>` : "";
-function renderInvite(){
-  setTheme(D.th||"base", invAnim(), D.ac);
-  refused=false;
-  const occ = D.o==="libre" ? (D.of||"") : (OCC[D.o]?.label||"");
-  document.title = `${D.f} a une question pour toi`;
-  $("#app").innerHTML = `
+const invOccLabel = () => D.o==="libre" ? (D.of||"") : (OCC[D.o]?.label||"");
+function ticketHTML(inner){
+  return `
   ${soundBtn()}${demoBanner()}
   <main class="inv">
     <div class="ticket pop-in">
       <div class="stub"><div>De<b>${esc(D.f)}</b></div><div style="text-align:right">Pour<b>${esc(D.t)}</b></div></div>
       <div class="perf" aria-hidden="true"></div>
-      <div class="main" id="main">
+      <div class="main" id="main">${inner}</div>
+    </div>
+    <p class="foot"><span class="safety">${SAFETY}</span><br>Invitation créée par un utilisateur d'Ose Demander.<br><a href="./">Crée la tienne</a> · <a href="mentions-legales.html#signaler">Signaler un abus</a></p>
+  </main>`;
+}
+function renderInvite(){
+  setTheme(D.th||"base", invAnim(), D.ac);
+  refused=false;
+  const occ = invOccLabel();
+  document.title = `${D.f} a une question pour toi`;
+  $("#app").innerHTML = ticketHTML(`
         ${occ?`<p class="occ">${esc(occ)}</p>`:""}
         <h1 class="question">${esc(D.q)}</h1>
         ${D.m && !D.mh ? `<p class="handnote" style="margin:-8px 0 22px">${esc(D.m)}</p>` : ""}
@@ -1614,11 +1699,7 @@ function renderInvite(){
         </div>
         <p class="tease" id="tease" aria-live="polite"></p>
         <p class="refuse-slot" id="refuseSlot"></p>
-        ${signHTML()}
-      </div>
-    </div>
-    <p class="foot"><span class="safety">${SAFETY}</span><br>Invitation créée par un utilisateur d'Ose Demander.<br><a href="./">Crée la tienne</a> · <a href="mentions-legales.html#signaler">Signaler un abus</a></p>
-  </main>`;
+        ${signHTML()}`);
   bindSound();
   bindNo();
   $("#yes").addEventListener("click", sayYes);
@@ -1744,22 +1825,44 @@ function sayYes(e){
   $$(".no.flee").forEach(b=>b.remove());
   yesDone=true;
   Decor.burst(x, y, 150); Sound.yes(); buzz([40,60,40]);
-  const main=$("#main");
-  const occ = D.o==="libre" ? (D.of||"") : (OCC[D.o]?.label||"");
-  main.innerHTML = `
+  initReveals();
+  $("#main").innerHTML = afterHTML("C'est un oui !", `${esc(D.f)} va être aux anges.`);
+  bindAfter();
+  prepReminder();
+  startCountdowns(1300); // la mise en scène attend la fin de l'explosion du Oui
+}
+/* La carte de l'invitation (après le Oui, ou ouverte depuis le rappel d'agenda). title et sub : déjà échappés */
+function afterHTML(title, sub){
+  return `
     <div class="pop-in">
-      <p class="occ">${esc(occ)}</p>
-      <h1 class="question" style="margin-bottom:8px">C'est un oui !</h1>
-      <p style="color:var(--muted);margin:0">${esc(D.f)} va être aux anges.</p>
+      <p class="occ">${esc(invOccLabel())}</p>
+      <h1 class="question" style="margin-bottom:8px">${title}</h1>
+      <p style="color:var(--muted);margin:0">${sub}</p>
       ${D.m ? `<p class="handnote">${esc(D.m)}</p>` : ""}
       ${signHTML()}
       <div class="details" id="details">${detailsHTML()}</div>
       <div class="after-actions" id="actions">${actionsHTML()}</div>
     </div>`;
+}
+/* Ouverture depuis le rappel d'agenda : ni enveloppe ni question, directement la carte.
+   Le lien du rappel n'a pas de canal : la réponse se partage ou se copie (« Peu importe »). */
+function renderReminder(){
+  setTheme(D.th||"base", invAnim(), D.ac);
+  document.title = `Ton invitation avec ${D.f}`;
+  yesDone=true; refused=false; clearTimeout(refuseTimer);
+  initReveals();
+  $("#app").innerHTML = ticketHTML(afterHTML("Ton invitation", `Avec ${esc(D.f)}`));
+  bindSound();
   bindAfter();
-  startCountdowns();
+  enableTilt();
+  prepReminder();
+  startCountdowns(700);
 }
 
+/* ---------- Révélation programmée ----------
+   Ce qui est déjà affiché en clair est gardé en mémoire le temps de la page seulement : rien n'est enregistré. */
+let revShown=new Set(), revQueue=[], revPlaying=false, revStart=null;
+function initReveals(){ revQueue=[]; revShown=new Set(revealPlan(D, Date.now(), invAnim()).shown); }
 function revealable(at){ return at && new Date(at) <= new Date(); }
 function countdown(at){
   let s=Math.max(0,Math.floor((new Date(at)-new Date())/1000));
@@ -1770,13 +1873,73 @@ function mapsLink(place){ return `<a href="https://www.google.com/maps/search/?a
 function lockedHTML(label, hint, at){
   return `<div class="locked"><span class="lk" aria-hidden="true">🔒</span><div><strong>${label}</strong>
     ${hint?`<small>Indice : ${esc(hint)}</small>`:""}
-    ${at?`<small>Se révèle dans <span class="count" data-at="${esc(at)}">${countdown(at)}</span></small>`:""}</div></div>`;
+    ${at && !revealable(at)?`<small>Se révèle dans <span class="count" data-at="${esc(at)}">${countdown(at)}</span></small>`:""}</div></div>`;
 }
-function itemHTML(it, kind){
+// Une révélation n'est affichée en clair qu'une fois l'heure atteinte ET sa mise en scène jouée (ou sautée)
+const isOpen = (at, key) => revealable(at) && revShown.has(key);
+function itemHTML(it, kind, key){
   if(!it) return "";
   if(it.v==="v") return kind==="lieu" ? mapsLink(it.x) : `<strong>${esc(it.x)}</strong>`;
-  if(it.v==="r" && revealable(it.at)){ let val=""; try{ val=unscramble(it.e); }catch(e){} if(val) return kind==="lieu" ? mapsLink(val) : `<strong>${esc(val)}</strong>`; }
+  if(it.v==="r" && isOpen(it.at, key)){ let val=""; try{ val=unscramble(it.e); }catch(e){} if(val) return kind==="lieu" ? mapsLink(val) : `<strong>${esc(val)}</strong>`; }
   return lockedHTML("Surprise", it.h, it.v==="r"?it.at:null);
+}
+const rowHTML = key => key==="a"
+  ? `<div class="d-row" data-rk="a"><small>Au programme</small>${itemHTML(D.a,"act","a")}</div>`
+  : `<div class="d-row" data-rk="l"><small>Où</small>${itemHTML(D.l,"lieu","l")}</div>`;
+function stepHTML(st, i){
+  const key="p"+i; let body, lock=false;
+  if(st.v==="v") body=`<strong>${esc(st.a)}</strong>${st.l?`<br>${mapsLink(st.l)}`:""}`;
+  else if(st.v==="r" && isOpen(st.at, key) && (()=>{ try{ const x=JSON.parse(unscramble(st.e)); st._a=String(x.a||"").slice(0,80); st._l=String(x.l||"").slice(0,120); return true; }catch(e){ return false; } })()){ body=`<strong>${esc(st._a)}</strong>${st._l?`<br>${mapsLink(st._l)}`:""}`; }
+  else { lock=true; body=lockedHTML("Surprise", st.i, st.v==="r"?st.at:null); }
+  return `<li class="${lock?"lock":""}" data-rk="${key}"><div class="h">${esc(st.h||"")}</div>${body}</li>`;
+}
+/* Remplace un élément par son contenu à jour ; renvoie le nouvel élément */
+function swapReveal(key){
+  const el=$(`[data-rk="${key}"]`); if(!el) return null;
+  el.outerHTML = key[0]==="p" ? stepHTML(D.p[+key.slice(1)], +key.slice(1)) : rowHTML(key);
+  return $(`[data-rk="${key}"]`);
+}
+/* Heure atteinte : mise en scène (ou affichage direct si les animations sont coupées) */
+function checkReveals(){
+  if(!D || !$("#details")) return;
+  const now=Date.now(), direct=invAnim()==="0";
+  let due=false;
+  for(const [key,at] of revealKeys(D)){
+    if(revShown.has(key) || revQueue.includes(key) || new Date(at).getTime()>now) continue;
+    due=true;
+    if(direct){ revShown.add(key); swapReveal(key); }
+    else revQueue.push(key);
+  }
+  // Une révélation vient d'arriver : son rappel d'agenda n'a plus lieu d'être
+  const a=$("#actions"); if(due && a && $("#calRev",a)){ a.innerHTML=actionsHTML(); bindActions(); }
+  playReveals();
+}
+/* Les surprises se révèlent l'une après l'autre : le cadenas tremble, s'ouvre, petite explosion, son, surlignage */
+async function playReveals(){
+  if(revPlaying) return; revPlaying=true;
+  const wait=ms=>new Promise(r=>setTimeout(r,ms)), soft=invAnim()==="d";
+  try{
+    while(revQueue.length){
+      const key=revQueue[0];
+      let el=$(`[data-rk="${key}"]`);
+      if(!el){ revQueue.shift(); revShown.add(key); continue; }
+      el.scrollIntoView({block:"center", behavior:"smooth"});
+      await wait(450);
+      let lk=$(`[data-rk="${key}"] .lk`), x=innerWidth/2, y=innerHeight/2;
+      if(lk){
+        lk.classList.add("shake"); buzz(15);
+        await wait(soft ? 420 : 760);
+        lk=$(`[data-rk="${key}"] .lk`);
+        if(lk){ lk.classList.remove("shake"); lk.classList.add("open"); lk.textContent="🔓"; const r=lk.getBoundingClientRect(); x=r.left+r.width/2; y=r.top+r.height/2; }
+        await wait(260);
+      }
+      if(revQueue[0]!==key) continue; // une autre invitation a été ouverte entre-temps
+      revQueue.shift(); revShown.add(key);
+      Decor.burst(x, y, soft ? 24 : 50, true); Sound.reveal(); buzz([20,40,30]);
+      swapReveal(key)?.classList.add("rv-flash");
+      await wait(soft ? 700 : 1150);
+    }
+  } finally { revPlaying=false; }
 }
 function whenText(){
   if(D.sl){ if(chosenSlot===null) return null; const s=D.sl[chosenSlot]; return `${frDate(s[0])} à ${frTime(s[1])}`; }
@@ -1793,16 +1956,10 @@ function detailsHTML(){
   if(D.p){
     if(D.me) h+=`<div class="d-row"><small>Point de départ</small><strong>${esc(D.me)}</strong></div>`;
     if(D.br) h+=`<div class="d-row"><small>À prévoir</small><strong>${esc(D.br)}</strong></div>`;
-    h+=`<div class="d-row"><small>Le programme</small><ol class="timeline">${D.p.map(st=>{
-      let body, lock=false;
-      if(st.v==="v") body=`<strong>${esc(st.a)}</strong>${st.l?`<br>${mapsLink(st.l)}`:""}`;
-      else if(st.v==="r" && revealable(st.at) && (()=>{ try{ const x=JSON.parse(unscramble(st.e)); st._a=String(x.a||"").slice(0,80); st._l=String(x.l||"").slice(0,120); return true; }catch(e){ return false; } })()){ body=`<strong>${esc(st._a)}</strong>${st._l?`<br>${mapsLink(st._l)}`:""}`; }
-      else { lock=true; body=lockedHTML("Surprise", st.i, st.v==="r"?st.at:null); }
-      return `<li class="${lock?"lock":""}"><div class="h">${esc(st.h||"")}</div>${body}</li>`;
-    }).join("")}</ol></div>`;
+    h+=`<div class="d-row"><small>Le programme</small><ol class="timeline">${D.p.map(stepHTML).join("")}</ol></div>`;
   } else {
-    h+=`<div class="d-row"><small>Au programme</small>${itemHTML(D.a,"act")}</div>`;
-    if(D.l) h+=`<div class="d-row"><small>Où</small>${itemHTML(D.l,"lieu")}</div>`;
+    h+=rowHTML("a");
+    if(D.l) h+=rowHTML("l");
     if(D.dt) h+=`<div class="d-row"><small>Détails</small><strong>${esc(D.dt)}</strong></div>`;
   }
   return h;
@@ -1812,7 +1969,7 @@ function replyLabel(){
   return ch.id==="any" ? "Envoyer ma réponse" : `Répondre sur ${ch.t}`;
 }
 function actionsHTML(){
-  const canCal = !D.sl || chosenSlot!==null;
+  const canCal = (!D.sl || chosenSlot!==null) && remState!=="wait";
   return `
     <button type="button" class="btn primary" id="reply">${replyLabel()}</button>
     ${canCal ? calButtonsHTML() : ""}
@@ -1826,13 +1983,26 @@ function replyText(){
 }
 function cleanPhone(p){ let n=p.replace(/[^\d+]/g,""); if(n.startsWith("+")) return n.slice(1); if(n.startsWith("00")) return n.slice(2); if(n.startsWith("0")) return "33"+n.slice(1); return n; }
 function bindAfter(){
-  $$("[data-pick]").forEach(b=>b.addEventListener("click",()=>{ chosenSlot=+b.dataset.pick; refreshAfter(); }));
-  $("#repick")?.addEventListener("click",()=>{ chosenSlot=null; refreshAfter(); });
+  $$("[data-pick]").forEach(b=>b.addEventListener("click",()=>{ chosenSlot=+b.dataset.pick; prepReminder(); refreshAfter(); }));
+  $("#repick")?.addEventListener("click",()=>{ chosenSlot=null; prepReminder(); refreshAfter(); });
+  bindActions();
+}
+function bindActions(){
   $("#reply").addEventListener("click",reply);
   $("#cal")?.addEventListener("click",downloadICS);
+  $("#calRev")?.addEventListener("click",downloadRevealICS);
   $("#copyR").addEventListener("click",async()=>toast(await copyText(replyText())?"Réponse copiée":"Copie impossible"));
 }
 function refreshAfter(){ $("#details").innerHTML=detailsHTML(); $("#actions").innerHTML=actionsHTML(); bindAfter(); }
+/* Lien du rappel d'agenda (version allégée, voir reminderData), préparé à l'avance :
+   les boutons d'agenda n'apparaissent qu'une fois le lien prêt. "wait" | "ok" | "none" (échec : agenda sans lien) */
+let remLink="", remState="wait";
+function prepReminder(){
+  const slot=chosenSlot; remLink=""; remState="wait";
+  if(D.sl && slot===null) return;
+  const done=(link,state)=>{ if(slot!==chosenSlot) return; remLink=link; remState=state; const a=$("#actions"); if(a){ a.innerHTML=actionsHTML(); bindActions(); } };
+  encodeData(reminderData(D, slot)).then(s=>done(location.origin+location.pathname+"#i="+s,"ok")).catch(()=>done("","none"));
+}
 async function reply(){
   if(D.sl && chosenSlot===null){ toast("Choisis d'abord ton créneau"); return; }
   sendReply(replyText());
@@ -1874,41 +2044,52 @@ function calEvent(){
   const act = D.p ? "" : shownValue(D.a);
   const title = (D.p ? (D.p.some(s=>s.v!=="v")?"Journée surprise":"Journée") : (act || "Surprise")) + ` avec ${D.f}`;
   const loc = D.p ? (D.me||"") : (shownValue(D.l) || "");
-  return {start, end, title, loc, desc:`${occ}. Invitation créée avec Ose Demander.`};
+  const desc=`${occ}. Invitation créée avec Ose Demander.` + (remLink ? `\n\nTon invitation : ${remLink}` : "");
+  return {start, end, title, loc, desc, url:remLink};
 }
-const calFmt=x=>`${x.getFullYear()}${String(x.getMonth()+1).padStart(2,"0")}${String(x.getDate()).padStart(2,"0")}T${String(x.getHours()).padStart(2,"0")}${String(x.getMinutes()).padStart(2,"0")}00`;
-function googleCalUrl(){
-  const ev=calEvent(), p=new URLSearchParams({action:"TEMPLATE", text:ev.title, dates:`${calFmt(ev.start)}/${calFmt(ev.end)}`, details:ev.desc});
+/* Google Agenda ne permet pas de fixer les alertes par lien : ce sont celles réglées par défaut dans l'agenda */
+function googleCalUrl(ev=calEvent()){
+  const p=new URLSearchParams({action:"TEMPLATE", text:ev.title, dates:`${calFmt(ev.start)}/${calFmt(ev.end)}`, details:ev.desc});
   try{ p.set("ctz", Intl.DateTimeFormat().resolvedOptions().timeZone); }catch(e){}
   if(ev.loc) p.set("location", ev.loc);
   return "https://calendar.google.com/calendar/render?"+p.toString();
 }
-function downloadICS(){
-  const ev=calEvent();
-  const icsEsc=s=>String(s).replace(/[\\;,]/g,m=>"\\"+m).replace(/\n/g,"\\n");
-  const ics=["BEGIN:VCALENDAR","VERSION:2.0","PRODID:-//Ose Demander//FR","BEGIN:VEVENT",
-    `UID:${Date.now()}@ose-demander`,`DTSTAMP:${calFmt(new Date())}`,`DTSTART:${calFmt(ev.start)}`,`DTEND:${calFmt(ev.end)}`,
-    `SUMMARY:${icsEsc(ev.title)}`, ev.loc?`LOCATION:${icsEsc(ev.loc)}`:"", `DESCRIPTION:${icsEsc(ev.desc)}`,
-    "END:VEVENT","END:VCALENDAR"].filter(Boolean).join("\r\n");
-  saveFile("invitation.ics", ics, "text/calendar");
-}
+function downloadICS(){ saveFile("invitation.ics", icsText([calEvent()]), "text/calendar"); }
+// Toutes les révélations à venir dans un seul fichier (un événement chacune)
+const upcomingReveals = () => revealEvents(D, Date.now(), remLink);
+function downloadRevealICS(){ const evs=upcomingReveals(); if(evs.length) saveFile("revelation.ics", icsText(evs), "text/calendar"); }
 /* iPhone : le fichier .ics ouvre directement Calendrier. Ailleurs : Google Agenda en premier. */
 function calButtonsHTML(){
   const g=`href="${esc(googleCalUrl())}" target="_blank" rel="noopener noreferrer" id="gcal"`;
-  return isIOS()
+  const note = remLink ? `<p class="cal-note">Le lien de ton invitation sera enregistré dans ton agenda.</p>` : "";
+  const main = isIOS()
     ? `<button type="button" class="btn" id="cal">Ajouter à mon agenda</button>
        <a class="cal-alt" ${g}>Google Agenda</a>`
     : `<a class="btn" ${g}>Ajouter à Google Agenda</a>
        <button type="button" class="cal-alt" id="cal">Autre agenda (fichier .ics)</button>`;
+  return main + revealButtonsHTML() + note;
 }
-function startCountdowns(){
-  clearInterval(countTimer);
-  countTimer=setInterval(()=>{
-    const els=$$(".count[data-at]"); if(!els.length){ clearInterval(countTimer); return; }
-    let reveal=false;
-    els.forEach(el=>{ if(revealable(el.dataset.at)) reveal=true; else el.textContent=countdown(el.dataset.at); });
-    if(reveal){ refreshAfter(); toast("Une surprise vient de se révéler ✨"); }
-  },1000);
+/* « Me rappeler la révélation » : seulement s'il reste des révélations à venir. Google : un lien par révélation. */
+function revealButtonsHTML(){
+  const evs=upcomingReveals(); if(!evs.length) return "";
+  const when=ev=>`${frDate(calFmt(ev.start).replace(/^(\d{4})(\d{2})(\d{2}).*/,"$1-$2-$3"))} à ${frTime(ev.start.toTimeString().slice(0,5))}`;
+  const glink=(ev,cls,label)=>`<a class="${cls}" href="${esc(googleCalUrl(ev))}" target="_blank" rel="noopener noreferrer">${esc(label)}</a>`;
+  const many=evs.length>1;
+  return isIOS()
+    ? `<button type="button" class="btn" id="calRev">Me rappeler ${many?"les révélations":"la révélation"} 🔓</button>
+       ${evs.map(ev=>glink(ev,"cal-alt",`Google Agenda${many?` : ${when(ev)}`:""}`)).join("")}`
+    : `${evs.map(ev=>glink(ev,"btn",`Me rappeler la révélation${many?` du ${when(ev)}`:""} 🔓`)).join("")}
+       <button type="button" class="cal-alt" id="calRev">${many?"Rappels":"Rappel"} dans un autre agenda (fichier .ics)</button>`;
+}
+/* Comptes à rebours + révélations : première vérification après « delay » (le temps que la carte apparaisse) */
+function startCountdowns(delay=0){
+  clearInterval(countTimer); clearTimeout(revStart);
+  const tick=()=>{
+    $$(".count[data-at]").forEach(el=>{ if(!revealable(el.dataset.at)) el.textContent=countdown(el.dataset.at); });
+    checkReveals();
+    if(revealKeys(D).every(([k])=>revShown.has(k))) clearInterval(countTimer);
+  };
+  revStart=setTimeout(()=>{ tick(); countTimer=setInterval(tick,1000); }, delay);
 }
 
 /* ---------- Décor animé + explosions (selon le thème) ---------- */
@@ -2113,6 +2294,12 @@ const Sound = {
   pop(){ this.tone(700,1300,.09,"sine",.08); },
   no(){ this.tone(320,170,.18,"triangle",.09); },
   yes(){ [523,659,784,1047].forEach((f,i)=>this.tone(f,f*1.01,.28,"sine",.09,i*.09)); },
+  // Révélation : déclic du cadenas puis scintillement. Sans geste préalable, le navigateur bloque le son :
+  // on ne joue rien (pour ne pas lâcher des sons en retard au premier toucher).
+  reveal(){
+    if(!this.ctx || this.ctx.state!=="running") return;
+    this.tone(260,520,.07,"square",.035); [784,988,1319,1568].forEach((f,i)=>this.tone(f,f*1.01,.24,"sine",.07,.09+i*.07));
+  },
   // Créateur : sons courts et discrets
   tick(){ this.tone(880,1040,.05,"sine",.035); },                                   // choix d'une option
   step(){ this.tone(560,620,.06,"sine",.04); this.tone(760,820,.07,"sine",.04,.06); }, // passage d'étape
@@ -2164,7 +2351,9 @@ async function route(){
       D = EXAMPLE ? demoData() : await decodeData(m[1]); chosenSlot=null; yesDone=false;
       Sound.on = D.so!==0; // côté destinataire : réglage de l'invitation, rien n'est lu ni enregistré
       noTries=0; refused=false; refuseOffered=false; refuseWhy="non"; refuseDrafts={}; clearTimeout(refuseTimer);
-      renderEnvelope(); return;
+      clearInterval(countTimer); clearTimeout(revStart); revQueue=[]; remLink=""; remState="wait";
+      if(D.rv){ Sound.init(); renderReminder(); } else renderEnvelope(); // rappel d'agenda : directement la carte
+      return;
     }
     catch(e){
       setTheme("base","n");

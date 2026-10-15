@@ -362,5 +362,138 @@ export const REFERENCES = [
       "d": "2025-12-20",
       "h": "19:00"
     }
+  },
+  /* Ajoutées le 2026-10-15 : liens du rappel d'agenda (indicateur rv / R) */
+  {
+    "nom": "Rappel d'agenda (format compact y) : lien allégé sans canal ni identifiant, lieu révélé plus tard",
+    "lien": "yHcQ7CsJAFEDRrcitX5FgPvq6MY6FEEkyaCMWUyQi-aERFMQtuQk3JniK86JBMV39RLijON8jjGgoXP_v0LnQo-FS8Cjr72eobwgdeqTw06wbLwMSxWmcBEJR2X1l2saUZmXbs7OHdpu5vNyYyWYm5yQ80ChOk0UgVGj4_gE",
+    "attendu": {
+      "f": "Alex",
+      "t": "Sam",
+      "q": "Ça te dit un rendez-vous avec moi ?",
+      "o": "date",
+      "th": "amour",
+      "n": "fuit",
+      "tn": "mignon",
+      "an": "n",
+      "c": "any",
+      "m": "Prépare ton plus beau sourire, je m'occupe du reste.",
+      "a": {
+        "v": "v",
+        "x": "Dîner"
+      },
+      "l": {
+        "v": "r",
+        "h": "Pas loin",
+        "at": "2026-11-14T18:00",
+        "e": "PREURAkfAQABEkgSEVkJCSMQFAsECAM"
+      },
+      "d": "2026-11-14",
+      "h": "20:00",
+      "rv": 1
+    },
+    "reveles": {
+      "l": "Restaurant de l'Exemple"
+    }
+  },
+  {
+    "nom": "Rappel d'agenda (format compact y) : programme à deux révélations, créneau choisi parmi trois",
+    "lien": "yTY7NTsJAAIRfhcx5D1u6Ed3bQv-AoG6xa2vTA2jpD2uprbUJxgfiOXgxU4iJp8k3h_nmGztwzDbvhdYpCD4HyjeNLgY6gBsmwcc1KnCT4B6cEdTgcQyDckpBxgSPzfn0dSjaUVeN6k5rEHY7GVNK4DiRa-vFfCWFNe37J6WVJ_f-OjhGyslU4OSLZUhXpdPbO1e-hkGWISExDPOyTQms86lMuyptrv3Nn_PiYOyfY96LrdVHL55shWXXSy_wH_wyUtOc2aGgwWwvny27TdVRSCXkVsi3tZshSQh6cHY3YcNjH9z4-QU",
+    "attendu": {
+      "f": "Camille",
+      "t": "Charlie",
+      "q": "Tu me confies ta journée ?",
+      "o": "surprise",
+      "th": "mystere",
+      "n": "supplie",
+      "tn": "theatral",
+      "an": "n",
+      "c": "any",
+      "p": [
+        {
+          "h": "10:00",
+          "v": "r",
+          "i": "Prévois un pull",
+          "at": "2026-12-05T08:00",
+          "e": "FFYGElJIMQADBwwTVlVHQkRSUzYVFgVUFhJKX0MjFwEfGQcXUgg"
+        },
+        {
+          "h": "13:00",
+          "v": "v",
+          "a": "Déjeuner",
+          "l": ""
+        },
+        {
+          "h": "16:00",
+          "v": "r",
+          "i": "",
+          "at": "2026-12-05T12:00",
+          "e": "FFYGElJIIwAbDwYZHQsADEpKHURORjYVBh4EXA0UCkQWDEseVzAQVAQbAQdSGg"
+        }
+      ],
+      "d": "2026-12-12",
+      "h": "10:00",
+      "rv": 1
+    },
+    "reveles": {
+      "p.0": "{\"a\":\"Balade\",\"l\":\"Parc de l'Exemple\"}",
+      "p.2": "{\"a\":\"Patinoire\",\"l\":\"Patinoire de l'Exemple\"}"
+    }
+  },
+  {
+    "nom": "Rappel d'agenda (ancien format p) : indicateur rv, non compressé",
+    "lien": "peyJmIjoiTG91IiwidCI6Ik1heCIsIm8iOiJqdXN0ZSIsInRoIjoiYmFzZSIsInEiOiLDh2EgdGUgZGl0IHF1J29uIHNlIHZvaWUgPyIsIm4iOiJmdWl0IiwiYyI6ImFueSIsImEiOnsidiI6InIiLCJhdCI6IjIwMjYtMTAtMjBUMTc6MDAiLCJlIjoiTEIwSjg4RUhFZyJ9LCJkIjoiMjAyNi0xMC0yMCIsImgiOiIxODowMCIsInJ2IjoxfQ",
+    "attendu": {
+      "f": "Lou",
+      "t": "Max",
+      "q": "Ça te dit qu'on se voie ?",
+      "o": "juste",
+      "th": "base",
+      "n": "fuit",
+      "an": "n",
+      "c": "any",
+      "a": {
+        "v": "r",
+        "h": "",
+        "at": "2026-10-20T17:00",
+        "e": "LB0J88EHEg"
+      },
+      "d": "2026-10-20",
+      "h": "18:00",
+      "rv": 1
+    },
+    "reveles": {
+      "a": "Cinéma"
+    }
+  },
+  {
+    "nom": "Rappel d'agenda (repli ancien format z) : date avant 2026, indicateur rv",
+    "lien": "zVY7BakIxEEV_Jd6NmwgvgYLOptSqYBURteA21FGDmmhe3hMV_13G2kV3l3vnHOaGNQiT6KCRQeivOEDjBMIXq9z0ofaZ1TFWSeUYlAvB15xK5xOrd2hEEJ6lO3hxbEFYc2ZoBImVz9BwkkX88zy_SAW6oQahhIZQ8yodky9ZNXDX2P_N6TULIh_awr61jG3ZYmEsFQU0GIRp93u8_DCjwXk2_dy1r73uebjcxIm4Vv-wl890fuFUg8z9AQ",
+    "attendu": {
+      "f": "Noa",
+      "t": "Eden",
+      "q": "Je t'invite pour ton anniversaire ?",
+      "o": "annivami",
+      "th": "fete",
+      "n": "fuit",
+      "an": "n",
+      "c": "any",
+      "a": {
+        "v": "s",
+        "h": "Surprise !"
+      },
+      "l": {
+        "v": "r",
+        "h": "",
+        "at": "2025-12-20T12:00",
+        "e": "PBULXA1KFwRPCk8zDBwIXgoN"
+      },
+      "d": "2025-12-20",
+      "h": "19:00",
+      "rv": 1
+    },
+    "reveles": {
+      "l": "Salle de l'Exemple"
+    }
   }
 ];
