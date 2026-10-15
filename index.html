@@ -37,7 +37,9 @@
   src:url("fonts/caveat.woff2") format("woff2-variations"),url("fonts/caveat.woff2") format("woff2")}
 
 /* ---------- Thèmes ---------- */
-:root{
+/* [data-theme] : les miniatures de scène posées dans une page d'un autre thème repartent des valeurs de base
+   (les thèmes ne redéfinissent pas tous --surface ou --accent-ink), puis leur thème les remplace */
+:root,[data-theme]{
   --bg:#ECE6FF; --surface:#FFFFFF; --ink:#1F1546; --muted:#5D5482; --line:#CFC4F5;
   --accent:#E83F86; --accent-ink:#FFFFFF; --soft:#F6F2FF;
   /* Variantes lisibles de l'accent (contraste vérifié par le banc de test) :
@@ -190,11 +192,12 @@ textarea.input{min-height:90px;resize:vertical}
 .demo-answer .no.dodge{position:absolute;margin:0;transition:left .25s ease, top .25s ease}
 .demo-ticket .tease{margin-top:8px}
 .home-cards{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:0 0 18px}
-.home-card{display:flex;flex-direction:column;align-items:flex-start;gap:2px;text-align:left;background:var(--surface);border:2px solid var(--ink);border-radius:var(--r);padding:14px;cursor:pointer;box-shadow:4px 4px 0 var(--ink);transition:transform .1s,box-shadow .1s}
+.home-card{display:flex;flex-direction:column;align-items:stretch;text-align:left;background:var(--surface);color:var(--ink);border:2px solid var(--ink);border-radius:var(--r);padding:0;overflow:hidden;cursor:pointer;box-shadow:4px 4px 0 var(--ink);transition:transform .1s,box-shadow .1s}
+.hc-txt{display:flex;flex-direction:column;gap:2px;padding:10px 14px 14px}
 .home-card:active{transform:translate(2px,2px);box-shadow:2px 2px 0 var(--ink)}
-.home-card .ico{font-size:28px;line-height:1.1;margin-bottom:4px}
+.home-card .ico{font-size:20px;margin-right:6px}
 .home-card b{font-size:19px;letter-spacing:-.01em}
-.home-card span:last-child{font-size:14px;color:var(--muted);line-height:1.35}
+.home-card .hc-txt>span{font-size:14px;color:var(--muted);line-height:1.35}
 .home-actions{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;margin:0 0 26px}
 .home-actions a.btn{text-decoration:none;display:inline-block}
 .privacy{border:2px dashed var(--ink);border-radius:var(--r);padding:16px 18px;background:var(--soft)}
@@ -205,7 +208,8 @@ textarea.input{min-height:90px;resize:vertical}
 
 /* ---------- Création express ---------- */
 .tpls{display:flex;flex-direction:column;gap:10px}
-.tpl{display:flex;gap:12px;align-items:flex-start;width:100%;text-align:left;border:2px solid var(--line);background:var(--soft);border-radius:14px;padding:12px 14px;cursor:pointer}
+.tpl{display:flex;flex-direction:column;width:100%;text-align:left;border:2px solid var(--line);background:var(--soft);color:var(--ink);border-radius:14px;padding:0;overflow:hidden;cursor:pointer}
+.tpl-row{display:flex;gap:12px;align-items:flex-start;padding:12px 14px}
 .tpl:hover{border-color:var(--ink)}
 .tpl[aria-pressed="true"]{border-color:var(--ink);background:var(--surface);box-shadow:3px 3px 0 var(--ink)}
 .tpl .ico{font-size:26px;line-height:1.2;flex:none}
@@ -226,6 +230,11 @@ textarea.input{min-height:90px;resize:vertical}
 .pv-env{display:flex;align-items:center;gap:10px;font-size:14px;color:var(--muted);margin:0 0 12px}
 .pv-env .seal{position:static;transform:none;width:40px;height:40px;font-size:17px;flex:none}
 .pv-env .seal.emoji{font-size:20px}
+/* Aperçu : la scène telle que la personne invitée la verra (décor de fond, élément vedette, billet) */
+.pv-stage{position:relative;overflow:hidden;border:2px solid var(--ink);border-radius:var(--r);background:var(--bg);padding:14px 14px 20px}
+.pv-stage>svg{position:absolute;inset:0;width:100%;height:100%}
+.pv-stage>:not(svg){position:relative}
+.pv-stage .scene-sign svg{width:min(260px,88%)}
 .recap.edit li{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
 .recap.edit li > div{min-width:0;overflow-wrap:anywhere}
 .recap.edit li b{display:block;font-size:13px}
@@ -315,7 +324,7 @@ textarea.input{min-height:90px;resize:vertical}
 /* ---------- Scènes illustrées (écrans de la personne invitée) ----------
    Couleurs du thème uniquement. Décor de fond ton sur ton (.sc-*), élément vedette coloré (.sg-*).
    Animations seulement sous .anim-n / .anim-d : immobile en anim-0, et la règle globale « moins de mouvement » coupe tout. */
-#scene{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden}
+#scene{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden;background:var(--bg)}
 #scene:empty{display:none}
 #scene svg{display:block}
 .sc-bg{fill:var(--bg)}
@@ -328,6 +337,16 @@ textarea.input{min-height:90px;resize:vertical}
 .scene-sign{display:flex;justify-content:center;margin:0 auto 10px;pointer-events:none}
 .scene-sign svg{width:min(300px,76vw);height:auto;overflow:visible}
 .env-screen .scene-sign{margin:0}
+/* Création : scène atténuée sur les écrans de saisie (accueil, étapes 1 à 3), entière sur l'aperçu */
+#scene.dim svg{opacity:.4}
+/* Miniatures (cartes de l'accueil et des modèles) : un échantillon immobile de la scène, dans les couleurs de son thème */
+.thumb{display:block;border-bottom:2px solid var(--ink)}
+.tpl .thumb{border-bottom-color:inherit}
+.mini{position:relative;display:block;overflow:hidden;height:84px;background:var(--bg)}
+.tpl .mini{height:72px}
+.mini>svg{position:absolute;inset:0;width:100%;height:100%}
+.mini-sign{position:absolute;inset:8px 10px;display:flex;justify-content:center;align-items:center}
+.mini-sign svg{height:100%;width:auto;max-width:100%;overflow:visible}
 /* Élément vedette : contours épais à l'encre, texte à l'encre sur un panneau --surface */
 .sg-ink{fill:var(--ink)}
 .sg-acc{fill:var(--accent)}
@@ -564,13 +583,14 @@ const $ = (s, r=document) => r.querySelector(s);
 const $$ = (s, r=document) => [...r.querySelectorAll(s)];
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const todayISO = () => { const d=new Date(); d.setMinutes(d.getMinutes()-d.getTimezoneOffset()); return d.toISOString().slice(0,10); };
-/* scene : true sur les écrans de la personne invitée (enveloppe, invitation), qui ont une scène illustrée en fond */
+/* scene : true = scène illustrée entière (écrans de la personne invitée, aperçu de la création),
+   "dim" = scène atténuée (écrans de saisie de la création), false = motif du thème seul (historique) */
 function setTheme(id, lv="n", ac="", scene=false){
   const root=document.documentElement;
   root.dataset.theme = id === "base" ? "" : id;
   const v = accentVars(id||"base", ac);
   for(const [k,prop] of Object.entries(ACCENT_PROPS)){ if(v) root.style.setProperty(prop,v[k]); else root.style.removeProperty(prop); }
-  setScene(scene ? (id||"base") : null);
+  setScene(scene ? (id||"base") : null, scene==="dim");
   Decor.set(id||"base", lv);
 }
 /* Changement d'écran : le focus va au titre du nouvel écran (annoncé par les lecteurs d'écran), sans faire défiler.
@@ -985,14 +1005,14 @@ const TEMPLATES = [
     plan:{act:"Un dîner", lieuHint:"Habille-toi bien"}}
 ];
 const HOME_CATS = [
-  {cat:"Amour", ico:"❤️", d:"Rendez-vous, Saint-Valentin, couple"},
-  {cat:"Famille", ico:"🌷", d:"Fête des mères, des pères, grands-parents"},
-  {cat:"Amis", ico:"🎉", d:"Soirée, anniversaire, témoin"},
-  {cat:"Surprise", ico:"✨", d:"Journée mystère, dîner surprise"}
+  {cat:"Amour", theme:"amour", ico:"❤️", d:"Rendez-vous, Saint-Valentin, couple"},
+  {cat:"Famille", theme:"maman", ico:"🌷", d:"Fête des mères, des pères, grands-parents"},
+  {cat:"Amis", theme:"amis", ico:"🎉", d:"Soirée, anniversaire, témoin"},
+  {cat:"Surprise", theme:"mystere", ico:"✨", d:"Journée mystère, dîner surprise"}
 ];
 
 const S = {
-  step:"home", tplCat:"Tous", tpl:"", preset:{},
+  step:"home", tplCat:"Amour", tpl:"", preset:{},
   from:"", to:"", occ:"", occFree:"", theme:"base", themeManual:false, anim:"n",
   mode:"one",
   act:{v:"v", x:"", h:"", at:""}, lieu:{v:"v", x:"", h:"", at:""}, details:"",
@@ -1035,7 +1055,7 @@ function topHTML(onHistory){
 }
 
 function renderCreator(){
-  setTheme(S.theme, S.anim, S.ac);
+  setTheme(S.theme, S.anim, S.ac, S.step===4 ? true : "dim"); // aperçu : la scène entière, saisie : atténuée
   document.title = SITE_TITLE;
   const n=S.step;
   $("#app").innerHTML = `
@@ -1078,8 +1098,8 @@ function homeHTML(){
         <p class="tease" id="demoTease" aria-live="polite">Essaie de dire non… puis dis oui pour créer la tienne.</p>
       </div>
     </div>
-    <div class="home-cards">${HOME_CATS.map(c=>`<button type="button" class="home-card" data-home="${c.cat}">
-      <span class="ico" aria-hidden="true">${c.ico}</span><b>${c.cat}</b><span>${c.d}</span></button>`).join("")}</div>
+    <div class="home-cards">${HOME_CATS.map(c=>`<button type="button" class="home-card" data-home="${c.cat}">${sceneMini(c.theme)}
+      <span class="hc-txt"><b><span class="ico" aria-hidden="true">${c.ico}</span>${c.cat}</b><span>${c.d}</span></span></button>`).join("")}</div>
     <div class="home-actions">
       <a class="btn" href="#exemple">Voir un exemple</a>
       <button type="button" class="linkbtn" id="fromScratch">Partir de zéro →</button>
@@ -1099,17 +1119,19 @@ function homeHTML(){
 function screenHTML(){
   switch(S.step){
   case 1: {
-    const cats=["Tous","Amour","Famille","Amis","Surprise"];
-    const list=TEMPLATES.filter(t=>S.tplCat==="Tous"||t.cat===S.tplCat);
+    const cats=HOME_CATS.map(c=>c.cat); // une catégorie toujours ouverte (Amour par défaut) ; « Partir de zéro » dans chacune
+    if(!cats.includes(S.tplCat)) S.tplCat="Amour";
+    const list=TEMPLATES.filter(t=>t.cat===S.tplCat);
     return `
     <h2 tabindex="-1">Choisis un modèle</h2>
     <p class="lead">Il règle l'occasion, les couleurs, la question et le message. Tu pourras tout changer.</p>
     <div class="chips" role="group" aria-label="Catégorie" style="margin-bottom:16px">${cats.map(c=>`<button type="button" class="chip" data-cat="${c}" aria-pressed="${S.tplCat===c}">${c}</button>`).join("")}</div>
-    <div class="tpls">${list.map(t=>`<button type="button" class="tpl" data-tpl="${t.id}" aria-pressed="${S.tpl===t.id}">
-        <span class="ico" aria-hidden="true">${t.em}</span>
-        <span><b>${esc(t.label)}</b><span class="tq">« ${esc(t.q)} »</span><small>${esc(themeName(t.theme))} · ${esc(noLabel(t.no))}</small></span></button>`).join("")}
-      <button type="button" class="tpl" data-tpl="zero" aria-pressed="${S.tpl==="zero"}"><span class="ico" aria-hidden="true">✏️</span>
-        <span><b>Partir de zéro</b><small>Tu choisis tout toi-même</small></span></button>
+    <div class="tpls">${list.map(t=>`<button type="button" class="tpl" data-tpl="${t.id}" aria-pressed="${S.tpl===t.id}">${sceneMini(t.theme)}
+        <span class="tpl-row"><span class="ico" aria-hidden="true">${t.em}</span>
+        <span><b>${esc(t.label)}</b><span class="tq">« ${esc(t.q)} »</span><small>${esc(themeName(t.theme))} · ${esc(noLabel(t.no))}</small></span></span></button>`).join("")}
+      <button type="button" class="tpl" data-tpl="zero" aria-pressed="${S.tpl==="zero"}">${sceneMini("base")}
+        <span class="tpl-row"><span class="ico" aria-hidden="true">✏️</span>
+        <span><b>Partir de zéro</b><small>Tu choisis tout toi-même</small></span></span></button>
     </div>`;
   }
   case 2: return `
@@ -1198,6 +1220,7 @@ function previewHTML(){
   const occ=occLabel(), initial=(S.from||"?").trim().charAt(0).toUpperCase();
   return `<div class="preview" aria-label="Aperçu de l'invitation">
     <p class="pv-env"><span class="seal ${S.em?"emoji":""}" aria-hidden="true">${esc(S.em||initial)}</span>Sur l'enveloppe</p>
+    <div class="pv-stage">${sceneWallCopy(S.theme)}${sceneSignHTML(S.theme, REDUCED ? "0" : S.anim)}
     <div class="ticket">
       <div class="stub"><div>De<b>${esc(S.from)}</b></div><div style="text-align:right">Pour<b>${esc(S.to)}</b></div></div>
       <div class="perf" aria-hidden="true"></div>
@@ -1209,6 +1232,7 @@ function previewHTML(){
         <div class="answer" aria-hidden="true"><span class="yes">Oui</span><span class="no">Non</span></div>
         <p class="sign" id="pvSign" ${S.sg?"":"hidden"}>${esc(S.sg)}</p>
       </div>
+    </div>
     </div>
   </div>`;
 }
@@ -1454,7 +1478,7 @@ function bindDemoTicket(){
   no.addEventListener("click",dodge);
   yes.addEventListener("click",()=>{
     const r=yes.getBoundingClientRect(); Decor.burst(r.left+r.width/2, r.top+r.height/2, 60, true); Sound.yes();
-    S.tplCat="Tous"; setTimeout(()=>go(1), still() ? 0 : 450);
+    S.tplCat="Amour"; setTimeout(()=>go(1), still() ? 0 : 450);
   });
 }
 function bindCreator(){
@@ -1464,7 +1488,7 @@ function bindCreator(){
 
   // Accueil et modèles
   $$("[data-home]").forEach(b=>b.addEventListener("click",()=>{ S.tplCat=b.dataset.home; go(1); }));
-  $("#fromScratch")?.addEventListener("click",()=>{ applyTemplate("zero"); go(2); });
+  $("#fromScratch")?.addEventListener("click",()=>{ applyTemplate("zero"); S.tplCat="Amour"; go(2); });
   bindDemoTicket();
   on("[data-cat]", b=>{ S.tplCat=b.dataset.cat; });
   $$("[data-tpl]").forEach(b=>b.addEventListener("click",()=>{ applyTemplate(b.dataset.tpl); go(2); }));
@@ -1948,16 +1972,25 @@ const SCENES = {
     })()
   }
 };
-function setScene(id){
+function setScene(id, dim=false){
   const el=document.getElementById("scene"), sc=id && SCENES[id];
   if(!el) return;
   el.innerHTML = sc ? sc.wall : "";
-  el.className = sc ? `scene-${id}` : "";
+  el.className = sc ? `scene-${id}${dim?" dim":""}` : "";
 }
 /* L'enseigne de la scène (au-dessus de l'enveloppe ou du billet), immobile si les animations sont coupées */
-function sceneSignHTML(){
-  const sc=SCENES[D.th];
-  return sc && sc.sign ? `<div class="scene-sign anim-${invAnim()}" aria-hidden="true">${sc.sign}</div>` : "";
+function sceneSignHTML(th=D.th, anim=invAnim()){
+  const sc=SCENES[th];
+  return sc && sc.sign ? `<div class="scene-sign anim-${anim}" aria-hidden="true">${sc.sign}</div>` : "";
+}
+/* Le même décor de fond posé une seconde fois dans la page (aperçu, miniatures) : ses motifs SVG
+   reçoivent des identifiants propres, sinon url(#…) irait chercher ceux d'une autre scène, d'un autre thème */
+let sceneCopies=0;
+const sceneWallCopy = th => { const p=`s${++sceneCopies}-`; return SCENES[th].wall.replace(/(id="|url\(#)sc-/g, `$1${p}sc-`); };
+/* Miniature d'une scène (cartes de l'accueil et des modèles) : immobile, dans les couleurs de son thème */
+function sceneMini(th){
+  if(!SCENES[th]) return "";
+  return `<span class="thumb" aria-hidden="true"><span class="mini" data-theme="${th}">${sceneWallCopy(th)}<span class="mini-sign">${SCENES[th].sign}</span></span></span>`;
 }
 
 function renderEnvelope(){

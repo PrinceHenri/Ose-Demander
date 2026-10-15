@@ -510,7 +510,7 @@ titre("7. Contrastes des 7 thèmes");
 // Variables CSS de chaque thème, lues dans index.html (:root = base, puis [data-theme="…"])
 const CSS = (() => { const h = readFileSync(RACINE + "index.html", "utf8"); return h.slice(h.indexOf("<style>"), h.indexOf("</style>")); })();
 const varsDe = bloc => Object.fromEntries([...bloc.matchAll(/--([a-z-]+)\s*:\s*(#[0-9A-Fa-f]{6})/g)].map(m => [m[1], m[2].toUpperCase()]));
-const RACINE_CSS = varsDe(CSS.match(/:root\{([^}]*--bg:[^}]*)\}/)[1]);
+const RACINE_CSS = varsDe(CSS.match(/:root(?:,\[data-theme\])?\{([^}]*--bg:[^}]*)\}/)[1]);
 const THEME_CSS = Object.fromEntries(L.THEMES.map(t => {
   const m = t.id === "base" ? [null, ""] : CSS.match(new RegExp(`\\[data-theme="${t.id}"\\]\\{([^}]*)\\}`));
   assert.ok(m, `thème ${t.id} absent du CSS`);
@@ -796,10 +796,68 @@ await test("Chaque thème : décor derrière l'enveloppe et l'invitation, élém
   ouvrir(INV({ th: "mystere" })); PAGE.lire("renderEnvelope")();
   assert.ok(PAGE.zones["#app"].innerHTML.includes("Chut<tspan"), "Mystère : enseigne néon");
 });
-await test("Scènes : jamais côté création", () => {
-  ouvrir(INV({ th: "mystere" })); PAGE.lire("renderInvite")(); assert.ok(sceneZone.innerHTML !== "");
-  Object.assign(PAGE.lire("S"), { step: 2, theme: "mystere" }); PAGE.lire("renderCreator")();
-  assert.equal(sceneZone.innerHTML, "", "pas de scène pendant la création");
+await test("Création : scène atténuée pendant la saisie, entière sur l'aperçu", () => {
+  const S = PAGE.lire("S"), app = () => PAGE.zones["#app"].innerHTML;
+  for(const t of L.THEMES){
+    Object.assign(S, { step: "home", theme: t.id, from: "Alex", to: "Sam", link: "", anim: "n" });
+    for(const step of ["home", 1, 2, 3]){
+      S.step = step; PAGE.lire("renderCreator")();
+      assert.equal(sceneZone.className, `scene-${t.id} dim`, `${t.name}, étape ${step} : scène atténuée`);
+      assert.equal(sceneZone.innerHTML, SCENES[t.id].wall);
+    }
+    S.step = 4; PAGE.lire("renderCreator")();
+    assert.equal(sceneZone.className, `scene-${t.id}`, `${t.name}, aperçu : scène entière, comme pour la personne invitée`);
+    const h = app(), pv = h.slice(h.indexOf('class="pv-stage"'));
+    assert.ok(h.includes('class="pv-stage"'), `${t.name} : l'aperçu montre la scène`);
+    assert.ok(pv.includes(`<div class="scene-sign anim-n" aria-hidden="true">${SCENES[t.id].sign}</div>`), `${t.name} : élément vedette identique`);
+    assert.ok(pv.indexOf("scene-sign") < pv.indexOf('class="ticket'), `${t.name} : élément vedette au-dessus du billet`);
+    assert.ok(/<svg width="100%" height="100%"[^>]*><defs><pattern id="s\d+-sc-/.test(pv) || pv.includes('<rect class="sc-bg"'), `${t.name} : décor de fond dans l'aperçu`);
+  }
+  PAGE.lire("renderHistory")(); assert.equal(sceneZone.innerHTML, "", "pas de scène sur « Mes invitations »");
+  const tpl = PAGE.lire("TEMPLATES").find(x => x.theme === "fete");
+  Object.assign(S, { step: 1 }); PAGE.lire("applyTemplate")(tpl.id); S.step = 2; PAGE.lire("renderCreator")();
+  assert.equal(sceneZone.className, "scene-fete dim", "le modèle choisi change aussitôt la scène");
+  S.theme = "mystere"; S.step = 4; PAGE.lire("renderCreator")();
+  assert.equal(sceneZone.className, "scene-mystere", "le thème choisi change aussitôt la scène");
+  assert.ok(PAGE.lire("bindCreator").toString().includes('on("[data-th]"'), "le choix du thème réaffiche l'écran");
+});
+await test("Création : scène atténuée lisible (texte et texte atténué ≥ 4,5:1)", () => {
+  const a = +(regleCSS("#scene.dim svg").match(/opacity:([\d.]+)/) || [])[1];
+  assert.ok(a > 0 && a <= .5, `opacité de la scène atténuée : ${a}`);
+  assert.ok(regleCSS("#scene").includes("background:var(--bg)"), "la scène atténuée se fond dans --bg");
+  const mix = (f, c) => "#" + [1, 3, 5].map(i => Math.round(parseInt(f.slice(i, i + 2), 16) * (1 - a) + parseInt(c.slice(i, i + 2), 16) * a).toString(16).padStart(2, "0")).join("").toUpperCase();
+  for(const t of L.THEMES){ const v = THEME_CSS[t.id];
+    for(const c of ["bg", "soft", "surface"]){ exige(`${t.name} : encre sur --${c} atténué`, v.ink, mix(v.bg, v[c]), 4.5); exige(`${t.name} : texte atténué sur --${c} atténué`, v.muted, mix(v.bg, v[c]), 4.5); }
+  }
+});
+await test("Miniatures : une par carte de catégorie et de modèle, immobiles, identifiants uniques", () => {
+  const S = PAGE.lire("S"), CATS = PAGE.lire("HOME_CATS"), TPL = PAGE.lire("TEMPLATES");
+  const minis = h => [...h.matchAll(/<span class="mini" data-theme="([a-z]+)">/g)].map(m => m[1]);
+  const uniques = (nom, h) => { const ids = [...h.matchAll(/\bid="([^"]+)"/g)].map(m => m[1]); assert.equal(new Set(ids).size, ids.length, `${nom} : identifiant en double`); };
+  const home = PAGE.lire("homeHTML")();
+  assert.deepEqual(minis(home), CATS.map(c => c.theme), "accueil : une miniature par catégorie");
+  for(const c of CATS) assert.equal(TPL.find(t => t.cat === c.cat).theme, c.theme, `${c.cat} : miniature du thème de son premier modèle`);
+  uniques("accueil", home);
+  for(const c of CATS){
+    Object.assign(S, { step: 1, tplCat: c.cat, link: "" }); PAGE.lire("renderCreator")();
+    const h = PAGE.zones["#app"].innerHTML, liste = TPL.filter(t => t.cat === c.cat);
+    assert.deepEqual(minis(h), [...liste.map(t => t.theme), "base"], `${c.cat} : une miniature par modèle, et « Partir de zéro »`);
+    assert.ok(h.includes('data-tpl="zero"'), `${c.cat} : « Partir de zéro » visible`);
+    assert.ok(!/anim-[nd]/.test(h.slice(h.indexOf('class="tpls"'))), `${c.cat} : miniatures immobiles`);
+    uniques(`modèles ${c.cat}`, h);
+  }
+  assert.ok(CSS.includes(":root,[data-theme]{"), "chaque miniature garde les couleurs de son thème dans une page d'un autre thème (Mystère compris)");
+});
+await test("Choisis un modèle : pas de filtre « Tous », Amour par défaut, catégorie de l'accueil", () => {
+  const S = PAGE.lire("S");
+  Object.assign(S, { step: 1, tplCat: "Tous" }); PAGE.lire("renderCreator")();
+  const h = PAGE.zones["#app"].innerHTML;
+  assert.ok(!h.includes('data-cat="Tous"'), "filtre « Tous » retiré");
+  assert.ok(h.includes('data-cat="Amour" aria-pressed="true"'), "Amour ouvert par défaut");
+  assert.ok(/<button type="button" class="chip" data-cat="Famille" aria-pressed="false">/.test(h), "filtres : vrais boutons, accessibles au clavier");
+  const src = PAGE.lire("bindCreator").toString(), demo = PAGE.lire("bindDemoTicket").toString();
+  assert.ok(src.includes("S.tplCat=b.dataset.home; go(1)"), "carte de l'accueil : sa catégorie");
+  assert.ok(demo.includes('S.tplCat="Amour"') && !/Tous/.test(src + demo), "sinon Amour");
 });
 await test("Scènes : immobiles en animations « Aucune » et avec « moins de mouvement »", () => {
   ouvrir(INV({ th: "fete", an: "0" })); PAGE.lire("renderEnvelope")();
