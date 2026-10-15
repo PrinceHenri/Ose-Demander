@@ -21,12 +21,12 @@ export function chargerPage({ share = false, ios = false } = {}){
     apply: () => neutre(), construct: () => neutre(), set: () => true
   });
   const zone = () => ({ innerHTML: "", querySelector: () => neutre(), querySelectorAll: () => [] });
-  const zones = { "#app": zone(), "#main": zone() };
+  const zones = { "#app": zone(), "#main": zone(), "#scene": { ...zone(), className: "" } };
   const vus = []; // sélecteurs demandés à la page, dans l'ordre (pour vérifier où va le focus)
   const document = {
     title: "Ose Demander", hidden: false,
     querySelector: sel => { vus.push(sel); return zones[sel] || neutre(); }, querySelectorAll: () => [],
-    getElementById: () => neutre(), createElement: () => neutre(), body: neutre(), documentElement: neutre(),
+    getElementById: id => zones["#" + id] || neutre(), createElement: () => neutre(), body: neutre(), documentElement: neutre(),
     addEventListener: rien
   };
   const location = { origin: "http://localhost:8000", pathname: "/", hash: "", hostname: "localhost", protocol: "http:", href: "http://localhost:8000/" };

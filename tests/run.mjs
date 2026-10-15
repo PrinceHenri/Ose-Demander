@@ -729,6 +729,62 @@ await test("Règle : pas de nouvelle flèche décorative ni de séparateur « ·
   assert.ok(n <= 14, `${n} flèches ou « · » dans index.html (14 au plus, à retirer au point T2 de l'audit)`);
 });
 
+/* =========================================================
+   9. Scènes illustrées (fond des écrans de la personne invitée)
+   ========================================================= */
+titre("9. Scènes illustrées");
+const SCENES = PAGE.lire("SCENES"), sceneZone = PAGE.zones["#scene"];
+const reglesScene = [...CSS.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map(m => [m[1].trim().split("\n").pop().trim(), m[2]]).filter(([s]) => /(#scene|scene-sign|\.sc-)/.test(s));
+await test("Scènes : uniquement les couleurs du thème, aucune image externe, poids léger", () => {
+  assert.ok(reglesScene.length > 5, "règles CSS des scènes introuvables");
+  for(const [sel, decl] of reglesScene) assert.ok(!/#[0-9A-Fa-f]{3,6}\b|rgba?\(/.test(decl), `${sel} : couleur écrite en dur (utiliser les variables du thème)`);
+  for(const [id, sc] of Object.entries(SCENES)){
+    const tout = sc.wall + (sc.sign || "");
+    assert.ok(!/<image|href="http|url\(http|data:image\/(png|jpe?g|webp)/i.test(tout), `${id} : image externe ou photo`);
+    assert.ok(!/fill="#|stroke="#/.test(tout), `${id} : couleur écrite dans le SVG (passer par une classe CSS)`);
+    assert.ok(tout.length < 8000, `${id} : scène trop lourde (${tout.length} caractères)`);
+  }
+});
+await test("Scènes : texte et texte atténué lisibles (≥ 4,5:1) sur chaque couleur de la scène", () => {
+  const couleurs = new Set(reglesScene.filter(([s]) => /^\.sc-(mortar|brick|edge|mount|speck-d)/.test(s)).flatMap(([, d]) => [...d.matchAll(/(?:fill|stroke):var\(--([a-z-]+)\)/g)].map(m => m[1])));
+  assert.ok(couleurs.size >= 3, "couleurs de la scène introuvables");
+  for(const id of Object.keys(SCENES)){
+    const v = THEME_CSS[id];
+    for(const c of couleurs){ exige(`${id} : encre sur --${c}`, v.ink, v[c], 4.5); exige(`${id} : texte atténué sur --${c}`, v.muted, v[c], 4.5); }
+  }
+});
+await test("Mystère : mur sur l'enveloppe et l'invitation, enseigne au-dessus (jamais sous un texte)", () => {
+  ouvrir(INV({ th: "mystere", o: "surprise", q: "Tu me confies ta journée ?" }));
+  PAGE.lire("renderEnvelope")();
+  assert.ok(sceneZone.innerHTML.includes('id="sc-briques"') && sceneZone.className === "scene-mystere", "mur de briques derrière l'enveloppe");
+  let h = PAGE.zones["#app"].innerHTML;
+  assert.ok(h.includes('class="scene-sign anim-n" aria-hidden="true"') && h.indexOf("scene-sign") < h.indexOf("env-from"), "enseigne avant le titre");
+  assert.ok(h.includes("Chut<tspan") && h.includes("c'est une surprise"));
+  PAGE.lire("renderInvite")();
+  h = PAGE.zones["#app"].innerHTML;
+  assert.ok(sceneZone.innerHTML.includes("sc-briques"), "mur derrière l'invitation");
+  assert.ok(h.indexOf("scene-sign") < h.indexOf('class="ticket'), "enseigne au-dessus du billet");
+  assert.ok(/class="ticket[^"]*"[\s\S]*class="question"[\s\S]*id="yes"/.test(h), "question et boutons sur le billet");
+  assert.ok(regleCSS(".ticket").includes("background:var(--surface)"), "billet au fond uni");
+});
+await test("Scènes : absentes des autres thèmes (pour l'instant) et de la création", () => {
+  ouvrir(INV({ th: "amour" })); PAGE.lire("renderEnvelope")();
+  assert.equal(sceneZone.innerHTML, ""); assert.ok(!PAGE.zones["#app"].innerHTML.includes("scene-sign"));
+  ouvrir(INV({ th: "mystere" })); PAGE.lire("renderInvite")(); assert.ok(sceneZone.innerHTML !== "");
+  Object.assign(PAGE.lire("S"), { step: 2, theme: "mystere" }); PAGE.lire("renderCreator")();
+  assert.equal(sceneZone.innerHTML, "", "pas de scène côté création");
+});
+await test("Scènes : immobiles en animations « Aucune » et avec « moins de mouvement »", () => {
+  ouvrir(INV({ th: "mystere", an: "0" })); PAGE.lire("renderEnvelope")();
+  assert.ok(PAGE.zones["#app"].innerHTML.includes('class="scene-sign anim-0"'));
+  for(const [sel, decl] of reglesScene) if(/animation\s*:/.test(decl)) assert.ok(/\.anim-(n|d)\b/.test(sel), `${sel} : animation hors des niveaux Normales / Discrètes`);
+  assert.ok(CSS.includes("@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}"), "règle globale « moins de mouvement »");
+});
+await test("Enseigne : police de l'interface (Caveat réservée à l'écriture manuscrite)", () => {
+  const r = reglesScene.find(([s]) => s === ".sc-neon text");
+  assert.ok(r && r[1].includes("font-family:var(--display)") && !/--hand|Caveat/.test(r[1]));
+});
+
 /* ---------- Bilan ---------- */
 console.log(`\n${ko ? "❌" : "✅"} ${ok} tests réussis, ${ko} en échec (graine ${GRAINE}${ko ? ` — pour rejouer : node tests/run.mjs --graine=${GRAINE}` : ""})`);
 if(ko){ console.log(echecs.map(e => "  - " + e).join("\n")); process.exitCode = 1; }

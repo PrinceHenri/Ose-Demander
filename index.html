@@ -312,6 +312,36 @@ textarea.input{min-height:90px;resize:vertical}
 .sheet-card h3{margin:0 0 10px;font-size:22px;letter-spacing:-.01em}
 .sheet-card ol{margin:0 0 16px;padding-left:22px}
 .sheet-card li{margin:0 0 8px}
+/* ---------- Scènes illustrées (écrans de la personne invitée) ----------
+   Couleurs du thème uniquement. Animations seulement sous .anim-n / .anim-d (immobile en anim-0,
+   et la règle globale « moins de mouvement » coupe tout). */
+#scene{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden}
+#scene:empty{display:none}
+#scene svg{display:block}
+.sc-mortar{fill:var(--bg)}
+.sc-brick-a{fill:var(--soft)}
+.sc-brick-b{fill:var(--surface)}
+.sc-edge{stroke:var(--line);stroke-width:1.5;stroke-linecap:round;fill:none}
+.sc-speck-l{fill:var(--ink);opacity:.06}
+.sc-speck-d{fill:var(--bg);opacity:.5}
+.scene-sign{display:flex;justify-content:center;margin:0 auto 10px;pointer-events:none}
+.scene-sign svg{width:min(300px,76vw);height:auto;overflow:visible}
+.sc-wire{fill:none;stroke:var(--line);stroke-width:3;stroke-linecap:round;stroke-linejoin:round}
+.sc-mount{fill:var(--line);stroke:var(--bg);stroke-width:2}
+.sc-neon text{font-family:var(--display);font-weight:700}
+.sc-neon-big{font-size:50px;letter-spacing:-.01em}
+.sc-neon-small{font-size:24px;font-weight:600}
+.sc-halo text{fill:none;stroke:var(--accent);stroke-width:9;stroke-linejoin:round;opacity:.2}
+.sc-tube text{fill:var(--accent)}
+/* Néon : scintillement doux (Normales), respiration lente (Discrètes), immobile (Aucune) */
+.scene-sign.anim-n .sc-neon{animation:neon-hum 7s ease-in-out infinite}
+.scene-sign.anim-n .sc-flick{animation:neon-flick 4.6s linear infinite}
+.scene-sign.anim-d .sc-neon{animation:neon-breathe 10s ease-in-out infinite}
+@keyframes neon-hum{0%,86%,100%{opacity:1}88%{opacity:.8}89.5%{opacity:1}92%{opacity:.86}94%{opacity:1}}
+@keyframes neon-flick{0%,70%,100%{opacity:1}72%{opacity:.35}74%{opacity:1}76%{opacity:.5}79%{opacity:1}}
+@keyframes neon-breathe{0%,100%{opacity:1}50%{opacity:.88}}
+.env-screen .scene-sign{margin:0}
+
 /* ---------- Enveloppe ---------- */
 .env-screen{position:relative;z-index:1;min-height:100vh;min-height:100dvh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;padding:24px;text-align:center}
 .env-from{font-size:clamp(26px,7vw,38px);font-weight:800;letter-spacing:-.025em;line-height:1.1;margin:0;max-width:15ch}
@@ -344,6 +374,7 @@ textarea.refuse-input{font-family:var(--hand);font-size:23px;line-height:1.2;min
 </style>
 </head>
 <body>
+<div id="scene" aria-hidden="true"></div>
 <canvas id="decor" aria-hidden="true"></canvas>
 <canvas id="confetti" aria-hidden="true"></canvas>
 <div id="app"></div>
@@ -494,11 +525,13 @@ const $ = (s, r=document) => r.querySelector(s);
 const $$ = (s, r=document) => [...r.querySelectorAll(s)];
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const todayISO = () => { const d=new Date(); d.setMinutes(d.getMinutes()-d.getTimezoneOffset()); return d.toISOString().slice(0,10); };
-function setTheme(id, lv="n", ac=""){
+/* scene : true sur les écrans de la personne invitée (enveloppe, invitation), qui ont une scène illustrée en fond */
+function setTheme(id, lv="n", ac="", scene=false){
   const root=document.documentElement;
   root.dataset.theme = id === "base" ? "" : id;
   const v = accentVars(id||"base", ac);
   for(const [k,prop] of Object.entries(ACCENT_PROPS)){ if(v) root.style.setProperty(prop,v[k]); else root.style.removeProperty(prop); }
+  setScene(scene ? (id||"base") : null);
   Decor.set(id||"base", lv);
 }
 /* Changement d'écran : le focus va au titre du nouvel écran (annoncé par les lecteurs d'écran), sans faire défiler.
@@ -1755,13 +1788,62 @@ function bindSound(remember=false){
   });
 }
 
+/* ---------- Scènes illustrées (fond des écrans de la personne invitée) ----------
+   SVG intégré, formes plates, couleurs du thème uniquement (classes CSS .sc-*), aucune image externe.
+   wall : la scène de fond (couche fixe #scene, sous le décor animé) ; sign : un élément placé dans la page,
+   au-dessus de l'enveloppe ou du billet (jamais sous un texte). Les textes posés sur la scène restent lisibles :
+   le banc vérifie le contraste de l'encre et du texte atténué sur chaque couleur de la scène.
+   Immobile en animations « Aucune » et avec « moins de mouvement » (classe anim-0, règle CSS globale). */
+function brickTile(){ // 4 rangées décalées, deux tons de briques, arête claire façon papier découpé
+  let s=""; const bw=60, bh=28, tons="abbabaab";
+  for(let r=0;r<4;r++) for(let c=-1;c<5;c++){
+    const x=c*bw+(r%2?30:0), y=r*bh, t=tons[(r*3+c+8)%8];
+    s+=`<rect class="sc-brick-${t}" x="${x+2}" y="${y+2}" width="${bw-4}" height="${bh-4}" rx="3"/><path class="sc-edge" d="M${x+6} ${y+5}h${bw-12}"/>`;
+  }
+  return s;
+}
+const GRAIN_DOTS = [[3,5],[17,2],[29,11],[8,19],[22,24],[34,30],[12,33],[27,38],[5,28],[19,14]];
+const SCENES = {
+  mystere: {
+    wall: `<svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" focusable="false">
+      <defs>
+        <pattern id="sc-briques" width="240" height="112" patternUnits="userSpaceOnUse">${brickTile()}</pattern>
+        <pattern id="sc-grain" width="37" height="41" patternUnits="userSpaceOnUse">${GRAIN_DOTS.map(([x,y],i)=>`<circle class="${i%2?"sc-speck-l":"sc-speck-d"}" cx="${x}" cy="${y}" r="0.9"/>`).join("")}</pattern>
+      </defs>
+      <rect class="sc-mortar" width="100%" height="100%"/>
+      <rect width="100%" height="100%" fill="url(#sc-briques)"/>
+      <rect width="100%" height="100%" fill="url(#sc-grain)"/>
+    </svg>`,
+    sign: (()=>{
+      const txt=`<text class="sc-neon-big" x="160" y="70" text-anchor="middle">Chut<tspan class="sc-flick">…</tspan></text>
+        <text class="sc-neon-small" x="160" y="108" text-anchor="middle">c'est une surprise</text>`;
+      return `<svg viewBox="0 0 320 124" xmlns="http://www.w3.org/2000/svg" focusable="false">
+        <path class="sc-wire" d="M160 0V14M96 24V14h128v10"/>
+        <rect class="sc-mount" x="90" y="22" width="12" height="8" rx="2"/><rect class="sc-mount" x="218" y="22" width="12" height="8" rx="2"/>
+        <g class="sc-neon"><g class="sc-halo">${txt}</g><g class="sc-tube">${txt}</g></g>
+      </svg>`;
+    })()
+  }
+};
+function setScene(id){
+  const el=document.getElementById("scene"), sc=id && SCENES[id];
+  if(!el) return;
+  el.innerHTML = sc ? sc.wall : "";
+  el.className = sc ? `scene-${id}` : "";
+}
+/* L'enseigne de la scène (au-dessus de l'enveloppe ou du billet), immobile si les animations sont coupées */
+function sceneSignHTML(){
+  const sc=SCENES[D.th];
+  return sc && sc.sign ? `<div class="scene-sign anim-${invAnim()}" aria-hidden="true">${sc.sign}</div>` : "";
+}
+
 function renderEnvelope(){
-  setTheme(D.th||"base", invAnim(), D.ac);
+  setTheme(D.th||"base", invAnim(), D.ac, true);
   document.title = `${D.f} a une question pour toi`;
   const initial = (D.f||"?").trim().charAt(0).toUpperCase();
   $("#app").innerHTML = `
   <main class="env-screen">
-    ${soundBtn()}${demoBanner()}
+    ${soundBtn()}${demoBanner()}${sceneSignHTML()}
     <p class="env-from" tabindex="-1">${esc(D.f)} t'a envoyé une invitation</p>
     <button type="button" class="envelope ${invAnim()==="n"?"wiggle":""}" id="env" aria-label="Ouvrir l'invitation">
       <span class="env-back"></span>
@@ -1805,6 +1887,7 @@ function ticketHTML(inner){
   return `
   ${soundBtn()}${demoBanner()}
   <main class="inv">
+    ${sceneSignHTML()}
     <div class="ticket pop-in">
       <div class="stub"><div>De<b>${esc(D.f)}</b></div><div style="text-align:right">Pour<b>${esc(D.t)}</b></div></div>
       <div class="perf" aria-hidden="true"></div>
@@ -1814,7 +1897,7 @@ function ticketHTML(inner){
   </main>`;
 }
 function renderInvite(){
-  setTheme(D.th||"base", invAnim(), D.ac);
+  setTheme(D.th||"base", invAnim(), D.ac, true);
   refused=false;
   const occ = invOccLabel();
   document.title = `${D.f} a une question pour toi`;
@@ -1993,7 +2076,7 @@ function sendHTML(){
 /* Ouverture depuis le rappel d'agenda : ni enveloppe ni question, directement la carte.
    Le lien du rappel n'a pas de canal : la réponse se partage ou se copie (« Peu importe »). */
 function renderReminder(){
-  setTheme(D.th||"base", invAnim(), D.ac);
+  setTheme(D.th||"base", invAnim(), D.ac, true);
   document.title = `Ton invitation avec ${D.f}`;
   yesDone=true; refused=false; clearTimeout(refuseTimer);
   initReveals();
