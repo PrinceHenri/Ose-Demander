@@ -38,7 +38,7 @@ Chaque thème redéfinit les mêmes variables CSS (`:root` = thème « base », 
 Les variantes viennent de `readable(couleur, fonds, seuil)` : même teinte (OKLCH), plus foncée sur fond clair, plus claire sur fond sombre, juste assez pour atteindre le seuil (inchangée si elle l'atteint déjà). Les valeurs CSS des thèmes sont écrites en dur et **le banc vérifie qu'elles égalent ce calcul** ; la table `THEMES` (JS) reprend `--bg`, `--surface`, `--soft`, `--ink`. Nouveau thème = ajouter ses 3 variantes (calculées avec `readable`) et ses valeurs dans `THEMES`.
 
 - **Couleurs d'accent facultatives** (`ACCENTS` : framboise, corail, mandarine, or, menthe, océan, violet, nuit) : appliquées par `setTheme` via `accentVars(thème, accent)`, **seulement si `accentOk`** (contraste ≥ 3:1 avec le fond et la surface du thème). `accentVars` calcule les 5 variables (`--accent`, `--accent-ink` choisi par `accentInk`, `--accent-text`, `--accent-btn`, `--accent-seal`) avec `readable`. Toute nouvelle couleur d'accent passe par cette table : le banc vérifie chaque combinaison thème × accent.
-- **Motifs de fond** : SVG en `data:` dans `--pattern`, très transparents (opacité 0,07 à 0,35), petites formes du thème répétées. Un nouveau thème = un nouveau motif dans le même esprit.
+- **Motifs de fond** : SVG en `data:` dans `--pattern`, très transparents (opacité 0,07 à 0,35), petites formes du thème répétées : fond des écrans de création. Côté personne invitée, la **scène illustrée** du thème les remplace (§ 2 bis). Un nouveau thème = un nouveau motif **et** une nouvelle scène dans le même esprit.
 - **Exceptions existantes** (ne pas multiplier) : erreurs `#B3122E` sur `#FFE3E8` (variante sombre pour `mystere`), voile des feuilles `rgba(20,14,50,.45)`, surlignage de révélation doré `rgba(255,201,74,.5)` (l'accent de Mystère).
 - Toujours vérifier le rendu dans **les 7 thèmes**, et en particulier **Mystère** (sombre : `--surface` n'y est pas blanc).
 
@@ -65,6 +65,28 @@ C'est la signature : **bordure pleine `2px solid var(--ink)` + ombre dure décal
 - **Billet** : talon « De / Pour » (`.stub`), perforation en pointillés avec deux demi-cercles découpés (`.perf::before/::after`, couleur `--bg`), corps centré (`.main`). Pour un nouvel écran côté personne invitée, **réutiliser `ticketHTML(inner)`** plutôt que recréer une carte.
 - **Enveloppe** : rabat qui pivote (`rotateX(180deg)`), papier qui sort avec « Pour {prénom} » en Caveat, sceau rond (`.seal`) en `--ink` portant l'emoji ou l'initiale.
 - Cadre de la page invitation : `max-width:480px`, création : `600px`. Pensé d'abord pour le **téléphone** (règles `max-width:460px`, zones sûres `env(safe-area-inset-*)`).
+
+## 2 bis. Scènes illustrées (fond des écrans de la personne invitée)
+
+Chaque thème a une scène (`SCENES` dans `index.html`), affichée sur l'enveloppe, la question, l'écran après le Oui et la carte du rappel. **Jamais côté création.** Elle remplace le motif de fond du thème.
+
+| Thème | Décor de fond (ton sur ton) | Élément vedette | Animation (Normales / Discrètes) |
+|---|---|---|---|
+| Lilas | papier peint à rayures, étagère avec tasse, cadre, plante (en bas) | pancarte suspendue « Une question pour toi ? » | balancement ±2° / ±0,8° |
+| Amour | façade de café en planches, deux fenêtres (à mi-hauteur) | enseigne « Le café des rendez-vous », lampions, store rayé | lampions qui s'allument l'un après l'autre / aucune |
+| Pétales | grandes fleurs en papier, clôture basse (en bas) | pot de fleurs et étiquette « Pour toi » | la fleur s'ouvre une fois / plus lentement |
+| Cravate | papier peint à losanges, lambris (en bas) | horloge murale et plaque « C'est l'heure ? » | trotteuse qui avance / aucune |
+| Pop | mur de briques claires, affiches | bulle de BD « Tu viens ? », étoile, affiche scotchée | l'affiche frémit / plus doucement |
+| Confettis | rideau de scène, lambrequin (en haut) | banderole « C'est la fête », fanions, ballons | ballons qui flottent / plus doucement |
+| Mystère | mur de briques sombres | enseigne néon « Chut… c'est une surprise » (Bricolage, halo en aplat) | scintillement doux / respiration lente |
+
+- **Deux couches.** Le **décor de fond** (`sceneWall`, couche fixe `#scene`, sous le décor animé) est **ton sur ton** : grandes surfaces en `--bg`, `--soft`, `--surface` (`.sc-bg`, `.sc-a`, `.sc-b`), `--line` seulement en traits fins de 2 px au plus (`.sc-line`, `.sc-out`), grain léger (`#sc-grain`). Ni accent, ni encre : du texte peut passer dessus (titre de l'enveloppe, indications), il doit rester lisible (encre et texte atténué ≥ 4,5:1 sur chaque surface, vérifié par le banc). L'**élément vedette** (`sceneSign`, classe `.scene-sign`) est placé **dans la page**, au-dessus de l'enveloppe ou du billet : aucun texte ne passe jamais dessous. C'est lui qui porte la couleur, les contours épais à l'encre (`.sg-out`, 3 px), l'ombre décalée (`panel()`) et l'animation.
+- **Textes des éléments vedettes** : courts, tutoyés, neutres, sans « → » ni « · », sans information qui pourrait contredire l'invitation (pas d'heure ni de lieu : « Ce soir, peut-être ? » a été écarté pour cette raison). Classe `.sg-text` (Bricolage Grotesque 800, encre) sur un panneau `--surface` ; un « ? » coloré en `.sg-t-acc` (`--accent-text`). Caveat interdite (ce n'est pas de l'écriture à la main).
+- **Placement du décor** : les éléments marquants vont en bas (≥ 88 % de la hauteur), en haut (lambrequin) ou sur les côtés à mi-hauteur (derrière l'enveloppe ou le billet), pour ne pas passer sous le titre ni la mention de sécurité. Motifs en pixels réels (`patternUnits="userSpaceOnUse"`), éléments isolés placés en pourcentage de l'écran avec `at(x, y, …)` : même taille sur téléphone et ordinateur.
+- **Animations** : uniquement sur l'élément vedette, sous `.scene-sign.anim-n` / `.anim-d` ; aucune dans le décor de fond (motifs SVG : coûteux et peu fiables), aucune balise `<animate>`. Immobile en « Aucune » et avec « moins de mouvement ».
+- **Poids** : moins de 8 000 caractères par scène, 30 000 au total ; aucune image, aucune couleur écrite dans le SVG (classes CSS uniquement).
+- **Contrôle visuel** : le banc ne voit pas le rendu. Faire des captures avec Edge sans fenêtre, à **520 px** de large (en dessous, Edge garde une fenêtre d'environ 500 px et la capture coupe la page) et en animations « Aucune » pour un rendu stable :
+  `msedge --headless=new --disable-gpu --hide-scrollbars --user-data-dir=<dossier temporaire> --window-size=520,1040 --virtual-time-budget=3000 --screenshot=<fichier.png> <lien>` (la carte s'ouvre directement avec un lien de rappel, `reminderData`).
 
 ## 3. Typographie : deux polices, pas une de plus
 
