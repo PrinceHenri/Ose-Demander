@@ -200,11 +200,6 @@ textarea.input{min-height:90px;resize:vertical}
 .home-card .hc-txt>span{font-size:14px;color:var(--muted);line-height:1.35}
 .home-actions{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;margin:0 0 26px}
 .home-actions a.btn{text-decoration:none;display:inline-block}
-.privacy{border:2px dashed var(--ink);border-radius:var(--r);padding:16px 18px;background:var(--soft)}
-.privacy h2{font-size:14px;text-transform:uppercase;letter-spacing:.08em;margin:0 0 10px}
-.privacy ul{list-style:none;margin:0 0 10px;padding:0}
-.privacy li{display:flex;gap:10px;padding:4px 0;font-weight:600}
-.privacy a{font-size:14px;color:var(--muted)}
 
 /* ---------- Création express ---------- */
 .tpls{display:flex;flex-direction:column;gap:10px}
@@ -1072,7 +1067,7 @@ function renderCreator(){
         ${n===2||n===3 ? `<button type="submit" class="btn primary">${n===3 ? "Voir l'aperçu" : "Continuer"}</button>` : ""}
       </div>
     </form>`}
-    <p class="foot">Rien n'est stocké en ligne : toute l'invitation tient dans le lien.<br><a href="mentions-legales.html">Mentions légales</a></p>
+    <p class="foot">Rien n'est stocké en ligne : toute l'invitation tient dans le lien. <a href="mentions-legales.html#confidentialite">Confidentialité</a><br><a href="mentions-legales.html">Mentions légales</a></p>
   </div>`;
   S.err=""; S.errSec="";
   bindCreator();
@@ -1103,16 +1098,7 @@ function homeHTML(){
     <div class="home-actions">
       <a class="btn" href="#exemple">Voir un exemple</a>
       <button type="button" class="linkbtn" id="fromScratch">Partir de zéro →</button>
-    </div>
-    <section class="privacy" aria-labelledby="privT">
-      <h2 id="privT">Privé par conception</h2>
-      <ul>
-        <li><span aria-hidden="true">🔗</span>Toute l'invitation tient dans le lien</li>
-        <li><span aria-hidden="true">🚫</span>Pas de compte, pas de serveur</li>
-        <li><span aria-hidden="true">📱</span>Ton historique reste sur ton appareil</li>
-      </ul>
-      <a href="mentions-legales.html#donnees">En savoir plus</a>
-    </section>`;
+    </div>`;
 }
 
 /* ---------- Les 4 écrans ---------- */

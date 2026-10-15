@@ -859,6 +859,18 @@ await test("Choisis un modèle : pas de filtre « Tous », Amour par défaut, ca
   assert.ok(src.includes("S.tplCat=b.dataset.home; go(1)"), "carte de l'accueil : sa catégorie");
   assert.ok(demo.includes('S.tplCat="Amour"') && !/Tous/.test(src + demo), "sinon Amour");
 });
+await test("Accueil : plus de bloc « Privé par conception », lien « Confidentialité » vers les mentions légales", () => {
+  const h = PAGE.lire("homeHTML")();
+  assert.ok(!/privacy|Privé par conception/.test(h), "bloc retiré");
+  const S = PAGE.lire("S"); Object.assign(S, { step: "home" }); PAGE.lire("renderCreator")();
+  const app = PAGE.zones["#app"].innerHTML;
+  assert.ok(app.includes(`Rien n'est stocké en ligne : toute l'invitation tient dans le lien. <a href="mentions-legales.html#confidentialite">Confidentialité</a>`), "lien juste après la phrase du bas de page");
+  assert.ok(!/\.privacy/.test(CSS), "styles du bloc retirés");
+  const ml = readFileSync(RACINE + "mentions-legales.html", "utf8"), sec = ml.slice(ml.indexOf('id="confidentialite"'), ml.indexOf('id="donnees"'));
+  assert.ok(sec.length > 100, "section #confidentialite des mentions légales");
+  for(const idee of ["tient dans son lien", "Pas de compte", "reste sur votre appareil"]) assert.ok(sec.includes(idee), `section Confidentialité : « ${idee} »`);
+  assert.ok(!/pas de serveur|aucun serveur|sans serveur/i.test(sec), "formulations qui resteront vraies avec un serveur de liens courts chiffrés");
+});
 await test("Scènes : immobiles en animations « Aucune » et avec « moins de mouvement »", () => {
   ouvrir(INV({ th: "fete", an: "0" })); PAGE.lire("renderEnvelope")();
   assert.ok(PAGE.zones["#app"].innerHTML.includes('class="scene-sign anim-0"'));
