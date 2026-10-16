@@ -428,7 +428,8 @@ textarea.input{min-height:90px;resize:vertical}
 .sg-ringo{fill:none;stroke:var(--ink);stroke-width:14}
 .sg-hearto{fill:none;stroke:var(--accent-text);stroke-width:4;stroke-linejoin:round}
 .sg-flame{transform-box:fill-box;transform-origin:50% 100%}
-.sg-rise,.sg-spin,.sg-roll,.sg-lift,.sg-flip,.sg-fly{transform-box:fill-box}
+.sg-rise,.sg-spin,.sg-roll,.sg-lift,.sg-flip,.sg-fly,.sg-clink-l,.sg-clink-r,.sg-fall,.sg-pop{transform-box:fill-box}
+.sg-clink-l,.sg-clink-r,.sg-pop{transform-origin:50% 100%}
 .sg-spin{transform-origin:50% 50%}
 .sg-roll,.sg-lift{transform-origin:50% 100%}
 .sg-flip{transform-origin:100% 0}
@@ -481,6 +482,16 @@ textarea.input{min-height:90px;resize:vertical}
 @keyframes sg-lift-d{0%,60%,100%{transform:none}25%,45%{transform:translateY(-10px)}}
 @keyframes sg-flip{0%,60%,100%{transform:none}75%{transform:scale(1.6) rotate(-6deg)}}
 @keyframes sg-fly{0%,100%{transform:translate(-14px,4px)}50%{transform:translate(14px,-6px)}}
+.scene-sign.anim-n .sg-clink-l{animation:sg-clink-l 3s ease-in-out infinite}
+.scene-sign.anim-n .sg-clink-r{animation:sg-clink-r 3s ease-in-out infinite}
+.scene-sign.anim-n .sg-fall{animation:sg-fall 3.6s ease-in infinite both}
+.scene-sign.anim-d .sg-fall{animation:sg-fall 7s ease-in infinite both}
+.scene-sign.anim-n .sg-pop{animation:sg-pop 2.6s ease-in-out infinite}
+.scene-sign.anim-d .sg-pop{animation:sg-lift-d 6s ease-in-out infinite}
+@keyframes sg-clink-l{0%,55%,100%{transform:none}70%{transform:rotate(9deg)}80%{transform:rotate(4deg)}}
+@keyframes sg-clink-r{0%,55%,100%{transform:none}70%{transform:rotate(-9deg)}80%{transform:rotate(-4deg)}}
+@keyframes sg-fall{0%{transform:translateY(0) rotate(0);opacity:0}15%{opacity:1}100%{transform:translateY(46px) rotate(120deg);opacity:0}}
+@keyframes sg-pop{0%,45%,100%{transform:none}60%{transform:translateY(-30px) rotate(-12deg)}72%{transform:translateY(-24px) rotate(-8deg)}85%{transform:none}}
 .scene-sign.anim-n .sg-mid{animation:sg-mid 8s steps(4,end) infinite}
 @keyframes sg-mid{from{transform:rotate(-18deg)}to{transform:rotate(6deg)}}
 @keyframes sg-wobble{0%,100%{transform:rotate(-2deg)}50%{transform:rotate(2deg)}}
@@ -2186,6 +2197,10 @@ const cadre = (w, h) => `<rect class="sc-b sc-out" width="${w}" height="${h}" rx
 const plateau = y => at("0", y, `<rect class="sc-b sc-out" x="-4" width="4000" height="16"/><rect class="sc-a" y="16" width="4000" height="1000"/>`);
 // Petit cœur (14 px de large) dont le bas est en (x, y) ; « montant » : s'élève et s'efface, l'un après l'autre
 const petitCoeur = (x, y, c="sg-acc", d=0) => `<g class="sg-rise" style="animation-delay:${d}s"><path class="${c} sg-out" d="M${x} ${y}c-8-5-10-12-5-14 2-1 4 0 5 2 1-2 3-3 5-2 5 2 3 9-5 14z"/></g>`;
+const confettiMontant = (x, y, r=20, d=0) => `<g class="sg-rise" style="animation-delay:${d}s"><rect class="sg-acc sg-out" x="${x-5}" y="${y-3}" width="10" height="6" rx="2" transform="rotate(${r} ${x} ${y})"/></g>`;
+const eclatMontant = (x, y, d=0) => `<g class="sg-rise" style="animation-delay:${d}s"><path class="sg-acc sg-out" d="M${x} ${y-9}l2 5 5 2-5 2-2 5-2-5-5-2 5-2z"/></g>`;
+// Petit ballon (rayon 11) attaché en (x, y), qui se balance
+const petitBallon = (x, y, c="sg-acc", d=0) => `<g class="sg-swing" style="animation-delay:-${d}s"><path class="sg-string" d="M${x} ${y}q-6-18 0-34"/><ellipse class="${c} sg-out" cx="${x}" cy="${y-47}" rx="11" ry="13"/><path class="${c} sg-out" d="M${x-3} ${y-33}h6l-3 4z"/></g>`;
 // Gâteau à étages (du bas vers le haut), coulis à l'accent, bougies dont la flamme vacille
 function gateau(cx, base, tiers, bougies){
   let s="", y=base, w=120;
@@ -2466,10 +2481,11 @@ const SCENES = {
       at("0","100%",`<rect y="-160" width="4000" height="160" fill="url(#sc-toits)"/>`) +
       at("7%","100%",`<circle class="sc-a" cx="21" cy="-178" r="32"/><rect class="sc-b sc-out" x="16" y="-180" width="10" height="180"/><path class="sc-b sc-out" d="M6-206h30l-5 28H11z"/>`) +
       at("80%","100%",`<g transform="translate(0 -46)"><rect class="sc-b sc-out" y="-26" width="90" height="10" rx="2"/><rect class="sc-b sc-out" width="90" height="10" rx="2"/><path class="sc-line" d="M10 10v36M80 10v36"/></g>`)),
-    sign: sceneSign(170, `${[[38,12,1],[126,-12,-1]].map(([x,r,d])=>`<g transform="rotate(${r} ${x+29} 110)"><rect class="sg-ink" x="${x+6}" y="80" width="58" height="66" rx="8"/><rect class="sg-surf sg-out" x="${x}" y="74" width="58" height="66" rx="8"/>
-        <path class="sg-acc sg-out" d="M${x} 84h58v10H${x}z"/><path class="sg-wire" d="${d>0?`M${x} 92h-8a12 12 0 0 0 0 24h8`:`M${x+58} 92h8a12 12 0 0 1 0 24h-8`}"/></g>`).join("")}
-      <path class="sg-score" d="M100 44l-6-8M124 44l6-8M112 40v-10"/>
+    sign: sceneSign(170, `${[[38,12,1,"l"],[126,-12,-1,"r"]].map(([x,r,d,c])=>`<g transform="rotate(${r} ${x+29} 110)"><g class="sg-clink-${c}"><rect class="sg-ink" x="${x+6}" y="80" width="58" height="66" rx="8"/><rect class="sg-surf sg-out" x="${x}" y="74" width="58" height="66" rx="8"/>
+        <path class="sg-acc sg-out" d="M${x} 84h58v10H${x}z"/><path class="sg-wire" d="${d>0?`M${x} 92h-8a12 12 0 0 0 0 24h8`:`M${x+58} 92h8a12 12 0 0 1 0 24h-8`}"/></g></g>`).join("")}
+      ${[[62,0],[164,1.5]].map(([x,d])=>`<g class="sg-rise" style="animation-delay:${d}s"><path class="sg-lline" d="M${x} 60q-6-8 0-16t0-16"/></g>`).join("")}
       <g class="sg-float"><path class="sg-acc sg-out" d="M112 56c-12-10-26-1-17 12l17 15 17-15c9-13-5-22-17-12z"/></g>
+      ${petitCoeur(92,40,"sg-acc",.8)}${petitCoeur(134,36,"sg-surf",2.2)}
       <path class="sg-wire" d="M262 114v54"/>${panel(212,40,100,74,8)}${label(262,72,22,"Toi")}<text class="sg-text" x="262" y="102" font-size="22" text-anchor="middle">et moi <tspan class="sg-t-acc">?</tspan></text>`)
   },
   // Mon anniversaire : fanions, confettis, ballons, table et cadeaux ; gâteau aux bougies qui vacillent
@@ -2479,7 +2495,8 @@ const SCENES = {
       fill("sc-confettis") + `<rect width="100%" height="50" fill="url(#sc-fanions-a)"/>` +
       [["4%","34%",24],["10%","46%",18],["86%","30%",24],["92%","43%",18]].map(([x,y,r])=>at(x,y,ballon(r))).join("") +
       plateau("88%") + at("12%","88%",`<g transform="translate(0 -40)">${paquet(44,40)}</g>`) + at("70%","88%",`<g transform="translate(0 -30)">${paquet(34,30,"a")}</g>`)),
-    sign: sceneSign(170, `${gateau(100,162,2,3)}<path class="sg-acc" d="M30 60l6 3-3 6zM168 52l7-1-2 7zM40 130l6-4 1 7zM176 118l5 4-6 3z"/>
+    sign: sceneSign(170, `${petitBallon(34,150,"sg-acc",0)}${petitBallon(170,146,"sg-soft",1.5)}${gateau(100,162,2,3)}
+      ${confettiMontant(54,70,30,0)}${confettiMontant(150,64,-20,.7)}${confettiMontant(72,40,60,1.4)}${confettiMontant(128,34,-50,2.1)}
       <path class="sg-wire" d="M256 114v54"/>${panel(198,40,116,74,8)}${label(256,72,22,"C'est ma")}<text class="sg-text" x="256" y="102" font-size="22" text-anchor="middle">fête <tspan class="sg-t-acc">!</tspan></text>`)
   },
   // Un anniversaire en famille : guirlande d'ampoules, papier peint, cadres de famille, table dressée ; gâteau à trois étages
@@ -2489,7 +2506,8 @@ const SCENES = {
       fill("sc-tapisserie") + `<rect width="100%" height="40" fill="url(#sc-ampoules-f)"/>` +
       `<g class="hs-wide">${at("5%","38%",cadre(76,92))}${at("12%","56%",cadre(56,70))}${at("84%","34%",cadre(64,80))}${at("88%","52%",cadre(72,58))}</g>` +
       plateau("86%")),
-    sign: sceneSign(170, `${gateau(96,164,3,4)}
+    sign: sceneSign(170, `${petitBallon(30,152,"sg-soft",.6)}${petitBallon(164,150,"sg-acc",2)}${gateau(96,164,3,4)}
+      ${petitCoeur(58,92,"sg-acc",0)}${petitCoeur(136,88,"sg-acc",1)}${petitCoeur(64,52,"sg-surf",2)}${petitCoeur(130,46,"sg-surf",.5)}
       <path class="sg-wire" d="M255 114v54"/>${panel(198,40,114,74,8)}${label(255,72,22,"En")}<text class="sg-text" x="255" y="102" font-size="22" text-anchor="middle">famille <tspan class="sg-t-acc">!</tspan></text>`)
   },
   // Être mon témoin : arche fleurie, rangées de chaises de cérémonie ; deux alliances entrelacées qui se balancent, éclats dorés
@@ -2503,7 +2521,8 @@ const SCENES = {
     sign: sceneSign(170, `<g class="sg-swing">${[[88],[132]].map(([x])=>`<circle class="sg-ringo" cx="${x}" cy="104" r="34"/><circle class="sg-ring" cx="${x}" cy="104" r="34"/>`).join("")}
         <path class="sg-ringo" d="M117.4 121A34 34 0 0 1 99.6 136"/><path class="sg-ring" d="M117.4 121A34 34 0 0 1 99.6 136"/>
         <path class="sg-surf sg-out" d="M132 58l11 11-11 13-11-13z"/></g>
-      <g class="sg-glow"><path class="sg-acc sg-out" d="M56 44l3 7 7 3-7 3-3 7-3-7-7-3 7-3zM176 40l3 7 7 3-7 3-3 7-3-7-7-3 7-3z"/></g>
+      ${eclatMontant(56,60,0)}${eclatMontant(176,56,1)}${eclatMontant(110,40,2)}${eclatMontant(30,110,1.5)}
+      ${[[44,30,0],[170,20,1.2],[98,14,2.4]].map(([x,y,d])=>`<g class="sg-fall" style="animation-delay:${d}s"><ellipse class="sg-soft sg-out" cx="${x}" cy="${y}" rx="5" ry="8" transform="rotate(30 ${x} ${y})"/></g>`).join("")}
       <path class="sg-wire" d="M256 114v54"/>${panel(200,40,112,74,8)}${label(256,72,22,"À mes")}<text class="sg-text" x="256" y="102" font-size="22" text-anchor="middle">côtés <tspan class="sg-t-acc">?</tspan></text>`)
   },
   // Une fête surprise : fanions, confettis, canapé et ballons cachés derrière, porte entrouverte ; cadeau dont le couvercle se soulève
@@ -2515,10 +2534,10 @@ const SCENES = {
       at("4%","100%",`<g transform="translate(0 -92)"><rect class="sc-a sc-out" x="20" y="8" width="150" height="44" rx="10"/><path class="sc-b sc-out" d="M0 30a14 14 0 0 1 28 0v30h134V30a14 14 0 0 1 28 0v62H0z"/></g>`) +
       at("82%","100%",`<g transform="translate(0 -180)"><rect class="sc-b sc-out" width="84" height="180"/><path class="sc-a sc-out" d="M0 0l36 14v166H0z"/><circle class="sc-line" cx="70" cy="96" r="4"/></g>`)),
     sign: sceneSign(170, `<rect class="sg-ink" x="56" y="98" width="100" height="68" rx="4"/><rect class="sg-acc sg-out" x="50" y="92" width="100" height="68" rx="4"/><path class="sg-surf sg-out" d="M92 92h16v68H92z"/>
-      <g class="sg-float"><rect class="sg-acc sg-out" x="42" y="70" width="116" height="22" rx="4"/><path class="sg-surf sg-out" d="M92 70h16v22H92z"/>
+      ${confettiMontant(70,80,30,.2)}${confettiMontant(130,76,-30,.5)}${confettiMontant(90,60,70,.8)}${confettiMontant(116,56,-60,1.1)}${eclatMontant(60,52,.3)}${eclatMontant(144,46,.9)}
+      <g class="sg-pop"><rect class="sg-acc sg-out" x="42" y="70" width="116" height="22" rx="4"/><path class="sg-surf sg-out" d="M92 70h16v22H92z"/>
         <path class="sg-surf sg-out" d="M100 70c-22-26-44-4-20 0zM100 70c22-26 44-4 20 0z"/></g>
-      <g class="sg-glow"><path class="sg-lin sg-out" d="M40 42l4 8 8 2-6 6 2 8-8-4-8 4 2-8-6-6 8-2zM166 34l4 8 8 2-6 6 2 8-8-4-8 4 2-8-6-6 8-2z"/></g>
-      <path class="sg-acc" d="M70 40l6 3-3 6zM132 46l7-1-2 7z"/>
+      <g class="sg-glow"><path class="sg-lin sg-out" d="M28 42l4 8 8 2-6 6 2 8-8-4-8 4 2-8-6-6 8-2zM178 34l4 8 8 2-6 6 2 8-8-4-8 4 2-8-6-6 8-2z"/></g>
       <path class="sg-wire" d="M255 114v54"/>${panel(198,40,114,74,8)}${label(255,72,22,"Pas un")}<text class="sg-text" x="255" y="102" font-size="22" text-anchor="middle">mot <tspan class="sg-t-acc">!</tspan></text>`)
   },
   // L'anniversaire de mon amour : ampoules, petits cœurs, ballons, table ; gâteau en forme de cœur et sa bougie
@@ -3157,15 +3176,15 @@ const DECOR = {
   musique:{shape:["note","note2"], move:"rise", cols:["#E8458B","#0F3640"], react:"pop", burst:["note","confetti","star5"],
     kcols:{note:["#E8458B","#0F3640","#2BB3B3"], note2:["#E8458B","#0F3640","#2BB3B3"], confetti:["#E8458B","#2BB3B3","#F2C14E"], star5:["#F2C14E"]}},
   // Ambiances des occasions permanentes
-  date:{shape:["heart","star5","sparkle"], move:"rise", cols:["#E04A57","#F28B93"], react:"break", burst:["heart","sparkle","confetti"],
+  date:{shape:["heart","star5","sparkle","e:💕","e:☕","e:🌙"], move:"rise", cols:["#E04A57","#F28B93"], react:"break", burst:["heart","sparkle","confetti","e:💕"],
     kcols:{heart:["#E04A57","#F28B93","#F7B8A0"], star5:["#F2B544"], sparkle:["#F2B544","#E04A57"], confetti:["#E04A57","#F2B544","#F28B93"]}},
-  monanniv:{shape:["balloon","balloon","confetti"], move:"rise", cols:["#8A3FE0","#F25FA8"], react:"pop", burst:["confetti","star5","balloon"],
+  monanniv:{shape:["balloon","balloon","confetti","e:🎈","e:🎂","e:🎉","e:🥳"], move:"rise", cols:["#8A3FE0","#F25FA8"], react:"pop", burst:["confetti","star5","balloon","e:🥳","e:🎉"],
     kcols:{balloon:["#8A3FE0","#F25FA8","#FFC94A","#3DB8F5"], confetti:["#8A3FE0","#F25FA8","#FFC94A","#3DB8F5"], star5:["#FFC94A"]}},
-  annivfam:{shape:["confetti","star5","heart"], move:"fall", cols:["#E8590C","#2A9D8F"], react:"gust", burst:["confetti","star5","heart"],
+  annivfam:{shape:["confetti","star5","heart","e:🎂","e:🎁","e:👨‍👩‍👧","e:🎈"], move:"fall", cols:["#E8590C","#2A9D8F"], react:"gust", burst:["confetti","star5","heart","e:🎉","e:🎂"],
     kcols:{confetti:["#E8590C","#2A9D8F","#F4B400","#E76F8A"], star5:["#F4B400"], heart:["#E76F8A","#E8590C"]}},
-  temoin:{shape:["petal","petal","ring"], move:"fall", cols:["#E7B8A8","#C9A227"], react:"gust", burst:["petal","heart","sparkle","ring"],
+  temoin:{shape:["petal","petal","ring","e:💍","e:🥂","e:💐"], move:"fall", cols:["#E7B8A8","#C9A227"], react:"gust", burst:["petal","heart","sparkle","ring","e:🥂"],
     kcols:{petal:["#E7B8A8","#E9C46A","#D9C7B8"], ring:["#C9A227"], heart:["#E7B8A8"], sparkle:["#C9A227"]}},
-  fetesurprise:{shape:["confetti","star5","balloon"], move:"fall", cols:["#F2427F","#3DB8F5"], react:"gust", burst:["confetti","balloon","star5"],
+  fetesurprise:{shape:["confetti","star5","balloon","e:🎉","e:🎈","e:🤫","e:🎁"], move:"fall", cols:["#F2427F","#3DB8F5"], react:"gust", burst:["confetti","balloon","star5","e:🎉","e:🥳"], fw:true,
     kcols:{confetti:["#F2427F","#3DB8F5","#FFC94A","#7BD389"], balloon:["#F2427F","#3DB8F5","#FFC94A"], star5:["#FFC94A"]}},
   annivamour:{shape:["heart","heart","confetti","e:🎂","e:🎁","e:🌹","e:💖"], move:"rise", cols:["#B83A6B","#E07A9E"], react:"break", burst:["heart","confetti","star5","e:💖","e:🎉"],
     kcols:{heart:["#B83A6B","#E07A9E","#F2B8C6"], confetti:["#E0B84C","#B83A6B","#F2B8C6"], star5:["#E0B84C"]}},
