@@ -69,7 +69,17 @@ export const LINK_PHRASES = {
   "58": "Tu viens à la baby shower ?",
   "59": "On fête l'arrivée du bébé, il ne manque plus que toi.",
   "60": "Tu viens au repas de famille ?",
-  "61": "Il y aura une place pour toi à table, comme toujours."
+  "61": "Il y aura une place pour toi à table, comme toujours.",
+  // Ajoutés le 2026-10-16 (ambiances, lot 4)
+  "62": "Tu viens à l'enterrement de vie de célibataire ?",
+  "63": "Une dernière folie avant le grand jour, ne rate pas ça.",
+  "64": "Tu viens pendre la crémaillère chez moi ?",
+  "65": "Nouvelle adresse, même bonne humeur : je t'attends.",
+  "66": "Tu viens à ma soirée ?",
+  "67": "On part ensemble ?",
+  "68": "Fais ta valise, l'aventure commence bientôt.",
+  "69": "Tu me suis pour un voyage surprise ?",
+  "70": "Prépare un sac, la destination reste secrète."
 };
 
 export const LINK_OCC = {
@@ -102,7 +112,12 @@ export const LINK_OCC = {
   "27": "nouvelle",
   "28": "parrain",
   "29": "babyshower",
-  "30": "repasfam"
+  "30": "repasfam",
+  "31": "evc",
+  "32": "cremaillere",
+  "33": "soiree",
+  "34": "voyage",
+  "35": "voyagesurprise"
 };
 
 export const LINK_TH = {
@@ -134,7 +149,13 @@ export const LINK_TH = {
   "26": "nouvelle",
   "27": "parrain",
   "28": "babyshower",
-  "29": "repasfam"
+  "29": "repasfam",
+  "30": "evc",
+  "31": "cremaillere",
+  "32": "soiree",
+  "33": "voyage",
+  "34": "journeesurprise",
+  "35": "voyagesurprise"
 };
 
 export const LINK_NO = {

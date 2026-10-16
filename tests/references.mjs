@@ -923,5 +923,161 @@ export const REFERENCES = [
       "d": "2027-07-04",
       "h": "12:00"
     }
+  },
+  {
+    "nom": "Nouvelle occasion et son ambiance (format compact y) : enterrement de vie de célibataire",
+    "lien": "yBcE9CoNAFEbRrQy3fkUyBjVfZ2ErgZQhxYATENRBzY8QsiDX4cZyzpcHourjivFEXMOAkVB2NCaUe6NBJ6NGpTGgPDMCunGZ9-2dusW10U2v1Lk2jEucuRsfVPhz4Q-_Pw",
+    "attendu": {
+      "f": "Alex",
+      "t": "Sam",
+      "q": "Tu viens à l'enterrement de vie de célibataire ?",
+      "o": "evc",
+      "th": "evc",
+      "n": "fuit",
+      "tn": "theatral",
+      "an": "n",
+      "em": "🎉",
+      "c": "any",
+      "m": "Une dernière folie avant le grand jour, ne rate pas ça.",
+      "a": {
+        "v": "s",
+        "h": "Prévois de quoi danser"
+      },
+      "d": "2027-05-22",
+      "h": "18:00"
+    }
+  },
+  {
+    "nom": "Nouvelle occasion et son ambiance (format compact y) : crémaillère",
+    "lien": "yBcFBCoJQAEXRrcidNHkDM_vkmzVwVg3agdAXhG9aKAnhglxHG-ucLy3mMsyICXNtFsSAD4V44VCKJy7FDReixpXocTiKBnMef9u7m7oWkTD3OWaPmKVdvcR-TBHxwWF_qvJ8_QM",
+    "attendu": {
+      "f": "Lou",
+      "t": "Max",
+      "q": "Tu viens pendre la crémaillère chez moi ?",
+      "o": "cremaillere",
+      "th": "cremaillere",
+      "n": "transforme",
+      "tn": "drole",
+      "an": "n",
+      "em": "🎁",
+      "c": "any",
+      "m": "Nouvelle adresse, même bonne humeur : je t'attends.",
+      "a": {
+        "v": "v",
+        "x": "Apéritif"
+      },
+      "l": {
+        "v": "v",
+        "x": "Rue de l'Exemple"
+      },
+      "d": "2027-03-06",
+      "h": "19:00"
+    }
+  },
+  {
+    "nom": "Nouvelle occasion et son ambiance (format compact y) : soirée",
+    "lien": "yBcGxCYAwFEXRXW79C01IiK9Pm8YJBBUsNCiChTiQc7iY59zMiFIHjBORx2nDqMh7Y0cxGgU5I6O2NVbkgjEg-roc3zthXCh0KcXm-QE",
+    "attendu": {
+      "f": "Noa",
+      "t": "Eden",
+      "q": "Tu viens à ma soirée ?",
+      "o": "soiree",
+      "th": "soiree",
+      "n": "fuit",
+      "tn": "drole",
+      "an": "n",
+      "em": "🍕",
+      "c": "any",
+      "m": "Pas d'excuse cette fois, je t'attends.",
+      "a": {
+        "v": "v",
+        "x": "Soirée"
+      },
+      "d": "2027-02-20",
+      "h": "21:00"
+    }
+  },
+  {
+    "nom": "Nouvelle occasion et son ambiance (format compact y) : week-end ou voyage",
+    "lien": "yHcQxC4JgFIbRvyLP0nIDK_nUd3NwbQl0FrxBdD8rEBKi_x50hvPhiujCN4wVcZkyxgOdKuOFUm0s6Gic__foUBoZpcaYEKP7fe_LjBGI4RbhxexF7PrN8zMc443qtk1N-f0B",
+    "attendu": {
+      "f": "Alex",
+      "t": "Sam",
+      "q": "On part ensemble ?",
+      "o": "voyage",
+      "th": "voyage",
+      "n": "retrecit",
+      "tn": "drole",
+      "an": "n",
+      "em": "✨",
+      "c": "any",
+      "m": "Fais ta valise, l'aventure commence bientôt.",
+      "a": {
+        "v": "v",
+        "x": "Week-end"
+      },
+      "l": {
+        "v": "v",
+        "x": "Ville de l'Exemple"
+      },
+      "d": "2027-07-10",
+      "h": "08:00"
+    }
+  },
+  {
+    "nom": "Occasion existante, ambiance écrite dans le lien (format compact y) : journée surprise",
+    "lien": "yLcq9DoIwFIDRV2m--Q4UjOLd3TRxYCMdaqw_UYO2BU2MD8Rz8GIOOp3lvDmgrLseIaNs_AuhQ20lPH40aDUTVqgthBtaLoQ72rbYwpwQK2zjNA7dOZl9SGbn0yXkhJMWW_1H05vBJ5ODidN49NcQcU54ovO6XpbF5ws",
+    "attendu": {
+      "f": "Lou",
+      "t": "Max",
+      "q": "Tu me confies ta journée ?",
+      "o": "surprise",
+      "th": "journeesurprise",
+      "n": "fuit",
+      "an": "n",
+      "em": "✨",
+      "c": "any",
+      "m": "Fais-moi confiance, tu vas aimer.",
+      "p": [
+        {
+          "h": "10 h",
+          "v": "s",
+          "i": "Prévois des baskets"
+        },
+        {
+          "h": "13 h",
+          "v": "s",
+          "i": "Tu vas te régaler"
+        }
+      ],
+      "d": "2027-04-24",
+      "h": "10:00"
+    }
+  },
+  {
+    "nom": "Nouvelle occasion et son ambiance (format compact y) : voyage surprise",
+    "lien": "yBcFBCoJQFIbRrcg3voNXYto_dxqOmkSDCz4j0F6pFCEtqHW4Mc9Z6BCn5Bgzom7jAyOhvDBe6HA0arQzBlQGwxHn9PVbxOjRhWZc_08fYzZ79vb-PkWuxgdVRQj78NsA",
+    "attendu": {
+      "f": "Noa",
+      "t": "Eden",
+      "q": "Tu me suis pour un voyage surprise ?",
+      "o": "voyagesurprise",
+      "th": "voyagesurprise",
+      "n": "fuit",
+      "an": "n",
+      "em": "💌",
+      "c": "any",
+      "m": "Prépare un sac, la destination reste secrète.",
+      "a": {
+        "v": "v",
+        "x": "Voyage"
+      },
+      "l": {
+        "v": "s",
+        "h": "Prépare ta valise"
+      },
+      "d": "2027-08-14",
+      "h": "07:00"
+    }
   }
 ];
