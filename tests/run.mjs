@@ -1056,7 +1056,10 @@ await test("Thèmes de saison : proposés en période, toujours affichés dans u
   const formes = PAGE.lire("Decor").toString ? readFileSync(RACINE + "index.html", "utf8") : "";
   for(const t of L.THEMES){
     const d = DECOR[t.id]; assert.ok(d, `${t.name} : décor animé manquant`);
-    for(const k of [].concat(d.shape, d.burst || [])) assert.ok(formes.includes(`case "${k}"`), `${t.name} : forme « ${k} » non dessinée`);
+    for(const k of [].concat(d.shape, d.burst || [])){
+      if(k.startsWith("e:")) assert.equal([...new Intl.Segmenter().segment(k.slice(2))].length, 1, `${t.name} : « ${k} » doit être un seul emoji`);
+      else assert.ok(formes.includes(`case "${k}"`), `${t.name} : forme « ${k} » non dessinée`);
+    }
     assert.ok(["fall", "break", "pop", "gust", "scatter"].includes(d.react || "fall"), `${t.name} : réaction au Non inconnue`);
   }
   Object.assign(S, { step: "home", theme: "base", moreOpen: false, open: new Set() }); le("2026-10-15");
@@ -1065,16 +1068,15 @@ await test("Thèmes de saison : proposés en période, toujours affichés dans u
 await test("Modèles de saison : catégorie, première position, « De saison », bandeau, disparition hors saison", () => {
   const CATEGORIE = { valentin: "Amour", noel: "Famille", paques: "Famille", meres: "Famille", peres: "Famille",
     halloween: "Amis", reveillon: "Amis", galette: "Amis", musique: "Amis" };
-  const A_VENIR = ["galette", "paques", "musique"]; // modèles des lots suivants (à retirer de cette liste quand ils arrivent)
-  const THEME_A_VENIR = ["valentin", "meres", "peres"]; // gardent leur thème actuel jusqu'à leur thème de saison
   const TPL = PAGE.lire("TEMPLATES"), SAIS = PAGE.lire("SEASONS"), S = PAGE.lire("S"), le = iso => PAGE.ecrire("SEASON_TODAY", iso);
   assert.deepEqual(Object.keys(CATEGORIE).sort(), Object.keys(SAIS).sort(), "une catégorie prévue pour chaque saison");
-  for(const id of Object.keys(SAIS)) if(!A_VENIR.includes(id)) assert.ok(TPL.some(t => t.occ === id), `saison ${id} sans modèle`);
+  for(const id of Object.keys(SAIS)) assert.ok(TPL.some(t => t.occ === id), `saison ${id} sans modèle`);
   const etape1 = cat => { Object.assign(S, { step: 1, tplCat: cat, tpl: "", link: "" }); PAGE.lire("renderCreator")(); return PAGE.zones["#app"].innerHTML; };
   for(const t of TPL.filter(t => SAIS[t.occ])){
     assert.equal(t.cat, CATEGORIE[t.occ], `${t.label} : catégorie`);
     assert.ok(t.q && t.msg && t.no && t.tone && t.em, `${t.label} : question, message, Non, ton et emoji`);
-    if(!THEME_A_VENIR.includes(t.occ)) assert.equal(t.theme, t.occ, `${t.label} : thème de saison`);
+    assert.equal(t.theme, t.occ, `${t.label} : thème de saison`);
+    const o = PAGE.lire("OCC")[t.occ]; assert.equal(o.seasonTheme || o.theme, t.theme, `${t.label} : l'occasion choisie seule donne aussi le thème de saison`);
     const w = fenetre(t.occ, 2027);
     for(const iso of [w.from, w.day, w.to]){
       le(iso); const h = etape1(t.cat), cartes = [...h.matchAll(/data-tpl="([a-z]+)"/g)].map(m => m[1]);
@@ -1104,6 +1106,53 @@ await test("Modèles de saison : catégorie, première position, « De saison »
   le("2026-12-20"); assert.deepEqual(PAGE.lire("catTemplates")("Amis").slice(0, 1).map(t => t.id), ["reveillon"], "décembre : réveillon en tête des Amis");
   le("2027-06-05"); assert.deepEqual(PAGE.lire("catTemplates")("Famille").map(t => t.id), ["peres", "meres", "grands"], "juin : fête des pères (à venir) avant fête des mères (passée)");
   Object.assign(S, { step: "home", tplCat: "Amour", tpl: "" }); le("2026-10-15");
+});
+
+await test("Saint-Valentin, fêtes des mères et des pères : anciens liens inchangés, nouveaux avec le thème de saison", async () => {
+  const OCC = PAGE.lire("OCC"), enc = PAGE.lire("encodeData"), dec = PAGE.lire("decodeData");
+  for(const [occ, ancien] of [["valentin", "amour"], ["meres", "maman"], ["peres", "papa"]]){
+    assert.equal(OCC[occ].theme, ancien, `${occ} : thème de décodage inchangé`);
+    const base = { f: "Alex", t: "Sam", o: occ, q: OCC[occ].q, n: "fuit", c: "any", a: { v: "s" }, d: "2027-02-14", h: "20:00" };
+    const vieux = await enc({ ...base, th: ancien }), neuf = await enc({ ...base, th: occ });
+    assert.equal((await dec(vieux)).th, ancien, `${occ} : un lien au thème ${ancien} se rouvre au thème ${ancien}`);
+    assert.equal((await dec(neuf)).th, occ, `${occ} : un lien au thème de saison se rouvre au thème de saison`);
+    assert.ok(neuf !== vieux, `${occ} : le thème de saison est écrit dans le lien`);
+  }
+});
+
+await test("Saint-Valentin et fête des mères : cupidons, coupes, mamans ; flèche qui traverse le cœur", () => {
+  const DECOR = PAGE.lire("DECOR"), SIGN = PAGE.lire("SCENES").valentin.sign, ouvert = PAGE.lire("emojiOpen"), le = iso => PAGE.ecrire("SEASON_TODAY", iso);
+  for(const e of ["e:👼", "e:🥂", "e:💘", "e:🌹"]) assert.ok(DECOR.valentin.shape.includes(e), `Saint-Valentin : ${e} dans le décor animé`);
+  for(const e of ["e:🤰", "e:🤱", "e:👩‍👧", "e:💐"]) assert.ok(DECOR.meres.shape.includes(e), `fête des mères : ${e} dans le décor animé`);
+  assert.ok(SIGN.includes('class="sg-float sg-cupid"'), "cupidon dessiné sur l'élément vedette");
+  const hampe = SIGN.indexOf('<path class="sg-wire" d="M40.0 142.0'), coeur = SIGN.indexOf('<path class="sg-acc sg-out" d="M130 156'), pointe = SIGN.lastIndexOf('<path class="sg-ink sg-out" d="M232.0 40.0');
+  assert.ok(hampe >= 0 && coeur > hampe && pointe > coeur, "la hampe passe derrière le cœur, la pointe ressort devant");
+  le("2027-02-01"); assert.ok(ouvert("🥂") && ouvert("💘") && !ouvert("🤰"), "février : coupes et cœur fléché proposés");
+  le("2026-12-20"); assert.ok(ouvert("🥂") && !ouvert("💘"), "décembre : coupes (réveillon), pas de cœur fléché");
+  le("2027-05-20"); assert.ok(ouvert("🤰") && ouvert("🤱") && ouvert("💐"), "mai : emojis maman proposés");
+  le("2026-10-15");
+});
+
+await test("Saisons qui se chevauchent : même jour J départagé par l'ordre des modèles", () => {
+  const ids = Object.keys(SAISONS), ordre = PAGE.lire("seasonOrder");
+  // Seule coïncidence possible : fête des pères (3e dimanche de juin) le 21 juin, jour de la fête de la musique
+  const egales = [];
+  for(let y = 2000; y <= 2100; y++){
+    const jours = ids.map(id => [id, fenetre(id, y).day]);
+    for(const [i, [a, da]] of jours.entries()) for(const [b, db] of jours.slice(i + 1)) if(da === db) egales.push(`${y}:${[a, b].sort().join("+")}`);
+  }
+  assert.ok(egales.length > 0 && egales.every(e => e.endsWith(":musique+peres")), `jours J identiques inattendus : ${egales.filter(e => !e.endsWith(":musique+peres")).join(", ")}`);
+  assert.ok(egales.includes("2026:musique+peres") && egales.includes("2037:musique+peres"), "21 juin 2026 et 2037 : fête des pères et fête de la musique");
+  PAGE.ecrire("SEASON_TODAY", "2037-06-21");
+  assert.equal(PAGE.lire("seasonPick")().t.id, "peres", "même jour J : la fête des pères (avant dans la liste des modèles) a le bandeau");
+  assert.equal(PAGE.lire("catTemplates")("Amis")[0].id, "musique", "la fête de la musique reste en tête des Amis");
+  assert.equal(PAGE.lire("catTemplates")("Famille")[0].id, "peres", "la fête des pères reste en tête de la Famille");
+  PAGE.ecrire("SEASON_TODAY", "2026-10-15");
+  assert.equal(ordre("2027-01-06", "2027-01-06", "2027-01-01"), 0, "même jour J : égalité, départagée par l'appelant");
+  assert.equal(ordre("2027-01-06", "2027-02-14", "2027-01-01"), -1, "à venir : le plus proche d'abord");
+  assert.equal(ordre("2026-12-31", "2027-01-06", "2027-01-02"), 1, "un jour J passé après un jour J à venir");
+  assert.equal(ordre("2026-12-25", "2026-12-31", "2027-01-08"), 1, "passés : le plus récent d'abord");
+  for(const nom of ["catTemplates", "seasonPick"]) assert.ok(/indexOf\(/.test(PAGE.lire(nom).toString()), `${nom} : départage par l'ordre des modèles`);
 });
 
 /* ---------- Bilan ---------- */

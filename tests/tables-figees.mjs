@@ -42,7 +42,14 @@ export const LINK_PHRASES = {
   "35": "Tu viens au repas de Noël ?",
   "36": "La table ne sera pas complète sans toi.",
   "37": "On passe le réveillon ensemble ?",
-  "38": "On finit l'année ensemble, et on commence la suivante pareil."
+  "38": "On finit l'année ensemble, et on commence la suivante pareil.",
+  // Ajoutés le 2026-10-15 (occasions saisonnières galette des rois, Pâques, fête de la musique)
+  "39": "On partage la galette ensemble ?",
+  "40": "La fève est peut-être pour toi.",
+  "41": "Tu viens fêter Pâques avec moi ?",
+  "42": "Il y aura du chocolat, c'est promis.",
+  "43": "On sort pour la fête de la musique ?",
+  "44": "Prépare tes oreilles, la soirée va être longue."
 };
 
 export const LINK_OCC = {
@@ -64,7 +71,10 @@ export const LINK_OCC = {
   "16": "libre",
   "17": "halloween",
   "18": "noel",
-  "19": "reveillon"
+  "19": "reveillon",
+  "20": "galette",
+  "21": "paques",
+  "22": "musique"
 };
 
 export const LINK_TH = {
@@ -77,7 +87,13 @@ export const LINK_TH = {
   "7": "mystere",
   "8": "halloween",
   "9": "noel",
-  "10": "reveillon"
+  "10": "reveillon",
+  "11": "galette",
+  "12": "valentin",
+  "13": "paques",
+  "14": "meres",
+  "15": "peres",
+  "16": "musique"
 };
 
 export const LINK_NO = {
@@ -128,7 +144,14 @@ export const LINK_EM = {
   "12": "☕",
   "13": "🎃",
   "14": "🎄",
-  "15": "🥂"
+  "15": "🥂",
+  "16": "👑",
+  "17": "🐣",
+  "18": "🎶",
+  "19": "💘",
+  "20": "🤰",
+  "21": "🤱",
+  "22": "💐"
 };
 
 export const LINK_TONE = {

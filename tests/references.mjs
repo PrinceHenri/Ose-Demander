@@ -572,5 +572,105 @@ export const REFERENCES = [
       "d": "2026-12-31",
       "h": "21:00"
     }
+  },
+  {
+    "nom": "Occasion et thème de saison (format compact y) : galette des rois",
+    "lien": "yBcExCsJAAETRq4Tf2EyxJlHidBKCnY0nWHBT7RqVgAHxQJ7BMhfzvTcj5pjTgpgxl1gQE66DeODmIG64FWdciwFv96LgNoiIOU3rb05PRMb0cVy_1TVVeTMsqdxzQrzwrulCFz5_",
+    "attendu": {
+      "f": "Alex",
+      "t": "Sam",
+      "q": "On partage la galette ensemble ?",
+      "o": "galette",
+      "th": "galette",
+      "n": "transforme",
+      "tn": "drole",
+      "an": "n",
+      "em": "👑",
+      "c": "any",
+      "m": "La fève est peut-être pour toi.",
+      "a": {
+        "v": "v",
+        "x": "Goûter"
+      },
+      "l": {
+        "v": "v",
+        "x": "Café de l'Exemple"
+      },
+      "d": "2027-01-09",
+      "h": "16:00"
+    }
+  },
+  {
+    "nom": "Occasion existante, thème de saison écrit dans le lien (format compact y) : Saint-Valentin",
+    "lien": "yHcexCsIwFIbRVwnffIc00oL_7maduolDCtcptkoTFMR3F7ocOF_uiPPaMCpizB-MFSXjtTuhLhnLngvqjRM6GA-UopHRldHrFmoOz9K2MHspHqovzbkZb9QfYzfE3x8",
+    "attendu": {
+      "f": "Lou",
+      "t": "Max",
+      "q": "Tu passes la Saint-Valentin avec moi ?",
+      "o": "valentin",
+      "th": "valentin",
+      "n": "retrecit",
+      "tn": "romantique",
+      "an": "n",
+      "em": "🌹",
+      "c": "any",
+      "m": "Tu n'as rien à prévoir, juste à dire oui.",
+      "a": {
+        "v": "s",
+        "h": "Mets ta plus belle tenue"
+      },
+      "d": "2027-02-14",
+      "h": "20:00"
+    }
+  },
+  {
+    "nom": "Occasion et thème de saison (format compact y) : Pâques",
+    "lien": "yBcExDkAwGIbhu7zzP2hRyTfr6g4SNUi0IcQgDuQcLuZ5bmbEUEaMAxGnlDEK8s7YUOOMAdVGRK4zVtR4Y0T037ukM6cd40KhrVyonh8",
+    "attendu": {
+      "f": "Noa",
+      "t": "Eden",
+      "q": "Tu viens fêter Pâques avec moi ?",
+      "o": "paques",
+      "th": "paques",
+      "n": "fuit",
+      "tn": "mignon",
+      "an": "n",
+      "em": "🐣",
+      "c": "any",
+      "m": "Il y aura du chocolat, c'est promis.",
+      "a": {
+        "v": "v",
+        "x": "Déjeuner"
+      },
+      "d": "2027-03-28",
+      "h": "12:00"
+    }
+  },
+  {
+    "nom": "Occasion et thème de saison (format compact y) : fête de la musique",
+    "lien": "yBcExCsJAEIbRq4SvsZlC14XEvxNJK0JOsCRjNWvUBAyId_e9L3fEOXzDWBFDqRgzSsl4oXw0rigZPTp0RkU5GwVxmR-jv9cFIxC3KKM3kzex6zevz3CMD2rbdOr2vz8",
+    "attendu": {
+      "f": "Alex",
+      "t": "Sam",
+      "q": "On sort pour la fête de la musique ?",
+      "o": "musique",
+      "th": "musique",
+      "n": "fuit",
+      "tn": "drole",
+      "an": "n",
+      "em": "🎶",
+      "c": "any",
+      "m": "Prépare tes oreilles, la soirée va être longue.",
+      "a": {
+        "v": "v",
+        "x": "Concerts"
+      },
+      "l": {
+        "v": "v",
+        "x": "Place de l'Exemple"
+      },
+      "d": "2027-06-21",
+      "h": "19:00"
+    }
   }
 ];
