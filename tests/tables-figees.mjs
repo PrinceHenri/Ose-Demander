@@ -49,7 +49,12 @@ export const LINK_PHRASES = {
   "41": "Tu viens fêter Pâques avec moi ?",
   "42": "Il y aura du chocolat, c'est promis.",
   "43": "On sort pour la fête de la musique ?",
-  "44": "Prépare tes oreilles, la soirée va être longue."
+  "44": "Prépare tes oreilles, la soirée va être longue.",
+  // Ajoutés le 2026-10-16 (occasions permanentes, lot 1 d'ambiances)
+  "45": "Tu viens fêter mon anniversaire ?",
+  "46": "Toute la famille sera là pour toi.",
+  "47": "Tu viens à la fête surprise ?",
+  "48": "Surtout, pas un mot à la personne fêtée."
 };
 
 export const LINK_OCC = {
@@ -74,7 +79,9 @@ export const LINK_OCC = {
   "19": "reveillon",
   "20": "galette",
   "21": "paques",
-  "22": "musique"
+  "22": "musique",
+  "23": "monanniv",
+  "24": "fetesurprise"
 };
 
 export const LINK_TH = {
@@ -93,7 +100,12 @@ export const LINK_TH = {
   "13": "paques",
   "14": "meres",
   "15": "peres",
-  "16": "musique"
+  "16": "musique",
+  "17": "date",
+  "18": "monanniv",
+  "19": "annivfam",
+  "20": "temoin",
+  "21": "fetesurprise"
 };
 
 export const LINK_NO = {

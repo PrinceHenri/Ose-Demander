@@ -84,6 +84,17 @@
   --pattern:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='90' height='90'%3E%3Cpath d='M20 12l3 7 7 1-5 5 1 7-6-3-6 3 1-7-5-5 7-1z' fill='%231F7A8C' fill-opacity='.14'/%3E%3Ccircle cx='66' cy='64' r='3' fill='%23183325' fill-opacity='.08'/%3E%3C/svg%3E");}
 [data-theme="musique"]{--bg:#E2F6F6;--ink:#0F3640;--muted:#3F6670;--line:#A9DCDC;--accent:#E8458B;--soft:#F2FBFB;--accent-text:#CD2775;--accent-btn:#D6327C;--accent-seal:#E8458B;
   --pattern:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='90' height='90'%3E%3Cpath d='M24 34a5 4 0 1 1-1-1V14h2v19z' fill='%23E8458B' fill-opacity='.18'/%3E%3Ccircle cx='66' cy='66' r='3' fill='%230F3640' fill-opacity='.08'/%3E%3C/svg%3E");}
+/* Ambiances des occasions permanentes (thèmes proposés avec leur modèle) */
+[data-theme="date"]{--bg:#FFEBE5;--ink:#4A1626;--muted:#874A58;--line:#F4C4BD;--accent:#E04A57;--soft:#FFF6F2;--accent-text:#C93345;--accent-btn:#D33E4D;--accent-seal:#E04A57;
+  --pattern:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='90' height='90'%3E%3Cpath d='M22 30c-5-7-15-2-10 6l10 10 10-10c5-8-5-13-10-6z' fill='%23E04A57' fill-opacity='.12'/%3E%3Cpath d='M66 58v8M62 62h8' stroke='%234A1626' stroke-opacity='.12' stroke-width='2'/%3E%3C/svg%3E");}
+[data-theme="monanniv"]{--bg:#FBEFFA;--ink:#36154A;--muted:#71508A;--line:#E8C9EC;--accent:#8A3FE0;--soft:#FFF7FE;--accent-text:#8A3FE0;--accent-btn:#8A3FE0;--accent-seal:#8E44E5;
+  --pattern:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='90' height='90'%3E%3Cellipse cx='22' cy='24' rx='8' ry='10' fill='%238A3FE0' fill-opacity='.14'/%3E%3Crect x='60' y='60' width='8' height='4' rx='2' transform='rotate(30 64 62)' fill='%23F25FA8' fill-opacity='.3'/%3E%3C/svg%3E");}
+[data-theme="annivfam"]{--bg:#FFF5DF;--ink:#3A2412;--muted:#735637;--line:#EFD9AE;--accent:#E8590C;--soft:#FFFAEE;--accent-text:#C34804;--accent-btn:#CC4C04;--accent-seal:#E8590C;
+  --pattern:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='90' height='90'%3E%3Ccircle cx='22' cy='22' r='5' fill='%23E8590C' fill-opacity='.16'/%3E%3Ccircle cx='66' cy='64' r='3' fill='%233A2412' fill-opacity='.1'/%3E%3C/svg%3E");}
+[data-theme="temoin"]{--bg:#F4F2EC;--ink:#1F2A36;--muted:#56606B;--line:#DDD7C6;--accent:#C9A227;--accent-ink:#1F2A36;--soft:#FAF9F5;--accent-text:#876A06;--accent-btn:#C9A227;--accent-seal:#C9A227;
+  --pattern:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='90' height='90'%3E%3Ccircle cx='20' cy='24' r='7' fill='none' stroke='%23C9A227' stroke-opacity='.3' stroke-width='2'/%3E%3Ccircle cx='28' cy='24' r='7' fill='none' stroke='%23C9A227' stroke-opacity='.3' stroke-width='2'/%3E%3C/svg%3E");}
+[data-theme="fetesurprise"]{--bg:#E7F5FF;--ink:#10233F;--muted:#41597A;--line:#B8DBF2;--accent:#F2427F;--soft:#F3FAFF;--accent-text:#D31C66;--accent-btn:#DC296D;--accent-seal:#F2427F;
+  --pattern:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='90' height='90'%3E%3Crect x='18' y='18' width='9' height='4' rx='2' transform='rotate(-25 22 20)' fill='%23F2427F' fill-opacity='.25'/%3E%3Ccircle cx='66' cy='62' r='3' fill='%2310233F' fill-opacity='.1'/%3E%3C/svg%3E");}
 
 *{box-sizing:border-box}
 html{height:100%;scroll-padding-top:env(safe-area-inset-top,0px)}
@@ -405,6 +416,9 @@ textarea.input{min-height:90px;resize:vertical}
 .sg-wobble{transform-origin:50% 100%}
 .sg-flap{transform-origin:50% 50%}
 .sg-mid{transform-box:view-box;transform-origin:160px 66px}
+.sg-ring{fill:none;stroke:var(--accent);stroke-width:8}
+.sg-ringo{fill:none;stroke:var(--ink);stroke-width:14}
+.sg-flame{transform-box:fill-box;transform-origin:50% 100%}
 .sg-rib{fill:none;stroke:var(--accent-seal);stroke-width:3;stroke-linecap:round}
 .sg-swing{transform-origin:50% 0}
 .sg-flutter{transform-origin:50% 0}
@@ -431,6 +445,9 @@ textarea.input{min-height:90px;resize:vertical}
 .scene-sign.anim-d .sg-beat{animation:sg-beat-d 3s ease-in-out infinite}
 @keyframes sg-beat{0%,100%{transform:scale(1)}15%{transform:scale(1.07)}30%{transform:scale(.98)}45%{transform:scale(1.04)}60%{transform:scale(1)}}
 @keyframes sg-beat-d{0%,100%{transform:scale(1)}50%{transform:scale(1.03)}}
+.scene-sign.anim-n .sg-flame{animation:sg-flame 1.1s ease-in-out infinite alternate}
+.scene-sign.anim-d .sg-flame{animation:sg-flame 2.4s ease-in-out infinite alternate}
+@keyframes sg-flame{from{transform:scale(1,1) rotate(-4deg)}to{transform:scale(.85,1.12) rotate(4deg)}}
 .scene-sign.anim-n .sg-mid{animation:sg-mid 8s steps(4,end) infinite}
 @keyframes sg-mid{from{transform:rotate(-18deg)}to{transform:rotate(6deg)}}
 @keyframes sg-wobble{0%,100%{transform:rotate(-2deg)}50%{transform:rotate(2deg)}}
@@ -497,27 +514,29 @@ textarea.refuse-input{font-family:var(--hand);font-size:23px;line-height:1.2;min
 /* ---------- Données ---------- */
 const OCCASIONS = [
   {cat:"Amour", items:[
-    {id:"date", label:"Un rendez-vous", theme:"amour", q:"Ça te dit un rendez-vous avec moi ?"},
-    // seasonTheme : thème proposé à la création ; theme reste celui du décodage (les liens déjà envoyés ne changent pas)
-    {id:"valentin", label:"La Saint-Valentin", theme:"amour", seasonTheme:"valentin", q:"Tu passes la Saint-Valentin avec moi ?"},
+    {id:"date", label:"Un rendez-vous", theme:"amour", createTheme:"date", q:"Ça te dit un rendez-vous avec moi ?"},
+    // createTheme : thème proposé à la création (saison ou ambiance) ; theme reste celui du décodage (les liens déjà envoyés ne changent pas)
+    {id:"valentin", label:"La Saint-Valentin", theme:"amour", createTheme:"valentin", q:"Tu passes la Saint-Valentin avec moi ?"},
     {id:"annivamour", label:"L'anniversaire de mon amour", theme:"amour", q:"Je peux t'emmener fêter ton anniversaire ?"},
     {id:"couple", label:"Notre anniversaire de couple", theme:"amour", q:"On fête notre anniversaire ensemble ?"},
     // Retirée de la création (old:1), gardée pour que les anciens liens s'ouvrent à l'identique
     {id:"mariage", label:"Une demande en mariage", theme:"amour", q:"Veux-tu m'épouser ?", old:1}
   ]},
   {cat:"Famille", items:[
-    {id:"meres", label:"La fête des mères", theme:"maman", seasonTheme:"meres", q:"Maman, je t'emmène pour la fête des mères ?"},
-    {id:"peres", label:"La fête des pères", theme:"papa", seasonTheme:"peres", q:"Papa, je t'emmène pour la fête des pères ?"},
-    {id:"grands", label:"La fête des grands-parents", theme:"maman", q:"Je vous invite pour la fête des grands-parents ?"},
-    {id:"annivfam", label:"Un anniversaire en famille", theme:"fete", q:"Tu viens fêter ton anniversaire avec moi ?"},
+    {id:"meres", label:"La fête des mères", theme:"maman", createTheme:"meres", q:"Maman, je t'emmène pour la fête des mères ?"},
+    {id:"peres", label:"La fête des pères", theme:"papa", createTheme:"peres", q:"Papa, je t'emmène pour la fête des pères ?"},
+    {id:"grands", label:"La fête des grands-parents", theme:"maman", q:"Je vous invite pour la fête des grands-parents ?", old:1},
+    {id:"annivfam", label:"Un anniversaire en famille", theme:"fete", createTheme:"annivfam", q:"Tu viens fêter ton anniversaire avec moi ?"},
     // Saisonnière (SEASONS) : proposée à la création seulement pendant sa période
     {id:"noel", label:"Le repas de Noël", theme:"noel", q:"Tu viens au repas de Noël ?"},
     {id:"paques", label:"Pâques", theme:"paques", q:"Tu viens fêter Pâques avec moi ?"}
   ]},
   {cat:"Amis", items:[
-    {id:"sortie", label:"Une sortie entre amis", theme:"amis", q:"Tu viens avec moi ?"},
-    {id:"annivami", label:"Un anniversaire entre amis", theme:"fete", q:"Je t'invite pour ton anniversaire ?"},
-    {id:"temoin", label:"Être mon témoin", theme:"amis", q:"Tu veux être mon témoin ?"},
+    // Retirées de la création le 2026-10-16 (old:1), gardées pour que les anciens liens s'ouvrent à l'identique
+    {id:"sortie", label:"Une sortie entre amis", theme:"amis", q:"Tu viens avec moi ?", old:1},
+    {id:"annivami", label:"Un anniversaire entre amis", theme:"fete", q:"Je t'invite pour ton anniversaire ?", old:1},
+    {id:"monanniv", label:"Mon anniversaire", theme:"monanniv", q:"Tu viens fêter mon anniversaire ?"},
+    {id:"temoin", label:"Être mon témoin", theme:"amis", createTheme:"temoin", q:"Tu veux être mon témoin ?"},
     // Saisonnières (SEASONS) : proposées à la création seulement pendant leur période
     {id:"halloween", label:"Halloween", theme:"halloween", q:"Tu oses venir fêter Halloween avec moi ?"},
     {id:"reveillon", label:"Le réveillon du Nouvel An", theme:"reveillon", q:"On passe le réveillon ensemble ?"},
@@ -525,9 +544,11 @@ const OCCASIONS = [
     {id:"musique", label:"La fête de la musique", theme:"musique", q:"On sort pour la fête de la musique ?"}
   ]},
   {cat:"Autre", items:[
+    {id:"fetesurprise", label:"Une fête surprise", theme:"fetesurprise", q:"Tu viens à la fête surprise ?"},
     {id:"surprise", label:"Une journée surprise", theme:"mystere", q:"Tu me confies ta journée ?"},
-    {id:"pardon", label:"Me faire pardonner", theme:"amis", q:"On se réconcilie autour d'un moment à deux ?"},
-    {id:"juste", label:"Juste comme ça", theme:"base", q:"Ça te dit qu'on se voie ?"},
+    {id:"pardon", label:"Me faire pardonner", theme:"amis", q:"On se réconcilie autour d'un moment à deux ?", old:1},
+    // En coulisse (hide:1) : l'occasion de « Partir de zéro » et des liens sans occasion, jamais proposée en puce
+    {id:"juste", label:"Juste comme ça", theme:"base", q:"Ça te dit qu'on se voie ?", hide:1},
     {id:"libre", label:"Autre chose…", theme:"base", q:"Tu dis oui ?"}
   ]}
 ];
@@ -619,7 +640,13 @@ const THEMES = [
   {id:"paques", name:"Pâques", c:"#F2F7E1", a:"#7A5CD6", so:"#FAFCF0", i:"#33401A", season:"paques"},
   {id:"meres", name:"Fête des mères", c:"#FCEEF2", a:"#D2477A", so:"#FFF6F9", i:"#4E1D3A", season:"meres"},
   {id:"peres", name:"Fête des pères", c:"#E8F1EA", a:"#1F7A8C", so:"#F4F9F5", i:"#183325", season:"peres"},
-  {id:"musique", name:"Musique", c:"#E2F6F6", a:"#E8458B", so:"#F2FBFB", i:"#0F3640", season:"musique"}
+  {id:"musique", name:"Musique", c:"#E2F6F6", a:"#E8458B", so:"#F2FBFB", i:"#0F3640", season:"musique"},
+  // Ambiances des occasions permanentes
+  {id:"date", name:"Rendez-vous", c:"#FFEBE5", a:"#E04A57", so:"#FFF6F2", i:"#4A1626"},
+  {id:"monanniv", name:"Mon anniversaire", c:"#FBEFFA", a:"#8A3FE0", so:"#FFF7FE", i:"#36154A"},
+  {id:"annivfam", name:"Anniversaire en famille", c:"#FFF5DF", a:"#E8590C", so:"#FFFAEE", i:"#3A2412"},
+  {id:"temoin", name:"Témoin", c:"#F4F2EC", a:"#C9A227", so:"#FAF9F5", i:"#1F2A36"},
+  {id:"fetesurprise", name:"Fête surprise", c:"#E7F5FF", a:"#F2427F", so:"#F3FAFF", i:"#10233F"}
 ];
 /* Couleurs d'accent (facultatives). Une couleur n'est utilisée que si elle reste lisible sur le thème. */
 const ACCENTS = [
@@ -943,13 +970,16 @@ const LINK_PHRASES = {
   37:"On passe le réveillon ensemble ?", 38:"On finit l'année ensemble, et on commence la suivante pareil.",
   39:"On partage la galette ensemble ?", 40:"La fève est peut-être pour toi.",
   41:"Tu viens fêter Pâques avec moi ?", 42:"Il y aura du chocolat, c'est promis.",
-  43:"On sort pour la fête de la musique ?", 44:"Prépare tes oreilles, la soirée va être longue."
+  43:"On sort pour la fête de la musique ?", 44:"Prépare tes oreilles, la soirée va être longue.",
+  45:"Tu viens fêter mon anniversaire ?", 46:"Toute la famille sera là pour toi.",
+  47:"Tu viens à la fête surprise ?", 48:"Surtout, pas un mot à la personne fêtée."
 };
 const LINK_OCC = {1:"date",2:"valentin",3:"annivamour",4:"couple",5:"mariage",6:"meres",7:"peres",8:"grands",
   9:"annivfam",10:"sortie",11:"annivami",12:"temoin",13:"surprise",14:"pardon",15:"juste",16:"libre",
-  17:"halloween",18:"noel",19:"reveillon",20:"galette",21:"paques",22:"musique"};
+  17:"halloween",18:"noel",19:"reveillon",20:"galette",21:"paques",22:"musique",23:"monanniv",24:"fetesurprise"};
 const LINK_TH = {1:"base",2:"amour",3:"maman",4:"papa",5:"amis",6:"fete",7:"mystere",8:"halloween",9:"noel",10:"reveillon",
-  11:"galette",12:"valentin",13:"paques",14:"meres",15:"peres",16:"musique"};
+  11:"galette",12:"valentin",13:"paques",14:"meres",15:"peres",16:"musique",
+  17:"date",18:"monanniv",19:"annivfam",20:"temoin",21:"fetesurprise"};
 const LINK_NO = {1:"fuit",2:"retrecit",3:"supplie",4:"transforme"};
 const LINK_CH = {1:"any",2:"wa",3:"sms",4:"snap",5:"ig",6:"fb"};
 const LINK_AN = {1:"n",2:"d",3:"0"};
@@ -1125,30 +1155,27 @@ function icsText(events, stamp=new Date()){
    ========================================================= */
 /* Modèles prêts à l'emploi : ils pré-remplissent des champs existants, rien de nouveau n'est mis dans le lien */
 const TEMPLATES = [
-  {id:"rdv", cat:"Amour", label:"Proposer un date", short:"rendez-vous", occ:"date", theme:"amour", no:"fuit", em:"💌",
+  {id:"rdv", cat:"Amour", label:"Proposer un date", short:"rendez-vous", occ:"date", theme:"date", no:"fuit", em:"💌",
     q:"Ça te dit un rendez-vous avec moi ?", msg:"Prépare ton plus beau sourire, je m'occupe du reste."},
   {id:"valentin", cat:"Amour", label:"Saint-Valentin", short:"Saint-Valentin", occ:"valentin", theme:"valentin", no:"retrecit", tone:"romantique", em:"🌹",
     q:"Tu passes la Saint-Valentin avec moi ?", msg:"Tu n'as rien à prévoir, juste à dire oui."},
-  {id:"couple", cat:"Amour", label:"Anniversaire de couple", short:"couple", occ:"couple", theme:"amour", no:"supplie", tone:"romantique", em:"❤️",
+  {id:"couple", cat:"Amour", label:"Notre anniversaire de couple", short:"couple", occ:"couple", theme:"amour", no:"supplie", tone:"romantique", em:"❤️",
     q:"On fête notre anniversaire ensemble ?", msg:"J'ai envie de passer ce moment avec toi, rien qu'avec toi."},
   {id:"meres", cat:"Famille", label:"Fête des mères", short:"fête des mères", occ:"meres", theme:"meres", no:"transforme", tone:"mignon", em:"🌷",
     q:"Maman, je t'emmène pour la fête des mères ?", msg:"Tu t'occupes toujours de nous, cette fois c'est mon tour."},
   {id:"peres", cat:"Famille", label:"Fête des pères", short:"fête des pères", occ:"peres", theme:"peres", no:"retrecit", tone:"drole", em:"👔",
     q:"Papa, je t'emmène pour la fête des pères ?", msg:"Merci pour tout. Ce moment, c'est pour toi."},
-  {id:"grands", cat:"Famille", label:"Fête des grands-parents", short:"grands-parents", occ:"grands", theme:"maman", no:"supplie", tone:"mignon", em:"🎁",
-    q:"Je vous invite pour la fête des grands-parents ?", msg:"Un petit moment rien que pour vous, vous l'avez bien mérité."},
-  {id:"soiree", cat:"Amis", label:"Soirée entre amis", short:"soirée", occ:"sortie", theme:"amis", no:"fuit", tone:"drole", em:"🍕",
-    q:"Tu viens avec moi ?", msg:"Ça fait trop longtemps, on rattrape le temps perdu."},
-  {id:"anniv", cat:"Amis", label:"Un anniversaire", short:"anniversaire", occ:"annivami", theme:"fete", no:"fuit", tone:"drole", em:"🎂",
-    q:"Je t'invite pour ton anniversaire ?", msg:"Ce ne sera pas pareil sans toi."},
-  {id:"temoin", cat:"Amis", label:"Être mon témoin", short:"témoin", occ:"temoin", theme:"amis", no:"supplie", tone:"theatral", em:"🎉",
+  {id:"annivfam", cat:"Famille", label:"Un anniversaire en famille", short:"anniversaire en famille", occ:"annivfam", theme:"annivfam", no:"supplie", tone:"mignon", em:"🎂",
+    q:"Tu viens fêter ton anniversaire avec moi ?", msg:"Toute la famille sera là pour toi."},
+  {id:"monanniv", cat:"Amis", label:"Mon anniversaire", short:"mon anniversaire", occ:"monanniv", theme:"monanniv", no:"fuit", tone:"drole", em:"🎂",
+    q:"Tu viens fêter mon anniversaire ?", msg:"Ce ne sera pas pareil sans toi."},
+  {id:"temoin", cat:"Amis", label:"Être mon témoin", short:"témoin", occ:"temoin", theme:"temoin", no:"supplie", tone:"theatral", em:"🎉",
     q:"Tu veux être mon témoin ?", msg:"Je ne vois personne d'autre à mes côtés ce jour-là."},
-  {id:"mystere", cat:"Surprise", label:"Journée mystère", short:"journée mystère", occ:"surprise", theme:"mystere", no:"fuit", em:"✨",
+  {id:"fetesurprise", cat:"Surprise", label:"Une fête surprise", short:"fête surprise", occ:"fetesurprise", theme:"fetesurprise", no:"fuit", em:"🎁",
+    q:"Tu viens à la fête surprise ?", msg:"Surtout, pas un mot à la personne fêtée."},
+  {id:"mystere", cat:"Surprise", label:"Une journée surprise", short:"journée surprise", occ:"surprise", theme:"mystere", no:"fuit", em:"✨",
     q:"Tu me confies ta journée ?", msg:"Fais-moi confiance, tu vas aimer.",
     plan:{steps:[{h:"10 h",hint:"Prévois des baskets"},{h:"13 h",hint:"Tu vas te régaler"},{h:"17 h",hint:"Garde des forces"}]}},
-  {id:"diner", cat:"Surprise", label:"Dîner surprise", short:"dîner surprise", occ:"juste", theme:"mystere", no:"transforme", em:"💌",
-    q:"Je t'emmène dîner, sans rien te dire ?", msg:"Je ne dis rien de plus, c'est une surprise.",
-    plan:{act:"Un dîner", lieuHint:"Habille-toi bien"}},
   // Saisonniers (SEASONS) : proposés seulement pendant leur période, en tête de leur catégorie
   {id:"halloween", cat:"Amis", label:"Soirée Halloween", short:"Halloween", occ:"halloween", theme:"halloween", no:"fuit", tone:"theatral", em:"🎃",
     q:"Tu oses venir fêter Halloween avec moi ?", msg:"Viens avec ton meilleur déguisement."},
@@ -1163,11 +1190,35 @@ const TEMPLATES = [
   {id:"musique", cat:"Amis", label:"Fête de la musique", short:"fête de la musique", occ:"musique", theme:"musique", no:"fuit", tone:"drole", em:"🎶",
     q:"On sort pour la fête de la musique ?", msg:"Prépare tes oreilles, la soirée va être longue."}
 ];
+/* Introductions scénarisées (2 cartes, validées le 2026-10-16), par occasion permanente gardée à la création.
+   La fonctionnalité (cartes après l'enveloppe, bouton « Passer ») sera construite après les ambiances ;
+   chaque texte recevra alors un code, qui ne changera plus jamais. */
+const INTROS = {
+  date:["J'ai une idée derrière la tête…","Et elle te concerne."],
+  annivamour:["Un jour pas comme les autres approche…","Le tien."],
+  couple:["Tu te souviens de notre premier jour ?","Moi, oui."],
+  weekend:["Et si on s'échappait un peu ?","Rien que nous deux."],
+  dinerspecial:["Ce soir-là, pas de cuisine pour toi…","J'ai réservé."],
+  annivfam:["Une année de plus, ça se fête…","En famille."],
+  nouvelle:["J'ai quelque chose à te dire…","Mais pas ici."],
+  parrain:["Un petit être va avoir besoin de quelqu'un…","Et j'ai pensé à toi."],
+  babyshower:["Quelqu'un de tout petit arrive bientôt…","Et ça se fête !"],
+  repasfam:["La table est mise…","Il manque juste toi."],
+  monanniv:["Une bougie de plus sur le gâteau…","Et une place pour toi."],
+  temoin:["J'ai une question très sérieuse…","Enfin, presque."],
+  evc:["Le grand jour approche…","Mais d'abord, la fête."],
+  cremaillere:["J'ai de nouvelles clés…","Et une porte ouverte pour toi."],
+  soiree:["Musique, rires, bonne compagnie…","Il ne manque que toi."],
+  voyage:["Tu as envie de changer d'air ?","Moi aussi."],
+  fetesurprise:["Chut…","Tu sais garder un secret ?"],
+  surprise:["Ne prévois rien ce jour-là…","Je m'occupe de tout."],
+  voyagesurprise:["Et si on partait…","Sans te dire où ?"]
+};
 const HOME_CATS = [
-  {cat:"Amour", theme:"amour", ico:"❤️"},
-  {cat:"Famille", theme:"maman", ico:"🌷"},
-  {cat:"Amis", theme:"amis", ico:"🎉"},
-  {cat:"Surprise", theme:"mystere", ico:"✨"}
+  {cat:"Amour", theme:"date", ico:"❤️"},
+  {cat:"Famille", theme:"annivfam", ico:"🌷"},
+  {cat:"Amis", theme:"monanniv", ico:"🎉"},
+  {cat:"Surprise", theme:"fetesurprise", ico:"✨"}
 ];
 /* Modèles proposés ce jour-là dans une catégorie : saisonniers ouverts d'abord (jour J le plus proche), puis permanents.
    keep : modèle déjà choisi, gardé même si sa saison vient de se terminer pendant la création. */
@@ -1504,7 +1555,7 @@ function secPlan(){
     `}`;
 }
 function secOcc(){
-  return `${OCCASIONS.map(g=>`<p class="group-title">${g.cat}</p><div class="chips">${g.items.filter(o=>(!o.old && seasonOpen(o.id))||S.occ===o.id).map(o=>`<button type="button" class="chip" data-occ="${o.id}" aria-pressed="${S.occ===o.id}">${o.label}</button>`).join("")}</div>`).join("")}
+  return `${OCCASIONS.map(g=>`<p class="group-title">${g.cat}</p><div class="chips">${g.items.filter(o=>!o.hide && ((!o.old && seasonOpen(o.id))||S.occ===o.id)).map(o=>`<button type="button" class="chip" data-occ="${o.id}" aria-pressed="${S.occ===o.id}">${o.label}</button>`).join("")}</div>`).join("")}
     ${S.occ==="libre" ? `<label class="field" style="margin-top:14px"><span>Laquelle ?</span><input class="input" id="occFree" maxlength="40" placeholder="Ex. Ma pendaison de crémaillère" value="${esc(S.occFree)}"></label>` : ""}`;
 }
 function secWords(){
@@ -1699,7 +1750,7 @@ function bindCreator(){
   $$("details[data-sec]").forEach(d=>d.addEventListener("toggle",()=>{ d.open ? S.open.add(d.dataset.sec) : S.open.delete(d.dataset.sec); }));
 
   // Occasion et style
-  on("[data-occ]", b=>{ S.occ=b.dataset.occ; if(!S.themeManual){ S.theme=OCC[S.occ].seasonTheme||OCC[S.occ].theme; fixAccent(); } if(!S.qEdited) S.q=OCC[S.occ].q; });
+  on("[data-occ]", b=>{ S.occ=b.dataset.occ; if(!S.themeManual){ S.theme=OCC[S.occ].createTheme||OCC[S.occ].theme; fixAccent(); } if(!S.qEdited) S.q=OCC[S.occ].q; });
   on("[data-th]", b=>{ S.theme=b.dataset.th; S.themeManual=true; fixAccent(); });
   on("[data-ac]", b=>{ S.ac=b.dataset.ac; });
   on("[data-em]", b=>{ S.em=b.dataset.em; });
@@ -2076,6 +2127,30 @@ const BRICKS = `<pattern id="sc-briques" width="240" height="112" patternUnits="
 const garland = (n, y0, sag) => Array.from({length:n}, (_,i) => { const t=(i+.5)/n; return [8+304*t, y0+4*sag*t*(1-t)]; });
 const CYCLE = ["sg-acc","sg-surf","sg-lin"];
 
+/* Formes communes des ambiances : réutilisées d'une scène à l'autre, pour que chaque scène reste légère.
+   Décor de fond (ton sur ton) : fanions, ampoules, ballon, paquet, cadre, plateau. Élément vedette : gâteau à étages. */
+const fanions = id => `<pattern id="${id}" width="84" height="50" patternUnits="userSpaceOnUse"><path class="sc-line" d="M0 4Q42 20 84 4"/><path class="sc-b sc-out" d="M30 12h24l-12 24z"/></pattern>`;
+const ampoules = id => `<pattern id="${id}" width="60" height="40" patternUnits="userSpaceOnUse"><path class="sc-line" d="M0 4Q30 20 60 4"/><circle class="sc-b sc-out" cx="30" cy="20" r="6"/></pattern>`;
+const ballon = (r=22) => `<path class="sc-line" d="M0 ${Math.round(r*1.2)}q-8 40 4 90"/><ellipse class="sc-b sc-out" rx="${r}" ry="${Math.round(r*1.2)}"/>`;
+const paquet = (w, h, c="b") => `<rect class="sc-${c} sc-out" width="${w}" height="${h}" rx="2"/><path class="sc-line" d="M${w/2} 0v${h}M0 ${Math.round(h*.4)}h${w}"/>`;
+const cadre = (w, h) => `<rect class="sc-b sc-out" width="${w}" height="${h}" rx="3"/><rect class="sc-a sc-out" x="7" y="7" width="${w-14}" height="${h-14}"/>`;
+const plateau = y => at("0", y, `<rect class="sc-b sc-out" x="-4" width="4000" height="16"/><rect class="sc-a" y="16" width="4000" height="1000"/>`);
+// Gâteau à étages (du bas vers le haut), coulis à l'accent, bougies dont la flamme vacille
+function gateau(cx, base, tiers, bougies){
+  let s="", y=base, w=120;
+  for(let i=0;i<tiers;i++){
+    const h=i?30:38; y-=h;
+    s+=`<rect class="sg-ink" x="${cx-w/2+5}" y="${y+5}" width="${w}" height="${h}" rx="6"/><rect class="${i%2?"sg-soft":"sg-surf"} sg-out" x="${cx-w/2}" y="${y}" width="${w}" height="${h}" rx="6"/>`+
+       `<path class="sg-acc sg-out" d="M${cx-w/2} ${y+6}h${w}v6q-${w/8} 10-${w/4} 0t-${w/4} 0-${w/4} 0-${w/4} 0z"/>`;
+    if(i<tiers-1) w-=34;
+  }
+  const pas=Math.min(18,(w-18)/Math.max(1,bougies-1));
+  for(let i=0;i<bougies;i++){
+    const x=Math.round(cx-(bougies-1)*pas/2+i*pas);
+    s+=`<rect class="sg-acc sg-out" x="${x-3}" y="${y-20}" width="6" height="20"/><path class="sg-surf sg-out sg-flame" style="animation-delay:${(i*.3).toFixed(1)}s" d="M${x} ${y-36}q7 9 0 14q-7-5 0-14z"/>`;
+  }
+  return s;
+}
 const SCENES = {
   // Lilas : papier peint à rayures, étagère et objets en papier ; pancarte suspendue qui se balance
   base: {
@@ -2329,6 +2404,71 @@ const SCENES = {
       <g class="sg-beat"><circle class="sg-soft sg-out" cx="78" cy="112" r="34"/><circle class="sg-acc sg-out" cx="78" cy="112" r="16"/></g>
       <g class="sg-float"><path class="sg-ink" d="M150 70a8 6 0 1 1-2-1V36l18 6v8l-14-4z"/><path class="sg-ink" d="M168 120a7 5 0 1 1-2-1V94h16v26a7 5 0 1 1-2-1v-18h-12z"/></g>
       <path class="sg-wire" d="M254 118v52"/>${panel(196,46,116,72,8)}${label(254,76,24,"Monte")}<text class="sg-text" x="254" y="106" font-size="24" text-anchor="middle">le son <tspan class="sg-t-acc">!</tspan></text>`)
+  },
+  // Proposer un date : soir en ville (étoiles, lune, toits, réverbère, banc) ; deux tasses qui trinquent, un cœur qui flotte
+  date: {
+    wall: sceneWall(
+      `<pattern id="sc-soir" width="200" height="200" patternUnits="userSpaceOnUse"><path class="sc-line" d="M40 40v8M36 44h8M150 110v6M147 113h6M90 170v8M86 174h8"/><circle class="sc-a" cx="120" cy="50" r="3"/></pattern>
+       <pattern id="sc-toits" width="320" height="600" patternUnits="userSpaceOnUse"><path class="sc-a sc-out" d="M0 600V530h60v-26l20-18 20 18v26h50v-40h70v40h40v-64h60V600z"/><path class="sc-line" d="M170 576h12M196 576h12M276 556h10M296 556h10M276 580h10M296 580h10"/></pattern>`,
+      fill("sc-soir") +
+      at("76%","6%",`<circle class="sc-b sc-out" cx="40" cy="40" r="34"/><circle class="sc-bg" cx="56" cy="30" r="30"/>`) +
+      at("0","100%",`<rect y="-160" width="4000" height="160" fill="url(#sc-toits)"/>`) +
+      at("7%","100%",`<circle class="sc-a" cx="21" cy="-178" r="32"/><rect class="sc-b sc-out" x="16" y="-180" width="10" height="180"/><path class="sc-b sc-out" d="M6-206h30l-5 28H11z"/>`) +
+      at("80%","100%",`<g transform="translate(0 -46)"><rect class="sc-b sc-out" y="-26" width="90" height="10" rx="2"/><rect class="sc-b sc-out" width="90" height="10" rx="2"/><path class="sc-line" d="M10 10v36M80 10v36"/></g>`)),
+    sign: sceneSign(170, `${[[38,12,1],[126,-12,-1]].map(([x,r,d])=>`<g transform="rotate(${r} ${x+29} 110)"><rect class="sg-ink" x="${x+6}" y="80" width="58" height="66" rx="8"/><rect class="sg-surf sg-out" x="${x}" y="74" width="58" height="66" rx="8"/>
+        <path class="sg-acc sg-out" d="M${x} 84h58v10H${x}z"/><path class="sg-wire" d="${d>0?`M${x} 92h-8a12 12 0 0 0 0 24h8`:`M${x+58} 92h8a12 12 0 0 1 0 24h-8`}"/></g>`).join("")}
+      <path class="sg-score" d="M100 44l-6-8M124 44l6-8M112 40v-10"/>
+      <g class="sg-float"><path class="sg-acc sg-out" d="M112 56c-12-10-26-1-17 12l17 15 17-15c9-13-5-22-17-12z"/></g>
+      <path class="sg-wire" d="M262 114v54"/>${panel(212,40,100,74,8)}${label(262,72,22,"Toi")}<text class="sg-text" x="262" y="102" font-size="22" text-anchor="middle">et moi <tspan class="sg-t-acc">?</tspan></text>`)
+  },
+  // Mon anniversaire : fanions, confettis, ballons, table et cadeaux ; gâteau aux bougies qui vacillent
+  monanniv: {
+    wall: sceneWall(
+      fanions("sc-fanions-a") + `<pattern id="sc-confettis" width="160" height="160" patternUnits="userSpaceOnUse"><rect class="sc-a" x="30" y="40" width="10" height="5" rx="2" transform="rotate(30 35 42)"/><rect class="sc-a" x="110" y="100" width="10" height="5" rx="2" transform="rotate(-20 115 102)"/><circle class="sc-a" cx="120" cy="30" r="3"/><circle class="sc-a" cx="50" cy="130" r="3"/></pattern>`,
+      fill("sc-confettis") + `<rect width="100%" height="50" fill="url(#sc-fanions-a)"/>` +
+      [["4%","34%",24],["10%","46%",18],["86%","30%",24],["92%","43%",18]].map(([x,y,r])=>at(x,y,ballon(r))).join("") +
+      plateau("88%") + at("12%","88%",`<g transform="translate(0 -40)">${paquet(44,40)}</g>`) + at("70%","88%",`<g transform="translate(0 -30)">${paquet(34,30,"a")}</g>`)),
+    sign: sceneSign(170, `${gateau(100,162,2,3)}<path class="sg-acc" d="M30 60l6 3-3 6zM168 52l7-1-2 7zM40 130l6-4 1 7zM176 118l5 4-6 3z"/>
+      <path class="sg-wire" d="M256 114v54"/>${panel(198,40,116,74,8)}${label(256,72,22,"C'est ma")}<text class="sg-text" x="256" y="102" font-size="22" text-anchor="middle">fête <tspan class="sg-t-acc">!</tspan></text>`)
+  },
+  // Un anniversaire en famille : guirlande d'ampoules, papier peint, cadres de famille, table dressée ; gâteau à trois étages
+  annivfam: {
+    wall: sceneWall(
+      ampoules("sc-ampoules-f") + `<pattern id="sc-tapisserie" width="80" height="80" patternUnits="userSpaceOnUse"><rect class="sc-a" width="40" height="80"/><circle class="sc-b" cx="60" cy="40" r="3"/></pattern>`,
+      fill("sc-tapisserie") + `<rect width="100%" height="40" fill="url(#sc-ampoules-f)"/>` +
+      `<g class="hs-wide">${at("5%","38%",cadre(76,92))}${at("12%","56%",cadre(56,70))}${at("84%","34%",cadre(64,80))}${at("88%","52%",cadre(72,58))}</g>` +
+      plateau("86%")),
+    sign: sceneSign(170, `${gateau(96,164,3,4)}
+      <path class="sg-wire" d="M255 114v54"/>${panel(198,40,114,74,8)}${label(255,72,22,"En")}<text class="sg-text" x="255" y="102" font-size="22" text-anchor="middle">famille <tspan class="sg-t-acc">!</tspan></text>`)
+  },
+  // Être mon témoin : arche fleurie, rangées de chaises de cérémonie ; deux alliances entrelacées qui se balancent, éclats dorés
+  temoin: {
+    wall: sceneWall(
+      `<pattern id="sc-alliances" width="180" height="180" patternUnits="userSpaceOnUse"><circle class="sc-line" cx="40" cy="44" r="7"/><circle class="sc-line" cx="49" cy="44" r="7"/><circle class="sc-a" cx="130" cy="120" r="3"/></pattern>
+       <pattern id="sc-chaises" width="56" height="400" patternUnits="userSpaceOnUse"><rect class="sc-b sc-out" x="10" width="36" height="34" rx="4"/><path class="sc-line" d="M14 34v40M42 34v40M10 50h36"/></pattern>`,
+      fill("sc-alliances") +
+      at("50%","0",`<path class="sc-line" d="M-230 280V150a230 140 0 0 1 460 0v130"/>${Array.from({length:9},(_,i)=>{ const a=Math.PI*(1-i/8); return `<circle class="sc-a sc-out" cx="${(230*Math.cos(a)).toFixed(0)}" cy="${(150-140*Math.sin(a)).toFixed(0)}" r="${i%2?9:12}"/>`; }).join("")}`) +
+      at("0","90%",`<rect width="4000" height="400" fill="url(#sc-chaises)"/>`)),
+    sign: sceneSign(170, `<g class="sg-swing">${[[88],[132]].map(([x])=>`<circle class="sg-ringo" cx="${x}" cy="104" r="34"/><circle class="sg-ring" cx="${x}" cy="104" r="34"/>`).join("")}
+        <path class="sg-ringo" d="M117.4 121A34 34 0 0 1 99.6 136"/><path class="sg-ring" d="M117.4 121A34 34 0 0 1 99.6 136"/>
+        <path class="sg-surf sg-out" d="M132 58l11 11-11 13-11-13z"/></g>
+      <g class="sg-glow"><path class="sg-acc sg-out" d="M56 44l3 7 7 3-7 3-3 7-3-7-7-3 7-3zM176 40l3 7 7 3-7 3-3 7-3-7-7-3 7-3z"/></g>
+      <path class="sg-wire" d="M256 114v54"/>${panel(200,40,112,74,8)}${label(256,72,22,"À mes")}<text class="sg-text" x="256" y="102" font-size="22" text-anchor="middle">côtés <tspan class="sg-t-acc">?</tspan></text>`)
+  },
+  // Une fête surprise : fanions, confettis, canapé et ballons cachés derrière, porte entrouverte ; cadeau dont le couvercle se soulève
+  fetesurprise: {
+    wall: sceneWall(
+      fanions("sc-fanions-s") + `<pattern id="sc-confettis-s" width="150" height="150" patternUnits="userSpaceOnUse"><rect class="sc-a" x="20" y="30" width="10" height="5" rx="2" transform="rotate(-30 25 32)"/><circle class="sc-a" cx="110" cy="100" r="3"/><rect class="sc-a" x="100" y="20" width="9" height="5" rx="2" transform="rotate(40 104 22)"/></pattern>`,
+      fill("sc-confettis-s") + `<rect width="100%" height="50" fill="url(#sc-fanions-s)"/>` +
+      at("8%","84%",ballon(20)) + at("16%","82%",ballon(16)) +
+      at("4%","100%",`<g transform="translate(0 -92)"><rect class="sc-a sc-out" x="20" y="8" width="150" height="44" rx="10"/><path class="sc-b sc-out" d="M0 30a14 14 0 0 1 28 0v30h134V30a14 14 0 0 1 28 0v62H0z"/></g>`) +
+      at("82%","100%",`<g transform="translate(0 -180)"><rect class="sc-b sc-out" width="84" height="180"/><path class="sc-a sc-out" d="M0 0l36 14v166H0z"/><circle class="sc-line" cx="70" cy="96" r="4"/></g>`)),
+    sign: sceneSign(170, `<rect class="sg-ink" x="56" y="98" width="100" height="68" rx="4"/><rect class="sg-acc sg-out" x="50" y="92" width="100" height="68" rx="4"/><path class="sg-surf sg-out" d="M92 92h16v68H92z"/>
+      <g class="sg-float"><rect class="sg-acc sg-out" x="42" y="70" width="116" height="22" rx="4"/><path class="sg-surf sg-out" d="M92 70h16v22H92z"/>
+        <path class="sg-surf sg-out" d="M100 70c-22-26-44-4-20 0zM100 70c22-26 44-4 20 0z"/></g>
+      <g class="sg-glow"><path class="sg-lin sg-out" d="M40 42l4 8 8 2-6 6 2 8-8-4-8 4 2-8-6-6 8-2zM166 34l4 8 8 2-6 6 2 8-8-4-8 4 2-8-6-6 8-2z"/></g>
+      <path class="sg-acc" d="M70 40l6 3-3 6zM132 46l7-1-2 7z"/>
+      <path class="sg-wire" d="M255 114v54"/>${panel(198,40,114,74,8)}${label(255,72,22,"Pas un")}<text class="sg-text" x="255" y="102" font-size="22" text-anchor="middle">mot <tspan class="sg-t-acc">!</tspan></text>`)
   }
 };
 /* Scène de l'accueil : envoyer une demande. Décor de fond seulement (le mini-billet est l'élément principal),
@@ -2902,7 +3042,18 @@ const DECOR = {
   peres:{shape:["star5","tie"], move:"drift", cols:["#1F7A8C","#E3A21A"], react:"fall", burst:["star5","confetti"],
     kcols:{star5:["#E3A21A","#1F7A8C"], tie:["#1F7A8C","#183325"], confetti:["#1F7A8C","#E3A21A","#7CC48D"]}},
   musique:{shape:["note","note2"], move:"rise", cols:["#E8458B","#0F3640"], react:"pop", burst:["note","confetti","star5"],
-    kcols:{note:["#E8458B","#0F3640","#2BB3B3"], note2:["#E8458B","#0F3640","#2BB3B3"], confetti:["#E8458B","#2BB3B3","#F2C14E"], star5:["#F2C14E"]}}
+    kcols:{note:["#E8458B","#0F3640","#2BB3B3"], note2:["#E8458B","#0F3640","#2BB3B3"], confetti:["#E8458B","#2BB3B3","#F2C14E"], star5:["#F2C14E"]}},
+  // Ambiances des occasions permanentes
+  date:{shape:["heart","star5","sparkle"], move:"rise", cols:["#E04A57","#F28B93"], react:"break", burst:["heart","sparkle","confetti"],
+    kcols:{heart:["#E04A57","#F28B93","#F7B8A0"], star5:["#F2B544"], sparkle:["#F2B544","#E04A57"], confetti:["#E04A57","#F2B544","#F28B93"]}},
+  monanniv:{shape:["balloon","balloon","confetti"], move:"rise", cols:["#8A3FE0","#F25FA8"], react:"pop", burst:["confetti","star5","balloon"],
+    kcols:{balloon:["#8A3FE0","#F25FA8","#FFC94A","#3DB8F5"], confetti:["#8A3FE0","#F25FA8","#FFC94A","#3DB8F5"], star5:["#FFC94A"]}},
+  annivfam:{shape:["confetti","star5","heart"], move:"fall", cols:["#E8590C","#2A9D8F"], react:"gust", burst:["confetti","star5","heart"],
+    kcols:{confetti:["#E8590C","#2A9D8F","#F4B400","#E76F8A"], star5:["#F4B400"], heart:["#E76F8A","#E8590C"]}},
+  temoin:{shape:["petal","petal","ring"], move:"fall", cols:["#E7B8A8","#C9A227"], react:"gust", burst:["petal","heart","sparkle","ring"],
+    kcols:{petal:["#E7B8A8","#E9C46A","#D9C7B8"], ring:["#C9A227"], heart:["#E7B8A8"], sparkle:["#C9A227"]}},
+  fetesurprise:{shape:["confetti","star5","balloon"], move:"fall", cols:["#F2427F","#3DB8F5"], react:"gust", burst:["confetti","balloon","star5"],
+    kcols:{confetti:["#F2427F","#3DB8F5","#FFC94A","#7BD389"], balloon:["#F2427F","#3DB8F5","#FFC94A"], star5:["#FFC94A"]}}
 };
 
 const Decor = (() => {
@@ -3020,6 +3171,13 @@ const Decor = (() => {
         ctx.ellipse(-s*.55,s*.55,s*.35,s*.25,-.4,0,Math.PI*2); ctx.fill(); ctx.beginPath(); ctx.ellipse(s*.45,s*.4,s*.35,s*.25,-.4,0,Math.PI*2); ctx.fill();
         ctx.fillRect(-s*.28,-s*.7,s*.14,s*1.25); ctx.fillRect(s*.72,-s*.85,s*.14,s*1.25);
         ctx.beginPath(); ctx.moveTo(-s*.28,-s*.7); ctx.lineTo(s*.86,-s*.85); ctx.lineTo(s*.86,-s*.6); ctx.lineTo(-s*.28,-s*.45); ctx.fill(); break;
+      // Ambiances : ballon (anniversaires, fête surprise), alliance (témoin)
+      case "balloon":
+        ctx.ellipse(0,-s*.2,s*.7,s*.85,0,0,Math.PI*2); ctx.fill(); ctx.beginPath(); ctx.moveTo(0,s*.62); ctx.lineTo(-s*.15,s*.85); ctx.lineTo(s*.15,s*.85); ctx.fill();
+        ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(0,s*.85); ctx.quadraticCurveTo(s*.3,s*1.3,0,s*1.8); ctx.stroke(); break;
+      case "ring":
+        ctx.lineWidth=Math.max(2,s*.28); ctx.arc(0,s*.15,s*.6,0,Math.PI*2); ctx.stroke();
+        ctx.fillStyle="#BFE3F2"; ctx.beginPath(); ctx.moveTo(0,-s*.95); ctx.lineTo(s*.3,-s*.62); ctx.lineTo(0,-s*.38); ctx.lineTo(-s*.3,-s*.62); ctx.closePath(); ctx.fill(); break;
       case "candy":
         ctx.arc(0,0,s*.45,0,Math.PI*2); ctx.moveTo(-s*.4,0); ctx.lineTo(-s*1.05,-s*.4); ctx.lineTo(-s*1.05,s*.4); ctx.closePath();
         ctx.moveTo(s*.4,0); ctx.lineTo(s*1.05,-s*.4); ctx.lineTo(s*1.05,s*.4); ctx.closePath(); ctx.fill(); break;

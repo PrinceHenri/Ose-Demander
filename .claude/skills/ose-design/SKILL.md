@@ -117,10 +117,26 @@ Neuf occasions saisonnières (`SEASONS`) ont chacune leur thème complet : coule
 | Musique | turquoise, magenta | portées, ampoules, scène, enceintes | enceinte qui bat la mesure, notes, « Monte le son ! » | notes | éclatent | notes, confettis, étoiles |
 
 - **Proposés à la création seulement pendant leur période** (thème, occasion, modèle, emojis de saison : `seasonOpen`, `emojiOpen`) ; un choix déjà fait est gardé. **Une invitation reçue s'affiche toujours avec son thème**, toute l'année : le décodage ne regarde jamais la date.
-- **Occasions existantes devenues saisonnières** (Saint-Valentin, fêtes des mères et des pères) : leur `theme` reste celui du décodage (Amour, Pétales, Cravate), pour que les liens déjà envoyés ne changent pas ; `seasonTheme` donne le thème de saison à la création (il est alors écrit dans le lien).
+- **Occasions existantes devenues saisonnières** (Saint-Valentin, fêtes des mères et des pères) : leur `theme` reste celui du décodage (Amour, Pétales, Cravate), pour que les liens déjà envoyés ne changent pas ; `createTheme` donne le thème de saison à la création (il est alors écrit dans le lien).
 - **Modèles de saison** : étiquette « De saison » (`.tpl-tag`, pastille contour encre, texte encre), en tête de leur catégorie. **Bandeau de l'accueil** (`.season`) : une seule occasion, bouton secondaire (le Oui reste la seule action principale). Ordre commun (`seasonOrder`) : jour J à venir le plus proche, puis jours J passés du plus récent au plus ancien ; égalité (fête des pères le 21 juin, certaines années) départagée par l'ordre de `TEMPLATES`.
 - **Décor animé** (`DECOR`) : `shape` peut être une liste ; `kcols` donne les couleurs propres à une forme ; `"e:🤰"` colle un emoji (rendu par l'appareil, donc différent sur Apple, Windows, Android : réservé à ce que le dessin ne sait pas faire, comme les cupidons ou les mamans). Formes dessinées : `bat`, `ghost`, `pumpkin`, `candy`, `flake`, `hat`, `gift`, `spark`, `crown`, `bean`, `letter`, `egg`, `flower`, `tie`, `note`, `note2`. Mouvement `fly` (vol horizontal), réaction `scatter` (s'éparpillent puis reviennent), explosion `fw` (gerbes rondes). Les couleurs du canvas sont écrites en dur (comme pour les 7 thèmes) : les reprendre du thème.
 - **Nouveau thème de saison** : sa période dans `SEASONS` (jour J, début, fin, emoji, textes du bandeau), son thème complet, son occasion et son modèle, de nouveaux codes (index.html et `tables-figees.mjs`), une référence de lien, puis contrôle visuel sur téléphone et ordinateur.
+
+## 2 quater. Ambiances des occasions permanentes
+
+Chaque occasion permanente gardée à la création (liste révisée le 2026-10-16) reçoit son **ambiance** : un thème complet, avec les mêmes règles que les autres (variantes `readable`, contrastes vérifiés, scène, décor animé). Les ambiances arrivent par lots ; chaque nouvelle occasion est créée **dans le même lot que son ambiance**, pour naître avec son thème final (le lien n'écrit pas le thème par défaut de l'occasion). Une occasion qui existait déjà garde son `theme` de décodage et reçoit l'ambiance en `createTheme`.
+
+| Ambiance | Couleurs | Décor de fond | Élément vedette | Décor animé | Non | Oui |
+|---|---|---|---|---|---|---|
+| Proposer un date (`date`) | corail pâle, rouge corail, bordeaux | soir en ville : étoiles, lune, toits, réverbère, banc | deux tasses qui trinquent, cœur qui flotte, « Toi et moi ? » | cœurs, étoiles, éclats | se brisent | cœurs, éclats, confettis |
+| Mon anniversaire (`monanniv`) | rose bonbon, violet | fanions, confettis, ballons, table, cadeaux | gâteau à deux étages, bougies qui vacillent, « C'est ma fête ! » | ballons, confettis | éclatent | confettis, étoiles, ballons |
+| Un anniversaire en famille (`annivfam`) | vanille, orange | ampoules, papier peint rayé, cadres (ordinateur), table | gâteau à trois étages, « En famille ! » | confettis, étoiles, cœurs | tourbillon | confettis, étoiles, cœurs |
+| Être mon témoin (`temoin`) | ivoire, ardoise, doré | arche fleurie, chaises de cérémonie | alliances entrelacées qui se balancent, « À mes côtés ? » | pétales, alliances | tourbillon | pétales, cœurs, éclats, alliances |
+| Une fête surprise (`fetesurprise`) | bleu ciel, rose vif | fanions, confettis, canapé et ballons cachés, porte entrouverte | cadeau dont le couvercle se soulève, « Pas un mot ! » | confettis, étoiles, ballons | tourbillon | confettis, ballons, étoiles |
+
+- **Scènes compactes** : réutiliser les **formes communes** avant d'en dessiner de nouvelles. Décor de fond : `fanions(id)`, `ampoules(id)`, `ballon(r)`, `paquet(w, h)`, `cadre(w, h)`, `plateau(y)` ; élément vedette : `gateau(cx, base, étages, bougies)` (flammes `.sg-flame`), `.sg-ring` / `.sg-ringo` (anneaux à l'accent cernés d'encre). Formes du décor animé ajoutées : `balloon`, `ring`.
+- **Poids** : donner à chaque lot le poids de `index.html`, brut et compressé (`gzip -6`, proche de ce que GitHub Pages envoie réellement). Au-delà de 150 Ko compressés, reparler de fichiers de scène séparés.
+- **Liste révisée** : occasions masquées à la création par `old:1` (mariage, grands-parents, sortie entre amis, anniversaire entre amis, me faire pardonner), toujours décodées ; « Juste comme ça » en coulisse (`hide:1`) pour « Partir de zéro » ; « Autre chose… » gardée. Les introductions (2 cartes par occasion) sont dans `INTROS`, en attendant la fonctionnalité.
 
 ## 3. Typographie : deux polices, pas une de plus
 

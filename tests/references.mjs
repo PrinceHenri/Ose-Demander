@@ -672,5 +672,80 @@ export const REFERENCES = [
       "d": "2027-06-21",
       "h": "19:00"
     }
+  },
+  {
+    "nom": "Nouvelle occasion et son ambiance (format compact y) : mon anniversaire",
+    "lien": "yHcsxCsJAEEDRqyy_sZkirOuK01mkTeMJFjKCMEsSEVwQD-Q5cjFJ6v_-hzvK1a0hvFBupSJMaDwKC5pOwoBGoUfPQkVjFspGp8dz_RmC76O7hdGCH_pmdfYtvNEcL13qvn8",
+    "attendu": {
+      "f": "Alex",
+      "t": "Sam",
+      "q": "Tu viens fêter mon anniversaire ?",
+      "o": "monanniv",
+      "th": "monanniv",
+      "n": "fuit",
+      "tn": "drole",
+      "an": "n",
+      "em": "🎂",
+      "c": "any",
+      "m": "Ce ne sera pas pareil sans toi.",
+      "a": {
+        "v": "v",
+        "x": "Soirée"
+      },
+      "l": {
+        "v": "v",
+        "x": "Salle de l'Exemple"
+      },
+      "d": "2027-03-13",
+      "h": "20:00"
+    }
+  },
+  {
+    "nom": "Nouvelle occasion et son ambiance (format compact y) : fête surprise",
+    "lien": "yHctBCkVQFIDhreifmJyBuPGcOSMWoVz16nqXkFuyobcNGxPjr-9gQGn8hrCitF1A8GhqhBk1hVChpTCi5iN0KPX1Xy2Ce8N38b-ot5GLq2DHyT2yo3leZkly3g",
+    "attendu": {
+      "f": "Lou",
+      "t": "Max",
+      "q": "Tu viens à la fête surprise ?",
+      "o": "fetesurprise",
+      "th": "fetesurprise",
+      "n": "fuit",
+      "an": "n",
+      "em": "🎁",
+      "c": "any",
+      "m": "Surtout, pas un mot à la personne fêtée.",
+      "a": {
+        "v": "v",
+        "x": "Fête"
+      },
+      "l": {
+        "v": "v",
+        "x": "Maison de l'Exemple"
+      },
+      "d": "2027-04-10",
+      "h": "19:00"
+    }
+  },
+  {
+    "nom": "Occasion existante, ambiance écrite dans le lien (format compact y) : rendez-vous",
+    "lien": "yHcehCoAwFEDRX5GbX9gQlL2-arKJYeqWdENRDOK_C5YD5yGhdCUgnCh-iRmhoFbYf3vUtoL_s6HWCQEd6GO-YjWXnMpxhmmNjMKNNrUzzrwf",
+    "attendu": {
+      "f": "Noa",
+      "t": "Eden",
+      "q": "Ça te dit un rendez-vous avec moi ?",
+      "o": "date",
+      "th": "date",
+      "n": "fuit",
+      "an": "n",
+      "em": "💌",
+      "c": "any",
+      "m": "Prépare ton plus beau sourire, je m'occupe du reste.",
+      "a": {
+        "v": "s",
+        "h": "Tenue confortable"
+      },
+      "d": "2027-03-20",
+      "h": "19:30"
+    }
   }
 ];
