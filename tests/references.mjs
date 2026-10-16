@@ -823,5 +823,105 @@ export const REFERENCES = [
       "d": "2027-06-12",
       "h": "20:00"
     }
+  },
+  {
+    "nom": "Nouvelle occasion et son ambiance (format compact y) : grande nouvelle",
+    "lien": "yBcE7DoJAFIbRrZCvsbkFCqPk74zS2riCSbwUZsYHkUhCWBDrYGOcM9EhzslHjB_iHjPGGx1OxheF2rih2mjRvjQyCsGIiOu6PH14eY-REJfYrUvx8CLt2tHzJznGHx1D01TlvAE",
+    "attendu": {
+      "f": "Alex",
+      "t": "Sam",
+      "q": "J'ai une grande nouvelle à t'annoncer : tu viens ?",
+      "o": "nouvelle",
+      "th": "nouvelle",
+      "n": "fuit",
+      "tn": "theatral",
+      "an": "n",
+      "em": "✨",
+      "c": "any",
+      "m": "Je préfère te le dire en vrai.",
+      "a": {
+        "v": "v",
+        "x": "Déjeuner"
+      },
+      "l": {
+        "v": "v",
+        "x": "Café de l'Exemple"
+      },
+      "d": "2027-04-03",
+      "h": "12:30"
+    }
+  },
+  {
+    "nom": "Nouvelle occasion et son ambiance (format compact y) : parrain ou marraine",
+    "lien": "yHcQ9DkBAFEbRvdz6FX4yhq8XDfYwBR0TQkjEypQ2JnGKczEi2rhjbIgunBgRZaWxIFcYM8qN_r9GqTEh542AaOL7bMOKcSCfVi5L7g8",
+    "attendu": {
+      "f": "Lou",
+      "t": "Max",
+      "q": "Tu veux bien être parrain ou marraine ?",
+      "o": "parrain",
+      "th": "parrain",
+      "n": "supplie",
+      "tn": "mignon",
+      "an": "n",
+      "em": "💌",
+      "c": "any",
+      "m": "Je ne vois personne de mieux pour ce rôle.",
+      "a": {
+        "v": "v",
+        "x": "Goûter"
+      },
+      "d": "2027-05-15",
+      "h": "16:00"
+    }
+  },
+  {
+    "nom": "Nouvelle occasion et son ambiance (format compact y) : baby shower",
+    "lien": "yBcFBCsIwFEXRrZQ7cfKFopaaN3OQod1DIBECSVNtQUHcj_twY57z5oaYWsDYED6mGaOhgzPuaDgbEzoaHjmjosEZAXFZHr_vuq85ZoyCuIa8trmLqSs7_0p1KQnjicaTG_v-8wc",
+    "attendu": {
+      "f": "Noa",
+      "t": "Eden",
+      "q": "Tu viens à la baby shower ?",
+      "o": "babyshower",
+      "th": "babyshower",
+      "n": "fuit",
+      "tn": "mignon",
+      "an": "n",
+      "em": "🎁",
+      "c": "any",
+      "m": "On fête l'arrivée du bébé, il ne manque plus que toi.",
+      "a": {
+        "v": "v",
+        "x": "Après-midi"
+      },
+      "l": {
+        "v": "v",
+        "x": "Maison de l'Exemple"
+      },
+      "d": "2027-06-05",
+      "h": "15:00"
+    }
+  },
+  {
+    "nom": "Nouvelle occasion et son ambiance (format compact y) : repas de famille",
+    "lien": "yHcY7DkBAGIXRvXz1X8yQeNxOQquxAsUoxCOEkIgFWYeNSZzqXHSIYggnxoZo2hFjRrEzFpQ4Y0KRUaPYqP6PKPFGiyjfpw_7FFaMA6W5jzJ3fw",
+    "attendu": {
+      "f": "Alex",
+      "t": "Sam",
+      "q": "Tu viens au repas de famille ?",
+      "o": "repasfam",
+      "th": "repasfam",
+      "n": "retrecit",
+      "tn": "mignon",
+      "an": "n",
+      "em": "❤️",
+      "c": "any",
+      "m": "Il y aura une place pour toi à table, comme toujours.",
+      "a": {
+        "v": "v",
+        "x": "Déjeuner"
+      },
+      "d": "2027-07-04",
+      "h": "12:00"
+    }
   }
 ];

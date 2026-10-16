@@ -1000,15 +1000,15 @@ await test("Création selon la date : modèles, descriptions, occasions, emojis"
   const le = iso => PAGE.ecrire("SEASON_TODAY", iso);
   le("2026-08-15");
   assert.deepEqual(cat("Amour"), ["rdv", "annivamour", "couple", "weekend", "dinerspecial"], "août : pas de Saint-Valentin");
-  assert.deepEqual(cat("Famille"), ["annivfam"], "août : ni fête des mères ni fête des pères");
+  assert.deepEqual(cat("Famille"), ["annivfam", "nouvelle", "parrain", "babyshower", "repasfam"], "août : ni fête des mères ni fête des pères");
   assert.equal(desc("Amour"), "Rendez-vous, anniversaire de mon amour, couple");
-  assert.equal(desc("Famille"), "Anniversaire en famille");
+  assert.equal(desc("Famille"), "Anniversaire en famille, grande nouvelle, parrain ou marraine");
   assert.ok(PAGE.lire("catTemplates")("Amour", "valentin").some(t => t.id === "valentin"), "modèle choisi gardé après la fin de sa saison");
   le("2027-01-20");
   assert.deepEqual(cat("Amour"), ["valentin", "rdv", "annivamour", "couple", "weekend", "dinerspecial"], "janvier : Saint-Valentin en tête");
   assert.equal(desc("Amour"), "Saint-Valentin, rendez-vous, anniversaire de mon amour");
   le("2027-05-20");
-  assert.deepEqual(cat("Famille"), ["meres", "peres", "annivfam"], "mai : jour J le plus proche d'abord");
+  assert.deepEqual(cat("Famille"), ["meres", "peres", "annivfam", "nouvelle", "parrain", "babyshower", "repasfam"], "mai : jour J le plus proche d'abord");
   le("2026-08-15");
   Object.assign(S, { step: 4, occ: "date", tpl: "rdv", from: "Alex", to: "Sam", link: "", moreOpen: true, open: new Set(["occ", "style"]) });
   PAGE.lire("renderCreator")();
@@ -1107,7 +1107,7 @@ await test("Modèles de saison : catégorie, première position, « De saison »
     le(iso); assert.equal(PAGE.lire("seasonPick")().t.id, id, `${iso} : bandeau ${id} (jour J à venir le plus proche)`);
   }
   le("2026-12-20"); assert.deepEqual(PAGE.lire("catTemplates")("Amis").slice(0, 1).map(t => t.id), ["reveillon"], "décembre : réveillon en tête des Amis");
-  le("2027-06-05"); assert.deepEqual(PAGE.lire("catTemplates")("Famille").map(t => t.id), ["peres", "meres", "annivfam"], "juin : fête des pères (à venir) avant fête des mères (passée)");
+  le("2027-06-05"); assert.deepEqual(PAGE.lire("catTemplates")("Famille").map(t => t.id), ["peres", "meres", "annivfam", "nouvelle", "parrain", "babyshower", "repasfam"], "juin : fête des pères (à venir) avant fête des mères (passée)");
   Object.assign(S, { step: "home", tplCat: "Amour", tpl: "" }); le("2026-10-15");
 });
 
@@ -1169,7 +1169,7 @@ await test("Occasions proposées à la création : liste révisée ; les autres 
   PAGE.lire("renderCreator")();
   let h = PAGE.zones["#app"].innerHTML;
   const puces = [...h.matchAll(/data-occ="([a-z]+)"/g)].map(m => m[1]);
-  assert.deepEqual(puces, ["date", "annivamour", "couple", "weekend", "dinerspecial", "annivfam", "monanniv", "temoin", "fetesurprise", "surprise", "libre"], "puces d'occasion en août (sans les saisons)");
+  assert.deepEqual(puces, ["date", "annivamour", "couple", "weekend", "dinerspecial", "annivfam", "nouvelle", "parrain", "babyshower", "repasfam", "monanniv", "temoin", "fetesurprise", "surprise", "libre"], "puces d'occasion en août (sans les saisons)");
   for(const id of ["mariage", "grands", "sortie", "annivami", "pardon", "juste"]){
     assert.ok(!puces.includes(id), `${id} masquée à la création`);
     assert.ok(OCC[id] && Object.values(LINK_OCC).includes(id), `${id} toujours décodée`);
@@ -1179,7 +1179,7 @@ await test("Occasions proposées à la création : liste révisée ; les autres 
   assert.ok(!h.includes('data-occ="juste"'), "« Juste comme ça » : jamais en puce, même choisie");
   S.occ = "grands"; PAGE.lire("renderCreator")(); assert.ok(PAGE.zones["#app"].innerHTML.includes('data-occ="grands" aria-pressed="true"'), "occasion masquée déjà choisie : gardée");
   const tpl = c => PAGE.lire("catTemplates")(c).map(t => t.id);
-  assert.deepEqual([tpl("Amour"), tpl("Famille"), tpl("Amis"), tpl("Surprise")], [["rdv", "annivamour", "couple", "weekend", "dinerspecial"], ["annivfam"], ["monanniv", "temoin"], ["fetesurprise", "mystere"]], "modèles permanents (lots 1 et 2)");
+  assert.deepEqual([tpl("Amour"), tpl("Famille"), tpl("Amis"), tpl("Surprise")], [["rdv", "annivamour", "couple", "weekend", "dinerspecial"], ["annivfam", "nouvelle", "parrain", "babyshower", "repasfam"], ["monanniv", "temoin"], ["fetesurprise", "mystere"]], "modèles permanents (lots 1 à 3)");
   const TPL = PAGE.lire("TEMPLATES");
   assert.equal(TPL.find(t => t.id === "couple").label, "Notre anniversaire de couple");
   assert.equal(TPL.find(t => t.id === "mystere").label, "Une journée surprise");
@@ -1195,8 +1195,8 @@ await test("Ambiances : occasions existantes au thème de décodage inchangé, n
     assert.equal((await dec(await enc({ ...base, th: ancien }))).th, ancien, `${occ} : ancien lien inchangé`);
     assert.equal((await dec(await enc({ ...base, th: ambiance }))).th, ambiance, `${occ} : nouveau lien avec l'ambiance`);
   }
-  for(const occ of ["monanniv", "fetesurprise", "weekend", "dinerspecial"]) assert.equal(OCC[occ].theme, occ, `${occ} : née avec son ambiance`);
-  for(const t of TPL.filter(t => ["rdv", "annivfam", "monanniv", "temoin", "fetesurprise", "annivamour", "couple", "weekend", "dinerspecial"].includes(t.id))){
+  for(const occ of ["monanniv", "fetesurprise", "weekend", "dinerspecial", "nouvelle", "parrain", "babyshower", "repasfam"]) assert.equal(OCC[occ].theme, occ, `${occ} : née avec son ambiance`);
+  for(const t of TPL.filter(t => ["rdv", "annivfam", "monanniv", "temoin", "fetesurprise", "annivamour", "couple", "weekend", "dinerspecial", "nouvelle", "parrain", "babyshower", "repasfam"].includes(t.id))){
     assert.equal(t.theme, OCC[t.occ].createTheme || OCC[t.occ].theme, `${t.label} : modèle et occasion donnent la même ambiance`);
     assert.ok(L.THEMES.some(x => x.id === t.theme) && PAGE.lire("SCENES")[t.theme] && PAGE.lire("DECOR")[t.theme], `${t.label} : thème, scène et décor`);
   }

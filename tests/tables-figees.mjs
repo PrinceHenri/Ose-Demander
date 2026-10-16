@@ -60,7 +60,16 @@ export const LINK_PHRASES = {
   "50": "On s'offre un week-end rien qu'à deux ?",
   "51": "Prépare juste un petit sac, je m'occupe du reste.",
   "52": "Tu me laisses t'inviter à dîner ?",
-  "53": "Une jolie table, une belle soirée, et toi en face de moi."
+  "53": "Une jolie table, une belle soirée, et toi en face de moi.",
+  // Ajoutés le 2026-10-16 (ambiances, lot 3)
+  "54": "J'ai une grande nouvelle à t'annoncer : tu viens ?",
+  "55": "Je préfère te le dire en vrai.",
+  "56": "Tu veux bien être parrain ou marraine ?",
+  "57": "Je ne vois personne de mieux pour ce rôle.",
+  "58": "Tu viens à la baby shower ?",
+  "59": "On fête l'arrivée du bébé, il ne manque plus que toi.",
+  "60": "Tu viens au repas de famille ?",
+  "61": "Il y aura une place pour toi à table, comme toujours."
 };
 
 export const LINK_OCC = {
@@ -89,7 +98,11 @@ export const LINK_OCC = {
   "23": "monanniv",
   "24": "fetesurprise",
   "25": "weekend",
-  "26": "dinerspecial"
+  "26": "dinerspecial",
+  "27": "nouvelle",
+  "28": "parrain",
+  "29": "babyshower",
+  "30": "repasfam"
 };
 
 export const LINK_TH = {
@@ -117,7 +130,11 @@ export const LINK_TH = {
   "22": "annivamour",
   "23": "couple",
   "24": "weekend",
-  "25": "dinerspecial"
+  "25": "dinerspecial",
+  "26": "nouvelle",
+  "27": "parrain",
+  "28": "babyshower",
+  "29": "repasfam"
 };
 
 export const LINK_NO = {

@@ -103,6 +103,14 @@
   --pattern:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='90' height='90'%3E%3Cpath d='M22 12l10 18H12z' fill='%2320331F' fill-opacity='.1'/%3E%3Cpath d='M66 58c-3-5-10-2-7 3l7 7 7-7c3-5-4-8-7-3z' fill='%23C8553D' fill-opacity='.16'/%3E%3C/svg%3E");}
 [data-theme="dinerspecial"]{--bg:#26131D;--surface:#351C29;--accent-ink:#26131D;--ink:#FFF1E8;--muted:#D9B8C2;--line:#50293C;--accent:#F0A090;--soft:#2E1823;--accent-text:#F0A090;--accent-btn:#F0A090;--accent-seal:#C47869;
   --pattern:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='90' height='90'%3E%3Cpath d='M22 14l3 7 7 3-7 3-3 7-3-7-7-3 7-3z' fill='%23F0A090' fill-opacity='.3'/%3E%3Ccircle cx='66' cy='64' r='1.5' fill='%23FFF1E8' fill-opacity='.4'/%3E%3C/svg%3E");}
+[data-theme="nouvelle"]{--bg:#EEF1FF;--ink:#1D2550;--muted:#545C8A;--line:#CDD3F2;--accent:#0E8C7F;--soft:#F7F8FF;--accent-text:#087C70;--accent-btn:#008478;--accent-seal:#0E8C7F;
+  --pattern:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='90' height='90'%3E%3Cpath d='M18 22a6 6 0 1 1 8 5c-2 1-2 2-2 4M24 37v1' fill='none' stroke='%231D2550' stroke-opacity='.18' stroke-width='2'/%3E%3Cpath d='M66 58l2 5 5 2-5 2-2 5-2-5-5-2 5-2z' fill='%230E8C7F' fill-opacity='.25'/%3E%3C/svg%3E");}
+[data-theme="parrain"]{--bg:#FFF2EA;--ink:#3B2430;--muted:#765863;--line:#F1D3C4;--accent:#8E6BD8;--soft:#FFF8F3;--accent-text:#7E5AC6;--accent-btn:#8562CE;--accent-seal:#8E6BD8;
+  --pattern:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='90' height='90'%3E%3Cpath d='M22 14l3 6 6 1-4 4 1 6-6-3-6 3 1-6-4-4 6-1z' fill='%238E6BD8' fill-opacity='.18'/%3E%3Ccircle cx='66' cy='64' r='3' fill='%233B2430' fill-opacity='.08'/%3E%3C/svg%3E");}
+[data-theme="babyshower"]{--bg:#E8F7F2;--ink:#173B36;--muted:#4D6B66;--line:#BFE3D8;--accent:#E5608C;--soft:#F4FBF8;--accent-text:#C03E6D;--accent-btn:#C94674;--accent-seal:#E5608C;
+  --pattern:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='90' height='90'%3E%3Ccircle cx='22' cy='22' r='5' fill='%23E5608C' fill-opacity='.18'/%3E%3Ccircle cx='66' cy='64' r='4' fill='%23173B36' fill-opacity='.08'/%3E%3C/svg%3E");}
+[data-theme="repasfam"]{--bg:#F5EFE4;--ink:#33291C;--muted:#6B5E4C;--line:#E2D6BF;--accent:#B5532E;--soft:#FBF8F2;--accent-text:#B2502B;--accent-btn:#B5532E;--accent-seal:#BA5833;
+  --pattern:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='90' height='90'%3E%3Cpath d='M20 14v18M16 14v6M24 14v6' stroke='%2333291C' stroke-opacity='.14' stroke-width='2'/%3E%3Ccircle cx='66' cy='64' r='4' fill='%23B5532E' fill-opacity='.16'/%3E%3C/svg%3E");}
 
 *{box-sizing:border-box}
 html{height:100%;scroll-padding-top:env(safe-area-inset-top,0px)}
@@ -430,6 +438,9 @@ textarea.input{min-height:90px;resize:vertical}
 .sg-flame{transform-box:fill-box;transform-origin:50% 100%}
 .sg-rise,.sg-spin,.sg-roll,.sg-lift,.sg-flip,.sg-fly,.sg-clink-l,.sg-clink-r,.sg-fall,.sg-pop{transform-box:fill-box}
 .sg-clink-l,.sg-clink-r,.sg-pop{transform-origin:50% 100%}
+.sg-shake,.sg-open,.sg-jiggle{transform-box:fill-box}
+.sg-shake,.sg-jiggle{transform-origin:50% 100%}
+.sg-open{transform-origin:50% 0}
 .sg-spin{transform-origin:50% 50%}
 .sg-roll,.sg-lift{transform-origin:50% 100%}
 .sg-flip{transform-origin:100% 0}
@@ -492,6 +503,14 @@ textarea.input{min-height:90px;resize:vertical}
 @keyframes sg-clink-r{0%,55%,100%{transform:none}70%{transform:rotate(-9deg)}80%{transform:rotate(-4deg)}}
 @keyframes sg-fall{0%{transform:translateY(0) rotate(0);opacity:0}15%{opacity:1}100%{transform:translateY(46px) rotate(120deg);opacity:0}}
 @keyframes sg-pop{0%,45%,100%{transform:none}60%{transform:translateY(-30px) rotate(-12deg)}72%{transform:translateY(-24px) rotate(-8deg)}85%{transform:none}}
+.scene-sign.anim-n .sg-shake{animation:sg-shake 3.2s ease-in-out infinite}
+.scene-sign.anim-n .sg-open{animation:sg-open 5s ease-in-out infinite}
+.scene-sign.anim-d .sg-open{animation:sg-open 9s ease-in-out infinite}
+.scene-sign.anim-n .sg-jiggle{animation:sg-jiggle 2.4s ease-in-out infinite}
+.scene-sign.anim-d .sg-jiggle{animation:sg-lift-d 6s ease-in-out infinite}
+@keyframes sg-shake{0%,55%,100%{transform:none}62%{transform:rotate(-8deg)}69%{transform:rotate(7deg)}76%{transform:rotate(-5deg)}83%{transform:rotate(3deg)}90%{transform:none}}
+@keyframes sg-open{0%,25%,100%{transform:none}45%,80%{transform:scaleY(-.85)}}
+@keyframes sg-jiggle{0%,60%,100%{transform:none}68%{transform:translateY(-8px) rotate(-4deg)}76%{transform:none}84%{transform:translateY(-5px) rotate(3deg)}92%{transform:none}}
 .scene-sign.anim-n .sg-mid{animation:sg-mid 8s steps(4,end) infinite}
 @keyframes sg-mid{from{transform:rotate(-18deg)}to{transform:rotate(6deg)}}
 @keyframes sg-wobble{0%,100%{transform:rotate(-2deg)}50%{transform:rotate(2deg)}}
@@ -573,6 +592,10 @@ const OCCASIONS = [
     {id:"peres", label:"La fête des pères", theme:"papa", createTheme:"peres", q:"Papa, je t'emmène pour la fête des pères ?"},
     {id:"grands", label:"La fête des grands-parents", theme:"maman", q:"Je vous invite pour la fête des grands-parents ?", old:1},
     {id:"annivfam", label:"Un anniversaire en famille", theme:"fete", createTheme:"annivfam", q:"Tu viens fêter ton anniversaire avec moi ?"},
+    {id:"nouvelle", label:"Annoncer une grande nouvelle", theme:"nouvelle", q:"J'ai une grande nouvelle à t'annoncer : tu viens ?"},
+    {id:"parrain", label:"Être parrain ou marraine", theme:"parrain", q:"Tu veux bien être parrain ou marraine ?"},
+    {id:"babyshower", label:"Une baby shower", theme:"babyshower", q:"Tu viens à la baby shower ?"},
+    {id:"repasfam", label:"Un repas de famille", theme:"repasfam", q:"Tu viens au repas de famille ?"},
     // Saisonnière (SEASONS) : proposée à la création seulement pendant sa période
     {id:"noel", label:"Le repas de Noël", theme:"noel", q:"Tu viens au repas de Noël ?"},
     {id:"paques", label:"Pâques", theme:"paques", q:"Tu viens fêter Pâques avec moi ?"}
@@ -696,7 +719,11 @@ const THEMES = [
   {id:"annivamour", name:"Anniversaire de mon amour", c:"#FBF3EA", a:"#B83A6B", so:"#FFFAF5", i:"#3E1F2B"},
   {id:"couple", name:"Anniversaire de couple", c:"#F1ECF7", a:"#C2185B", so:"#F9F6FC", i:"#33193F"},
   {id:"weekend", name:"Week-end en amoureux", c:"#EEF3EA", a:"#C8553D", so:"#F7FAF5", i:"#20331F"},
-  {id:"dinerspecial", name:"Dîner un peu spécial", c:"#26131D", a:"#F0A090", s:"#351C29", so:"#2E1823", i:"#FFF1E8"}
+  {id:"dinerspecial", name:"Dîner un peu spécial", c:"#26131D", a:"#F0A090", s:"#351C29", so:"#2E1823", i:"#FFF1E8"},
+  {id:"nouvelle", name:"Grande nouvelle", c:"#EEF1FF", a:"#0E8C7F", so:"#F7F8FF", i:"#1D2550"},
+  {id:"parrain", name:"Parrain ou marraine", c:"#FFF2EA", a:"#8E6BD8", so:"#FFF8F3", i:"#3B2430"},
+  {id:"babyshower", name:"Baby shower", c:"#E8F7F2", a:"#E5608C", so:"#F4FBF8", i:"#173B36"},
+  {id:"repasfam", name:"Repas de famille", c:"#F5EFE4", a:"#B5532E", so:"#FBF8F2", i:"#33291C"}
 ];
 /* Couleurs d'accent (facultatives). Une couleur n'est utilisée que si elle reste lisible sur le thème. */
 const ACCENTS = [
@@ -1025,15 +1052,20 @@ const LINK_PHRASES = {
   47:"Tu viens à la fête surprise ?", 48:"Surtout, pas un mot à la personne fêtée.",
   49:"Ton jour, rien que pour toi : je m'occupe de tout.", 50:"On s'offre un week-end rien qu'à deux ?",
   51:"Prépare juste un petit sac, je m'occupe du reste.", 52:"Tu me laisses t'inviter à dîner ?",
-  53:"Une jolie table, une belle soirée, et toi en face de moi."
+  53:"Une jolie table, une belle soirée, et toi en face de moi.",
+  54:"J'ai une grande nouvelle à t'annoncer : tu viens ?", 55:"Je préfère te le dire en vrai.",
+  56:"Tu veux bien être parrain ou marraine ?", 57:"Je ne vois personne de mieux pour ce rôle.",
+  58:"Tu viens à la baby shower ?", 59:"On fête l'arrivée du bébé, il ne manque plus que toi.",
+  60:"Tu viens au repas de famille ?", 61:"Il y aura une place pour toi à table, comme toujours."
 };
 const LINK_OCC = {1:"date",2:"valentin",3:"annivamour",4:"couple",5:"mariage",6:"meres",7:"peres",8:"grands",
   9:"annivfam",10:"sortie",11:"annivami",12:"temoin",13:"surprise",14:"pardon",15:"juste",16:"libre",
-  17:"halloween",18:"noel",19:"reveillon",20:"galette",21:"paques",22:"musique",23:"monanniv",24:"fetesurprise",25:"weekend",26:"dinerspecial"};
+  17:"halloween",18:"noel",19:"reveillon",20:"galette",21:"paques",22:"musique",23:"monanniv",24:"fetesurprise",25:"weekend",26:"dinerspecial",27:"nouvelle",28:"parrain",29:"babyshower",30:"repasfam"};
 const LINK_TH = {1:"base",2:"amour",3:"maman",4:"papa",5:"amis",6:"fete",7:"mystere",8:"halloween",9:"noel",10:"reveillon",
   11:"galette",12:"valentin",13:"paques",14:"meres",15:"peres",16:"musique",
   17:"date",18:"monanniv",19:"annivfam",20:"temoin",21:"fetesurprise",
-  22:"annivamour",23:"couple",24:"weekend",25:"dinerspecial"};
+  22:"annivamour",23:"couple",24:"weekend",25:"dinerspecial",
+  26:"nouvelle",27:"parrain",28:"babyshower",29:"repasfam"};
 const LINK_NO = {1:"fuit",2:"retrecit",3:"supplie",4:"transforme"};
 const LINK_CH = {1:"any",2:"wa",3:"sms",4:"snap",5:"ig",6:"fb"};
 const LINK_AN = {1:"n",2:"d",3:"0"};
@@ -1227,6 +1259,14 @@ const TEMPLATES = [
     q:"Papa, je t'emmène pour la fête des pères ?", msg:"Merci pour tout. Ce moment, c'est pour toi."},
   {id:"annivfam", cat:"Famille", label:"Un anniversaire en famille", short:"anniversaire en famille", occ:"annivfam", theme:"annivfam", no:"supplie", tone:"mignon", em:"🎂",
     q:"Tu viens fêter ton anniversaire avec moi ?", msg:"Toute la famille sera là pour toi."},
+  {id:"nouvelle", cat:"Famille", label:"Annoncer une grande nouvelle", short:"grande nouvelle", occ:"nouvelle", theme:"nouvelle", no:"fuit", tone:"theatral", em:"✨",
+    q:"J'ai une grande nouvelle à t'annoncer : tu viens ?", msg:"Je préfère te le dire en vrai."},
+  {id:"parrain", cat:"Famille", label:"Être parrain ou marraine", short:"parrain ou marraine", occ:"parrain", theme:"parrain", no:"supplie", tone:"mignon", em:"💌",
+    q:"Tu veux bien être parrain ou marraine ?", msg:"Je ne vois personne de mieux pour ce rôle."},
+  {id:"babyshower", cat:"Famille", label:"Une baby shower", short:"baby shower", occ:"babyshower", theme:"babyshower", no:"fuit", tone:"mignon", em:"🎁",
+    q:"Tu viens à la baby shower ?", msg:"On fête l'arrivée du bébé, il ne manque plus que toi."},
+  {id:"repasfam", cat:"Famille", label:"Un repas de famille", short:"repas de famille", occ:"repasfam", theme:"repasfam", no:"retrecit", tone:"mignon", em:"❤️",
+    q:"Tu viens au repas de famille ?", msg:"Il y aura une place pour toi à table, comme toujours."},
   {id:"monanniv", cat:"Amis", label:"Mon anniversaire", short:"mon anniversaire", occ:"monanniv", theme:"monanniv", no:"fuit", tone:"drole", em:"🎂",
     q:"Tu viens fêter mon anniversaire ?", msg:"Ce ne sera pas pareil sans toi."},
   {id:"temoin", cat:"Amis", label:"Être mon témoin", short:"témoin", occ:"temoin", theme:"temoin", no:"supplie", tone:"theatral", em:"🎉",
@@ -2601,6 +2641,66 @@ const SCENES = {
       ${[18,182].map(x=>`<rect class="sg-surf sg-out" x="${x-3}" y="100" width="6" height="44"/><path class="sg-acc sg-out sg-flame" d="M${x} 82q7 9 0 14q-7-5 0-14z"/>`).join("")}
       <g class="sg-glow"><path class="sg-acc sg-out" d="M46 40l3 7 7 3-7 3-3 7-3-7-7-3 7-3zM156 34l3 7 7 3-7 3-3 7-3-7-7-3 7-3z"/></g>
       <path class="sg-wire" d="M256 114v54"/>${panel(194,40,124,74,8)}${label(256,72,21,"Table")}${label(256,102,21,"pour deux")}`)
+  },
+  // Annoncer une grande nouvelle : rideaux de scène, projecteurs (ordinateur), « ? » au mur ; enveloppe scellée qui frémit, s'ouvre et laisse s'échapper des « ? »
+  nouvelle: {
+    wall: sceneWall(
+      `<pattern id="sc-questions" width="160" height="160" patternUnits="userSpaceOnUse"><path class="sc-line" d="M34 40a8 8 0 1 1 10 7c-3 1-3 3-3 6M41 62v1M114 108a6 6 0 1 1 8 5c-2 1-2 2-2 4M120 124v1"/><circle class="sc-a" cx="120" cy="40" r="3"/></pattern>`,
+      fill("sc-questions") +
+      `<g class="hs-wide">${at("50%","0",`<path class="sc-b" d="M-330 0h50l140 900h-250zM330 0h-50l-140 900h250z"/>`)}</g>` +
+      at("0","0",`<path class="sc-a sc-out" d="M0 0h86q-30 320 10 640q-40 380-96 760z"/><path class="sc-line" d="M28 0q-12 500-20 1400M58 0q-16 340-4 760"/>`) +
+      at("100%","0",`<path class="sc-a sc-out" d="M0 0h-86q30 320-10 640q40 380 96 760z"/><path class="sc-line" d="M-28 0q12 500 20 1400M-58 0q16 340 4 760"/>`) +
+      plateau("92%")),
+    sign: sceneSign(170, `${[[80,0],[118,1.1],[100,2.2]].map(([x,d])=>`<g class="sg-rise" style="animation-delay:${d}s"><text class="sg-text" x="${x}" y="62" font-size="22" text-anchor="middle"><tspan class="sg-t-acc">?</tspan></text></g>`).join("")}
+      ${eclatMontant(54,70,.6)}${eclatMontant(150,66,1.7)}
+      <g class="sg-shake"><rect class="sg-ink" x="46" y="76" width="120" height="80" rx="6"/><rect class="sg-surf sg-out" x="40" y="70" width="120" height="80" rx="6"/>
+        <path class="sg-lline" d="M40 150l46-38M160 150l-46-38"/>
+        <g class="sg-open"><path class="sg-soft sg-out" d="M40 72l60 46 60-46z"/></g><circle class="sg-acc sg-out" cx="100" cy="116" r="11"/></g>
+      <path class="sg-wire" d="M256 114v54"/>${panel(198,40,116,74,8)}${label(256,72,22,"Devine")}<text class="sg-text" x="256" y="102" font-size="22" text-anchor="middle">quoi <tspan class="sg-t-acc">?</tspan></text>`)
+  },
+  // Être parrain ou marraine : chambre de bébé (nuages, étoiles, berceau) ; mobile qui se balance au-dessus d'un berceau, cœurs qui montent
+  parrain: {
+    wall: sceneWall(
+      `<pattern id="sc-nuages" width="260" height="200" patternUnits="userSpaceOnUse"><path class="sc-b sc-out" d="M40 60a16 16 0 0 1 28-10a20 20 0 0 1 36 4a14 14 0 0 1 2 28H44a14 14 0 0 1-4-22z"/><path class="sc-line" d="M190 130v10M185 135h10M150 40v6M147 43h6"/><circle class="sc-a" cx="210" cy="60" r="3"/></pattern>`,
+      fill("sc-nuages") + plateau("94%") +
+      at("6%","94%",`<g transform="translate(0 -110)"><rect class="sc-b sc-out" width="150" height="14" rx="3"/><rect class="sc-b sc-out" y="70" width="150" height="14" rx="3"/><path class="sc-line" d="M14 14v56M34 14v56M54 14v56M74 14v56M94 14v56M114 14v56M134 14v56M6 0v110M144 0v110"/></g>`)),
+    sign: sceneSign(172, `<path class="sg-wire" d="M110 0v20"/>
+      <g class="sg-swing"><path class="sg-wire" d="M50 22h120"/>
+        ${[[56,64,`<path class="sg-acc sg-out" d="M56 48l5 10 11 2-8 8 2 11-10-5-10 5 2-11-8-8 11-2z"/>`,0],[90,74,`<path class="sg-soft sg-out" d="M96 60a16 16 0 1 0 0 28a12 12 0 1 1 0-28z"/>`,.8],[130,62,`<path class="sg-surf sg-out" d="M116 70a8 8 0 0 1 14-5a10 10 0 0 1 18 2a7 7 0 0 1 0 14h-28a7 7 0 0 1-4-11z"/>`,1.6],[164,70,`<path class="sg-acc sg-out" d="M164 86c-11-7-13-15-8-18 3-1 6 0 8 3 2-3 5-4 8-3 5 3 3 11-8 18z"/>`,2.4]].map(([x,y,f,d])=>`<g class="sg-float" style="animation-delay:-${d}s"><path class="sg-string" d="M${x} 22V${y-22}"/>${f}</g>`).join("")}</g>
+      <path class="sg-wire" d="M62 116v52M154 116v52M78 130v18M93 130v18M108 130v18M123 130v18M138 130v18"/><rect class="sg-surf sg-out" x="56" y="122" width="104" height="10" rx="4"/><rect class="sg-surf sg-out" x="56" y="148" width="104" height="10" rx="4"/><circle class="sg-acc sg-out" cx="62" cy="114" r="5"/><circle class="sg-acc sg-out" cx="154" cy="114" r="5"/>
+      ${petitCoeur(40,130,"sg-acc",.4)}${petitCoeur(180,124,"sg-acc",1.8)}
+      <path class="sg-wire" d="M262 114v54"/>${panel(206,40,108,74,8)}${label(260,72,22,"Un rôle")}${label(260,102,22,"pour toi")}`)
+  },
+  // Une baby shower : corde à linge et petits bodies, ballons, table et cadeau ; biberon dont les bulles montent, hochet qui s'agite
+  babyshower: {
+    wall: sceneWall(
+      `<pattern id="sc-linge" width="180" height="110" patternUnits="userSpaceOnUse"><path class="sc-line" d="M0 10Q90 30 180 10"/>${[[40,0],[130,1]].map(([x,i])=>`<path class="sc-b sc-out" d="M${x-15} 22h30l10 10-6 8-6-4v30h-32V36l-6 4-6-8z"/><rect class="sc-a sc-out" x="${x-14}" y="16" width="6" height="10"/><rect class="sc-a sc-out" x="${x+8}" y="16" width="6" height="10"/>`).join("")}</pattern>
+       <pattern id="sc-pois" width="70" height="70" patternUnits="userSpaceOnUse"><circle class="sc-a" cx="18" cy="18" r="4"/><circle class="sc-a" cx="52" cy="52" r="3"/></pattern>`,
+      fill("sc-pois") + at("0","6%",`<rect width="4000" height="110" fill="url(#sc-linge)"/>`) +
+      [["4%","40%",22],["10%","52%",16],["87%","38%",22],["93%","50%",16]].map(([x,y,r])=>at(x,y,ballon(r))).join("") +
+      plateau("90%") + at("72%","90%",`<g transform="translate(0 -36)">${paquet(40,36)}</g>`)),
+    sign: sceneSign(170, `${[[70,0],[60,.9],[80,1.8]].map(([x,d])=>`<g class="sg-rise" style="animation-delay:${d}s"><circle class="sg-surf sg-out" cx="${x}" cy="30" r="5"/></g>`).join("")}
+      <path class="sg-acc sg-out" d="M60 50q10-18 20 0z"/><rect class="sg-acc sg-out" x="54" y="50" width="32" height="10" rx="3"/>
+      <rect class="sg-ink" x="52" y="66" width="44" height="94" rx="12"/><rect class="sg-surf sg-out" x="46" y="60" width="44" height="94" rx="12"/>
+      <path class="sg-soft" d="M48 110h40v32a10 10 0 0 1-10 10H58a10 10 0 0 1-10-10z"/><path class="sg-score" d="M48 82h12M48 96h12M48 110h12M48 124h12"/>
+      <g class="sg-shake"><path class="sg-wire" d="M150 162v-60"/><circle class="sg-acc sg-out" cx="150" cy="82" r="24"/><circle class="sg-surf" cx="142" cy="74" r="5"/><circle class="sg-surf" cx="158" cy="88" r="4"/><circle class="sg-surf sg-out" cx="150" cy="166" r="6"/></g>
+      <path class="sg-wire" d="M256 114v54"/>${panel(198,40,116,74,8)}${label(256,72,22,"Bébé")}<text class="sg-text" x="256" y="102" font-size="22" text-anchor="middle">arrive <tspan class="sg-t-acc">!</tspan></text>`)
+  },
+  // Un repas de famille : suspensions, cadres (ordinateur), chaises et longue table dressée ; cocotte fumante dont le couvercle saute
+  repasfam: {
+    wall: sceneWall(
+      `<pattern id="sc-suspensions" width="200" height="130" patternUnits="userSpaceOnUse"><path class="sc-line" d="M100 0v70"/><path class="sc-b sc-out" d="M80 96l8-26h24l8 26z"/></pattern>
+       <pattern id="sc-dossiers" width="70" height="600" patternUnits="userSpaceOnUse"><path class="sc-a sc-out" d="M18 600V530a17 17 0 0 1 34 0v70z"/><path class="sc-line" d="M18 560h34"/></pattern>`,
+      `<rect width="100%" height="130" fill="url(#sc-suspensions)"/>` +
+      `<g class="hs-wide">${at("6%","38%",cadre(70,86))}${at("86%","34%",cadre(60,74))}</g>` +
+      at("0","84%",`<rect y="-100" width="4000" height="100" fill="url(#sc-dossiers)"/>`) + plateau("84%") +
+      at("30%","84%",`<path class="sc-line" d="M0 0v-14M60 0v-14M120 0v-14M180 0v-14"/>`)),
+    sign: sceneSign(170, `${[[84,0],[104,1.2],[124,2.2]].map(([x,d])=>`<g class="sg-rise" style="animation-delay:${d}s"><path class="sg-lline" d="M${x} 66q-6-8 0-16t0-16"/></g>`).join("")}
+      <path class="sg-wire" d="M40 110h-16a8 8 0 0 0 0 16h18M160 110h16a8 8 0 0 1 0 16h-18"/>
+      <path class="sg-ink" d="M50 106h112v26a30 30 0 0 1-30 30h-52a30 30 0 0 1-30-30z"/><path class="sg-acc sg-out" d="M44 100h112v26a30 30 0 0 1-30 30H74a30 30 0 0 1-30-30z"/>
+      <g class="sg-jiggle"><path class="sg-acc sg-out" d="M38 100q62-34 124 0z"/><rect class="sg-surf sg-out" x="90" y="72" width="20" height="10" rx="4"/></g>
+      <path class="sg-wire" d="M14 98v66M8 98v18M20 98v18M186 98v66"/><path class="sg-surf sg-out" d="M186 98q10 18 0 34z"/>
+      <path class="sg-wire" d="M256 114v54"/>${panel(198,52,116,50,8)}<text class="sg-text" x="256" y="85" font-size="23" text-anchor="middle">À table <tspan class="sg-t-acc">!</tspan></text>`)
   }
 };
 /* Scène de l'accueil : envoyer une demande. Décor de fond seulement (le mini-billet est l'élément principal),
@@ -3193,7 +3293,15 @@ const DECOR = {
   weekend:{shape:["leaf","leaf","heart","e:🧳","e:🚗","e:🌲"], move:"drift", cols:["#6E9E5B","#C8553D"], react:"gust", burst:["heart","leaf","star5","e:🧳","e:💕"],
     kcols:{leaf:["#6E9E5B","#C8553D","#D9A441"], heart:["#C8553D"], star5:["#D9A441"]}},
   dinerspecial:{shape:["flame","sparkle","e:🍷","e:🕯️","e:🌹","e:🍽️"], move:"twinkle", cols:["#F0A090","#F7C873"], react:"fall", burst:["sparkle","heart","confetti","e:🥂","e:💕"],
-    kcols:{flame:["#F0A090","#F7C873"], sparkle:["#F7C873","#FFF1E8"], heart:["#F0A090"], confetti:["#F7C873","#F0A090","#FFF1E8"]}}
+    kcols:{flame:["#F0A090","#F7C873"], sparkle:["#F7C873","#FFF1E8"], heart:["#F0A090"], confetti:["#F7C873","#F0A090","#FFF1E8"]}},
+  nouvelle:{shape:["q","sparkle","e:📣","e:✨","e:🤩"], move:"rise", cols:["#0E8C7F","#1D2550"], react:"fall", burst:["q","sparkle","confetti","e:🎉"], fw:true,
+    kcols:{q:["#0E8C7F","#1D2550","#7C8BE0"], sparkle:["#F2B544","#0E8C7F"], confetti:["#0E8C7F","#F2B544","#7C8BE0","#E8607A"]}},
+  parrain:{shape:["star5","heart","e:👶","e:🍼","e:🧸","e:⭐"], move:"drift", cols:["#8E6BD8","#F2C14E"], react:"gust", burst:["heart","star5","e:🧸","e:💕"],
+    kcols:{star5:["#F2C14E","#8E6BD8"], heart:["#8E6BD8","#F2A7B8"]}},
+  babyshower:{shape:["balloon","balloon","e:🍼","e:👶","e:🎀","e:🧸"], move:"rise", cols:["#E5608C","#7BC8B4"], react:"pop", burst:["confetti","balloon","e:🎀","e:🍼"],
+    kcols:{balloon:["#E5608C","#7BC8B4","#F7D06B","#A8C8F0"], confetti:["#E5608C","#7BC8B4","#F7D06B","#A8C8F0"]}},
+  repasfam:{shape:["heart","confetti","e:🍲","e:🥖","e:🍷","e:🧀"], move:"drift", cols:["#B5532E","#7A8B3A"], react:"gust", burst:["heart","confetti","e:🥂","e:🍲"],
+    kcols:{heart:["#B5532E","#7A8B3A"], confetti:["#B5532E","#7A8B3A","#E2B04A"]}}
 };
 
 const Decor = (() => {
