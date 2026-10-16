@@ -747,5 +747,81 @@ export const REFERENCES = [
       "d": "2027-03-20",
       "h": "19:30"
     }
+  },
+  {
+    "nom": "Nouvelle occasion et son ambiance (format compact y) : week-end en amoureux",
+    "lien": "yBcGxCsIwFIbRVynffIUYCNJ_6-Dq0qGDOAS8dTBJEQoWRPDdfLGe82FGDMU3jBUx5oqxoJiMF0rBuKBknFE0KkpHIyMm9-fB2x2joCv_X1dyV5e25kdzbsYbnUIfYvju",
+    "attendu": {
+      "f": "Alex",
+      "t": "Sam",
+      "q": "On s'offre un week-end rien qu'à deux ?",
+      "o": "weekend",
+      "th": "weekend",
+      "n": "fuit",
+      "tn": "romantique",
+      "an": "n",
+      "em": "❤️",
+      "c": "any",
+      "m": "Prépare juste un petit sac, je m'occupe du reste.",
+      "a": {
+        "v": "v",
+        "x": "Week-end"
+      },
+      "l": {
+        "v": "s",
+        "h": "À la montagne"
+      },
+      "d": "2027-05-08",
+      "h": "09:00"
+    }
+  },
+  {
+    "nom": "Nouvelle occasion et son ambiance (format compact y) : dîner un peu spécial",
+    "lien": "yBcExDoJAFEXRrZDb2PzCAAPx1dKhhTuYxG81DIpDJDFuyU24Mc95c0OM84pREKe4Ycyo7owHCrWRUWucUTAG1BgTCo0REcffN_uCkRAXf5a4LjGX6upV2g2bT_fkGC_U9Ye233_-",
+    "attendu": {
+      "f": "Lou",
+      "t": "Max",
+      "q": "Tu me laisses t'inviter à dîner ?",
+      "o": "dinerspecial",
+      "th": "dinerspecial",
+      "n": "transforme",
+      "tn": "romantique",
+      "an": "n",
+      "em": "🌹",
+      "c": "any",
+      "m": "Une jolie table, une belle soirée, et toi en face de moi.",
+      "a": {
+        "v": "v",
+        "x": "Dîner"
+      },
+      "l": {
+        "v": "v",
+        "x": "Restaurant de l'Exemple"
+      },
+      "d": "2027-04-17",
+      "h": "20:30"
+    }
+  },
+  {
+    "nom": "Occasion existante, ambiance écrite dans le lien (format compact y) : anniversaire de couple",
+    "lien": "yHcSrCoBAAETRf7l5wvpepltNNjEsqM0VQTCI_y54wnnYMMOREBemX9aMOHAtzv8Rl5XIuBIDbsSOiygSnmZx464NIYb3Aw",
+    "attendu": {
+      "f": "Noa",
+      "t": "Eden",
+      "q": "On fête notre anniversaire ensemble ?",
+      "o": "couple",
+      "th": "couple",
+      "n": "supplie",
+      "tn": "romantique",
+      "an": "n",
+      "c": "any",
+      "m": "J'ai envie de passer ce moment avec toi, rien qu'avec toi.",
+      "a": {
+        "v": "s",
+        "h": ""
+      },
+      "d": "2027-06-12",
+      "h": "20:00"
+    }
   }
 ];

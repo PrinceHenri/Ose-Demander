@@ -54,7 +54,13 @@ export const LINK_PHRASES = {
   "45": "Tu viens fêter mon anniversaire ?",
   "46": "Toute la famille sera là pour toi.",
   "47": "Tu viens à la fête surprise ?",
-  "48": "Surtout, pas un mot à la personne fêtée."
+  "48": "Surtout, pas un mot à la personne fêtée.",
+  // Ajoutés le 2026-10-16 (ambiances, lot 2)
+  "49": "Ton jour, rien que pour toi : je m'occupe de tout.",
+  "50": "On s'offre un week-end rien qu'à deux ?",
+  "51": "Prépare juste un petit sac, je m'occupe du reste.",
+  "52": "Tu me laisses t'inviter à dîner ?",
+  "53": "Une jolie table, une belle soirée, et toi en face de moi."
 };
 
 export const LINK_OCC = {
@@ -81,7 +87,9 @@ export const LINK_OCC = {
   "21": "paques",
   "22": "musique",
   "23": "monanniv",
-  "24": "fetesurprise"
+  "24": "fetesurprise",
+  "25": "weekend",
+  "26": "dinerspecial"
 };
 
 export const LINK_TH = {
@@ -105,7 +113,11 @@ export const LINK_TH = {
   "18": "monanniv",
   "19": "annivfam",
   "20": "temoin",
-  "21": "fetesurprise"
+  "21": "fetesurprise",
+  "22": "annivamour",
+  "23": "couple",
+  "24": "weekend",
+  "25": "dinerspecial"
 };
 
 export const LINK_NO = {

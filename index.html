@@ -95,6 +95,14 @@
   --pattern:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='90' height='90'%3E%3Ccircle cx='20' cy='24' r='7' fill='none' stroke='%23C9A227' stroke-opacity='.3' stroke-width='2'/%3E%3Ccircle cx='28' cy='24' r='7' fill='none' stroke='%23C9A227' stroke-opacity='.3' stroke-width='2'/%3E%3C/svg%3E");}
 [data-theme="fetesurprise"]{--bg:#E7F5FF;--ink:#10233F;--muted:#41597A;--line:#B8DBF2;--accent:#F2427F;--soft:#F3FAFF;--accent-text:#D31C66;--accent-btn:#DC296D;--accent-seal:#F2427F;
   --pattern:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='90' height='90'%3E%3Crect x='18' y='18' width='9' height='4' rx='2' transform='rotate(-25 22 20)' fill='%23F2427F' fill-opacity='.25'/%3E%3Ccircle cx='66' cy='62' r='3' fill='%2310233F' fill-opacity='.1'/%3E%3C/svg%3E");}
+[data-theme="annivamour"]{--bg:#FBF3EA;--ink:#3E1F2B;--muted:#7A5260;--line:#EED8C8;--accent:#B83A6B;--soft:#FFFAF5;--accent-text:#B83A6B;--accent-btn:#B83A6B;--accent-seal:#C24474;
+  --pattern:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='90' height='90'%3E%3Cpath d='M22 30c-5-7-15-2-10 6l10 10 10-10c5-8-5-13-10-6z' fill='%23B83A6B' fill-opacity='.12'/%3E%3Ccircle cx='66' cy='64' r='3' fill='%23E0B84C' fill-opacity='.35'/%3E%3C/svg%3E");}
+[data-theme="couple"]{--bg:#F1ECF7;--ink:#33193F;--muted:#6C5480;--line:#DCCDEA;--accent:#C2185B;--soft:#F9F6FC;--accent-text:#C2185B;--accent-btn:#C2185B;--accent-seal:#CD2763;
+  --pattern:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='90' height='90'%3E%3Crect x='14' y='14' width='18' height='22' rx='2' fill='none' stroke='%2333193F' stroke-opacity='.12' stroke-width='2'/%3E%3Cpath d='M66 66c-3-5-10-2-7 3l7 7 7-7c3-5-4-8-7-3z' fill='%23C2185B' fill-opacity='.14'/%3E%3C/svg%3E");}
+[data-theme="weekend"]{--bg:#EEF3EA;--ink:#20331F;--muted:#546A52;--line:#CDDCC6;--accent:#C8553D;--soft:#F7FAF5;--accent-text:#BA4831;--accent-btn:#C5523A;--accent-seal:#C8553D;
+  --pattern:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='90' height='90'%3E%3Cpath d='M22 12l10 18H12z' fill='%2320331F' fill-opacity='.1'/%3E%3Cpath d='M66 58c-3-5-10-2-7 3l7 7 7-7c3-5-4-8-7-3z' fill='%23C8553D' fill-opacity='.16'/%3E%3C/svg%3E");}
+[data-theme="dinerspecial"]{--bg:#26131D;--surface:#351C29;--accent-ink:#26131D;--ink:#FFF1E8;--muted:#D9B8C2;--line:#50293C;--accent:#F0A090;--soft:#2E1823;--accent-text:#F0A090;--accent-btn:#F0A090;--accent-seal:#C47869;
+  --pattern:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='90' height='90'%3E%3Cpath d='M22 14l3 7 7 3-7 3-3 7-3-7-7-3 7-3z' fill='%23F0A090' fill-opacity='.3'/%3E%3Ccircle cx='66' cy='64' r='1.5' fill='%23FFF1E8' fill-opacity='.4'/%3E%3C/svg%3E");}
 
 *{box-sizing:border-box}
 html{height:100%;scroll-padding-top:env(safe-area-inset-top,0px)}
@@ -180,7 +188,7 @@ textarea.input{min-height:90px;resize:vertical}
 .btn.primary:active{box-shadow:1px 1px 0 var(--ink)}
 .btn.ghost{background:transparent}
 .error{color:#B3122E;background:#FFE3E8;border-radius:10px;padding:8px 12px;font-size:14px;margin:12px 0 0}
-[data-theme="mystere"] .error,[data-theme="halloween"] .error,[data-theme="reveillon"] .error{color:#FFD0D8;background:#4A1F3A}
+[data-theme="mystere"] .error,[data-theme="halloween"] .error,[data-theme="reveillon"] .error,[data-theme="dinerspecial"] .error{color:#FFD0D8;background:#4A1F3A}
 .recap{list-style:none;padding:0;margin:0 0 16px}
 .recap li{display:grid;grid-template-columns:120px 1fr;gap:10px;padding:10px 0;border-bottom:1px solid var(--line);font-size:15px}
 .recap li b{color:var(--muted);font-weight:600}
@@ -418,7 +426,12 @@ textarea.input{min-height:90px;resize:vertical}
 .sg-mid{transform-box:view-box;transform-origin:160px 66px}
 .sg-ring{fill:none;stroke:var(--accent);stroke-width:8}
 .sg-ringo{fill:none;stroke:var(--ink);stroke-width:14}
+.sg-hearto{fill:none;stroke:var(--accent-text);stroke-width:4;stroke-linejoin:round}
 .sg-flame{transform-box:fill-box;transform-origin:50% 100%}
+.sg-rise,.sg-spin,.sg-roll,.sg-lift,.sg-flip,.sg-fly{transform-box:fill-box}
+.sg-spin{transform-origin:50% 50%}
+.sg-roll,.sg-lift{transform-origin:50% 100%}
+.sg-flip{transform-origin:100% 0}
 .sg-rib{fill:none;stroke:var(--accent-seal);stroke-width:3;stroke-linecap:round}
 .sg-swing{transform-origin:50% 0}
 .sg-flutter{transform-origin:50% 0}
@@ -448,6 +461,26 @@ textarea.input{min-height:90px;resize:vertical}
 .scene-sign.anim-n .sg-flame{animation:sg-flame 1.1s ease-in-out infinite alternate}
 .scene-sign.anim-d .sg-flame{animation:sg-flame 2.4s ease-in-out infinite alternate}
 @keyframes sg-flame{from{transform:scale(1,1) rotate(-4deg)}to{transform:scale(.85,1.12) rotate(4deg)}}
+.scene-sign.anim-n .sg-rise{animation:sg-rise 3s ease-out infinite both}
+.scene-sign.anim-d .sg-rise{animation:sg-rise-d 6s ease-out infinite both}
+.scene-sign.anim-n .sg-spin{animation:sg-spin 18s linear infinite}
+.scene-sign.anim-d .sg-spin{animation:sg-spin 40s linear infinite}
+.scene-sign.anim-n .sg-roll{animation:sg-roll 3s ease-in-out infinite}
+.scene-sign.anim-d .sg-roll{animation:sg-roll-d 6s ease-in-out infinite}
+.scene-sign.anim-n .sg-lift{animation:sg-lift 4s ease-in-out infinite}
+.scene-sign.anim-d .sg-lift{animation:sg-lift-d 7s ease-in-out infinite}
+.scene-sign.anim-n .sg-flip{animation:sg-flip 3.5s ease-in-out infinite}
+.scene-sign.anim-n .sg-fly{animation:sg-fly 6s ease-in-out infinite}
+.scene-sign.anim-d .sg-fly{animation:sg-fly 12s ease-in-out infinite}
+@keyframes sg-rise{0%{transform:translateY(0);opacity:0}15%{opacity:1}100%{transform:translateY(-40px);opacity:0}}
+@keyframes sg-rise-d{0%{transform:translateY(0);opacity:0}25%{opacity:.8}100%{transform:translateY(-20px);opacity:0}}
+@keyframes sg-spin{to{transform:rotate(360deg)}}
+@keyframes sg-roll{0%,100%{transform:translateX(-5px) rotate(-1.5deg)}50%{transform:translateX(5px) rotate(1.5deg)}}
+@keyframes sg-roll-d{0%,100%{transform:translateX(-2px)}50%{transform:translateX(2px)}}
+@keyframes sg-lift{0%,55%,100%{transform:none}20%,40%{transform:translateY(-22px) rotate(-7deg)}}
+@keyframes sg-lift-d{0%,60%,100%{transform:none}25%,45%{transform:translateY(-10px)}}
+@keyframes sg-flip{0%,60%,100%{transform:none}75%{transform:scale(1.6) rotate(-6deg)}}
+@keyframes sg-fly{0%,100%{transform:translate(-14px,4px)}50%{transform:translate(14px,-6px)}}
 .scene-sign.anim-n .sg-mid{animation:sg-mid 8s steps(4,end) infinite}
 @keyframes sg-mid{from{transform:rotate(-18deg)}to{transform:rotate(6deg)}}
 @keyframes sg-wobble{0%,100%{transform:rotate(-2deg)}50%{transform:rotate(2deg)}}
@@ -517,8 +550,10 @@ const OCCASIONS = [
     {id:"date", label:"Un rendez-vous", theme:"amour", createTheme:"date", q:"Ça te dit un rendez-vous avec moi ?"},
     // createTheme : thème proposé à la création (saison ou ambiance) ; theme reste celui du décodage (les liens déjà envoyés ne changent pas)
     {id:"valentin", label:"La Saint-Valentin", theme:"amour", createTheme:"valentin", q:"Tu passes la Saint-Valentin avec moi ?"},
-    {id:"annivamour", label:"L'anniversaire de mon amour", theme:"amour", q:"Je peux t'emmener fêter ton anniversaire ?"},
-    {id:"couple", label:"Notre anniversaire de couple", theme:"amour", q:"On fête notre anniversaire ensemble ?"},
+    {id:"annivamour", label:"L'anniversaire de mon amour", theme:"amour", createTheme:"annivamour", q:"Je peux t'emmener fêter ton anniversaire ?"},
+    {id:"couple", label:"Notre anniversaire de couple", theme:"amour", createTheme:"couple", q:"On fête notre anniversaire ensemble ?"},
+    {id:"weekend", label:"Un week-end en amoureux", theme:"weekend", q:"On s'offre un week-end rien qu'à deux ?"},
+    {id:"dinerspecial", label:"Un dîner un peu spécial", theme:"dinerspecial", q:"Tu me laisses t'inviter à dîner ?"},
     // Retirée de la création (old:1), gardée pour que les anciens liens s'ouvrent à l'identique
     {id:"mariage", label:"Une demande en mariage", theme:"amour", q:"Veux-tu m'épouser ?", old:1}
   ]},
@@ -646,7 +681,11 @@ const THEMES = [
   {id:"monanniv", name:"Mon anniversaire", c:"#FBEFFA", a:"#8A3FE0", so:"#FFF7FE", i:"#36154A"},
   {id:"annivfam", name:"Anniversaire en famille", c:"#FFF5DF", a:"#E8590C", so:"#FFFAEE", i:"#3A2412"},
   {id:"temoin", name:"Témoin", c:"#F4F2EC", a:"#C9A227", so:"#FAF9F5", i:"#1F2A36"},
-  {id:"fetesurprise", name:"Fête surprise", c:"#E7F5FF", a:"#F2427F", so:"#F3FAFF", i:"#10233F"}
+  {id:"fetesurprise", name:"Fête surprise", c:"#E7F5FF", a:"#F2427F", so:"#F3FAFF", i:"#10233F"},
+  {id:"annivamour", name:"Anniversaire de mon amour", c:"#FBF3EA", a:"#B83A6B", so:"#FFFAF5", i:"#3E1F2B"},
+  {id:"couple", name:"Anniversaire de couple", c:"#F1ECF7", a:"#C2185B", so:"#F9F6FC", i:"#33193F"},
+  {id:"weekend", name:"Week-end en amoureux", c:"#EEF3EA", a:"#C8553D", so:"#F7FAF5", i:"#20331F"},
+  {id:"dinerspecial", name:"Dîner un peu spécial", c:"#26131D", a:"#F0A090", s:"#351C29", so:"#2E1823", i:"#FFF1E8"}
 ];
 /* Couleurs d'accent (facultatives). Une couleur n'est utilisée que si elle reste lisible sur le thème. */
 const ACCENTS = [
@@ -972,14 +1011,18 @@ const LINK_PHRASES = {
   41:"Tu viens fêter Pâques avec moi ?", 42:"Il y aura du chocolat, c'est promis.",
   43:"On sort pour la fête de la musique ?", 44:"Prépare tes oreilles, la soirée va être longue.",
   45:"Tu viens fêter mon anniversaire ?", 46:"Toute la famille sera là pour toi.",
-  47:"Tu viens à la fête surprise ?", 48:"Surtout, pas un mot à la personne fêtée."
+  47:"Tu viens à la fête surprise ?", 48:"Surtout, pas un mot à la personne fêtée.",
+  49:"Ton jour, rien que pour toi : je m'occupe de tout.", 50:"On s'offre un week-end rien qu'à deux ?",
+  51:"Prépare juste un petit sac, je m'occupe du reste.", 52:"Tu me laisses t'inviter à dîner ?",
+  53:"Une jolie table, une belle soirée, et toi en face de moi."
 };
 const LINK_OCC = {1:"date",2:"valentin",3:"annivamour",4:"couple",5:"mariage",6:"meres",7:"peres",8:"grands",
   9:"annivfam",10:"sortie",11:"annivami",12:"temoin",13:"surprise",14:"pardon",15:"juste",16:"libre",
-  17:"halloween",18:"noel",19:"reveillon",20:"galette",21:"paques",22:"musique",23:"monanniv",24:"fetesurprise"};
+  17:"halloween",18:"noel",19:"reveillon",20:"galette",21:"paques",22:"musique",23:"monanniv",24:"fetesurprise",25:"weekend",26:"dinerspecial"};
 const LINK_TH = {1:"base",2:"amour",3:"maman",4:"papa",5:"amis",6:"fete",7:"mystere",8:"halloween",9:"noel",10:"reveillon",
   11:"galette",12:"valentin",13:"paques",14:"meres",15:"peres",16:"musique",
-  17:"date",18:"monanniv",19:"annivfam",20:"temoin",21:"fetesurprise"};
+  17:"date",18:"monanniv",19:"annivfam",20:"temoin",21:"fetesurprise",
+  22:"annivamour",23:"couple",24:"weekend",25:"dinerspecial"};
 const LINK_NO = {1:"fuit",2:"retrecit",3:"supplie",4:"transforme"};
 const LINK_CH = {1:"any",2:"wa",3:"sms",4:"snap",5:"ig",6:"fb"};
 const LINK_AN = {1:"n",2:"d",3:"0"};
@@ -1159,8 +1202,14 @@ const TEMPLATES = [
     q:"Ça te dit un rendez-vous avec moi ?", msg:"Prépare ton plus beau sourire, je m'occupe du reste."},
   {id:"valentin", cat:"Amour", label:"Saint-Valentin", short:"Saint-Valentin", occ:"valentin", theme:"valentin", no:"retrecit", tone:"romantique", em:"🌹",
     q:"Tu passes la Saint-Valentin avec moi ?", msg:"Tu n'as rien à prévoir, juste à dire oui."},
-  {id:"couple", cat:"Amour", label:"Notre anniversaire de couple", short:"couple", occ:"couple", theme:"amour", no:"supplie", tone:"romantique", em:"❤️",
+  {id:"annivamour", cat:"Amour", label:"L'anniversaire de mon amour", short:"anniversaire de mon amour", occ:"annivamour", theme:"annivamour", no:"retrecit", tone:"romantique", em:"🎂",
+    q:"Je peux t'emmener fêter ton anniversaire ?", msg:"Ton jour, rien que pour toi : je m'occupe de tout."},
+  {id:"couple", cat:"Amour", label:"Notre anniversaire de couple", short:"couple", occ:"couple", theme:"couple", no:"supplie", tone:"romantique", em:"❤️",
     q:"On fête notre anniversaire ensemble ?", msg:"J'ai envie de passer ce moment avec toi, rien qu'avec toi."},
+  {id:"weekend", cat:"Amour", label:"Un week-end en amoureux", short:"week-end en amoureux", occ:"weekend", theme:"weekend", no:"fuit", tone:"romantique", em:"❤️",
+    q:"On s'offre un week-end rien qu'à deux ?", msg:"Prépare juste un petit sac, je m'occupe du reste."},
+  {id:"dinerspecial", cat:"Amour", label:"Un dîner un peu spécial", short:"dîner un peu spécial", occ:"dinerspecial", theme:"dinerspecial", no:"transforme", tone:"romantique", em:"🌹",
+    q:"Tu me laisses t'inviter à dîner ?", msg:"Une jolie table, une belle soirée, et toi en face de moi."},
   {id:"meres", cat:"Famille", label:"Fête des mères", short:"fête des mères", occ:"meres", theme:"meres", no:"transforme", tone:"mignon", em:"🌷",
     q:"Maman, je t'emmène pour la fête des mères ?", msg:"Tu t'occupes toujours de nous, cette fois c'est mon tour."},
   {id:"peres", cat:"Famille", label:"Fête des pères", short:"fête des pères", occ:"peres", theme:"peres", no:"retrecit", tone:"drole", em:"👔",
@@ -2135,6 +2184,8 @@ const ballon = (r=22) => `<path class="sc-line" d="M0 ${Math.round(r*1.2)}q-8 40
 const paquet = (w, h, c="b") => `<rect class="sc-${c} sc-out" width="${w}" height="${h}" rx="2"/><path class="sc-line" d="M${w/2} 0v${h}M0 ${Math.round(h*.4)}h${w}"/>`;
 const cadre = (w, h) => `<rect class="sc-b sc-out" width="${w}" height="${h}" rx="3"/><rect class="sc-a sc-out" x="7" y="7" width="${w-14}" height="${h-14}"/>`;
 const plateau = y => at("0", y, `<rect class="sc-b sc-out" x="-4" width="4000" height="16"/><rect class="sc-a" y="16" width="4000" height="1000"/>`);
+// Petit cœur (14 px de large) dont le bas est en (x, y) ; « montant » : s'élève et s'efface, l'un après l'autre
+const petitCoeur = (x, y, c="sg-acc", d=0) => `<g class="sg-rise" style="animation-delay:${d}s"><path class="${c} sg-out" d="M${x} ${y}c-8-5-10-12-5-14 2-1 4 0 5 2 1-2 3-3 5-2 5 2 3 9-5 14z"/></g>`;
 // Gâteau à étages (du bas vers le haut), coulis à l'accent, bougies dont la flamme vacille
 function gateau(cx, base, tiers, bougies){
   let s="", y=base, w=120;
@@ -2469,6 +2520,68 @@ const SCENES = {
       <g class="sg-glow"><path class="sg-lin sg-out" d="M40 42l4 8 8 2-6 6 2 8-8-4-8 4 2-8-6-6 8-2zM166 34l4 8 8 2-6 6 2 8-8-4-8 4 2-8-6-6 8-2z"/></g>
       <path class="sg-acc" d="M70 40l6 3-3 6zM132 46l7-1-2 7z"/>
       <path class="sg-wire" d="M255 114v54"/>${panel(198,40,114,74,8)}${label(255,72,22,"Pas un")}<text class="sg-text" x="255" y="102" font-size="22" text-anchor="middle">mot <tspan class="sg-t-acc">!</tspan></text>`)
+  },
+  // L'anniversaire de mon amour : ampoules, petits cœurs, ballons, table ; gâteau en forme de cœur et sa bougie
+  annivamour: {
+    wall: sceneWall(
+      ampoules("sc-ampoules-am") + `<pattern id="sc-petitscoeurs" width="140" height="140" patternUnits="userSpaceOnUse"><path class="sc-a" d="M35 40c-4-6-13-3-9 4l9 9 9-9c4-7-5-10-9-4zM105 110c-3-5-10-2-7 3l7 7 7-7c3-5-4-8-7-3z"/><circle class="sc-a" cx="105" cy="35" r="3"/></pattern>`,
+      fill("sc-petitscoeurs") + `<rect width="100%" height="40" fill="url(#sc-ampoules-am)"/>` +
+      [["5%","32%",22],["11%","44%",16],["87%","30%",22],["93%","42%",16]].map(([x,y,r])=>at(x,y,ballon(r))).join("") + plateau("90%")),
+    sign: sceneSign(170, `${gateau(100,164,2,2)}<path class="sg-wire" d="M100 96V46"/>
+      <g class="sg-beat"><path class="sg-ink" d="M103 49c-18-11-21-25-12-30 5-2 10 0 12 5 2-5 7-7 12-5 9 5 6 19-12 30z"/><path class="sg-acc sg-out" d="M100 46c-18-11-21-25-12-30 5-2 10 0 12 5 2-5 7-7 12-5 9 5 6 19-12 30z"/></g>
+      ${petitCoeur(38,112,"sg-acc",0)}${petitCoeur(164,104,"sg-surf",1)}${petitCoeur(52,70,"sg-surf",2)}${petitCoeur(150,62,"sg-acc",.5)}
+      <g class="sg-glow"><path class="sg-acc sg-out" d="M30 40l3 7 7 3-7 3-3 7-3-7-7-3 7-3zM172 30l3 7 7 3-7 3-3 7-3-7-7-3 7-3z"/></g>
+      <path class="sg-wire" d="M256 114v54"/>${panel(200,40,112,74,8)}${label(256,72,22,"Rien que")}${label(256,102,22,"pour toi")}`)
+  },
+  // Notre anniversaire de couple : photos-souvenirs accrochées à une ficelle ; calendrier dont une date est entourée d'un cœur qui bat
+  couple: {
+    wall: sceneWall(
+      `<pattern id="sc-photos" width="170" height="120" patternUnits="userSpaceOnUse"><path class="sc-line" d="M0 10Q85 34 170 10"/>${[[50,-6],[125,5]].map(([x,r])=>`<g transform="rotate(${r} ${x} 46)"><rect class="sc-b sc-out" x="${x-22}" y="20" width="44" height="52" rx="2"/><rect class="sc-a" x="${x-17}" y="25" width="34" height="32"/><rect class="sc-a sc-out" x="${x-4}" y="13" width="8" height="12"/></g>`).join("")}</pattern>
+       <pattern id="sc-points" width="60" height="60" patternUnits="userSpaceOnUse"><circle class="sc-a" cx="15" cy="15" r="3"/></pattern>`,
+      fill("sc-points") + at("0","7%",`<rect width="4000" height="120" fill="url(#sc-photos)"/>`) + `<g class="hs-wide">${at("0","44%",`<rect width="4000" height="120" fill="url(#sc-photos)"/>`)}</g>` +
+      plateau("90%") + at("8%","90%",`<g transform="translate(0 -64)">${cadre(52,64)}</g>`)),
+    sign: sceneSign(172, `<rect class="sg-ink" x="36" y="36" width="120" height="132" rx="8"/><rect class="sg-surf sg-out" x="30" y="30" width="120" height="132" rx="8"/>
+      <path class="sg-acc sg-out" d="M30 38a8 8 0 0 1 8-8h104a8 8 0 0 1 8 8v22H30z"/><path class="sg-wire" d="M62 22v18M118 22v18"/>
+      <path class="sg-score" d="${Array.from({length:4},(_,r)=>Array.from({length:5},(_,c)=>`M${41+c*22} ${80+r*22}h10`).join("")).join("")}"/>
+      <g class="sg-flip"><path class="sg-soft sg-out" d="M150 136v18a8 8 0 0 1-8 8h-18z"/></g>
+      <g class="sg-beat"><path class="sg-hearto" d="M95 134c-15-9-18-21-10-25 4-2 8 0 10 4 2-4 6-6 10-4 8 4 5 16-10 25z"/></g>
+      ${petitCoeur(80,104,"sg-acc",0)}${petitCoeur(112,100,"sg-acc",1.2)}
+      <g class="sg-swing" style="animation-delay:-1s"><path class="sg-string" d="M172 6v14"/><g transform="rotate(8 172 50)"><rect class="sg-surf sg-out" x="154" y="20" width="36" height="44" rx="2"/><rect class="sg-soft" x="159" y="25" width="26" height="26"/><path class="sg-acc" d="M172 44c-6-4-8-9-4-11 2-1 3 0 4 2 1-2 2-3 4-2 4 2 2 7-4 11z"/><circle class="sg-acc sg-out" cx="172" cy="18" r="4"/></g></g>
+      <path class="sg-wire" d="M262 114v54"/>${panel(206,40,108,74,8)}${label(260,72,22,"Notre")}${label(260,102,22,"jour")}`)
+  },
+  // Un week-end en amoureux : soleil, montagnes, sapins, chalet ; valise dont l'étiquette en cœur se balance
+  weekend: {
+    wall: sceneWall(
+      `<pattern id="sc-monts" width="500" height="600" patternUnits="userSpaceOnUse"><path class="sc-a sc-out" d="M0 600V470L120 340l80 80 110-130 120 140 70-50V600z"/><path class="sc-line" d="M310 290l-24 28 18-4M120 340l-18 22 14-4"/></pattern>
+       <pattern id="sc-sapins" width="64" height="600" patternUnits="userSpaceOnUse"><path class="sc-b sc-out" d="M32 470l20 34H40l16 30H8l16-30H12z"/><path class="sc-line" d="M32 534v16"/></pattern>`,
+      at("10%","7%",`<circle class="sc-b sc-out" cx="30" cy="30" r="30"/>`) +
+      at("0","100%",`<rect y="-330" width="4000" height="330" fill="url(#sc-monts)"/><rect y="-130" width="4000" height="130" fill="url(#sc-sapins)"/>`) +
+      at("80%","100%",`<g transform="translate(0 -120)"><path class="sc-b sc-out" d="M10 120V50h100v70z"/><path class="sc-a sc-out" d="M0 54L60 0l60 54z"/><rect class="sc-a sc-out" x="46" y="80" width="28" height="40"/><rect class="sc-a sc-out" x="20" y="64" width="18" height="16"/><path class="sc-line" d="M86 22V6h10v26"/></g>`)),
+    sign: sceneSign(170, `<g class="sg-spin"><path class="sg-wire" d="${Array.from({length:8},(_,i)=>{ const a=i*Math.PI/4; return `M${(30+19*Math.cos(a)).toFixed(1)} ${(30+19*Math.sin(a)).toFixed(1)}L${(30+27*Math.cos(a)).toFixed(1)} ${(30+27*Math.sin(a)).toFixed(1)}`; }).join("")}"/></g>
+      <circle class="sg-acc sg-out" cx="30" cy="30" r="13"/>
+      <g class="sg-fly"><path class="sg-wire" d="M150 26q6-7 12 0q6-7 12 0M178 40q5-6 10 0q5-6 10 0"/></g>
+      <g class="sg-roll"><path class="sg-wire" d="M78 70V50a10 10 0 0 1 10-10h24a10 10 0 0 1 10 10v20"/>
+        <rect class="sg-ink" x="46" y="76" width="120" height="84" rx="12"/><rect class="sg-acc sg-out" x="40" y="70" width="120" height="84" rx="12"/>
+        <path class="sg-surf sg-out" d="M66 70h12v84H66zM122 70h12v84h-12z"/><circle class="sg-ink" cx="60" cy="160" r="5"/><circle class="sg-ink" cx="140" cy="160" r="5"/>
+        <g class="sg-swing"><path class="sg-string" d="M150 80l14 18"/><g transform="rotate(14 172 112)"><rect class="sg-surf sg-out" x="156" y="96" width="32" height="34" rx="4"/><path class="sg-acc" d="M172 122c-7-5-9-11-5-13 2-1 4 0 5 2 1-2 3-3 5-2 4 2 2 8-5 13z"/></g></g></g>
+      <path class="sg-wire" d="M256 114v54"/>${panel(194,40,124,74,8)}${label(256,72,21,"Rien")}${label(256,102,21,"qu'à deux")}`)
+  },
+  // Un dîner un peu spécial : salle de restaurant le soir (fenêtres sur la nuit, lustres, tables) ; cloche soulevée sur un cœur, bougies
+  dinerspecial: {
+    wall: sceneWall(
+      `<pattern id="sc-losanges-d" width="60" height="60" patternUnits="userSpaceOnUse"><path class="sc-line" d="M30 18l12 12-12 12-12-12z"/></pattern>
+       <pattern id="sc-lustres" width="180" height="110" patternUnits="userSpaceOnUse"><path class="sc-line" d="M90 0v60"/><path class="sc-b sc-out" d="M66 80a24 20 0 0 1 48 0z"/></pattern>
+       <pattern id="sc-tables" width="150" height="600" patternUnits="userSpaceOnUse"><path class="sc-b sc-out" d="M20 540h110l10 60H10z"/><path class="sc-line" d="M75 540v-22M60 540v-14M90 540v-14"/></pattern>`,
+      fill("sc-losanges-d") + `<rect width="100%" height="110" fill="url(#sc-lustres)"/>` +
+      `<g class="hs-wide">${[["5%","32%"],["86%","32%"]].map(([x,y])=>at(x,y,`<path class="sc-a sc-out" d="M0 160V50a45 45 0 0 1 90 0v110z"/><path class="sc-line" d="M45 6v154M0 92h90"/><circle class="sc-b" cx="66" cy="40" r="3"/>`)).join("")}</g>` +
+      at("0","100%",`<rect y="-90" width="4000" height="90" fill="url(#sc-tables)"/>`)),
+    sign: sceneSign(170, `<ellipse class="sg-surf sg-out" cx="100" cy="134" rx="70" ry="11"/>
+      <path class="sg-acc sg-out" d="M100 130c-13-8-15-19-9-22 4-2 7 0 9 3 2-3 5-5 9-3 6 3 4 14-9 22z"/>
+      ${petitCoeur(86,118,"sg-acc",.4)}${petitCoeur(114,116,"sg-surf",1.6)}
+      <g class="sg-lift"><path class="sg-soft sg-out" d="M50 112a50 44 0 0 1 100 0z"/><circle class="sg-soft sg-out" cx="100" cy="62" r="7"/><path class="sg-score" d="M70 98q10-22 30-26"/></g>
+      ${[18,182].map(x=>`<rect class="sg-surf sg-out" x="${x-3}" y="100" width="6" height="44"/><path class="sg-acc sg-out sg-flame" d="M${x} 82q7 9 0 14q-7-5 0-14z"/>`).join("")}
+      <g class="sg-glow"><path class="sg-acc sg-out" d="M46 40l3 7 7 3-7 3-3 7-3-7-7-3 7-3zM156 34l3 7 7 3-7 3-3 7-3-7-7-3 7-3z"/></g>
+      <path class="sg-wire" d="M256 114v54"/>${panel(194,40,124,74,8)}${label(256,72,21,"Table")}${label(256,102,21,"pour deux")}`)
   }
 };
 /* Scène de l'accueil : envoyer une demande. Décor de fond seulement (le mini-billet est l'élément principal),
@@ -3053,7 +3166,15 @@ const DECOR = {
   temoin:{shape:["petal","petal","ring"], move:"fall", cols:["#E7B8A8","#C9A227"], react:"gust", burst:["petal","heart","sparkle","ring"],
     kcols:{petal:["#E7B8A8","#E9C46A","#D9C7B8"], ring:["#C9A227"], heart:["#E7B8A8"], sparkle:["#C9A227"]}},
   fetesurprise:{shape:["confetti","star5","balloon"], move:"fall", cols:["#F2427F","#3DB8F5"], react:"gust", burst:["confetti","balloon","star5"],
-    kcols:{confetti:["#F2427F","#3DB8F5","#FFC94A","#7BD389"], balloon:["#F2427F","#3DB8F5","#FFC94A"], star5:["#FFC94A"]}}
+    kcols:{confetti:["#F2427F","#3DB8F5","#FFC94A","#7BD389"], balloon:["#F2427F","#3DB8F5","#FFC94A"], star5:["#FFC94A"]}},
+  annivamour:{shape:["heart","heart","confetti","e:🎂","e:🎁","e:🌹","e:💖"], move:"rise", cols:["#B83A6B","#E07A9E"], react:"break", burst:["heart","confetti","star5","e:💖","e:🎉"],
+    kcols:{heart:["#B83A6B","#E07A9E","#F2B8C6"], confetti:["#E0B84C","#B83A6B","#F2B8C6"], star5:["#E0B84C"]}},
+  couple:{shape:["heart","heart","photo","e:💑","e:💍","e:📸"], move:"drift", cols:["#C2185B","#E7709A"], react:"break", burst:["heart","photo","confetti","e:💑","e:🥂"],
+    kcols:{heart:["#C2185B","#E7709A"], photo:["#FFFFFF"], confetti:["#C2185B","#E7709A","#9B7BD1"]}},
+  weekend:{shape:["leaf","leaf","heart","e:🧳","e:🚗","e:🌲"], move:"drift", cols:["#6E9E5B","#C8553D"], react:"gust", burst:["heart","leaf","star5","e:🧳","e:💕"],
+    kcols:{leaf:["#6E9E5B","#C8553D","#D9A441"], heart:["#C8553D"], star5:["#D9A441"]}},
+  dinerspecial:{shape:["flame","sparkle","e:🍷","e:🕯️","e:🌹","e:🍽️"], move:"twinkle", cols:["#F0A090","#F7C873"], react:"fall", burst:["sparkle","heart","confetti","e:🥂","e:💕"],
+    kcols:{flame:["#F0A090","#F7C873"], sparkle:["#F7C873","#FFF1E8"], heart:["#F0A090"], confetti:["#F7C873","#F0A090","#FFF1E8"]}}
 };
 
 const Decor = (() => {
@@ -3075,7 +3196,6 @@ const Decor = (() => {
     const kind=Array.isArray(c.shape) ? pick(c.shape) : c.shape;
     const p={x:rnd(0,W), y:rnd(0,H), s:rnd(6,11), r:rnd(0,6.28), vr:rnd(-.015,.015)*k, k:kind, c:pick((c.kcols&&c.kcols[kind])||c.cols), ph:rnd(0,6.28), a:rnd(.27,.62), st:null, n:0, vx:0, vy:0,
       ox:0, oy:0, vox:0, voy:0}; // écart dû au pointeur (revient à 0 tout seul)
-    if(kind.startsWith("e:")){ p.a=rnd(.6,.9); p.s=rnd(10,14); } // emojis : plus visibles, à peine plus grands
     if(eff()==="d") p.a*=.75;
     switch(c.move){
       case "rise": p.vy=-rnd(.25,.6)*k; if(!initial) p.y=H+20; break;
@@ -3085,6 +3205,7 @@ const Decor = (() => {
       case "twinkle": p.s=rnd(4,9); break;
       case "fly": { const d=Math.random()<.5?-1:1; p.vx=d*rnd(.35,.8)*k; p.s=rnd(8,13); if(!initial) p.x=d>0?-25:W+25; break; }
     }
+    if(kind.startsWith("e:")){ p.a=rnd(.6,.9)*(eff()==="d"?.75:1); p.s=rnd(10,14); } // emojis : plus visibles, à peine plus grands (quel que soit le mouvement)
     return p;
   }
   // Nombre d'éléments : Normales 18 (téléphone) ou 26 (ordinateur), Discrètes 10
@@ -3178,6 +3299,12 @@ const Decor = (() => {
       case "ring":
         ctx.lineWidth=Math.max(2,s*.28); ctx.arc(0,s*.15,s*.6,0,Math.PI*2); ctx.stroke();
         ctx.fillStyle="#BFE3F2"; ctx.beginPath(); ctx.moveTo(0,-s*.95); ctx.lineTo(s*.3,-s*.62); ctx.lineTo(0,-s*.38); ctx.lineTo(-s*.3,-s*.62); ctx.closePath(); ctx.fill(); break;
+      // Couple : photo-souvenir ; week-end : feuille ; dîner : flamme de bougie
+      case "photo": ctx.fillRect(-s*.8,-s,s*1.6,s*1.9); ctx.fillStyle="#C9B6E4"; ctx.fillRect(-s*.62,-s*.82,s*1.24,s*1.2); break;
+      case "leaf":
+        ctx.moveTo(0,-s); ctx.quadraticCurveTo(s*.8,0,0,s); ctx.quadraticCurveTo(-s*.8,0,0,-s); ctx.fill();
+        ctx.strokeStyle="rgba(255,255,255,.5)"; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(0,-s*.8); ctx.lineTo(0,s*.8); ctx.stroke(); break;
+      case "flame": ctx.moveTo(0,-s); ctx.quadraticCurveTo(s*.7,0,0,s*.6); ctx.quadraticCurveTo(-s*.7,0,0,-s); ctx.fill(); break;
       case "candy":
         ctx.arc(0,0,s*.45,0,Math.PI*2); ctx.moveTo(-s*.4,0); ctx.lineTo(-s*1.05,-s*.4); ctx.lineTo(-s*1.05,s*.4); ctx.closePath();
         ctx.moveTo(s*.4,0); ctx.lineTo(s*1.05,-s*.4); ctx.lineTo(s*1.05,s*.4); ctx.closePath(); ctx.fill(); break;
