@@ -39,8 +39,8 @@ Les variantes viennent de `readable(couleur, fonds, seuil)` : même teinte (OKLC
 
 - **Couleurs d'accent facultatives** (`ACCENTS` : framboise, corail, mandarine, or, menthe, océan, violet, nuit) : appliquées par `setTheme` via `accentVars(thème, accent)`, **seulement si `accentOk`** (contraste ≥ 3:1 avec le fond et la surface du thème). `accentVars` calcule les 5 variables (`--accent`, `--accent-ink` choisi par `accentInk`, `--accent-text`, `--accent-btn`, `--accent-seal`) avec `readable`. Toute nouvelle couleur d'accent passe par cette table : le banc vérifie chaque combinaison thème × accent.
 - **Motifs de fond** : SVG en `data:` dans `--pattern`, très transparents (opacité 0,07 à 0,35), petites formes du thème répétées. La **scène illustrée** du thème les remplace partout sauf sur « Mes invitations » (§ 2 bis). Un nouveau thème = un nouveau motif **et** une nouvelle scène dans le même esprit.
-- **Exceptions existantes** (ne pas multiplier) : erreurs `#B3122E` sur `#FFE3E8` (variante sombre pour `mystere`), voile des feuilles `rgba(20,14,50,.45)`, surlignage de révélation doré `rgba(255,201,74,.5)` (l'accent de Mystère).
-- Toujours vérifier le rendu dans **les 7 thèmes**, et en particulier **Mystère** (sombre : `--surface` n'y est pas blanc).
+- **Exceptions existantes** (ne pas multiplier) : erreurs `#B3122E` sur `#FFE3E8` (variante sombre pour les thèmes sombres : `mystere`, `halloween`, `reveillon`), voile des feuilles `rgba(20,14,50,.45)`, surlignage de révélation doré `rgba(255,201,74,.5)` (l'accent de Mystère).
+- Toujours vérifier le rendu dans **tous les thèmes** (les 7 permanents et les 9 de saison, § 2 ter), et en particulier les **thèmes sombres** Mystère, Halloween et Réveillon (`--surface` n'y est pas blanc ; dans `THEMES`, un thème sombre a un champ `s`).
 
 ## 2. Formes : contours épais, ombres décalées, boutons qui s'enfoncent
 
@@ -90,13 +90,37 @@ Chaque thème a une scène (`SCENES` dans `index.html`), affichée sur l'envelop
 | Confettis | rideau de scène, lambrequin (en haut) | banderole « C'est la fête », fanions, ballons | ballons qui flottent / plus doucement |
 | Mystère | mur de briques sombres | enseigne néon « Chut… c'est une surprise » (Bricolage, halo en aplat) | scintillement doux / respiration lente |
 
+Les 9 thèmes de saison ont aussi leur scène : voir § 2 ter.
+
 - **Deux couches.** Le **décor de fond** (`sceneWall`, couche fixe `#scene`, sous le décor animé) est **ton sur ton** : grandes surfaces en `--bg`, `--soft`, `--surface` (`.sc-bg`, `.sc-a`, `.sc-b`), `--line` seulement en traits fins de 2 px au plus (`.sc-line`, `.sc-out`), grain léger (`#sc-grain`). Ni accent, ni encre : du texte peut passer dessus (titre de l'enveloppe, indications), il doit rester lisible (encre et texte atténué ≥ 4,5:1 sur chaque surface, vérifié par le banc). L'**élément vedette** (`sceneSign`, classe `.scene-sign`) est placé **dans la page**, au-dessus de l'enveloppe ou du billet : aucun texte ne passe jamais dessous. C'est lui qui porte la couleur, les contours épais à l'encre (`.sg-out`, 3 px), l'ombre décalée (`panel()`) et l'animation.
 - **Textes des éléments vedettes** : courts, tutoyés, neutres, sans « → » ni « · », sans information qui pourrait contredire l'invitation (pas d'heure ni de lieu : « Ce soir, peut-être ? » a été écarté pour cette raison). Classe `.sg-text` (Bricolage Grotesque 800, encre) sur un panneau `--surface` ; un « ? » coloré en `.sg-t-acc` (`--accent-text`). Caveat interdite (ce n'est pas de l'écriture à la main).
 - **Placement du décor** : les éléments marquants vont en bas (≥ 88 % de la hauteur), en haut (lambrequin) ou sur les côtés à mi-hauteur (derrière l'enveloppe ou le billet), pour ne pas passer sous le titre ni la mention de sécurité. Motifs en pixels réels (`patternUnits="userSpaceOnUse"`), éléments isolés placés en pourcentage de l'écran avec `at(x, y, …)` : même taille sur téléphone et ordinateur.
 - **Animations** : uniquement sur l'élément vedette, sous `.scene-sign.anim-n` / `.anim-d` ; aucune dans le décor de fond (motifs SVG : coûteux et peu fiables), ni dans les miniatures, aucune balise `<animate>`. Immobile en « Aucune » et avec « moins de mouvement ». Le décor animé (canvas `#decor`) passe toujours par-dessus la scène (`#scene` vient avant lui dans la page).
-- **Poids** : moins de 8 000 caractères par scène, 30 000 au total ; aucune image, aucune couleur écrite dans le SVG (classes CSS uniquement).
+- **Poids** : moins de 8 000 caractères par scène, 90 000 au total (16 scènes) ; aucune image, aucune couleur écrite dans le SVG (classes CSS uniquement).
 - **Contrôle visuel** : le banc ne voit pas le rendu. Faire des captures avec Edge sans fenêtre, à **520 px** de large (en dessous, Edge garde une fenêtre d'environ 500 px et la capture coupe la page) et en animations « Aucune » pour un rendu stable :
   `msedge --headless=new --disable-gpu --hide-scrollbars --user-data-dir=<dossier temporaire> --window-size=520,1040 --virtual-time-budget=3000 --screenshot=<fichier.png> <lien>` (la carte s'ouvre directement avec un lien de rappel, `reminderData`).
+
+## 2 ter. Thèmes de saison
+
+Neuf occasions saisonnières (`SEASONS`) ont chacune leur thème complet : couleurs, motif, scène, décor animé, réaction au Non, explosion au Oui. Ce sont des **thèmes à part entière** (`THEMES`, champ `season`), avec les mêmes règles que les 7 thèmes permanents (variantes `readable`, contrastes vérifiés par le banc, y compris avec chaque couleur d'accent).
+
+| Thème | Couleurs | Décor de fond | Élément vedette (animation) | Décor animé | Non | Oui |
+|---|---|---|---|---|---|---|
+| Halloween (sombre) | violet nuit, orange, crème | nuit étoilée, lune, maison hantée, clôture | citrouille souriante (oscille, visage qui luit), chauve-souris, « Même pas peur ? » | chauves-souris, petits fantômes (`fly`) | s'éparpillent (`scatter`) | citrouilles, bonbons |
+| Noël | crème, vert sapin, rouge | guirlande, cheminée, sapin, cadeaux | sapin aux lumières qui s'allument, étoile, « Il reste une place à table » | flocons, bonnets | tourbillon | cadeaux, étoiles |
+| Réveillon (sombre) | bleu nuit, or, argent | ville de nuit, feux d'artifice au loin (ordinateur) | horloge vers minuit, coupes, « Bientôt minuit… » | paillettes, bulles | éclatent (`pop`) | feu d'artifice (`fw`) |
+| Galette | crème, doré, brun | étagères, nappe à carreaux | galette, couronne qui flotte, « Qui aura la fève ? » | couronnes, fèves | tourbillon | couronnes, étoiles |
+| Saint-Valentin | rose, rouge, bordeaux | papier peint à cœurs, guirlande, lettres, roses | cœur qui bat traversé d'une flèche, cupidon, « Un cœur pour toi » | cœurs, lettres, 👼 💘 🥂 🌹 | se brisent | cœurs, pétales, 💘 🥂 |
+| Pâques | vert tendre, lilas | herbe, œufs cachés, buissons | panier d'œufs, oreilles de lapin qui frétillent, « La chasse aux œufs est ouverte » | œufs, fleurs | chute | œufs, fleurs, confettis |
+| Fête des mères | rose poudré, prune | papier peint fleuri, vase, cadre | bouquet de tulipes qui se balance, « Pour toi, maman » | pétales, cœurs, 🤰 🤱 👩‍👧 💐 | tourbillon | fleurs, cœurs, 💐 🤱 |
+| Fête des pères | vert sauge, bleu canard | planches, fauteuil, lampe | médaille qui se balance, « Pour toi, papa » | étoiles, cravates | chute | étoiles, confettis |
+| Musique | turquoise, magenta | portées, ampoules, scène, enceintes | enceinte qui bat la mesure, notes, « Monte le son ! » | notes | éclatent | notes, confettis, étoiles |
+
+- **Proposés à la création seulement pendant leur période** (thème, occasion, modèle, emojis de saison : `seasonOpen`, `emojiOpen`) ; un choix déjà fait est gardé. **Une invitation reçue s'affiche toujours avec son thème**, toute l'année : le décodage ne regarde jamais la date.
+- **Occasions existantes devenues saisonnières** (Saint-Valentin, fêtes des mères et des pères) : leur `theme` reste celui du décodage (Amour, Pétales, Cravate), pour que les liens déjà envoyés ne changent pas ; `seasonTheme` donne le thème de saison à la création (il est alors écrit dans le lien).
+- **Modèles de saison** : étiquette « De saison » (`.tpl-tag`, pastille contour encre, texte encre), en tête de leur catégorie. **Bandeau de l'accueil** (`.season`) : une seule occasion, bouton secondaire (le Oui reste la seule action principale). Ordre commun (`seasonOrder`) : jour J à venir le plus proche, puis jours J passés du plus récent au plus ancien ; égalité (fête des pères le 21 juin, certaines années) départagée par l'ordre de `TEMPLATES`.
+- **Décor animé** (`DECOR`) : `shape` peut être une liste ; `kcols` donne les couleurs propres à une forme ; `"e:🤰"` colle un emoji (rendu par l'appareil, donc différent sur Apple, Windows, Android : réservé à ce que le dessin ne sait pas faire, comme les cupidons ou les mamans). Formes dessinées : `bat`, `ghost`, `pumpkin`, `candy`, `flake`, `hat`, `gift`, `spark`, `crown`, `bean`, `letter`, `egg`, `flower`, `tie`, `note`, `note2`. Mouvement `fly` (vol horizontal), réaction `scatter` (s'éparpillent puis reviennent), explosion `fw` (gerbes rondes). Les couleurs du canvas sont écrites en dur (comme pour les 7 thèmes) : les reprendre du thème.
+- **Nouveau thème de saison** : sa période dans `SEASONS` (jour J, début, fin, emoji, textes du bandeau), son thème complet, son occasion et son modèle, de nouveaux codes (index.html et `tables-figees.mjs`), une référence de lien, puis contrôle visuel sur téléphone et ordinateur.
 
 ## 3. Typographie : deux polices, pas une de plus
 
