@@ -1118,7 +1118,7 @@ async function decodeData(str){
    déplacé sous un autre identifiant ne se déchiffre plus. Au déchiffrement, le code repasse par decodeData, donc par sanitize.
    Si le service ne répond pas (absent, quota gratuit atteint, réseau), c'est le lien long qui sert : rien ne casse. */
 const SHORT_ORIGIN = typeof location!=="undefined" && location.hostname==="localhost" ? "http://localhost:8787" // wrangler dev
-  : ""; // adresse du Worker publié (https://ose-liens.….workers.dev) ; vide = liens courts désactivés, liens longs seulement
+  : "https://ose-liens.osedemander.workers.dev"; // Worker publié (vide = liens courts désactivés, liens longs seulement)
 const SHORT_TIMEOUT=5000, SHORT_CT_MAX=16384;
 let shortFetch = (u, o) => fetch(u, o); // remplacé par le banc de test
 const SHORT_HASH = /^#s=([A-Za-z0-9_-]{22})\.([A-Za-z0-9_-]{22})$/;
