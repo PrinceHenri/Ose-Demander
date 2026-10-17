@@ -1317,6 +1317,85 @@ await test("« Voir un exemple » montre l'introduction", () => {
   assert.equal(PAGE.lire("demoData")().ix, PAGE.lire("INTRO_OCC").date);
 });
 
+/* =========================================================
+   13. Logo de saison : décor du « ? » et icône de l'onglet pendant les grands événements
+   ========================================================= */
+titre("13. Logo de saison");
+const LOGO = PAGE.lire("LOGO_PERIODS"), logoA = PAGE.lire("logoAt"), logoH = PAGE.lire("logoHTML"), fav = PAGE.lire("logoFavicon"), fenLogo = PAGE.lire("periodWindow");
+await test("Périodes attendues (dates fixes, à cheval sur deux années, Pâques et fêtes calculées)", () => {
+  const attendu = [
+    ["rose", 2026, "2026-10-01", "2026-10-31"], ["halloween", 2026, "2026-10-20", "2026-11-05"], ["noel", 2026, "2026-12-01", "2026-12-26"],
+    ["reveillon", 2026, "2026-12-27", "2027-01-05"], ["galette", 2027, "2027-01-06", "2027-01-31"], ["valentin", 2027, "2027-02-01", "2027-02-15"],
+    ["paques", 2026, "2026-03-29", "2026-04-06"], ["paques", 2027, "2027-03-21", "2027-03-29"], ["paques", 2038, "2038-04-18", "2038-04-26"],
+    ["meres", 2026, "2026-05-24", "2026-06-01"], ["meres", 2020, "2020-05-31", "2020-06-08"],
+    ["peres", 2026, "2026-06-14", "2026-06-22"], ["peres", 2025, "2025-06-08", "2025-06-16"], ["musique", 2026, "2026-06-15", "2026-06-21"]
+  ];
+  for(const [id, y, from, to] of attendu){ const w = fenLogo(LOGO[id], y); assert.deepEqual([w.from, w.to], [from, to], `${id} ${y}`); }
+});
+await test("Mêmes jours J que le calendrier des saisons", () => {
+  for(const id of Object.keys(LOGO)) if(SAISONS[id]) for(const y of [2026, 2027, 2038]) assert.equal(fenLogo(LOGO[id], y).day, fenetre(id, y).day, `${id} ${y}`);
+});
+await test("Premier et dernier jour inclus, veille et lendemain exclus, de 2000 à 2100", () => {
+  for(const id of Object.keys(LOGO)) for(let y = 2000; y <= 2100; y++){
+    const w = fenLogo(LOGO[id], y);
+    assert.ok(logoA(w.from).includes(id) && logoA(w.to).includes(id), `${id} ${y} : ouverte du ${w.from} au ${w.to}`);
+    assert.ok(!logoA(decale(w.from, -1)).includes(id) && !logoA(decale(w.to, 1)).includes(id), `${id} ${y} : fermée la veille et le lendemain`);
+  }
+});
+await test("Chevauchements : décors combinés, jamais deux décors à la même place (2000 à 2100)", () => {
+  const cas = { "2026-10-19": ["rose"], "2026-10-20": ["rose", "halloween"], "2026-10-31": ["rose", "halloween"], "2026-11-01": ["halloween"],
+    "2026-11-06": [], "2026-12-26": ["noel"], "2026-12-27": ["reveillon"], "2027-01-05": ["reveillon"], "2027-01-06": ["galette"],
+    "2027-02-15": ["valentin"], "2027-02-16": [], "2026-06-16": ["peres", "musique"], "2020-06-08": ["meres"], "2026-08-15": [] };
+  for(const [iso, ids] of Object.entries(cas)) assert.deepEqual(logoA(iso), ids, iso);
+  const vus = new Set();
+  for(let t = Date.UTC(2000, 0, 1); t <= Date.UTC(2100, 11, 31); t += 864e5){
+    const ids = logoA(new Date(t).toISOString().slice(0, 10)); if(ids.length < 2 || vus.has(ids.join())) continue;
+    vus.add(ids.join());
+    const places = ids.flatMap(id => (LOGO[id].deco || []).map(d => d[0]));
+    assert.equal(new Set(places).size, places.length, `${ids.join(" + ")} : deux décors à la même place`);
+  }
+  assert.ok(vus.has("rose,halloween") && vus.has("peres,musique"), "chevauchements rencontrés");
+});
+await test("Hors période : le logo habituel, inchangé ; icône de l'onglet habituelle", () => {
+  assert.equal(logoH("2026-08-15"), `<a class="logo" href="./">Ose Demander<span class="q">?</span></a>`);
+  assert.equal(fav("2026-08-15"), null);
+});
+await test("Chaque période : décor, texte pour les lecteurs d'écran, icône de l'onglet propre", () => {
+  const icones = new Set();
+  for(const id of Object.keys(LOGO)){
+    const iso = fenLogo(LOGO[id], 2027).day, ids = logoA(iso), h = logoH(iso);
+    assert.ok(ids.includes(id), `${id} ouverte le ${iso}`);
+    assert.ok(h.includes(`aria-label="Ose Demander, édition ${PAGE.lire("esc")(PAGE.lire("logoName")(ids))}"`), `${id} : texte pour les lecteurs d'écran`);
+    for(const [place, art] of LOGO[id].deco || []) assert.ok(h.includes(`class="lg-deco lg-${place}" viewBox="${PAGE.lire("LOGO_ART")[art][0]}" aria-hidden="true"`), `${id} : ${art}`);
+    assert.equal((h.match(/<svg/g) || []).length, (h.match(/aria-hidden="true" focusable="false"/g) || []).length, `${id} : décors cachés aux lecteurs d'écran`);
+    assert.ok(!/[←→]| · /.test(h), `${id} : ni flèche ni « · »`);
+    let seul = fenLogo(LOGO[id], 2027).from; while(logoA(seul).join() !== id) seul = decale(seul, 1); // un jour où elle est seule
+    const f = fav(seul); assert.ok(f.startsWith("data:image/svg+xml,"), `${id} : icône SVG`); icones.add(f);
+  }
+  assert.equal(icones.size, Object.keys(LOGO).length, "une icône différente par période");
+  assert.ok(logoH("2026-10-25").includes('aria-label="Ose Demander, édition Octobre rose et Halloween"'), "chevauchement : les deux noms");
+  assert.ok(logoH("2027-02-10").includes("lg-nodot") && logoH("2026-10-25").includes("lg-nodot") && !logoH("2026-12-10").includes("lg-nodot"), "le point disparaît seulement quand un décor le remplace");
+});
+await test("Octobre rose : ruban cliquable vers la page de la Ligue contre le cancer, dans un nouvel onglet", () => {
+  const h = logoH("2026-10-05");
+  assert.ok(h.includes(`<a class="lg-ribbon lg-anim" href="https://www.ligue-cancer.net/nos-missions/le-depistage-du-cancer/depistage-du-cancer-du-sein" target="_blank" rel="noopener noreferrer"`));
+  assert.ok(h.includes('aria-label="Octobre rose : s&#39;informer sur le dépistage du cancer du sein (nouvel onglet)"') || h.includes("aria-label=\"Octobre rose : s'informer sur le dépistage du cancer du sein (nouvel onglet)\""));
+  assert.ok(h.indexOf("lg-ribbon") > h.indexOf("</a>"), "le ruban est un lien à part (pas un lien dans le lien)");
+  assert.ok(+(regleCSS(".lg-ribbon").match(/min-height:(\d+)px/) || [])[1] >= 44, "ruban : 44 px de haut");
+  assert.ok(!logoH("2026-11-02").includes("lg-ribbon"), "pas de ruban hors octobre");
+});
+await test("Animation au survol : absente en « Aucune », coupée par « moins de mouvement »", () => {
+  assert.ok(logoH("2026-10-25", true).includes('class="logo lg-anim"'));
+  assert.ok(!logoH("2026-10-25", false).includes("lg-anim"), "« Aucune » : pas d'animation");
+  assert.ok(/\.lg-anim:hover \.lg-deco[^{]*\{animation:lg-wiggle/.test(CSS), "animation seulement sous .lg-anim");
+  assert.ok(!/(^|[\n}])\s*\.lg-(deco|ribbon)[^{]*\{[^}]*animation:/.test(CSS.replace(/\.lg-anim:hover[^{]*\{[^}]*\}/, "")), "aucune animation hors survol");
+  assert.ok(CSS.includes("@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}"));
+  const S = PAGE.lire("S"); S.anim = "0"; PAGE.ecrire("SEASON_TODAY", "2026-10-25");
+  assert.ok(!PAGE.lire("topHTML")(false).includes("lg-anim"), "en-tête : réglage d'animation de l'invitation respecté");
+  S.anim = "n"; assert.ok(PAGE.lire("topHTML")(false).includes("édition Octobre rose et Halloween"), "en-tête : logo de la date du jour");
+  PAGE.ecrire("SEASON_TODAY", "2026-10-15");
+});
+
 /* ---------- Bilan ---------- */
 console.log(`\n${ko ? "❌" : "✅"} ${ok} tests réussis, ${ko} en échec (graine ${GRAINE}${ko ? ` — pour rejouer : node tests/run.mjs --graine=${GRAINE}` : ""})`);
 if(ko){ console.log(echecs.map(e => "  - " + e).join("\n")); process.exitCode = 1; }

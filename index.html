@@ -143,6 +143,24 @@ button,input,textarea,select{font:inherit;color:inherit}
 .top{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:6px 0 18px}
 .logo{font-weight:800;font-size:22px;letter-spacing:-.02em;text-decoration:none;display:flex;align-items:baseline;gap:2px}
 .logo .q{display:inline-block;color:var(--accent);font-size:28px;transform:rotate(12deg)}
+/* Logo de saison (LOGO_PERIODS) : petit décor autour du « ? », qui tourne avec lui. Les décors ont leurs propres couleurs
+   (une citrouille reste orange dans tous les thèmes), les mêmes que dans l'icône de l'onglet ; contours à l'encre. */
+.lg-wrap{display:flex;align-items:center}
+.logo .q.lg{position:relative;line-height:1}
+.logo .q.lg-nodot .q-g{display:inline-block;clip-path:inset(0 0 24% 0)}
+.lg-deco{position:absolute;overflow:visible;color:var(--ink);pointer-events:none}
+.lg-dot{left:.13em;top:.6em;width:.3em}
+.lg-top{left:-.04em;top:-.38em;width:.7em}
+.lg-side{left:.56em;top:-.12em;width:.36em}
+.lg-stem{left:.1em;top:.43em;width:.38em}
+.lg-s1{left:-.42em;top:.02em;width:.22em}
+.lg-s2{left:.62em;top:.18em;width:.2em}
+.lg-s3{left:.66em;top:-.32em;width:.16em}
+.lg-ribbon{display:inline-flex;align-items:center;justify-content:center;min-width:30px;min-height:44px;margin-left:6px;color:var(--ink)}
+.lg-ribbon svg{width:16px;height:24px;overflow:visible}
+/* Animation légère au survol, seulement si les animations ne sont pas sur « Aucune » (et coupée par « moins de mouvement ») */
+.lg-anim:hover .lg-deco,.lg-anim:focus-visible .lg-deco,.lg-ribbon.lg-anim:hover svg,.lg-ribbon.lg-anim:focus-visible svg{animation:lg-wiggle .7s ease-in-out}
+@keyframes lg-wiggle{0%,100%{transform:rotate(0)}25%{transform:rotate(-12deg)}60%{transform:rotate(9deg)}}
 .top small{color:var(--muted);font-size:14px}
 .top{flex-wrap:wrap}
 .top-actions{display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:8px;margin-left:auto}
@@ -722,8 +740,9 @@ const SEASONS = {
 let SEASON_TODAY="";
 const seasonToday = () => SEASON_TODAY || todayISO();
 /* Période de l'année y : {from, to, day} en dates ISO */
-function seasonWindow(id, y){
-  const s=SEASONS[id], day=s.day(y);
+const seasonWindow = (id, y) => periodWindow(SEASONS[id], y);
+function periodWindow(s, y){ // s : {day, from, to}, comme dans SEASONS (aussi pour LOGO_PERIODS)
+  const day=s.day(y);
   const bound=(b, dir)=>{
     if(typeof b==="number") return addDays(day, b);
     let d=ymd(y, b[0], b[1]);
@@ -742,6 +761,68 @@ function seasonAt(id, iso){
 }
 /* Proposée à la création ce jour-là : permanente, ou saisonnière dans sa période */
 const seasonOpen = (id, iso=seasonToday()) => !SEASONS[id] || !!seasonAt(id, iso);
+
+/* ---------- Logo de saison ----------
+   Pendant les grands événements, le « ? » du logo porte un petit décor (et l'icône de l'onglet aussi), comme les doodles.
+   Mêmes jours J que les saisons (Pâques et fêtes calculées), périodes propres au logo. Plusieurs périodes ouvertes = décors combinés :
+   chaque décor a sa place (dot : remplace le point du « ? », top : chapeau, side : à droite, stem : sur la tige,
+   s1-s3 : petits éclats), deux périodes ouvertes en même temps n'utilisent jamais la même place (vérifié par le banc). */
+const LOGO_PERIODS = {
+  rose:      {name:"Octobre rose",       day:y=>ymd(y,10,1),  from:[10,1],  to:[10,31], ribbon:1},
+  halloween: {name:"Halloween",          day:SEASONS.halloween.day, from:[10,20], to:[11,5], deco:[["dot","pumpkin"],["top","witch"]]},
+  noel:      {name:"Noël",               day:SEASONS.noel.day, from:[12,1],  to:[12,26], deco:[["top","santa"],["s1","flake"],["s2","flake"],["s3","flake"]]},
+  reveillon: {name:"Nouvel An",          day:SEASONS.reveillon.day, from:[12,27], to:[1,5], deco:[["top","party"],["s1","spark"],["s2","spark"],["s3","spark"]]},
+  galette:   {name:"Galette des rois",   day:SEASONS.galette.day, from:[1,6],   to:[1,31],  deco:[["top","crown"]]},
+  valentin:  {name:"Saint-Valentin",     day:SEASONS.valentin.day, from:[2,1],   to:[2,15],  deco:[["dot","heart"]]},
+  paques:    {name:"Pâques",             day:SEASONS.paques.day, from:-7, to:1, deco:[["dot","egg"]]},
+  meres:     {name:"fête des mères",     day:SEASONS.meres.day, from:-7, to:1, deco:[["side","flower"]]},
+  peres:     {name:"fête des pères",     day:SEASONS.peres.day, from:-7, to:1, deco:[["stem","bowtie"]]},
+  musique:   {name:"fête de la musique", day:SEASONS.musique.day, from:[6,15],  to:[6,21],  deco:[["side","note"]]}
+};
+const LOGO_RIBBON_URL = "https://www.ligue-cancer.net/nos-missions/le-depistage-du-cancer/depistage-du-cancer-du-sein";
+/* Dessins des décors : [viewBox, contenu]. Contour : currentColor (l'encre du thème, ou l'encre Lilas dans l'icône de l'onglet). */
+const LOGO_ART = {
+  pumpkin:["0 0 20 20",`<path d="M10 5.5c4.5 0 8 2.7 8 6.5s-3.5 6.5-8 6.5S2 15.8 2 12s3.5-6.5 8-6.5z" fill="#F28C28"/><path d="M10 6v12M6.5 7c-1.5 3-1.5 7 0 10M13.5 7c1.5 3 1.5 7 0 10" fill="none" stroke-width="1.2"/><path d="M10 6V2.5l2.5-1" fill="none" stroke="#3E7D3A" stroke-width="2.2"/>`],
+  witch:["0 0 24 20",`<path d="M1 17.5c4-2.2 18-2.2 22 0-4 2.2-18 2.2-22 0z" fill="#3B2463"/><path d="M6.5 16.6L12.5 1.5l1.8 5-1 1.6 3.2 8.5z" fill="#3B2463"/><path d="M8 13.6h8.6" stroke="#F28C28" stroke-width="2.4"/>`],
+  santa:["0 0 24 20",`<path d="M3 15C5 7 10 2 16 3c3 .5 5 3 5 7l-3 1c0-2-1-3.5-2.5-3.5C12 7.5 10 11 9 15z" fill="#D7263D"/><rect x="1" y="14" width="13" height="5" rx="2.5" fill="#FFF"/><circle cx="19.5" cy="12" r="2.6" fill="#FFF"/>`],
+  flake:["0 0 10 10",`<path d="M5 0v10M0 5h10M1.5 1.5l7 7M8.5 1.5l-7 7" stroke="#4A90D9" stroke-width="1.6" stroke-linecap="round"/>`],
+  party:["0 0 22 22",`<path d="M4 21L11 4l7 17z" fill="#FFC94A"/><path d="M6.8 15.5l8.6 2.6M8.8 10.5l4.6 1.4" stroke="#E83F86" stroke-width="2"/><circle cx="11" cy="3.5" r="2.4" fill="#E83F86"/>`],
+  spark:["0 0 10 10",`<path d="M5 0l1.3 3.7L10 5 6.3 6.3 5 10 3.7 6.3 0 5l3.7-1.3z" fill="#FFC94A" stroke-width=".8"/>`],
+  crown:["0 0 22 15",`<path d="M2.5 13.5L1.5 3l5 4L11 1l4.5 6 5-4-1 10.5z" fill="#F2B705"/><circle cx="11" cy="9.5" r="1.6" fill="#D7263D" stroke-width=".8"/>`],
+  heart:["0 0 20 18",`<path d="M10 17S1 11.5 1 6a4.5 4.5 0 0 1 9-1.2A4.5 4.5 0 0 1 19 6c0 5.5-9 11-9 11z" fill="#E3264B"/>`],
+  egg:["0 0 16 20",`<path d="M8 1c4 0 7 6 7 11a7 7 0 0 1-14 0C1 7 4 1 8 1z" fill="#8FC1FF"/><path d="M1.7 10.5l2.1-2 2.1 2 2.1-2 2.1 2 2.1-2 2.1 2" fill="none" stroke="#E83F86" stroke-width="1.6"/>`],
+  flower:["0 0 20 20",`<g fill="#FF8FB1"><circle cx="10" cy="5" r="4"/><circle cx="14.8" cy="8.5" r="4"/><circle cx="12.9" cy="14" r="4"/><circle cx="7.1" cy="14" r="4"/><circle cx="5.2" cy="8.5" r="4"/></g><circle cx="10" cy="10" r="3" fill="#FFD23F"/>`],
+  bowtie:["0 0 22 12",`<path d="M1 1l9 4v2l-9 4zM21 1l-9 4v2l9 4z" fill="#2F5BFF"/><rect x="8.6" y="3.6" width="4.8" height="4.8" rx="1.2" fill="#2F5BFF"/>`],
+  note:["0 0 16 22",`<path d="M7 18V2c2 1 6 2 6 6.5" fill="none" stroke-width="2.2" stroke-linecap="round"/><ellipse cx="4.6" cy="18" rx="3.6" ry="2.8" fill="#1FA39A" transform="rotate(-18 4.6 18)"/>`],
+  ribbon:["0 0 16 24",`<path d="M4.5 22.5L11 11.5C13 7.5 12 1.8 8 1.8S3 7.5 5 11.5l6.5 11" fill="none" stroke="currentColor" stroke-width="5.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M4.5 22.5L11 11.5C13 7.5 12 1.8 8 1.8S3 7.5 5 11.5l6.5 11" fill="none" stroke="#F06CA0" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>`]
+};
+/* Périodes du logo ouvertes le jour iso, dans l'ordre de LOGO_PERIODS */
+function logoAt(iso){
+  const y=+iso.slice(0,4);
+  return Object.keys(LOGO_PERIODS).filter(id => [y-1, y, y+1].some(yy => { const w=periodWindow(LOGO_PERIODS[id], yy); return w.from<=iso && iso<=w.to; }));
+}
+const logoName = ids => ids.map(id=>LOGO_PERIODS[id].name).join(" et ");
+const logoSvg = (art, attrs) => `<svg ${attrs} viewBox="${LOGO_ART[art][0]}" aria-hidden="true" focusable="false"><g stroke="currentColor" stroke-width="1.5" stroke-linejoin="round">${LOGO_ART[art][1]}</g></svg>`;
+/* Logo de l'en-tête. anim : false en « Aucune » (pas d'animation au survol) */
+function logoHTML(iso, anim=true){
+  const ids=logoAt(iso);
+  if(!ids.length) return `<a class="logo" href="./">Ose Demander<span class="q">?</span></a>`;
+  const deco=ids.flatMap(id=>LOGO_PERIODS[id].deco||[]), mv=anim ? " lg-anim" : "";
+  const q=`<span class="q lg${deco.some(d=>d[0]==="dot") ? " lg-nodot" : ""}" aria-hidden="true"><span class="q-g">?</span>${deco.map(([slot, art])=>logoSvg(art, `class="lg-deco lg-${slot}"`)).join("")}</span>`;
+  const ribbon=ids.some(id=>LOGO_PERIODS[id].ribbon) ? `<a class="lg-ribbon${mv}" href="${LOGO_RIBBON_URL}" target="_blank" rel="noopener noreferrer" title="Octobre rose : s'informer sur le dépistage du cancer du sein" aria-label="Octobre rose : s'informer sur le dépistage du cancer du sein (nouvel onglet)">${logoSvg("ribbon", "")}</a>` : "";
+  return `<span class="lg-wrap"><a class="logo${mv}" href="./" aria-label="Ose Demander, édition ${esc(logoName(ids))}">Ose Demander${q}</a>${ribbon}</span>`;
+}
+/* Icône de l'onglet pendant une période : l'enveloppe de l'icône habituelle, avec les décors (SVG en data:), ou null hors période */
+const LOGO_FAV = {dot:[38,34,26,26], top:[30,0,32,27], side:[44,0,20,20], stem:[20,44,26,15], s1:[0,2,12,12], s2:[2,50,10,10], s3:[22,2,9,9]};
+function logoFavicon(iso){
+  const ids=logoAt(iso);
+  if(!ids.length) return null;
+  const at=(art, [x,y,w,h]) => `<svg x="${x}" y="${y}" width="${w}" height="${h}" viewBox="${LOGO_ART[art][0]}" color="#1F1546"><g stroke="currentColor" stroke-width="1.5" stroke-linejoin="round">${LOGO_ART[art][1]}</g></svg>`;
+  const deco=ids.flatMap(id=>LOGO_PERIODS[id].deco||[]).map(([slot, art])=>at(art, LOGO_FAV[slot]));
+  if(ids.some(id=>LOGO_PERIODS[id].ribbon)) deco.push(at("ribbon", [0,0,16,24]));
+  const svg=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect x="4" y="16" width="56" height="40" rx="7" fill="#E83F86" stroke="#1F1546" stroke-width="4"/><path d="M6 19l26 18 26-18" fill="none" stroke="#1F1546" stroke-width="4" stroke-linejoin="round"/><circle cx="32" cy="38" r="10" fill="#FFF" stroke="#1F1546" stroke-width="3.5"/><text x="32" y="44" text-anchor="middle" font-family="Arial,sans-serif" font-weight="900" font-size="16" fill="#1F1546">?</text>${deco.join("")}</svg>`;
+  return "data:image/svg+xml," + encodeURIComponent(svg);
+}
 /* Emoji réservé à une saison (absent des emojis proposés toute l'année avant les saisons) */
 const SEASON_EMOJI = {"👑":"galette","🐣":"paques","🎶":"musique","🎃":"halloween","🎄":"noel","🥂":["reveillon","valentin"],
   "💘":"valentin","🤰":"meres","🤱":"meres","💐":"meres"};
@@ -1452,7 +1533,7 @@ const SITE_TITLE = document.title;
 function topHTML(onHistory){
   const n = onHistory ? 0 : loadHistory().length;
   return `<header class="top">
-      <a class="logo" href="./">Ose Demander<span class="q">?</span></a>
+      ${logoHTML(seasonToday(), S.anim!=="0")}
       <div class="top-actions">
         <button type="button" class="snd-inline" id="snd" aria-pressed="${Sound.on}" aria-label="${Sound.on?"Couper le son":"Activer le son"}">${Sound.on?"🔊":"🔇"}</button>
         ${onHistory ? "" : `<a class="hist-btn" href="#mes-invitations">Mes invitations<span class="badge ${n?"":"hidden"}" id="histBadge">${n}</span></a>`}
@@ -3896,6 +3977,8 @@ document.addEventListener("pointerdown",e=>{
   if(e.target.closest("button,a,input,textarea,.chip,.ticket")) return;
   Decor.burst(e.clientX, e.clientY, 16, true); Sound.pop();
 });
+// Icône de l'onglet pendant une période du logo de saison (sinon l'icône habituelle)
+{ const f=logoFavicon(seasonToday()), l=document.querySelector('link[rel="icon"]'); if(f && l){ l.removeAttribute("sizes"); l.type="image/svg+xml"; l.href=f; } }
 route();
 </script>
 </body>

@@ -164,6 +164,27 @@ Après l'enveloppe, avant la question : des **cartes de papier** tirées de l'en
 - **Accessibilité** : focus sur la première carte (titre `h1` en `tabindex="-1"`), puis il reste sur le bouton ; chaque nouvelle carte est annoncée (`#introPos`, `aria-live`, « Carte 2 sur 2 : … »).
 - **Règles** : le délai du vrai refus (10 s) ne démarre qu'à la question ; jamais d'introduction depuis le rappel d'agenda ; « Voir un exemple » la montre.
 
+## 2 sexies. Logo de saison
+
+Pendant les grands événements, le « ? » du logo (en-tête de la création et de « Mes invitations ») porte un petit décor, comme les doodles, et l'icône de l'onglet aussi (`LOGO_PERIODS`, `logoAt`, `logoHTML`, `logoFavicon`).
+
+| Période | Dates | Décor (place) |
+|---|---|---|
+| Octobre rose | 1er-31 oct | ruban rose, lien à part vers la page de la Ligue contre le cancer sur le dépistage du cancer du sein (nouvel onglet) |
+| Halloween | 20 oct-5 nov | citrouille (point) + chapeau de sorcière (haut) |
+| Noël | 1er-26 déc | bonnet (haut) + 3 flocons (éclats) |
+| Nouvel An | 27 déc-5 janv | chapeau de fête (haut) + 3 paillettes (éclats) |
+| Galette des rois | 6-31 janv | couronne dorée (haut) |
+| Saint-Valentin | 1er-15 févr | cœur (point) |
+| Pâques, fêtes des mères et des pères | J-7 à J+1 (jours J de `SEASONS`) | œuf (point), fleur (droite), nœud papillon (tige) |
+| Fête de la musique | 15-21 juin | note (droite) |
+
+- **Places** : `dot` (remplace le point, le « ? » est alors coupé par `clip-path`), `top`, `side`, `stem`, `s1`-`s3`. Deux périodes ouvertes ensemble (Octobre rose et Halloween ; fête des pères et musique) combinent leurs décors, jamais à la même place (vérifié par le banc de 2000 à 2100).
+- **Couleurs** : exception assumée aux variables de thème, comme l'icône de l'onglet (une citrouille reste orange) ; contours à l'encre (`currentColor`).
+- **Accessibilité** : `aria-label="Ose Demander, édition {nom}"` sur le lien du logo, décors en `aria-hidden` ; ruban : lien séparé, 44 px de haut, texte pour les lecteurs d'écran.
+- **Animation** : léger balancement au survol ou au focus (`.lg-anim`), absent en « Aucune » (`S.anim`) et avec « moins de mouvement ».
+- Hors période, le logo est exactement l'habituel. Nouvelle période = son entrée dans `LOGO_PERIODS`, son dessin dans `LOGO_ART`, ses cas dans la section « Logo de saison » du banc.
+
 ## 3. Typographie : deux polices, pas une de plus
 
 Polices **hébergées dans `fonts/`** (licence SIL OFL, aucun appel à Google Fonts — RGPD).
