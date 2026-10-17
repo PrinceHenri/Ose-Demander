@@ -1111,6 +1111,77 @@ async function decodeData(str){
   const x=JSON.parse(new TextDecoder().decode(raw));
   return sanitize(kind==="z"||kind==="p" ? x : unpackLink(x));
 }
+/* ---------- Liens courts chiffrés : osedemander.fr/#s=ID.CLÉ ----------
+   Le code de l'invitation (ce qui suit « #i= » dans un lien long) est chiffré ICI, dans le navigateur (AES-GCM, clé aléatoire
+   de 128 bits), puis déposé auprès du service des liens courts (Cloudflare Worker, voir worker/). La clé reste dans le lien,
+   après le « # » : elle n'est jamais envoyée. L'identifiant (128 bits aléatoires) sert de données associées : un contenu
+   déplacé sous un autre identifiant ne se déchiffre plus. Au déchiffrement, le code repasse par decodeData, donc par sanitize.
+   Si le service ne répond pas (absent, quota gratuit atteint, réseau), c'est le lien long qui sert : rien ne casse. */
+const SHORT_ORIGIN = typeof location!=="undefined" && location.hostname==="localhost" ? "http://localhost:8787" // wrangler dev
+  : ""; // adresse du Worker publié (https://ose-liens.….workers.dev) ; vide = liens courts désactivés, liens longs seulement
+const SHORT_TIMEOUT=5000, SHORT_CT_MAX=16384;
+let shortFetch = (u, o) => fetch(u, o); // remplacé par le banc de test
+const SHORT_HASH = /^#s=([A-Za-z0-9_-]{22})\.([A-Za-z0-9_-]{22})$/;
+const rndBytes = n => crypto.getRandomValues(new Uint8Array(n));
+const utf8 = s => new TextEncoder().encode(s);
+const aesKey = (raw, use) => crypto.subtle.importKey("raw", raw, "AES-GCM", false, [use]);
+/* Chiffre un code d'invitation : {id, key, ct} (ct = version 1, IV de 12 octets, contenu chiffré et étiquette, en base64url) */
+async function sealShort(code){
+  const id=b64url(rndBytes(16)), key=rndBytes(16), iv=rndBytes(12);
+  const c=new Uint8Array(await crypto.subtle.encrypt({name:"AES-GCM", iv, additionalData:utf8(id)}, await aesKey(key,"encrypt"), utf8(code)));
+  const blob=new Uint8Array(13+c.length); blob[0]=1; blob.set(iv,1); blob.set(c,13);
+  return {id, key:b64url(key), ct:b64url(blob)};
+}
+async function openShort(id, key, ct){
+  const blob=unb64url(ct), k=unb64url(key);
+  if(blob.length<29 || blob[0]!==1 || k.length!==16) throw new Error("bad");
+  const p=await crypto.subtle.decrypt({name:"AES-GCM", iv:blob.subarray(1,13), additionalData:utf8(id)}, await aesKey(k,"decrypt"), blob.subarray(13));
+  return new TextDecoder().decode(p);
+}
+async function shortCall(path, opts={}){
+  const ac=new AbortController(), t=setTimeout(()=>ac.abort(), SHORT_TIMEOUT);
+  try{ return await shortFetch(SHORT_ORIGIN+"/v1/liens"+path, {...opts, signal:ac.signal, cache:"no-store", credentials:"omit", referrerPolicy:"no-referrer"}); }
+  finally{ clearTimeout(t); }
+}
+/* Dépose un code d'invitation (y…, x…, z…, p…) : {link, id, jeton} ou null (le lien long sert alors).
+   Le jeton permet de supprimer le lien plus tard ; seule son empreinte SHA-256 part au service. */
+async function createShort(code, base){
+  if(!SHORT_ORIGIN || !globalThis.crypto?.subtle || code.length>MAX_LINK || !/^[zpyx][A-Za-z0-9_-]+$/.test(code)) return null;
+  try{
+    for(let essai=0; essai<2; essai++){ // un identifiant déjà pris (409, improbable) : on retire au sort une fois
+      const s=await sealShort(code); if(s.ct.length>SHORT_CT_MAX) return null;
+      const jeton=b64url(rndBytes(32)), del=b64url(new Uint8Array(await crypto.subtle.digest("SHA-256", utf8(jeton))));
+      const r=await shortCall("", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({id:s.id, ct:s.ct, del})});
+      if(r.status===201) return {link:`${base}#s=${s.id}.${s.key}`, id:s.id, jeton};
+      if(r.status!==409) return null;
+    }
+  }catch(e){}
+  return null;
+}
+/* Relit un lien court : le code d'invitation, ou une erreur de type « introuvable », « expire », « supprime », « reseau », « incomplet » */
+const shortErr = kind => Object.assign(new Error(kind), {kind});
+async function readShort(id, key){
+  if(!SHORT_ORIGIN || !globalThis.crypto?.subtle) throw shortErr("reseau");
+  let r, x;
+  try{ r=await shortCall("/"+id); }catch(e){ throw shortErr("reseau"); }
+  if(r.status===404) throw shortErr("introuvable");
+  if(r.status===410){ try{ x=await r.json(); }catch(e){} throw shortErr(x && x.raison==="supprime" ? "supprime" : "expire"); }
+  if(r.status!==200) throw shortErr("reseau");
+  try{ x=await r.json(); }catch(e){ throw shortErr("reseau"); }
+  if(!x || typeof x.ct!=="string" || x.ct.length>SHORT_CT_MAX || !/^[A-Za-z0-9_-]+$/.test(x.ct)) throw shortErr("incomplet");
+  let code; try{ code=await openShort(id, key, x.ct); }catch(e){ throw shortErr("incomplet"); }
+  if(code.length>MAX_LINK || !/^[zpyx][A-Za-z0-9_-]+$/.test(code)) throw shortErr("incomplet");
+  return code;
+}
+/* Supprime un lien court avec son jeton : "ok", "deja", "jeton" (refusé), "introuvable" ou "reseau" */
+async function deleteShort(id, jeton){
+  if(!SHORT_ORIGIN) return "reseau";
+  try{
+    const r=await shortCall(`/${id}/supprimer`, {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({jeton})});
+    return {200:"ok", 410:"deja", 403:"jeton", 404:"introuvable"}[r.status] || "reseau";
+  }catch(e){ return "reseau"; }
+}
+
 /* Décompression deflate brute (RFC 1951) en pur JavaScript, sortie limitée à « max » octets */
 const INF={lb:[],le:[],db:[],de:[]};
 for(let i=0,b=3;i<29;i++){ INF.le[i]=i<8||i===28?0:(i>>2)-1; INF.lb[i]=i===28?258:b; b+=1<<INF.le[i]; }
@@ -1649,7 +1720,7 @@ function renderCreator(){
         ${n===2||n===3 ? `<button type="submit" class="btn primary">${n===3 ? "Voir l'aperçu" : "Continuer"}</button>` : ""}
       </div>
     </form>`}
-    <p class="foot">Rien n'est stocké en ligne : toute l'invitation tient dans le lien. <a href="mentions-legales.html#confidentialite">Confidentialité</a><br><a href="mentions-legales.html">Mentions légales</a></p>
+    <p class="foot">Rien n'est stocké en clair en ligne : l'invitation tient dans son lien, chiffrée si le lien est court. <a href="mentions-legales.html#confidentialite">Confidentialité</a><br><a href="mentions-legales.html">Mentions légales</a></p>
   </div>`;
   S.err=""; S.errSec="";
   bindCreator();
@@ -1786,6 +1857,7 @@ function readyHTML(){
       </div>
       <div class="linkbox one" id="linkbox">${esc(S.link)}</div>
       <button type="button" class="linkbtn" id="showLink" aria-expanded="false" aria-controls="linkbox">Afficher le lien en entier</button>
+      <p class="hint" id="shortNote"></p>
       <p class="hint" id="savedNote"></p>
       <p class="hint">Rien n'expire, rien n'est envoyé à un serveur. Toute personne qui a ce lien peut lire l'invitation : ne le partage qu'avec la bonne personne.</p>
     </div>`;
@@ -2162,12 +2234,18 @@ function bindCreator(){
   $("#make")?.addEventListener("click",async()=>{
     if(!ready()) return;
     $$(".sec-body .error").forEach(el=>el.remove()); // erreurs corrigées
-    S.link=await buildLink(); $("#linkbox").textContent=S.link; $("#result").classList.remove("hidden"); Sound.done();
+    const mk=$("#make"); mk.disabled=true; mk.textContent="Création du lien…";
+    const long=await buildLink(), sh=await createShort(linkData(long), location.origin+location.pathname); // lien court chiffré, sinon le long
+    mk.disabled=false; mk.textContent="Créer mon lien";
+    S.link = sh ? sh.link : long;
+    $("#linkbox").textContent=S.link; $("#result").classList.remove("hidden"); Sound.done();
+    $("#shortNote").textContent = sh ? "Lien court : l'invitation est chiffrée, seul ce lien permet de la lire."
+      : SHORT_ORIGIN ? "Le service des liens courts n'a pas répondu : voici le lien complet, il fonctionne tout aussi bien." : "";
     $("#make").classList.add("hidden"); // le lien affiché est à jour : une seule action principale, Partager ou Copier
     focusScreen(".ready-title");
     if(S.link.length>1800) toast("Le lien est long : raccourcis le message si l'appli le coupe.");
     // Historique : uniquement ici, côté créateur (jamais côté destinataire)
-    const saved=await addToHistory(S.link);
+    const saved=await addToHistory(long, sh);
     $("#savedNote").textContent = saved ? "Ajoutée à « Mes invitations ». Ton historique reste uniquement sur cet appareil." : "";
     const n=loadHistory().length, badge=$("#histBadge");
     if(badge){ badge.textContent=n; badge.classList.toggle("hidden",!n); }
@@ -2218,10 +2296,13 @@ async function buildLink(){
    (localStorage). Jamais envoyé nulle part, jamais lu côté destinataire.
    ========================================================= */
 const HIST_KEY="ose-historique", HIST_MAX=200, SITE_HOST="osedemander.fr";
-const HIST_FIELDS=["id","from","to","occ","occFree","when","link","created"];
+const HIST_FIELDS=["id","from","to","occ","occFree","when","link","created","long","jeton","gone"];
+// Lien court : link = #s=…, long = le lien complet (#i=…, l'historique fonctionne même sans le service), jeton = pour supprimer le lien en ligne
+const invLink = it => it.long || it.link;
 const newId=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,8);
 const byNewest=(a,b)=>Date.parse(b.created)-Date.parse(a.created);
 const linkData=link=>link.slice(link.indexOf("#i=")+3);
+const shortId=link=>(String(link).match(/#s=([A-Za-z0-9_-]{22})\./)||[])[1]||"";
 
 /* Seuls les liens d'invitation d'Ose Demander sont acceptés */
 function isOwnLink(link){
@@ -2230,7 +2311,7 @@ function isOwnLink(link){
   const prod = u.protocol==="https:" && u.hostname===SITE_HOST && !u.port;
   const dev = location.hostname==="localhost" && u.origin===location.origin; // test en local uniquement
   return (prod||dev) && u.href===link && !u.username && !u.password && !u.search
-    && (u.pathname==="/" || u.pathname==="/index.html") && /^#i=[zpyx][A-Za-z0-9_-]+$/.test(u.hash);
+    && (u.pathname==="/" || u.pathname==="/index.html") && (/^#i=[zpyx][A-Za-z0-9_-]+$/.test(u.hash) || SHORT_HASH.test(u.hash));
 }
 /* Validation stricte d'une entrée : champs connus seulement, bons types, bonnes longueurs */
 function validEntry(x){
@@ -2246,12 +2327,16 @@ function validEntry(x){
     && Array.isArray(x.when) && x.when.length>=1 && x.when.length<=3
     && x.when.every(w=>Array.isArray(w) && w.length===2 && isDate(w[0]) && isTime(w[1]))
     && typeof x.created==="string" && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{3})?Z$/.test(x.created) && !isNaN(Date.parse(x.created))
-    && isOwnLink(x.link);
+    && isOwnLink(x.link)
+    && (shortId(x.link)
+      ? isOwnLink(x.long) && x.long.includes("#i=") && (x.jeton===undefined || (typeof x.jeton==="string" && /^[A-Za-z0-9_-]{43}$/.test(x.jeton))) && (x.gone===undefined || x.gone===true)
+      : x.long===undefined && x.jeton===undefined && x.gone===undefined);
 }
 /* L'entrée est toujours reconstruite à partir du lien décodé et validé : ce qui est affiché correspond au lien */
-function entryFrom(d, link, created=new Date().toISOString(), id=newId()){
+function entryFrom(d, link, created=new Date().toISOString(), id=newId(), extra={}){
   const e={id, from:d.f, to:d.t, occ:d.o, when: d.sl ? d.sl.map(s=>[s[0],s[1]]) : [[d.d,d.h]], link, created};
   if(d.o==="libre" && d.of) e.occFree=d.of;
+  if(shortId(link)){ e.long=extra.long; if(extra.jeton) e.jeton=extra.jeton; if(extra.gone) e.gone=true; }
   return e;
 }
 function loadHistory(){
@@ -2269,9 +2354,10 @@ function storeHistory(list){
 function askPersist(){
   try{ navigator.storage?.persisted?.().then(p=>{ if(!p) return navigator.storage.persist(); }).catch(()=>{}); }catch(e){}
 }
-async function addToHistory(link){
+async function addToHistory(link, sh=null){
   try{
-    const e=entryFrom(await decodeData(linkData(link)), link);
+    const e=entryFrom(await decodeData(linkData(link)), sh ? sh.link : link, undefined, undefined, sh ? {long:link, jeton:sh.jeton} : {});
+    link=e.link;
     if(!validEntry(e)) return false;
     const list=loadHistory().filter(x=>x.link!==link);
     list.unshift(e);
@@ -2305,11 +2391,13 @@ function renderHistory(){
           <p class="meta">De ${esc(it.from)} · ${esc(histOcc(it))}</p>
           <p class="meta">${esc(histWhen(it))}</p>
           <p class="meta">Créée le ${esc(new Date(it.created).toLocaleDateString("fr-FR",{day:"numeric",month:"long",year:"numeric"}))}</p>
+          ${it.long ? `<p class="meta">${it.gone ? "Lien court supprimé en ligne : le lien complet reste dans ton historique" : "Lien court, chiffré"}</p>` : ""}
           <div class="acts">
             <button type="button" class="btn sm primary" data-act="copy">Copier le lien</button>
             <button type="button" class="btn sm" data-act="open">Ouvrir</button>
             <button type="button" class="btn sm" data-act="dup">Dupliquer</button>
-            <button type="button" class="btn sm ghost" data-act="del">Supprimer</button>
+            <button type="button" class="btn sm ghost" data-act="del">Retirer de l'historique</button>
+            ${it.jeton && !it.gone ? `<button type="button" class="btn sm danger" data-act="unpub">Supprimer le lien en ligne</button>` : ""}
           </div>
         </li>`).join("")}</ul>`
       : `<p class="empty">Aucune invitation pour l'instant.<br>Quand tu cliques sur « Créer mon lien », elle s'ajoute ici.</p>`}
@@ -2319,7 +2407,7 @@ function renderHistory(){
         ${list.length ? `<button type="button" class="btn sm danger" id="histClear">Tout effacer</button>` : ""}
       </div>
       <input type="file" id="histFile" accept=".json,application/json" class="hidden">
-      <p class="hint">L'export crée un fichier .json à garder pour toi : il contient tes liens, donc tes invitations. Pratique pour changer de téléphone ou passer du navigateur à l'appli.</p>
+      <p class="hint">L'export crée un fichier .json à garder pour toi : il contient tes liens, donc tes invitations, et de quoi supprimer tes liens courts. Pratique pour changer de téléphone ou passer du navigateur à l'appli.</p>
     </section>
     <p class="foot">Rien n'est envoyé en ligne : l'historique est enregistré dans ce navigateur.<br><a href="mentions-legales.html#historique">En savoir plus</a></p>
   </div>`;
@@ -2331,9 +2419,10 @@ function renderHistory(){
     const id=b.closest("[data-id]").dataset.id, it=loadHistory().find(x=>x.id===id);
     if(!it){ renderHistory(); return; }
     switch(b.dataset.act){
-      case "copy": toast(await copyText(it.link)?"Lien copié":"Copie impossible"); break;
-      case "open": window.open(it.link,"_blank","noopener"); break;
+      case "copy": { const l=it.gone ? it.long : it.link; toast(await copyText(l) ? (it.gone ? "Lien complet copié (le lien court a été supprimé)" : "Lien copié") : "Copie impossible"); break; }
+      case "open": window.open(invLink(it),"_blank","noopener"); break;
       case "dup": duplicateInvitation(it); break;
+      case "unpub": unpublishShort(it); break;
       case "del":
         if(storeHistory(loadHistory().filter(x=>x.id!==id))){ renderHistory(); toast("Invitation retirée de l'historique"); }
         else toast("Impossible de modifier l'historique sur cet appareil");
@@ -2353,6 +2442,20 @@ function renderHistory(){
     else toast("Impossible d'effacer l'historique sur cet appareil");
   });
 }
+/* « Supprimer le lien en ligne » : le contenu chiffré est effacé chez le service des liens courts, avec le jeton gardé ici.
+   Le lien court affichera « Cette invitation a été supprimée » ; l'invitation reste dans l'historique avec son lien complet. */
+async function unpublishShort(it){
+  const ok=await confirmSheet("Supprimer le lien en ligne ?",
+    `Le lien court envoyé à ${it.to} ne s'ouvrira plus : il affichera « Cette invitation a été supprimée ». Le contenu chiffré est effacé tout de suite. L'invitation reste dans ton historique, avec son lien complet.`,
+    "Supprimer le lien");
+  if(!ok) return;
+  const r=await deleteShort(shortId(it.link), it.jeton);
+  if(r==="ok" || r==="deja" || r==="introuvable"){
+    storeHistory(loadHistory().map(x=>x.id===it.id ? {...x, gone:true} : x));
+    renderHistory(); toast(r==="ok" ? "Lien en ligne supprimé" : "Ce lien n'est déjà plus en ligne");
+  }
+  else toast(r==="jeton" ? "Suppression refusée : ce lien n'a pas été créé sur cet appareil" : "Le service des liens courts ne répond pas : réessaie plus tard");
+}
 function confirmSheet(title, text, okLabel){
   return new Promise(resolve=>{
     const d=document.createElement("div"); d.className="sheet"; d.setAttribute("role","dialog"); d.setAttribute("aria-modal","true"); d.setAttribute("aria-label",title);
@@ -2367,7 +2470,7 @@ function confirmSheet(title, text, okLabel){
 }
 /* Dupliquer : on relit le lien pour pré-remplir tout le formulaire */
 async function duplicateInvitation(it){
-  let d; try{ d=await decodeData(linkData(it.link)); }catch(e){ toast("Impossible de relire ce lien"); return; }
+  let d; try{ d=await decodeData(linkData(invLink(it))); }catch(e){ toast("Impossible de relire ce lien"); return; }
   const blank={v:"v",x:"",h:"",at:""};
   const unpack=x=>{
     if(!x) return {...blank};
@@ -2425,8 +2528,8 @@ async function importHistory(file){
   for(const x of data.items){
     if(!validEntry(x)){ skipped++; continue; }
     if(links.has(x.link)) continue; // déjà dans l'historique
-    let d; try{ d=await decodeData(linkData(x.link)); }catch(e){ skipped++; continue; }
-    const e=entryFrom(d, x.link, x.created, ids.has(x.id) ? newId() : x.id);
+    let d; try{ d=await decodeData(linkData(invLink(x))); }catch(e){ skipped++; continue; }
+    const e=entryFrom(d, x.link, x.created, ids.has(x.id) ? newId() : x.id, x);
     if(!validEntry(e)){ skipped++; continue; }
     list.push(e); links.add(e.link); ids.add(e.id); added++;
   }
@@ -4170,14 +4273,37 @@ if("serviceWorker" in navigator && (location.protocol==="https:" || location.hos
 }
 
 /* ---------- Routage ---------- */
+/* Lien qui ne s'ouvre pas : un message clair, et une seule action principale */
+const LINK_ERRORS={
+  incomplet:["Ce lien est incomplet","Il a peut-être été coupé en le copiant. Demande à la personne de te le renvoyer en entier."],
+  introuvable:["Ce lien est introuvable","Il a peut-être été mal copié. Demande à la personne de te le renvoyer."],
+  expire:["Cette invitation a expiré","Les liens courts sont gardés un an, puis effacés. Demande à la personne de t'en envoyer un nouveau."],
+  supprime:["Cette invitation a été supprimée","La personne qui l'a créée l'a retirée."],
+  reseau:["Le service des liens courts ne répond pas","Vérifie ta connexion, puis réessaie dans un instant."]
+};
+function renderLinkError(kind){
+  const [t,p]=LINK_ERRORS[kind]||LINK_ERRORS.incomplet;
+  setTheme("base","n");
+  $("#app").innerHTML=`<main class="inv"><div class="ticket"><div class="main"><h1 class="question" tabindex="-1">${t}</h1><p>${p}</p>
+    <p>${kind==="reseau" ? `<button type="button" class="btn primary" id="retry">Réessayer</button></p><p><a href="./">Créer une invitation</a>`
+      : `<a class="btn primary" href="./" style="display:inline-block;text-decoration:none">Créer une invitation</a>`}</p></div></div></main>`;
+  $("#retry")?.addEventListener("click", route);
+  focusScreen(".question");
+}
 async function route(){
-  const m=location.hash.match(/^#i=(.+)$/);
+  const ms=location.hash.match(SHORT_HASH), m=ms ? null : location.hash.match(/^#i=(.+)$/);
   EXAMPLE = location.hash==="#exemple";
-  if(!m && !EXAMPLE) Sound.on=Sound.pref(); // côté créateur : le choix gardé sur cet appareil
+  if(!m && !ms && !EXAMPLE) Sound.on=Sound.pref(); // côté créateur : le choix gardé sur cet appareil
   if(location.hash==="#mes-invitations"){ renderHistory(); focusScreen(".panel h2"); return; }
-  if(m || EXAMPLE){
+  if(m || ms || EXAMPLE){
     try{
-      D = EXAMPLE ? demoData() : await decodeData(m[1]); chosenSlot=null; yesDone=false;
+      let code = m ? m[1] : "";
+      if(ms){ // lien court : on récupère le contenu chiffré, puis on le déchiffre ici (la clé ne quitte jamais l'appareil)
+        setTheme("base","n");
+        $("#app").innerHTML=`<main class="inv"><p class="lead" role="status" style="text-align:center">Ouverture de l'invitation…</p></main>`;
+        code = await readShort(ms[1], ms[2]);
+      }
+      D = EXAMPLE ? demoData() : await decodeData(code); chosenSlot=null; yesDone=false; // decodeData : sanitize, comme pour un lien long
       Sound.on = D.so!==0; // côté destinataire : réglage de l'invitation, rien n'est lu ni enregistré
       noTries=0; refused=false; refuseOffered=false; refuseWhy="non"; refuseDrafts={}; clearTimeout(refuseTimer);
       clearInterval(countTimer); clearTimeout(revStart); revQueue=[]; remLink=""; remState="wait";
@@ -4186,12 +4312,7 @@ async function route(){
       else if(D.rv){ Sound.init(); renderReminder(); } else renderEnvelope(); // rappel d'agenda : directement la carte
       return;
     }
-    catch(e){
-      setTheme("base","n");
-      $("#app").innerHTML=`<main class="inv"><div class="ticket"><div class="main"><h1 class="question" tabindex="-1">Ce lien est incomplet</h1><p>Il a peut-être été coupé en le copiant. Demande à la personne de te le renvoyer en entier.</p><p><a class="btn primary" href="./" style="display:inline-block;text-decoration:none">Créer une invitation</a></p></div></div></main>`;
-      focusScreen(".question");
-      return;
-    }
+    catch(e){ renderLinkError(e && e.kind || "incomplet"); return; }
   }
   renderCreator();
 }

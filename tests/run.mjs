@@ -930,7 +930,7 @@ await test("Accueil : plus de bloc « Privé par conception », lien « Confiden
   assert.ok(!/privacy|Privé par conception/.test(h), "bloc retiré");
   const S = PAGE.lire("S"); Object.assign(S, { step: "home" }); PAGE.lire("renderCreator")();
   const app = PAGE.zones["#app"].innerHTML;
-  assert.ok(app.includes(`Rien n'est stocké en ligne : toute l'invitation tient dans le lien. <a href="mentions-legales.html#confidentialite">Confidentialité</a>`), "lien juste après la phrase du bas de page");
+  assert.ok(app.includes(`Rien n'est stocké en clair en ligne : l'invitation tient dans son lien, chiffrée si le lien est court. <a href="mentions-legales.html#confidentialite">Confidentialité</a>`), "lien juste après la phrase du bas de page");
   assert.ok(!/\.privacy/.test(CSS), "styles du bloc retirés");
   const ml = readFileSync(RACINE + "mentions-legales.html", "utf8"), sec = ml.slice(ml.indexOf('id="confidentialite"'), ml.indexOf('id="donnees"'));
   assert.ok(sec.length > 100, "section #confidentialite des mentions légales");
@@ -1708,6 +1708,129 @@ await test("Worker : aucun journal, aucun secret, fichiers locaux ignorés", () 
   assert.ok(toml.includes('ORIGINES = "https://osedemander.fr"'), "CORS de production : osedemander.fr seulement");
   const gi = readFileSync(RACINE + "worker/.gitignore", "utf8");
   assert.ok(gi.includes(".wrangler/") && gi.includes(".dev.vars"));
+});
+
+/* =========================================================
+   19. Liens courts : le site (chiffrement, création, ouverture, repli, suppression)
+   Le « réseau » du banc envoie les requêtes au vrai Worker (base SQLite) et les enregistre toutes.
+   ========================================================= */
+titre("19. Liens courts : le site");
+const LOCAL = "http://localhost:8000";
+const reseau = (env = ENV({ ORIGINES: LOCAL })) => {
+  const journal = [];
+  const f = async (u, o = {}) => {
+    journal.push({ url: u, body: o.body || "", headers: JSON.stringify(o.headers || {}) });
+    assert.equal(o.cache, "no-store", "requête sans cache"); assert.equal(o.credentials, "omit");
+    return WORKER.default.fetch(new Request(u.replace("http://localhost:8787", "https://ose-liens.exemple.workers.dev"),
+      { method: o.method || "GET", headers: { ...(o.headers || {}), Origin: LOCAL, "CF-Connecting-IP": "203.0.113.9" }, body: o.body }), env);
+  };
+  return { env, journal, f };
+};
+const brancher = r => PAGE.ecrire("shortFetch", r.f);
+const CODE_EX = async (extra = {}) => (await L.encodeData(INV(extra)));
+await essaiWorker("Chiffrement : aller-retour, clé et identifiant de 128 bits, contenu lié à son identifiant", async () => {
+  const seal = PAGE.lire("sealShort"), open = PAGE.lire("openShort"), code = await CODE_EX();
+  const s = await seal(code);
+  assert.match(s.id, /^[A-Za-z0-9_-]{22}$/); assert.match(s.key, /^[A-Za-z0-9_-]{22}$/);
+  assert.equal(Buffer.from(s.key, "base64url").length, 16, "clé de 128 bits"); assert.equal(Buffer.from(s.id, "base64url").length, 16, "identifiant de 128 bits");
+  assert.equal(await open(s.id, s.key, s.ct), code);
+  assert.ok(!s.ct.includes(code.slice(1, 30)), "contenu illisible");
+  await assert.rejects(open("B".repeat(22), s.key, s.ct), "déplacé sous un autre identifiant : refusé");
+  await assert.rejects(open(s.id, (await seal(code)).key, s.ct), "autre clé : refusée");
+  const s2 = await seal(code); assert.notEqual(s2.id, s.id); assert.notEqual(s2.ct, s.ct, "chaque lien a sa clé et son IV");
+});
+await essaiWorker("Création : lien #s=ID.CLÉ, la clé et l'invitation en clair ne partent jamais", async () => {
+  const r = reseau(); brancher(r);
+  const code = await CODE_EX(), sh = await PAGE.lire("createShort")(code, LOCAL + "/");
+  assert.ok(sh, "lien court créé");
+  const [, id, key] = sh.link.match(/^http:\/\/localhost:8000\/#s=([A-Za-z0-9_-]{22})\.([A-Za-z0-9_-]{22})$/) || [];
+  assert.ok(id && key, `format osedemander.fr/#s=ID.CLÉ : ${sh.link}`);
+  assert.match(sh.jeton, /^[A-Za-z0-9_-]{43}$/);
+  for(const req of r.journal){
+    for(const secret of [key, sh.jeton, code.slice(1, 40), "Alex", "Sam"]) assert.ok(!(req.url + req.body + req.headers).includes(secret), `« ${secret.slice(0, 12)}… » envoyé au service`);
+  }
+  const ligne = r.env.DB.db.prepare("SELECT ct, del FROM liens WHERE id = ?").get(id);
+  assert.ok(ligne && !ligne.ct.includes(code.slice(1, 30)), "la base ne contient que du chiffré");
+  assert.equal(ligne.del, Buffer.from(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(sh.jeton))).toString("base64url"), "seulement l'empreinte du jeton");
+  assert.equal(await PAGE.lire("readShort")(id, key), code, "relu à l'identique");
+});
+await essaiWorker("Repli sur le lien long : service absent, quota atteint (503), limite (429), délai dépassé, contenu trop gros", async () => {
+  const cs = PAGE.lire("createShort"), code = await CODE_EX();
+  for(const [nom, f] of [["réseau", async () => { throw new TypeError("Failed to fetch"); }], ["délai", async () => { throw new DOMException("délai", "AbortError"); }],
+    ["503", async () => new Response("{}", { status: 503 })], ["429", async () => new Response("{}", { status: 429 })], ["400", async () => new Response("{}", { status: 400 })]]){
+    PAGE.ecrire("shortFetch", f); assert.equal(await cs(code, LOCAL + "/"), null, nom);
+  }
+  const r = reseau(); brancher(r);
+  assert.equal(await cs("y" + "A".repeat(8000), LOCAL + "/"), null, "plus long que MAX_LINK : lien long");
+  assert.equal(await cs("pas un code", LOCAL + "/"), null);
+  assert.equal(r.journal.length, 0, "rien n'est envoyé dans ces cas");
+  assert.ok(PAGE.lire("route").toString().includes("readShort(ms[1], ms[2])"));
+  const make = PAGE.lire("bindCreator").toString();
+  assert.ok(make.includes("S.link = sh ? sh.link : long;") && make.includes("addToHistory(long, sh)"), "création : le court si possible, sinon le long ; l'historique garde les deux");
+});
+// Ouvre un lien comme la page : location.hash puis route() ; renvoie le HTML affiché
+const ouvrirLien = async lien => { PAGE.lire("location").hash = lien.slice(lien.indexOf("#")); await PAGE.lire("route")(); const h = PAGE.zones["#app"].innerHTML; PAGE.lire("location").hash = ""; return h; };
+await essaiWorker("Ouverture d'un lien court : l'invitation, validée par sanitize", async () => {
+  const r = reseau(); brancher(r);
+  const sh = await PAGE.lire("createShort")(await CODE_EX(), LOCAL + "/");
+  const h = await ouvrirLien(sh.link);
+  assert.ok(h.includes('class="envelope') && h.includes("Alex t'a envoyé une invitation"), "enveloppe de l'invitation");
+  assert.equal(PAGE.lire("D").f, "Alex");
+  // Contenu chiffré valide mais invitation piégée : refusée par sanitize (« incomplet »)
+  const seal = PAGE.lire("sealShort"), piege = "x" + Buffer.from(JSON.stringify({ f: "<b>", t: "Sam" })).toString("base64url"), s = await seal(piege);
+  await r.env.DB.prepare(WORKER.SQL.creer).bind(s.id, s.ct, "D".repeat(43), Date.now() + 1e9).run();
+  assert.ok((await ouvrirLien(`${LOCAL}/#s=${s.id}.${s.key}`)).includes("Ce lien est incomplet"));
+  const s2 = await seal("<script>alert(1)</script>");
+  await r.env.DB.prepare(WORKER.SQL.creer).bind(s2.id, s2.ct, "D".repeat(43), Date.now() + 1e9).run();
+  assert.ok((await ouvrirLien(`${LOCAL}/#s=${s2.id}.${s2.key}`)).includes("Ce lien est incomplet"), "contenu qui n'est pas un code d'invitation : refusé");
+});
+await essaiWorker("Messages clairs : introuvable, expiré, supprimé, incomplet (clé fausse), service muet (avec « Réessayer »)", async () => {
+  const r = reseau(); brancher(r);
+  const sh = await PAGE.lire("createShort")(await CODE_EX(), LOCAL + "/"), [, id, key] = sh.link.match(/#s=([^.]+)\.(.+)$/);
+  const titre = h => (h.match(/<h1 class="question" tabindex="-1">([^<]+)<\/h1>/) || [])[1];
+  assert.equal(titre(await ouvrirLien(`${LOCAL}/#s=${"Z".repeat(22)}.${key}`)), "Ce lien est introuvable");
+  assert.equal(titre(await ouvrirLien(`${LOCAL}/#s=${id}.${"A".repeat(22)}`)), "Ce lien est incomplet", "clé abîmée");
+  r.env.DB.db.prepare("UPDATE liens SET expire = ? WHERE id = ?").run(Date.now() - 1, id);
+  assert.equal(titre(await ouvrirLien(sh.link)), "Cette invitation a expiré");
+  const sh2 = await PAGE.lire("createShort")(await CODE_EX(), LOCAL + "/");
+  assert.equal(await PAGE.lire("deleteShort")(sh2.id, sh2.jeton), "ok");
+  const h = await ouvrirLien(sh2.link);
+  assert.equal(titre(h), "Cette invitation a été supprimée"); assert.ok(h.includes("La personne qui l&#39;a créée l&#39;a retirée.") || h.includes("La personne qui l'a créée l'a retirée."));
+  PAGE.ecrire("shortFetch", async () => { throw new TypeError("Failed to fetch"); });
+  const muet = await ouvrirLien(sh2.link);
+  assert.equal(titre(muet), "Le service des liens courts ne répond pas");
+  assert.deepEqual(principales(muet), ["Réessayer"], "une seule action principale : réessayer");
+  for(const k of ["introuvable", "expire", "supprime", "incomplet"]){ PAGE.lire("renderLinkError")(k); assert.equal(principales(PAGE.zones["#app"].innerHTML).length, 1, k); }
+});
+await essaiWorker("Suppression du lien en ligne : jeton faux refusé, bon jeton accepté, lien supprimé qui l'annonce", async () => {
+  const r = reseau(); brancher(r);
+  const del = PAGE.lire("deleteShort"), sh = await PAGE.lire("createShort")(await CODE_EX(), LOCAL + "/");
+  assert.equal(await del(sh.id, "E".repeat(43)), "jeton", "jeton faux : refusé");
+  assert.equal(await PAGE.lire("readShort")(sh.id, sh.link.split(".").pop()), await CODE_EX(), "toujours lisible après un jeton faux");
+  assert.equal(await del(sh.id, sh.jeton), "ok");
+  assert.equal(await del(sh.id, sh.jeton), "deja");
+  await assert.rejects(PAGE.lire("readShort")(sh.id, sh.link.split(".").pop()), e => e.kind === "supprime");
+  PAGE.ecrire("shortFetch", async () => { throw new TypeError("Failed to fetch"); });
+  assert.equal(await del(sh.id, sh.jeton), "reseau");
+  const src = PAGE.lire("unpublishShort").toString();
+  assert.ok(src.includes("confirmSheet(") && src.indexOf("confirmSheet(") < src.indexOf("deleteShort("), "confirmation avant la suppression");
+  assert.ok(src.includes("gone:true"), "l'historique note la suppression");
+});
+await test("« Mes invitations » : lien court, lien complet et jeton validés strictement ; bouton « Supprimer le lien en ligne »", () => {
+  const ok = PAGE.lire("validEntry"), base = { id: "abc123", from: "Alex", to: "Sam", occ: "date", when: [["2026-11-14", "20:00"]], created: "2026-10-17T10:00:00.000Z" };
+  const court = `${LOCAL}/#s=${"A".repeat(22)}.${"B".repeat(22)}`, long = `${LOCAL}/#i=yAAAA`;
+  assert.ok(ok({ ...base, link: long }), "lien long seul");
+  assert.ok(ok({ ...base, link: court, long, jeton: "C".repeat(43) }), "lien court, lien complet, jeton");
+  assert.ok(ok({ ...base, link: court, long, jeton: "C".repeat(43), gone: true }), "supprimé en ligne");
+  assert.ok(!ok({ ...base, link: court }), "lien court sans lien complet : refusé");
+  assert.ok(!ok({ ...base, link: court, long: court }), "le lien complet doit être un #i=");
+  assert.ok(!ok({ ...base, link: court, long, jeton: "court" }), "jeton mal formé");
+  assert.ok(!ok({ ...base, link: court, long, gone: "oui" }));
+  assert.ok(!ok({ ...base, link: long, jeton: "C".repeat(43) }), "jeton sans lien court");
+  assert.ok(!ok({ ...base, link: `${LOCAL}/#s=court.cle` }));
+  const rh = PAGE.lire("renderHistory").toString();
+  assert.ok(rh.includes('${it.jeton && !it.gone ? `<button type="button" class="btn sm danger" data-act="unpub">Supprimer le lien en ligne</button>` : ""}'));
+  assert.ok(PAGE.lire("duplicateInvitation").toString().includes("linkData(invLink(it))"), "dupliquer relit le lien complet (sans le service)");
 });
 
 /* ---------- Bilan ---------- */
