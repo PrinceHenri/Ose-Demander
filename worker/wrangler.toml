@@ -1,0 +1,34 @@
+# Ose Demander : service des liens courts. Publié sur workers.dev (le site reste sur GitHub Pages, DNS inchangés).
+# AUCUN SECRET ICI (dépôt public) : la publication se fait après « npx wrangler login », depuis l'ordinateur.
+name = "ose-liens"
+main = "src/index.js"
+compatibility_date = "2026-10-01"
+workers_dev = true
+
+# Aucun journal : ni journaux de requêtes, ni traces
+[observability]
+enabled = false
+
+[vars]
+# Seul le site peut appeler le Worker depuis un navigateur (CORS)
+ORIGINES = "https://osedemander.fr"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "ose-liens"
+database_id = "A_REMPLIR_APRES_wrangler_d1_create"
+
+# Nettoyage quotidien des liens expirés (3 h 17 UTC)
+[triggers]
+crons = ["17 3 * * *"]
+
+# Limites par adresse IP, comptées en mémoire par Cloudflare (aucune adresse enregistrée)
+[[ratelimits]]
+name = "LIMITE_CREATION"
+namespace_id = "2701"
+simple = { limit = 10, period = 60 }
+
+[[ratelimits]]
+name = "LIMITE_LECTURE"
+namespace_id = "2702"
+simple = { limit = 120, period = 60 }

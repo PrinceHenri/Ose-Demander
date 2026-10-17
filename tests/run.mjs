@@ -1607,6 +1607,109 @@ await test("Champs de date et d'heure : jamais plus larges que leur cadre (Safar
   assert.ok(/@supports \(-webkit-touch-callout:none\)\{\s*input\.input\[type=date\],input\.input\[type=time\]\{-webkit-appearance:none;appearance:none;display:block/.test(CSS), "apparence native retirée sur iPhone et iPad");
 });
 
+/* =========================================================
+   18. Liens courts : le Worker (worker/src/index.js), testé avec une vraie base SQLite et le vrai schéma
+   ========================================================= */
+titre("18. Liens courts : le Worker");
+const WORKER = (await import(new URL("../worker/src/index.js", import.meta.url).href));
+let sqlite = null; try{ sqlite = await import("node:sqlite"); }catch{}
+const SITE = "https://osedemander.fr";
+// Base D1 simulée sur SQLite (mêmes appels que D1 : prepare().bind().run() / first())
+const baseD1 = () => {
+  const db = new sqlite.DatabaseSync(":memory:");
+  db.exec(readFileSync(RACINE + "worker/schema.sql", "utf8"));
+  let panne = false;
+  return { db, panne: v => { panne = v; }, prepare: sql => ({ bind: (...a) => ({
+    run: async () => { if(panne) throw new Error("D1_ERROR: quota"); db.prepare(sql.replace(/\?(\d)/g, "?")).run(...a); return { success: true }; },
+    first: async () => { if(panne) throw new Error("D1_ERROR: quota"); return db.prepare(sql.replace(/\?(\d)/g, "?")).get(...a) || null; }
+  }) }) };
+};
+const ENV = (extra = {}) => ({ DB: baseD1(), ORIGINES: SITE, ...extra });
+const appel = (env, methode, chemin, corps, origine = SITE, ip = "203.0.113.7") => WORKER.default.fetch(new Request("https://ose-liens.exemple.workers.dev" + chemin, {
+  method: methode, headers: { ...(origine ? { Origin: origine } : {}), "CF-Connecting-IP": ip, ...(corps !== undefined ? { "Content-Type": "application/json" } : {}) },
+  body: corps === undefined ? undefined : typeof corps === "string" ? corps : JSON.stringify(corps) }), env);
+const ID_EX = "AAAAAAAAAAAAAAAAAAAAAA", JETON_EX = "B".repeat(43);
+const empreinteDe = async j => Buffer.from(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(j))).toString("base64url");
+const creer = async (env, id = ID_EX, ct = "Q2hpZmZyZQ", jeton = JETON_EX) => appel(env, "POST", "/v1/liens", { id, ct, del: await empreinteDe(jeton) });
+const essaiWorker = (nom, f) => test(nom, async () => { if(!sqlite){ console.log("    (node:sqlite absent : test sauté, Node 22.5 ou plus requis)"); return; } await f(); });
+
+await essaiWorker("Créer puis lire : 201, puis le contenu chiffré tel quel ; doublon refusé (409)", async () => {
+  const env = ENV();
+  const r = await creer(env); assert.equal(r.status, 201);
+  const e = await r.json(); assert.ok(e.expire > Date.now() + 364 * 864e5 && e.expire <= Date.now() + 365 * 864e5, "expiration : 1 an");
+  const l = await appel(env, "GET", "/v1/liens/" + ID_EX); assert.equal(l.status, 200); assert.deepEqual(await l.json(), { ct: "Q2hpZmZyZQ" });
+  assert.equal((await creer(env, ID_EX, "QXV0cmU")).status, 409, "un lien existant n'est jamais écrasé");
+});
+await essaiWorker("Contenus refusés : identifiant mal formé, champ inconnu, plus de 16 Ko", async () => {
+  const env = ENV(), del = await empreinteDe(JETON_EX);
+  assert.equal((await appel(env, "POST", "/v1/liens", { id: "court", ct: "QQ", del })).status, 400);
+  assert.equal((await appel(env, "POST", "/v1/liens", { id: ID_EX, ct: "QQ", del, x: 1 })).status, 400);
+  assert.equal((await appel(env, "POST", "/v1/liens", { id: ID_EX, ct: "Q+Q=", del })).status, 400, "contenu hors base64url");
+  assert.equal((await appel(env, "POST", "/v1/liens", { id: ID_EX, ct: "Q".repeat(WORKER.CT_MAX + 1), del })).status, 413, "16 Ko au plus");
+  assert.equal((await appel(env, "POST", "/v1/liens", "x".repeat(WORKER.CORPS_MAX + 1))).status, 413);
+  assert.equal((await appel(env, "POST", "/v1/liens", "pas du json")).status, 400);
+  assert.equal((await creer(env, ID_EX, "Q".repeat(WORKER.CT_MAX))).status, 201, "exactement 16 Ko : accepté");
+});
+await essaiWorker("Introuvable : 404 (identifiant inconnu ou mal formé)", async () => {
+  const env = ENV();
+  assert.equal((await appel(env, "GET", "/v1/liens/" + "Z".repeat(22))).status, 404);
+  assert.equal((await appel(env, "GET", "/v1/liens/../../etc")).status, 404);
+  assert.equal((await appel(env, "GET", "/autre")).status, 404);
+});
+await essaiWorker("Suppression : jeton faux refusé (403), bon jeton accepté, puis « supprimé » (410)", async () => {
+  const env = ENV(); await creer(env);
+  assert.equal((await appel(env, "POST", `/v1/liens/${ID_EX}/supprimer`, { jeton: "C".repeat(43) })).status, 403, "jeton faux");
+  assert.equal((await appel(env, "GET", "/v1/liens/" + ID_EX)).status, 200, "toujours lisible après un jeton faux");
+  assert.equal((await appel(env, "POST", `/v1/liens/${ID_EX}/supprimer`, { jeton: JETON_EX })).status, 200, "bon jeton");
+  const l = await appel(env, "GET", "/v1/liens/" + ID_EX); assert.equal(l.status, 410); assert.deepEqual(await l.json(), { raison: "supprime" });
+  assert.equal(env.DB.db.prepare("SELECT ct FROM liens").get().ct, null, "contenu chiffré effacé de la base");
+  assert.equal((await appel(env, "POST", `/v1/liens/${ID_EX}/supprimer`, { jeton: JETON_EX })).status, 410, "déjà supprimé");
+  assert.equal((await appel(env, "POST", `/v1/liens/${"Z".repeat(22)}/supprimer`, { jeton: JETON_EX })).status, 404);
+  assert.equal((await appel(env, "POST", `/v1/liens/${ID_EX}/supprimer`, { jeton: "court" })).status, 400);
+});
+await essaiWorker("Expiration : 410 « expiré » dès la date passée, contenu effacé par la tâche quotidienne, identifiant oublié un an plus tard", async () => {
+  const env = ENV(); await creer(env);
+  env.DB.db.prepare("UPDATE liens SET expire = ?").run(Date.now() - 1000);
+  const l = await appel(env, "GET", "/v1/liens/" + ID_EX); assert.equal(l.status, 410); assert.deepEqual(await l.json(), { raison: "expire" });
+  await WORKER.default.scheduled({}, env);
+  assert.deepEqual({ ...env.DB.db.prepare("SELECT ct, etat FROM liens").get() }, { ct: null, etat: "expire" }, "contenu effacé");
+  env.DB.db.prepare("UPDATE liens SET expire = ?").run(Date.now() - WORKER.GARDE - 1000);
+  await WORKER.default.scheduled({}, env);
+  assert.equal(env.DB.db.prepare("SELECT COUNT(*) AS n FROM liens").get().n, 0, "identifiant oublié");
+  assert.equal((await appel(env, "GET", "/v1/liens/" + ID_EX)).status, 404);
+});
+await essaiWorker("CORS limité à osedemander.fr ; aucune réponse mise en cache (no-store)", async () => {
+  const env = ENV(), reps = [];
+  const o = await appel(env, "OPTIONS", "/v1/liens", undefined); reps.push(o);
+  assert.equal(o.status, 204); assert.equal(o.headers.get("Access-Control-Allow-Origin"), SITE);
+  const autre = await appel(env, "POST", "/v1/liens", { id: ID_EX, ct: "QQ", del: await empreinteDe(JETON_EX) }, "https://pirate.example"); reps.push(autre);
+  assert.equal(autre.status, 403); assert.equal(autre.headers.get("Access-Control-Allow-Origin"), null, "aucune autorisation pour un autre site");
+  assert.equal((await appel(env, "GET", "/v1/liens/" + ID_EX, undefined, "http://localhost:8000")).status, 403, "localhost refusé en production");
+  reps.push(await creer(env), await appel(env, "GET", "/v1/liens/" + ID_EX), await appel(env, "GET", "/v1/liens/" + "Z".repeat(22)),
+    await appel(env, "POST", `/v1/liens/${ID_EX}/supprimer`, { jeton: JETON_EX }), await appel(env, "GET", "/v1/liens/" + ID_EX));
+  for(const r of reps) assert.equal(r.headers.get("Cache-Control"), "no-store", `réponse ${r.status} sans no-store`);
+  assert.ok(reps.every(r => r.headers.get("Vary") === "Origin"));
+});
+await essaiWorker("Limite par adresse IP (429) et quota gratuit atteint (503, le site repasse au lien long)", async () => {
+  const comptes = new Map(), limiteur = { limit: async ({ key }) => { const n = (comptes.get(key) || 0) + 1; comptes.set(key, n); return { success: n <= 2 }; } };
+  const env = ENV({ LIMITE_CREATION: limiteur, LIMITE_LECTURE: limiteur }), del = await empreinteDe(JETON_EX);
+  const c = i => appel(env, "POST", "/v1/liens", { id: String(i).padStart(22, "A"), ct: "QQ", del });
+  assert.deepEqual([(await c(1)).status, (await c(2)).status, (await c(3)).status], [201, 201, 429]);
+  assert.equal((await appel(env, "POST", "/v1/liens", { id: "9".padStart(22, "A"), ct: "QQ", del }, SITE, "198.51.100.9")).status, 201, "autre adresse : pas concernée");
+  const env2 = ENV(); env2.DB.panne(true);
+  assert.equal((await creer(env2)).status, 503); assert.equal((await appel(env2, "GET", "/v1/liens/" + ID_EX)).status, 503);
+});
+await test("Worker : aucun journal, aucun secret, fichiers locaux ignorés", () => {
+  const src = readFileSync(RACINE + "worker/src/index.js", "utf8"), toml = readFileSync(RACINE + "worker/wrangler.toml", "utf8");
+  assert.ok(!/console\.|\.log\(/.test(src.replace(/\/\*[\s\S]*?\*\//g, "")), "aucun console.* dans le Worker");
+  assert.ok(/\[observability\]\s*\nenabled = false/.test(toml), "journaux Cloudflare coupés");
+  for(const motif of [/api[_-]?token/i, /secret\s*=/i, /password/i, /CLOUDFLARE_API/i, /account_id/i])
+    assert.ok(!motif.test(toml) && !motif.test(src), `motif interdit ${motif}`);
+  assert.ok(toml.includes('ORIGINES = "https://osedemander.fr"'), "CORS de production : osedemander.fr seulement");
+  const gi = readFileSync(RACINE + "worker/.gitignore", "utf8");
+  assert.ok(gi.includes(".wrangler/") && gi.includes(".dev.vars"));
+});
+
 /* ---------- Bilan ---------- */
 console.log(`\n${ko ? "❌" : "✅"} ${ok} tests réussis, ${ko} en échec (graine ${GRAINE}${ko ? ` — pour rejouer : node tests/run.mjs --graine=${GRAINE}` : ""})`);
 if(ko){ console.log(echecs.map(e => "  - " + e).join("\n")); process.exitCode = 1; }

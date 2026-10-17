@@ -1,0 +1,4 @@
+# Fichiers locaux de wrangler (base locale, variables de développement) : jamais dans le dépôt public
+.wrangler/
+.dev.vars
+node_modules/
