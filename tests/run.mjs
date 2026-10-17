@@ -1480,6 +1480,84 @@ await test("Rien ne change dans les liens : le décodage ignore le décor", () =
   for(const nom of ["sanitize", "unpackLink", "packLink", "decodeData", "encodeData"]) assert.ok(!/ENV_DECO|sealHTML|envDeco/.test(PAGE.lire(nom).toString()), nom);
 });
 
+/* =========================================================
+   15. Partager la surprise : version en lecture seule, montrée par la personne invitée après son Oui
+   ========================================================= */
+titre("15. Partager la surprise");
+const partage = PAGE.lire("shareData");
+const COMPLETE = () => INV({ m: "Prépare ton plus beau sourire.", mh: 1, a: { v: "r", h: "Tu vas adorer", at: "2027-02-13T18:00", e: L.scramble("Dîner") },
+  l: { v: "v", x: "Restaurant de l'Exemple" }, dt: "Code de la porte 0000", ix: 1, d: undefined, h: undefined, sl: [["2027-02-13", "20:00"], ["2027-02-14", "20:00"]] });
+await test("Version partagée : sans canal ni identifiant, sans lieu, détails, message caché ni texte brouillé", async () => {
+  const d = partage(COMPLETE(), 1);
+  assert.equal(d.vu, 1); assert.equal(d.c, "any");
+  for(const k of ["ci", "l", "dt", "m", "mh", "ix", "rv", "sl", "pa"]) assert.ok(!(k in d), `« ${k} » retiré`);
+  assert.deepEqual(d.a, { v: "s", h: "Tu vas adorer" }, "révélation programmée devenue « Surprise » (indice gardé)");
+  assert.deepEqual([d.d, d.h], ["2027-02-14", "20:00"], "seul le créneau choisi");
+  const lien = await L.encodeData(d), relu = await L.decodeData(lien);
+  assert.deepEqual(relu, d, "le lien se relit à l'identique");
+  const txt = JSON.stringify(relu);
+  for(const secret of ["06 00 00 00 01", "Exemple", "0000", "sourire", "Dîner"]) assert.ok(!txt.includes(secret), `« ${secret} » absent du lien partagé`);
+  assert.ok(!/"e":/.test(txt), "aucun texte brouillé");
+});
+await test("Version partagée d'un programme : lieux des étapes et point de départ retirés, message visible gardé", () => {
+  const d = partage(INV({ a: undefined, m: "À bientôt", me: "Gare de l'Exemple", br: "Des baskets",
+    p: [{ h: "10 h", v: "v", a: "Balade", l: "Parc de l'Exemple" }, { h: "16 h", v: "r", i: "Indice", at: "2027-01-01T16:00", e: L.scramble(JSON.stringify({ a: "Musée", l: "Musée de l'Exemple" })) }] }), 0);
+  assert.deepEqual(d.p, [{ h: "10 h", v: "v", a: "Balade", l: "" }, { h: "16 h", v: "s", i: "Indice" }]);
+  assert.ok(!("me" in d) && d.br === "Des baskets" && d.m === "À bientôt");
+});
+await test("Liens de référence : version partagée aux formats p et y, partage refusé", () => {
+  for(const f of ["p", "y"]) assert.ok(REFERENCES.some(r => r.attendu.vu && r.lien[0] === f), `aucune version partagée au format ${f}`);
+  assert.ok(REFERENCES.some(r => r.attendu.pa === 0), "aucun lien avec le partage refusé");
+});
+await test("Indicateurs stricts : V = 1 et P = 0 seulement", async () => {
+  const c = L.packLink(partage(INV(), 0));
+  assert.equal(c.V, 1);
+  assert.throws(() => L.unpackLink({ ...c, V: 2 })); assert.throws(() => L.unpackLink({ ...c, P: 1 }));
+  assert.ok(!("vu" in L.sanitize({ ...INV(), vu: 2 })) && !("pa" in L.sanitize({ ...INV(), pa: 1 })), "valeurs inattendues ignorées");
+  assert.equal(L.sanitize({ ...INV(), pa: 0 }).pa, 0);
+});
+await test("Écran partagé : lecture seule, « Gardé secret 🤫 », une seule action principale, titre focalisable", () => {
+  PAGE.vus.length = 0;
+  ouvrir(partage(COMPLETE(), 0)); PAGE.lire("renderShared")();
+  const h = PAGE.zones["#app"].innerHTML, main = h.slice(h.indexOf('<div class="pop-in">'), h.indexOf('<p class="foot">'));
+  assert.ok(h.includes('<h1 class="question" tabindex="-1" style="margin-bottom:8px">Sam a dit oui ! 🎉</h1>'));
+  assert.ok(PAGE.vus.includes(".question"), "focus sur le titre");
+  assert.deepEqual(principales(h), ["Créer ma propre invitation"]);
+  assert.ok(main.includes("<small>Lieu</small><strong>Gardé secret 🤫</strong>"));
+  assert.ok(!/id="(yes|no|reply|copyR|refuse)"/.test(h), "aucun moyen de répondre");
+  assert.ok(!h.includes("google.com/maps") && !h.includes("sourire"), "ni carte ni message caché");
+  assert.ok(main.includes("«&nbsp;Ça te dit un rendez-vous avec moi ?&nbsp;»"), "la question citée, sans guillemet isolé en fin de ligne");
+  assert.ok(h.includes(PAGE.lire("SAFETY")), "mention anti-phishing");
+  assert.ok(!/[←→]| · /.test(main), "ni flèche ni « · »");
+  assert.ok(PAGE.lire("route").toString().includes("if(D.vu){ Sound.init(); renderShared(); }"), "le lien partagé ouvre cet écran");
+});
+await test("Après le Oui : « Partager la surprise » secondaire, si autorisé et le créneau choisi", () => {
+  const actions = (d, slot = null) => { ouvrir(d, slot); PAGE.ecrire("shareState", d.pa === 0 ? "none" : "ok"); return PAGE.lire("actionsHTML")(); };
+  const h = actions(INV());
+  assert.ok(h.includes('<button type="button" class="btn" id="shareSur">Partager la surprise</button>'), "bouton secondaire");
+  assert.ok(!actions(INV({ pa: 0 })).includes("shareSur"), "refusé par le créateur : pas de bouton");
+  assert.ok(!actions(INV({ d: undefined, h: undefined, sl: [["2026-11-14", "20:00"], ["2026-11-21", "20:00"]] })).includes("shareSur"), "créneau pas encore choisi");
+  const prep = PAGE.lire("prepReminder").toString();
+  assert.ok(prep.includes('if(D.pa===0 || D.vu) shareState="none";') && prep.includes("shareData(D, slot)"));
+  ouvrir(INV()); PAGE.ecrire("shareState", "ok"); PAGE.ecrire("remState", "ok");
+  const page = PAGE.lire("ticketHTML")(PAGE.lire("afterHTML")("C'est un oui !", ""));
+  assert.equal(principales(page).length, 1, "toujours une seule action principale (la réponse)");
+});
+await test("Création : « Autoriser le partage » activé par défaut, pa = 0 seulement s'il est décoché", async () => {
+  const S = PAGE.lire("S"), lien = PAGE.lire("buildLink"), dec = PAGE.lire("decodeData");
+  const lire = async () => { const u = await lien(); return dec(u.slice(u.indexOf("#i=") + 3)); };
+  Object.assign(S, { from: "Alex", to: "Sam", date: "2027-10-31", time: "20:00", choose: false, mode: "one", occ: "date", ch: "any", chId: "" });
+  assert.equal(S.share, true, "activé par défaut");
+  assert.ok(!("pa" in await lire()), "autorisé : rien dans le lien (comme les anciens liens)");
+  S.share = false; assert.equal((await lire()).pa, 0);
+  Object.assign(S, { step: 4, link: "" }); PAGE.lire("renderCreator")();
+  assert.ok(PAGE.zones["#app"].innerHTML.includes("<b>Partage</b><span><em>Non autorisé</em></span>"), "récapitulatif");
+  S.share = true; S.open.add("reply"); PAGE.lire("renderCreator")();
+  const h = PAGE.zones["#app"].innerHTML;
+  assert.ok(h.includes('<input type="checkbox" id="share" checked><span>Autoriser le partage de la surprise</span>'), "case à cocher");
+  Object.assign(S, { step: "home", occ: "juste" }); S.open.delete("reply");
+});
+
 /* ---------- Bilan ---------- */
 console.log(`\n${ko ? "❌" : "✅"} ${ok} tests réussis, ${ko} en échec (graine ${GRAINE}${ko ? ` — pour rejouer : node tests/run.mjs --graine=${GRAINE}` : ""})`);
 if(ko){ console.log(echecs.map(e => "  - " + e).join("\n")); process.exitCode = 1; }

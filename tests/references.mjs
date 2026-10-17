@@ -1130,5 +1130,84 @@ export const REFERENCES = [
       "h": "19:00",
       "ix": 1
     }
+  },
+  /* Ajoutées le 2026-10-17 : « Partager la surprise » (indicateurs vu / V et pa / P) */
+  {
+    "nom": "Partager la surprise (format compact y) : version partagée, sans lieu, message caché ni texte brouillé, créneau choisi",
+    "lien": "yHcQ7CoAwEEDBq4RXb5EUKm7nGQw2YhEwVkowfkG8u-AU8zChNHO8EXaUNiwICXXC-u9RVwkB7fGHOcNmwphyzAzChRa1daUVOtS9Hw",
+    "attendu": {
+      "f": "Alex",
+      "t": "Sam",
+      "q": "Ça te dit un rendez-vous avec moi ?",
+      "o": "date",
+      "th": "date",
+      "n": "fuit",
+      "an": "n",
+      "c": "any",
+      "a": {
+        "v": "s",
+        "h": "Tu vas adorer"
+      },
+      "d": "2027-02-14",
+      "h": "20:00",
+      "vu": 1
+    }
+  },
+  {
+    "nom": "Partager la surprise (ancien format p, date avant 2026) : programme, lieux et point de départ retirés",
+    "lien": "peyJmIjoiTm9hIiwidCI6IkVkZW4iLCJxIjoiVHUgbWUgY29uZmllcyB0YSBqb3VybsOpZSA_IiwibyI6InN1cnByaXNlIiwidGgiOiJqb3VybmVlc3VycHJpc2UiLCJuIjoiZnVpdCIsImFuIjoibiIsImMiOiJhbnkiLCJwIjpbeyJoIjoiMTAgaCIsInYiOiJ2IiwiYSI6IkJhbGFkZSIsImwiOiIifSx7ImgiOiIxMyBoIiwidiI6InMiLCJpIjoiVHUgdmFzIHRlIHLDqWdhbGVyIn0seyJoIjoiMTYgaCIsInYiOiJzIiwiaSI6IkluZGljZSJ9XSwiYnIiOiJEZXMgYmFza2V0cyIsImQiOiIyMDI1LTEyLTIwIiwiaCI6IjEwOjAwIiwidnUiOjF9",
+    "attendu": {
+      "f": "Noa",
+      "t": "Eden",
+      "q": "Tu me confies ta journée ?",
+      "o": "surprise",
+      "th": "journeesurprise",
+      "n": "fuit",
+      "an": "n",
+      "c": "any",
+      "p": [
+        {
+          "h": "10 h",
+          "v": "v",
+          "a": "Balade",
+          "l": ""
+        },
+        {
+          "h": "13 h",
+          "v": "s",
+          "i": "Tu vas te régaler"
+        },
+        {
+          "h": "16 h",
+          "v": "s",
+          "i": "Indice"
+        }
+      ],
+      "br": "Des baskets",
+      "d": "2025-12-20",
+      "h": "10:00",
+      "vu": 1
+    }
+  },
+  {
+    "nom": "Partage de la surprise refusé par le créateur (format compact x)",
+    "lien": "xeyJmIjoiQWxleCIsInQiOiJTYW0iLCJvIjoxNywicSI6MzMsImEiOiJTb2lyw6llIGNvc3R1bcOpZSIsInciOjk2MzEyMCwiUCI6MH0",
+    "attendu": {
+      "f": "Alex",
+      "t": "Sam",
+      "q": "Tu oses venir fêter Halloween avec moi ?",
+      "o": "halloween",
+      "th": "halloween",
+      "n": "fuit",
+      "an": "n",
+      "c": "any",
+      "a": {
+        "v": "v",
+        "x": "Soirée costumée"
+      },
+      "d": "2027-10-31",
+      "h": "20:00",
+      "pa": 0
+    }
   }
 ];

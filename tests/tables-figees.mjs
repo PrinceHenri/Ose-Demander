@@ -257,7 +257,8 @@ export const LINK_INTRO = {
 };
 
 /* Clés du format compact : aucune ne doit disparaître (de nouvelles peuvent s'ajouter). */
-export const LINK_KEYS = ["f","t","o","F","q","T","n","N","A","C","E","s","S","c","i","m","H","a","l","D","p","e","M","b","w","L","R","I"];
+export const LINK_KEYS = ["f","t","o","F","q","T","n","N","A","C","E","s","S","c","i","m","H","a","l","D","p","e","M","b","w","L","R","I","V","P"];
+// Ajoutées le 2026-10-17 : V (version partagée, « Partager la surprise ») et P (partage refusé par le créateur)
 
 /* Origine des dates du format compact : ne doit jamais changer. */
 export const LINK_T0 = 1767225600000;

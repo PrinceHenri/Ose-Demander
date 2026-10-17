@@ -371,6 +371,7 @@ textarea.input{min-height:90px;resize:vertical}
 .rv-flash{border-radius:10px;animation:rvflash 2.2s ease-out}
 @keyframes rvflash{0%,25%{background:rgba(255,201,74,.5);box-shadow:0 0 0 6px rgba(255,201,74,.5)}100%{background:transparent;box-shadow:0 0 0 6px transparent}}
 .cal-note{align-self:center;margin:-4px 0 0;font-size:13px;color:var(--muted);text-align:center}
+.shared-q{font-size:20px;font-weight:700;letter-spacing:-.01em;margin:16px 0 6px;overflow-wrap:anywhere;text-wrap:balance}
 .count{font-variant-numeric:tabular-nums;font-weight:700;color:var(--accent-text)}
 .timeline{list-style:none;margin:6px 0 0;padding:0 0 0 18px;border-left:3px solid var(--line)}
 .timeline li{position:relative;padding:0 0 18px 14px}
@@ -1214,6 +1215,8 @@ function sanitize(x){
   }
   if(!d.sl){ if(!isDate(x.d)||!isTime(x.h)) throw new Error("no date"); d.d=x.d; d.h=x.h; }
   if(x.rv===1) d.rv=1; // ouverture depuis le rappel d'agenda (absent = lien normal)
+  if(x.vu===1) d.vu=1; // version partagée par la personne invitée, en lecture seule (voir shareData)
+  if(x.pa===0) d.pa=0; // partage de la surprise refusé par le créateur (absent = autorisé)
   if(Number.isInteger(x.ix) && own(LINK_INTRO, x.ix)) d.ix=x.ix; // introduction (absente = directement la question)
   return d;
 }
@@ -1300,7 +1303,7 @@ const LINK_INTRO = {
   26:["Tu as tant fait pour moi…","À mon tour, maman."], 27:["Tu as toujours été là pour moi…","À mon tour, papa."],
   28:["Tu entends ce son au loin ?","C'est la fête qui commence."]
 };
-const LINK_KEYS = ["f","t","o","F","q","T","n","N","A","C","E","s","S","c","i","m","H","a","l","D","p","e","M","b","w","L","R","I"];
+const LINK_KEYS = ["f","t","o","F","q","T","n","N","A","C","E","s","S","c","i","m","H","a","l","D","p","e","M","b","w","L","R","I","V","P"];
 /* Dates : minutes depuis le 1er janvier 2026 (heure locale de l'invitation, sans fuseau) */
 const LINK_T0 = Date.UTC(2026,0,1), LINK_TMAX = 60*24*366*100;
 const own = (o,k) => Object.prototype.hasOwnProperty.call(o,k);
@@ -1340,6 +1343,8 @@ function packLink(d){
   if(d.sl) c.L=d.sl.map(s=>min(s[0]+"T"+s[1])); else c.w=min(d.d+"T"+d.h);
   if(d.rv) c.R=1;
   if(d.ix) c.I=d.ix;
+  if(d.vu) c.V=1;
+  if(d.pa===0) c.P=0;
   return c;
 }
 /* Objet compact -> ancien format, puis sanitize. Strict : clé inconnue, mauvais type ou code inconnu = lien refusé */
@@ -1395,6 +1400,8 @@ function unpackLink(c){
   else { const w=at(c.w).split("T"); x.d=w[0]; x.h=w[1]; }
   if(has("R")){ if(c.R!==1) bad(); x.rv=1; }
   if(has("I")){ dec(LINK_INTRO,c.I); x.ix=c.I; }
+  if(has("V")){ if(c.V!==1) bad(); x.vu=1; }
+  if(has("P")){ if(c.P!==0) bad(); x.pa=0; }
   return x;
 }
 
@@ -1406,6 +1413,19 @@ function reminderData(d, slot){
   const x={...d, c:"any", rv:1};
   delete x.ci;
   if(x.sl){ const s=x.sl[slot] || x.sl[0]; delete x.sl; x.d=s[0]; x.h=s[1]; }
+  return sanitize(JSON.parse(JSON.stringify(x)));
+}
+/* Lien « Partager la surprise » : version en lecture seule que la personne invitée montre à ses proches, après son Oui.
+   Sans canal ni identifiant de réponse, sans texte brouillé (révélations programmées devenues « Surprise »),
+   sans message caché, sans aucun lieu (lieu, lieux du programme, point de départ) ni détails libres (ils peuvent
+   contenir une adresse) ; l'écran affiche « Lieu : gardé secret 🤫 ». Créneaux au choix : seul le créneau choisi est gardé. */
+function shareData(d, slot){
+  const x={...d, c:"any", vu:1};
+  for(const k of ["ci","rv","ix","pa","l","dt","me"]) delete x[k];
+  if(x.mh){ delete x.m; delete x.mh; }
+  if(x.sl){ const s=x.sl[slot] || x.sl[0]; delete x.sl; x.d=s[0]; x.h=s[1]; }
+  if(x.a && x.a.v==="r") x.a={v:"s", h:x.a.h};
+  if(x.p) x.p=x.p.map(st=> st.v==="r" ? {h:st.h, v:"s", i:st.i} : st.v==="v" ? {h:st.h, v:"v", a:st.a, l:""} : st);
   return sanitize(JSON.parse(JSON.stringify(x)));
 }
 /* Éléments « Révélé plus tard », dans l'ordre de la page : [clé, heure de révélation] */
@@ -1569,7 +1589,7 @@ const S = {
   date:"", time:"", choose:false, slots:[{d:"",t:""},{d:"",t:""}],
   q:"", qEdited:false, msg:"", hidden:false,
   no:"fuit", tone:"taquin", ch:"any", chId:"", link:"",
-  ac:"", em:"", sg:"", snd:true, intro:false,
+  ac:"", em:"", sg:"", snd:true, intro:false, share:true,
   moreOpen:false, open:new Set(), err:"", errSec:""
 };
 
@@ -1722,6 +1742,7 @@ function screenHTML(){
       ${recapRow("Style", styleRecap(), 'data-goto="style"')}
       ${recapRow("Le Non", esc(NO_MODES.find(m=>m.id===S.no).t)+" · ton "+esc(noTone(S.tone).t.toLowerCase()), 'data-goto="no"')}
       ${recapRow("Réponse via", esc(CHANNELS.find(c=>c.id===S.ch).t)+(S.chId?" ("+esc(S.chId)+")":""), 'data-goto="reply"')}
+      ${recapRow("Partage", S.share ? "Autorisé, sans le lieu ni les surprises" : "<em>Non autorisé</em>", 'data-goto="reply"')}
     </ul>
     <details class="more" id="more" ${S.moreOpen?"open":""}>
       <summary>Personnaliser davantage</summary>
@@ -1938,7 +1959,10 @@ function secReply(){
       <p class="hint">${S.ch==="any" ? "L'appli sera choisie au moment de répondre." : tel ? "Le message s'ouvrira déjà écrit, il n'y aura plus qu'à l'envoyer." : "Cette appli ne permet pas de pré-écrire le message : la réponse sera copiée, il suffira de la coller."}</p>
     </div>
     ${ch.need ? `<label class="field"><span>${tel?"Ton numéro":"Ton nom d'utilisateur"}</span><input class="input" id="chId" maxlength="40" placeholder="${ch.ph}" value="${esc(S.chId)}" ${tel?'inputmode="tel"':''}></label>
-    <p class="hint">Il sera inclus dans le lien, visible seulement par les personnes qui l'ont.</p>` : ""}`;
+    <p class="hint">Il sera inclus dans le lien, visible seulement par les personnes qui l'ont.</p>` : ""}
+    <p class="group-title">Après le Oui</p>
+    <label class="check"><input type="checkbox" id="share" ${S.share?"checked":""}><span>Autoriser le partage de la surprise</span></label>
+    <p class="hint">${esc(S.to||"La personne invitée")} pourra montrer l'invitation à ses proches : une version en lecture seule, sans le lieu, les surprises, le message caché ni tes coordonnées.</p>`;
 }
 function occLabel(){ if(S.occ==="libre") return S.occFree || "Autre"; return OCC[S.occ]?.label || ""; }
 function itemRecap(it){ return it.v==="s" ? "Surprise"+(it.h?` (indice : ${esc(it.h)})`:"") : it.v==="r" ? `${esc(it.x)} <em>(révélé le ${esc(it.at.replace("T"," à "))})</em>` : esc(it.x); }
@@ -1961,6 +1985,7 @@ function readAll(){
   if($("#q")){ const q=v("q"); if(q!==S.q){ S.q=q; S.qEdited=true; } }
   if($("#msg")) S.msg=$("#msg").value.trim();
   if($("#hidden")) S.hidden=$("#hidden").checked;
+  if($("#share")) S.share=$("#share").checked;
   if($("#chId")) S.chId=v("chId");
   if($("#sg")) S.sg=v("sg");
   if($("#sndInv")) S.snd=$("#sndInv").checked;
@@ -2150,6 +2175,7 @@ async function buildLink(){
   if(S.anim!=="n") d.an=S.anim;
   if(S.ac) d.ac=S.ac; if(S.em) d.em=S.em; if(S.sg) d.sg=S.sg;
   if(!S.snd) d.so=0;
+  if(!S.share) d.pa=0; // partage de la surprise refusé (absent = autorisé)
   if(S.msg){ d.m=S.msg; if(S.hidden) d.mh=1; }
   if(S.mode==="one"){
     d.a=packItem(S.act); const l=packItem(S.lieu); if(l) d.l=l; if(S.details) d.dt=S.details;
@@ -2346,7 +2372,7 @@ async function duplicateInvitation(it){
     slots:d.sl ? d.sl.map(s=>({d:s[0],t:s[1]})) : [{d:"",t:""},{d:"",t:""}],
     q:d.q, qEdited:!o||d.q!==o.q, msg:d.m||"", hidden:!!d.mh,
     no:d.n, tone:d.tn||"taquin", ch:d.c, chId:d.ci||"", link:"",
-    ac:d.ac||"", em:d.em||"", sg:d.sg||"", snd:d.so!==0
+    ac:d.ac||"", em:d.em||"", sg:d.sg||"", snd:d.so!==0, share:d.pa!==0
   });
   location.hash=""; // retour au formulaire (voir route)
   window.scrollTo({top:0});
@@ -3448,6 +3474,33 @@ function renderReminder(){
   startCountdowns(700);
 }
 
+/* Version partagée (« Partager la surprise ») : la carte en lecture seule, ni réponse ni enveloppe.
+   Une seule action principale : créer sa propre invitation. */
+function renderShared(){
+  setTheme(D.th||"base", invAnim(), D.ac, true);
+  document.title = `${D.t} a dit oui à ${D.f}`;
+  yesDone=true; refused=false; clearTimeout(refuseTimer);
+  initReveals();
+  afterMode="shared";
+  $("#app").innerHTML = ticketHTML(`
+    <div class="pop-in">
+      <p class="occ">${esc(invOccLabel())}</p>
+      <h1 class="question" tabindex="-1" style="margin-bottom:8px">${esc(D.t)} a dit oui ! 🎉</h1>
+      <p style="color:var(--muted);margin:0">L'invitation de ${esc(D.f)}, partagée par ${esc(D.t)}.</p>
+      <p class="shared-q">«&nbsp;${esc(D.q)}&nbsp;»</p>
+      ${D.m ? `<p class="handnote">${esc(D.m)}</p>` : ""}
+      ${signHTML()}
+      <div class="details" id="details">${detailsHTML()}</div>
+      <div class="after-actions">
+        <p class="cal-note">Version à partager : on ne peut pas y répondre, et le lieu reste secret.</p>
+        <a class="btn primary" href="./">Créer ma propre invitation</a>
+      </div>
+    </div>`);
+  bindSound();
+  enableTilt();
+  focusScreen(".question");
+}
+
 /* ---------- Révélation programmée ----------
    Ce qui est déjà affiché en clair est gardé en mémoire le temps de la page seulement : rien n'est enregistré. */
 let revShown=new Set(), revQueue=[], revPlaying=false, revStart=null;
@@ -3549,6 +3602,9 @@ function detailsHTML(){
   } else {
     h+=rowHTML("a");
     if(D.l) h+=rowHTML("l");
+  }
+  if(D.vu) h+=`<div class="d-row"><small>Lieu</small><strong>Gardé secret 🤫</strong></div>`; // version partagée : aucun lieu
+  if(!D.p){
     if(D.dt) h+=`<div class="d-row"><small>Détails</small><strong>${esc(D.dt)}</strong></div>`;
   }
   return h;
@@ -3559,8 +3615,18 @@ function replyLabel(){
 }
 /* Sous les détails : l'agenda (une fois le créneau choisi et le lien de rappel prêt) */
 function actionsHTML(){
-  const canCal = (!D.sl || chosenSlot!==null) && remState!=="wait";
-  return canCal ? calButtonsHTML() : "";
+  const ready = !D.sl || chosenSlot!==null;
+  return (ready && remState!=="wait" ? calButtonsHTML() : "") + (ready && shareState==="ok" ? shareHTML() : "");
+}
+/* « Partager la surprise » : bouton secondaire, si le créateur l'autorise (D.pa) et une fois le lien allégé prêt */
+const shareHTML = () => `<button type="button" class="btn" id="shareSur">Partager la surprise</button>
+  <p class="cal-note">Une version sans le lieu ni les surprises, pour la montrer à tes proches. On ne peut pas y répondre.</p>`;
+async function shareSurprise(){
+  if(EXAMPLE){ toast("C'est un exemple : rien n'est partagé"); return; }
+  if(!shareLink) return;
+  const text=`Regarde ce que ${D.f} m'a préparé ✨`;
+  if(navigator.share){ navigator.share({title:"Ose Demander", text, url:shareLink}).catch(()=>{}); return; }
+  toast(await copyText(shareLink) ? "Lien copié, envoie-le à qui tu veux" : "Copie impossible");
 }
 function replyText(){
   const occ = D.o==="libre" ? (D.of||"ton invitation") : (OCC[D.o]?.label||"ton invitation");
@@ -3582,14 +3648,18 @@ function bindSend(){
 function bindActions(){
   $("#cal")?.addEventListener("click",downloadICS);
   $("#calRev")?.addEventListener("click",downloadRevealICS);
+  $("#shareSur")?.addEventListener("click",shareSurprise);
 }
 function refreshAfter(){ $("#send").innerHTML=sendHTML(); $("#details").innerHTML=detailsHTML(); $("#actions").innerHTML=actionsHTML(); bindAfter(); }
 /* Lien du rappel d'agenda (version allégée, voir reminderData), préparé à l'avance :
    les boutons d'agenda n'apparaissent qu'une fois le lien prêt. "wait" | "ok" | "none" (échec : agenda sans lien) */
 let remLink="", remState="wait";
+let shareLink="", shareState="wait"; // lien « Partager la surprise » (voir shareData) : "wait" | "ok" | "none" (non autorisé ou échec)
 function prepReminder(){
-  const slot=chosenSlot; remLink=""; remState="wait";
+  const slot=chosenSlot; remLink=""; remState="wait"; shareLink=""; shareState="wait";
   if(D.sl && slot===null) return;
+  if(D.pa===0 || D.vu) shareState="none";
+  else encodeData(shareData(D, slot)).then(s=>{ if(slot!==chosenSlot) return; shareLink=location.origin+location.pathname+"#i="+s; shareState="ok"; const a=$("#actions"); if(a){ a.innerHTML=actionsHTML(); bindActions(); } }).catch(()=>{ shareState="none"; });
   const done=(link,state)=>{ if(slot!==chosenSlot) return; remLink=link; remState=state; const a=$("#actions"); if(a){ a.innerHTML=actionsHTML(); bindActions(); } };
   encodeData(reminderData(D, slot)).then(s=>done(location.origin+location.pathname+"#i="+s,"ok")).catch(()=>done("","none"));
 }
@@ -4092,7 +4162,9 @@ async function route(){
       Sound.on = D.so!==0; // côté destinataire : réglage de l'invitation, rien n'est lu ni enregistré
       noTries=0; refused=false; refuseOffered=false; refuseWhy="non"; refuseDrafts={}; clearTimeout(refuseTimer);
       clearInterval(countTimer); clearTimeout(revStart); revQueue=[]; remLink=""; remState="wait";
-      if(D.rv){ Sound.init(); renderReminder(); } else renderEnvelope(); // rappel d'agenda : directement la carte
+      shareLink=""; shareState="wait";
+      if(D.vu){ Sound.init(); renderShared(); } // version partagée : en lecture seule, ni enveloppe ni question
+      else if(D.rv){ Sound.init(); renderReminder(); } else renderEnvelope(); // rappel d'agenda : directement la carte
       return;
     }
     catch(e){

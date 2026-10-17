@@ -210,6 +210,13 @@ L'enveloppe de l'application reste la même (accent du thème, contours, rabat) 
 - **Animations** : `.ed-n` / `.ed-d` seulement ; rien en `0` ni avec « moins de mouvement », les décors restent alors à leur place (aucun décor n'est caché au repos).
 - **Poids** : chaque décor < 4 000 caractères (vérifié par le banc) ; formes communes `edStar`, `edSpark`, `edWeb`, `edFlower`, `edStreamer`, `edFall`, `edAt` (agrandit autour d'un coin).
 
+## 2 octies. Partager la surprise
+
+Après son Oui (et sur la carte du rappel), la personne invitée peut montrer l'invitation à ses proches : bouton **secondaire** « Partager la surprise » (`.btn`, sous l'agenda, la réponse reste la seule action principale), avec la mention « Une version sans le lieu ni les surprises, pour la montrer à tes proches. On ne peut pas y répondre. » Partage natif (`navigator.share`), sinon copie du lien.
+- **Lien** (`shareData`, indicateur `vu:1` / `V:1`) : lecture seule, sans canal ni identifiant, sans aucun lieu (lieu, lieux du programme, point de départ) ni détails libres, sans message caché, révélations programmées devenues « Surprise » (indice gardé, aucun texte brouillé), seul le créneau choisi. Le bouton n'apparaît qu'une fois le créneau choisi et le lien prêt.
+- **Écran** (`renderShared`) : billet du thème, titre « {pour} a dit oui ! 🎉 », « L'invitation de {de}, partagée par {pour}. », la question citée, détails avec la ligne « Lieu : Gardé secret 🤫 », mention « Version à partager : on ne peut pas y répondre, et le lieu reste secret. », une seule action principale « Créer ma propre invitation ». Ni enveloppe, ni introduction, ni Oui/Non.
+- **Création** : case « Autoriser le partage de la surprise » (section de la réponse, « Après le Oui »), cochée par défaut ; décochée = `pa:0` / `P:0` dans le lien (absent = autorisé, comme les anciens liens). Ligne « Partage » du récapitulatif.
+
 ## 3. Typographie : deux polices, pas une de plus
 
 Polices **hébergées dans `fonts/`** (licence SIL OFL, aucun appel à Google Fonts — RGPD).
