@@ -208,6 +208,7 @@ L'enveloppe de l'application reste la même (accent du thème, contours, rabat) 
 - **Calque** `.env-deco` (viewBox de l'enveloppe, au-dessus du rabat, `aria-hidden`, sans identifiant) **effacé à l'ouverture** : « Pour {prénom} » reste lisible. Décors près des bords, jamais sur le cachet.
 - **Couleurs** : comme le logo de saison, les objets gardent leurs couleurs (citrouille orange, houx vert) ; contours à l'encre (`.o`) ; un objet de la couleur de l'enveloppe est cerné d'encre (`edStreamer`, frise de la galette).
 - **Animations** : `.ed-n` / `.ed-d` seulement ; rien en `0` ni avec « moins de mouvement », les décors restent alors à leur place (aucun décor n'est caché au repos).
+- **Jamais au-dessus du contenu** : toute couche décorative a `pointer-events:none`, et un dessin en position absolue (`.seal-shape`) n'est posé que dans un conteneur positionné (le cachet de l'aperçu est `position:relative`, jamais `static`). Bug du 2026-10-17 : la citrouille du cachet recouvrait tout le formulaire de l'aperçu. Contrôle : sonde Edge (protocole DevTools) qui rend les décors touchables et vérifie, avec `elementFromPoint`, que rien n'est dessiné au-dessus d'une commande, pour chaque modèle, chaque thème, chaque écran et à 360, 390, 768 et 1 280 px ; garde-fous CSS dans le banc.
 - **Poids** : chaque décor < 4 000 caractères (vérifié par le banc) ; formes communes `edStar`, `edSpark`, `edWeb`, `edFlower`, `edStreamer`, `edFall`, `edAt` (agrandit autour d'un coin).
 
 ## 3. Typographie : deux polices, pas une de plus
