@@ -598,6 +598,52 @@ textarea.input{min-height:90px;resize:vertical}
 textarea.refuse-input{font-family:var(--hand);font-size:23px;line-height:1.2;min-height:110px}
 .envelope.open .env-flap{transform:rotateX(180deg);z-index:0}
 .envelope.open .seal{opacity:0}
+/* Enveloppes décorées (ENV_DECO) : calque au-dessus du rabat, effacé à l'ouverture ; cachet dessiné sous l'emoji ou l'initiale */
+.env-deco{position:absolute;inset:0;width:100%;height:100%;z-index:4;pointer-events:none;overflow:visible;transition:opacity .2s}
+.envelope.open .env-deco{opacity:0}
+.env-deco .o,.seal-shape .o{stroke:var(--ink);stroke-width:2;stroke-linejoin:round;stroke-linecap:round}
+.env-deco .ed-ink{fill:none;stroke:var(--ink);stroke-linecap:round}
+.ed-web{fill:none;stroke:#FFF;stroke-opacity:.85;stroke-width:1.6;stroke-linejoin:round}
+.ed-staff{fill:none;stroke:var(--ink);stroke-width:1.3;opacity:.45}
+.seal.shaped{background:none;border:0;width:60px;height:60px;color:#3B1F0A}
+.seal-shape{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
+.seal-t{position:relative}
+.seal-pumpkin .seal-t{margin-top:9px}
+.seal.seal-heart{color:#FFF}
+.seal-heart .seal-t{margin-top:-4px}
+.seal.seal-gold{color:#4A2C10}
+.seal.seal-crown{width:50px;height:50px;background:var(--ink);border:3px solid var(--surface);color:var(--accent-seal)}
+.seal-crown .seal-shape{inset:-3px;width:calc(100% + 6px);height:calc(100% + 6px)}
+/* Animations : Normales, Discrètes (plus lentes), rien en « Aucune » et avec « moins de mouvement » (les décors restent à leur place) */
+.ed-fall,.ed-petal,.ed-rock,.ed-tw,.ed-hop,.ed-spider,.ed-thread,.seal-heart .seal-shape{transform-box:fill-box}
+.ed-n .ed-fall{animation:ed-fall 4.8s linear infinite backwards}
+.ed-d .ed-fall{animation:ed-fall 9s linear infinite backwards}
+@keyframes ed-fall{0%{transform:translateY(-8px);opacity:0}15%,80%{opacity:1}100%{transform:translateY(60px);opacity:0}}
+.ed-n .ed-petal{animation:ed-turn 2.4s ease-in-out infinite alternate}
+@keyframes ed-turn{to{transform:rotate(70deg)}}
+.ed-n .ed-spider{animation:ed-spider 3.2s ease-in-out infinite}
+.ed-d .ed-spider{animation:ed-spider 6s ease-in-out infinite}
+.ed-thread{transform-origin:50% 0}
+.ed-n .ed-thread{animation:ed-thread 3.2s ease-in-out infinite}
+.ed-d .ed-thread{animation:ed-thread 6s ease-in-out infinite}
+@keyframes ed-spider{0%,100%{transform:translateY(-12px)}50%{transform:none}}
+@keyframes ed-thread{0%,100%{transform:scaleY(.75)}50%{transform:none}}
+.ed-rock{transform-origin:50% 100%}
+.ed-n .ed-rock{animation:ed-rock 1.8s ease-in-out infinite}
+.ed-d .ed-rock{animation:ed-rock 3.6s ease-in-out infinite}
+@keyframes ed-rock{0%,100%{transform:rotate(-9deg)}50%{transform:rotate(9deg)}}
+.ed-tw{transform-origin:50% 50%}
+.ed-n .ed-tw{animation:ed-tw 1.6s ease-in-out infinite}
+.ed-d .ed-tw{animation:ed-tw 3.2s ease-in-out infinite}
+@keyframes ed-tw{0%,100%{transform:scale(.5);opacity:.5}50%{transform:none;opacity:1}}
+.ed-n .ed-hop{animation:ed-hop 1.4s ease-in-out infinite}
+.ed-d .ed-hop{animation:ed-hop 2.8s ease-in-out infinite}
+@keyframes ed-hop{0%,60%,100%{transform:none}30%{transform:translateY(-7px)}}
+.envelope.wiggle .seal-heart .seal-shape{animation:ed-beat 1.3s ease-in-out infinite}
+.envelope.beat-d .seal-heart .seal-shape{animation:ed-beat 2.6s ease-in-out infinite}
+.pv-env .seal.shaped{width:48px;height:48px}
+.pv-env .seal.seal-crown{width:40px;height:40px;margin-top:14px}
+@keyframes ed-beat{0%,40%,100%{transform:none}15%{transform:scale(1.12)}28%{transform:scale(1.04)}}
 .envelope.open .env-paper{transform:translateY(-52%)}
 /* ---------- Introduction scénarisée : cartes de papier tirées de l'enveloppe ---------- */
 .intro-screen{position:relative;z-index:1;min-height:100vh;min-height:100dvh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:60px 16px 28px;text-align:center}
@@ -1729,7 +1775,7 @@ function section(key, title, body){
 function previewHTML(){
   const occ=occLabel(), initial=(S.from||"?").trim().charAt(0).toUpperCase();
   return `<div class="preview" aria-label="Aperçu de l'invitation">
-    <p class="pv-env"><span class="seal ${S.em?"emoji":""}" aria-hidden="true">${esc(S.em||initial)}</span>Sur l'enveloppe</p>
+    <p class="pv-env">${sealHTML(S.occ, S.em, initial)}Sur l'enveloppe</p>
     <div class="pv-stage">${sceneWallCopy(S.theme)}${sceneSignHTML(S.theme, REDUCED ? "0" : S.anim)}
     <div class="ticket">
       <div class="stub"><div>De<b>${esc(S.from)}</b></div><div style="text-align:right">Pour<b>${esc(S.to)}</b></div></div>
@@ -3031,6 +3077,79 @@ function sceneMini(th){
   return `<span class="thumb" aria-hidden="true"><span class="mini" data-theme="${th}">${sceneWallCopy(th)}<span class="mini-sign">${SCENES[th].sign}</span></span></span>`;
 }
 
+/* ---------- Enveloppes décorées ----------
+   Décor de l'enveloppe selon l'OCCASION de l'invitation (jamais selon la date : une invitation d'Halloween garde le sien toute l'année).
+   On garde l'enveloppe de l'application : décors sur les bords (calque .env-deco, au-dessus du rabat, effacé à l'ouverture pour que
+   « Pour {prénom} » reste lisible) et cachet adapté (forme dessinée sous l'emoji ou l'initiale). Rien n'est ajouté au lien.
+   Repère : viewBox 0 0 300 200 comme l'enveloppe ; rabat = triangle (2,2) (298,2) (150,114). Contours à l'encre (.o) ;
+   les objets gardent leurs couleurs (une citrouille reste orange quel que soit le thème), comme le logo de saison. */
+const edStar = (x, y, r) => `M${[...Array(10)].map((_, i)=>{ const a=Math.PI*(i/5-.5), k=i%2 ? r*.45 : r; return `${(x+k*Math.cos(a)).toFixed(1)} ${(y+k*Math.sin(a)).toFixed(1)}`; }).join("L")}Z`;
+const edSpark = (x, y, r) => `M${x} ${y-r}Q${x} ${y} ${x+r} ${y}Q${x} ${y} ${x} ${y+r}Q${x} ${y} ${x-r} ${y}Q${x} ${y} ${x} ${y-r}Z`;
+// Toile d'araignée dans un coin : rayons et fils, tf place le coin (translate + miroir)
+const edWeb = tf => `<g class="ed-web" transform="${tf}"><path d="M0 0L58 0M0 0L52 24M0 0L41 41M0 0L24 52M0 0L0 58${[18,34,50].map(r=>`M${r} 0L${(r*.908).toFixed(1)} ${(r*.419).toFixed(1)}L${(r*.707).toFixed(1)} ${(r*.707).toFixed(1)}L${(r*.419).toFixed(1)} ${(r*.908).toFixed(1)}L0 ${r}`).join("")}"/></g>`;
+const edFlower = (x, y, r, c) => `<g class="o">${[0,72,144,216,288].map(a=>`<circle cx="${(x+r*Math.sin(a*Math.PI/180)).toFixed(1)}" cy="${(y-r*Math.cos(a*Math.PI/180)).toFixed(1)}" r="${r}" fill="${c}"/>`).join("")}<circle cx="${x}" cy="${y}" r="${(r*.75).toFixed(1)}" fill="#FFD23F"/></g>`;
+// Serpentin : un trait coloré cerné d'encre
+const edStreamer = (d, c) => `<path class="ed-ink" d="${d}" stroke-width="6.5"/><path d="${d}" stroke="${c}" stroke-width="3.5" fill="none" stroke-linecap="round"/>`;
+const edAt = (x, y, k, inner) => `<g transform="translate(${x} ${y}) scale(${k}) translate(${-x} ${-y})">${inner}</g>`; // agrandit autour d'un coin
+const edFall = (x, y, k, inner) => `<g class="ed-fall" style="animation-delay:${k}s"><g transform="translate(${x} ${y}) scale(1.5)">${inner}</g></g>`;
+const ED_FLAKE = `<path d="M0-6V6M-6 0H6M-4.2-4.2L4.2 4.2M4.2-4.2L-4.2 4.2" stroke="#FFF" stroke-width="2.4" stroke-linecap="round"/><path d="M0-6V6M-6 0H6M-4.2-4.2L4.2 4.2M4.2-4.2L-4.2 4.2" stroke="#4A90D9" stroke-width="1.2" stroke-linecap="round"/>`;
+const ED_PETAL = `<g class="ed-petal"><path class="o" d="M0-6C4-3 4 3 0 6-4 3-4-3 0-6z" fill="#E8A0B4" stroke-width="1.4"/></g>`;
+const ED_NOTE = (x, y, c, k) => `<g class="ed-hop" style="animation-delay:${k}s"><g class="o" transform="translate(${x} ${y}) scale(1.45)"><path d="M5.5 0V-20q5 2 7 7" fill="none"/><ellipse cx="0" cy="0" rx="6.5" ry="4.8" transform="rotate(-20)" fill="${c}"/></g></g>`;
+function edTie(x0, y0, w, h){ // timbre rayé façon cravate : bandes en biais coupées au bord du timbre
+  let d="";
+  for(let c=x0+y0+8; c<x0+w+y0+h; c+=9){ const xa=Math.max(x0, c-(y0+h)), xb=Math.min(x0+w, c-y0); d+=`M${xa} ${c-xa}L${xb} ${c-xb}`; }
+  return `<rect x="${x0}" y="${y0}" width="${w}" height="${h}" fill="#1F3A6B"/><path d="${d}" stroke="#F2B705" stroke-width="3.5"/>`;
+}
+const ENV_DECO = {
+  halloween: {seal:"pumpkin", svg:()=>`${edWeb("translate(3 197) scale(1 -1)")}${edWeb("translate(297 3) scale(-1 1)")}
+    <g transform="translate(30 0)"><line class="ed-thread" x1="218" y1="40" x2="218" y2="110" stroke="#2B1B3D" stroke-width="1.4"/>
+    <g class="ed-spider"><g fill="none" stroke="#2B1B3D" stroke-width="2.2" stroke-linecap="round"><path d="M211 114Q202 107 198 112M210 118Q200 115 196 121M210 121Q201 124 199 130M212 124Q206 130 205 135M225 114Q234 107 238 112M226 118Q236 115 240 121M226 121Q235 124 237 130M224 124Q230 130 231 135"/></g>
+      <ellipse class="o" cx="218" cy="119" rx="10" ry="9" fill="#2B1B3D"/><circle cx="214" cy="117" r="3.2" fill="#FFF"/><circle cx="222" cy="117" r="3.2" fill="#FFF"/>
+      <circle cx="214.7" cy="117.6" r="1.5" fill="#2B1B3D"/><circle cx="222.7" cy="117.6" r="1.5" fill="#2B1B3D"/><path d="M214.5 122.5Q218 125.5 221.5 122.5" fill="none" stroke="#FFF" stroke-width="1.3" stroke-linecap="round"/>
+      <circle cx="211" cy="122" r="1.6" fill="#FF8FB1"/><circle cx="225" cy="122" r="1.6" fill="#FF8FB1"/></g></g>`},
+  noel: {svg:()=>`<path class="o" d="M2 1H298V7${[...Array(16)].map((_, i)=>`q-9.25 ${i%2 ? 6 : 10} -18.5 0`).join("")}Z" fill="#FFF"/>
+    <rect class="o" x="236" y="8" width="15" height="190" fill="#F2C24E"/><g class="o" fill="#F2C24E"><path d="M243 22c-8-14-24-10-17 2zM244 22c8-14 24-10 17 2z"/><path d="M241 24l-8 16 7-3 2 6zM246 24l8 16-7-3-2 6z"/><circle cx="243.5" cy="22" r="4.5"/></g>
+    ${edAt(6, 196, 1.6, `<g class="o" fill="#2E8B57"><path d="M10 192Q22 168 46 170Q34 192 10 192z"/><path d="M12 190Q14 162 34 152Q36 178 12 190z"/></g><g class="o" fill="#D7263D"><circle cx="16" cy="182" r="5"/><circle cx="25" cy="186" r="4.5"/><circle cx="19" cy="191" r="4"/></g>`)}
+    ${edFall(48, 48, 0, ED_FLAKE)}${edFall(96, 36, 1.6, ED_FLAKE)}${edFall(198, 44, .8, ED_FLAKE)}${edFall(282, 64, 2.4, ED_FLAKE)}`},
+  reveillon: {seal:"gold", svg:()=>`${edStreamer("M6 28c14-14 26 6 40-8s26 6 40-6", "#F2C24E")}${edStreamer("M6 50c12-10 22 8 34-2s22 6 30-4", "#E83F86")}
+    ${edStreamer("M294 168c-14 10-24-8-38 2s-24-6-36 4", "#4FC3F7")}${edStreamer("M294 188c-12 8-22-6-34 2s-20-6-28 2", "#F2C24E")}
+    <g class="o" fill="#F2C24E"><path d="${edStar(26, 168, 12)}"/><path d="${edStar(270, 32, 10)}"/><path d="${edStar(56, 184, 7)}"/></g>
+    <g fill="#FFF" class="o" stroke-width="1.2">${[[88,22,6,0],[214,26,5,.7],[110,180,5,1.3],[196,184,6,.4]].map(([x,y,r,k])=>`<path class="ed-tw" style="animation-delay:${k}s" d="${edSpark(x, y, r)}"/>`).join("")}</g>`},
+  galette: {seal:"crown", svg:()=>`<rect class="ed-ink" x="11" y="11" width="278" height="178" rx="8" stroke-width="6" stroke-dasharray=".1 9"/><rect x="11" y="11" width="278" height="178" rx="8" fill="none" stroke="#F2B705" stroke-width="3.6" stroke-dasharray=".1 9" stroke-linecap="round"/>
+    ${edStreamer("M18 182q16-28 46-32M18 168q10-18 30-22M282 182q-16-28-46-32M282 168q-10-18-30-22", "#F2B705")}
+    <g class="o" fill="#F2B705" stroke-width="1.4"><circle cx="66" cy="148" r="3"/><circle cx="234" cy="148" r="3"/><circle cx="50" cy="144" r="2.4"/><circle cx="250" cy="144" r="2.4"/></g>`},
+  valentin: {seal:"heart", svg:()=>`${edAt(270, 196, 1.7, `<g class="o"><path d="M262 178Q258 188 252 198" fill="none" stroke="#2E8B57" stroke-width="3"/><path d="M257 189Q246 184 242 190Q250 196 257 189z" fill="#2E8B57"/>
+    <circle cx="263" cy="168" r="12" fill="#E3264B"/><path d="M263 168m-1 4a4 4 0 1 1 5-5a7 7 0 1 1-9-6a9 9 0 0 1 11 2" fill="none" stroke-width="1.6"/></g>`)}
+    ${edAt(14, 196, 1.6, `<g class="o" fill="#FF8FB1" stroke-width="1.6"><path d="M28 186s-9-5.5-9-11a4.5 4.5 0 0 1 9-1.2a4.5 4.5 0 0 1 9 1.2c0 5.5-9 11-9 11z"/><path d="M48 192s-6-3.7-6-7.4a3 3 0 0 1 6-.8a3 3 0 0 1 6 .8c0 3.7-6 7.4-6 7.4z"/></g>`)}`},
+  paques: {svg:()=>`<path class="o" d="M4 198l5-15 4 15 5-12 3 12 5-16 4 16 5-11 3 11M296 198l-5-15-4 15-5-12-3 12-5-16-4 16-5-11-3 11" fill="none" stroke="#6DBE45" stroke-width="2.4"/>
+    ${edAt(4, 198, 1.5, edFlower(22, 172, 5, "#FFF") + edFlower(46, 182, 4, "#FF8FB1"))}${edAt(296, 198, 1.5, edFlower(232, 180, 4.5, "#B79CFF"))}
+    <g class="ed-rock"><g class="o" transform="translate(268 188) scale(1.45) translate(-268 -188)"><path d="M268 158c7 0 12 10 12 18a12 12 0 0 1-24 0c0-8 5-18 12-18z" fill="#8FC1FF"/><path d="M257.5 172l3.5-3 3.5 3 3.5-3 3.5 3 3.5-3 3.5 3" fill="none" stroke="#E83F86" stroke-width="2"/><circle cx="268" cy="182" r="2" fill="#FFD23F" stroke-width="1.2"/></g></g>`},
+  meres: {svg:()=>`${edAt(8, 198, 1.6, `<g fill="none" stroke="#8A7A4F" stroke-width="2"><path d="M30 196L20 150M32 196L34 146M34 196L50 154M31 196L8 162"/></g>
+    <g class="o" stroke-width="1.6">${[[20,148,"#D9A5A0"],[34,143,"#E8C9A0"],[51,151,"#B39DDB"],[8,159,"#E8C9A0"],[27,156,"#B39DDB"],[43,160,"#D9A5A0"]].map(([x,y,c])=>`<circle cx="${x}" cy="${y}" r="5" fill="${c}"/><circle cx="${x+4}" cy="${y-4}" r="3.4" fill="${c}"/>`).join("")}</g>
+    <path class="o" d="M26 184q6 4 12 0M32 184l-6 9M32 184l6 9" fill="none" stroke="#C8A27A" stroke-width="2.4"/>`)}
+    ${edFall(92, 30, 0, ED_PETAL)}${edFall(206, 24, 1.8, ED_PETAL)}${edFall(262, 58, .9, ED_PETAL)}`},
+  peres: {svg:()=>`<g transform="rotate(6 263 36)"><rect class="o" x="240" y="12" width="46" height="52" rx="2" fill="#FFF" stroke-dasharray="3 2.4"/>${edTie(246, 18, 34, 40)}<rect class="o" x="246" y="18" width="34" height="40" fill="none" stroke-width="1.5"/></g>
+    <g class="o" transform="translate(14 150) scale(3)"><path d="M1 1l9 4v2l-9 4zM21 1l-9 4v2l9 4z" fill="#1F3A6B" stroke-width="1"/><rect x="8.6" y="3.6" width="4.8" height="4.8" rx="1.2" fill="#F2B705" stroke-width="1"/></g>`},
+  musique: {svg:()=>`<path class="ed-staff" d="${[158,164,170,176,182].map(y=>`M14 ${y}H286`).join("")}"/>
+    ${ED_NOTE(64, 176, "#E8458B", 0)}${ED_NOTE(112, 167, "#1FA39A", .35)}${ED_NOTE(196, 173, "#F2B705", .7)}${ED_NOTE(244, 164, "#E8458B", 1.05)}`}
+};
+/* Occasions de la catégorie Surprise : enveloppe neutre, cachet 💌 (l'emoji choisi pourrait dévoiler la surprise) */
+const ENV_NEUTRAL = ["fetesurprise", "surprise", "voyagesurprise"];
+const SEAL_SHAPES = {
+  pumpkin:`<path class="o" d="M28 12c12 0 23 7 23 19s-11 18-23 18S5 43 5 31s11-19 23-19z" fill="#F28C28" stroke-width="3"/><path d="M17 15c-4 8-4 24 0 32M39 15c4 8 4 24 0 32" fill="none" stroke="#B85A10" stroke-width="2"/><path d="M28 13V5l5-2" fill="none" stroke="#3E7D3A" stroke-width="4" stroke-linecap="round"/>`,
+  heart:`<path class="o" d="M28 51S4 37 4 19a12 12 0 0 1 24-3 12 12 0 0 1 24 3c0 18-24 32-24 32z" fill="#E3264B" stroke-width="3"/>`,
+  gold:`<circle class="o" cx="28" cy="28" r="25" fill="#F2C24E" stroke-width="3"/><circle cx="28" cy="28" r="19.5" fill="none" stroke="#9A6B00" stroke-width="1.5" stroke-dasharray="2 2.6"/>`,
+  crown:`<path class="o" d="M13 -1L11 -17l8 6 9-11 9 11 8-6-2 16z" fill="#F2B705" stroke-width="2.4"/><circle cx="28" cy="-7" r="2.4" fill="#D7263D"/>`
+};
+/* Cachet de l'enveloppe (et de l'aperçu) : emoji ou initiale, posé sur la forme de l'occasion ; 💌 pour les occasions Surprise */
+function sealHTML(occ, em, initial){
+  const txt = ENV_NEUTRAL.includes(occ) ? "💌" : em||initial, shape=(ENV_DECO[occ]||{}).seal;
+  if(!shape) return `<span class="seal ${em||txt!==initial?"emoji":""}" aria-hidden="true">${esc(txt)}</span>`;
+  return `<span class="seal shaped seal-${shape} ${txt!==initial?"emoji":""}" aria-hidden="true"><svg class="seal-shape" viewBox="0 0 56 56" aria-hidden="true">${SEAL_SHAPES[shape]}</svg><span class="seal-t">${esc(txt)}</span></span>`;
+}
+/* Calque des décors de l'enveloppe, ou "" (occasion sans décor) ; lv : niveau d'animation de l'invitation */
+const envDecoHTML = (occ, lv) => ENV_DECO[occ] ? `<svg class="env-deco ed-${lv}" viewBox="0 0 300 200" aria-hidden="true" focusable="false">${ENV_DECO[occ].svg()}</svg>` : "";
+
 function renderEnvelope(){
   setTheme(D.th||"base", invAnim(), D.ac, true);
   document.title = `${D.f} a une question pour toi`;
@@ -3039,7 +3158,7 @@ function renderEnvelope(){
   <main class="env-screen">
     ${soundBtn()}${demoBanner()}${sceneSignHTML()}
     <p class="env-from" tabindex="-1">${esc(D.f)} t'a envoyé une invitation</p>
-    <button type="button" class="envelope ${invAnim()==="n"?"wiggle":""}" id="env" aria-label="Ouvrir l'invitation">
+    <button type="button" class="envelope ${invAnim()==="n"?"wiggle":invAnim()==="d"?"beat-d":""}" id="env" aria-label="Ouvrir l'invitation">
       <span class="env-back"></span>
       <span class="env-paper">Pour ${esc(D.t)}</span>
       <svg class="env-front" viewBox="0 0 300 200" preserveAspectRatio="none" aria-hidden="true">
@@ -3050,7 +3169,8 @@ function renderEnvelope(){
       <span class="env-flap"><svg viewBox="0 0 300 116" preserveAspectRatio="none" aria-hidden="true">
         <path d="M2 2 L298 2 L150 114 Z" style="fill:var(--accent);stroke:var(--ink)" stroke-width="2.5" stroke-linejoin="round"/>
         <path d="M2 2 L298 2 L150 114 Z" fill="rgba(255,255,255,.14)"/>
-      </svg><span class="seal ${D.em?"emoji":""}" aria-hidden="true">${esc(D.em||initial)}</span></span>
+      </svg>${sealHTML(D.o, D.em, initial)}</span>
+      ${envDecoHTML(D.o, invAnim())}
     </button>
     <p class="env-hint">Touche l'enveloppe pour l'ouvrir</p>
     <p class="safety">${SAFETY}</p>

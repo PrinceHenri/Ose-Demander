@@ -1409,6 +1409,77 @@ await test("Animation au survol : absente en « Aucune », coupée par « moins 
   PAGE.ecrire("SEASON_TODAY", "2026-10-15");
 });
 
+/* =========================================================
+   14. Enveloppes décorées : décor et cachet selon l'occasion (jamais la date), rien dans le lien
+   ========================================================= */
+titre("14. Enveloppes décorées");
+const DECO = PAGE.lire("ENV_DECO"), sceau = PAGE.lire("sealHTML"), decoEnv = PAGE.lire("envDecoHTML");
+const enveloppe = (extra = {}) => { ouvrir(INV(extra)); PAGE.lire("renderEnvelope")(); const h = PAGE.zones["#app"].innerHTML; return h.slice(h.indexOf('class="envelope'), h.indexOf("</button>", h.indexOf('class="envelope'))); };
+await test("Les 9 occasions saisonnières ont leur décor ; cachets citrouille, cœur, doré, couronne", () => {
+  assert.deepEqual(Object.keys(DECO).sort(), ["galette", "halloween", "meres", "musique", "noel", "paques", "peres", "reveillon", "valentin"]);
+  for(const o of Object.keys(DECO)) assert.ok(PAGE.lire("OCC")[o] && SAISONS[o], `${o} : occasion saisonnière`);
+  const formes = { halloween: "pumpkin", valentin: "heart", reveillon: "gold", galette: "crown" };
+  for(const [o, f] of Object.entries(formes)) assert.ok(enveloppe({ o, th: o }).includes(`class="seal shaped seal-${f} "`), `${o} : cachet ${f}`);
+});
+await test("Halloween : toiles dans les coins, araignée qui descend du rabat, cachet citrouille", () => {
+  const h = enveloppe({ o: "halloween", th: "halloween" });
+  assert.equal((h.match(/class="ed-web"/g) || []).length, 2, "deux toiles");
+  assert.ok(h.includes('class="ed-thread"') && h.includes('class="ed-spider"'), "araignée au bout de son fil");
+  assert.ok(h.includes("seal-pumpkin"));
+});
+await test("Le décor suit l'occasion, jamais la date du jour", () => {
+  const vus = new Set();
+  for(const iso of ["2026-10-31", "2027-04-15", "2027-08-15"]){ PAGE.ecrire("SEASON_TODAY", iso); vus.add(enveloppe({ o: "halloween", th: "base" })); }
+  PAGE.ecrire("SEASON_TODAY", "2026-10-15");
+  assert.equal(vus.size, 1, "même enveloppe toute l'année");
+  assert.ok([...vus][0].includes("env-deco"), "décor même avec un autre thème que celui de l'occasion");
+});
+await test("Occasions sans décor : enveloppe inchangée", () => {
+  const h = enveloppe({ o: "date", th: "amour" });
+  assert.ok(!h.includes("env-deco") && !h.includes("shaped"));
+  assert.ok(h.includes('<span class="seal " aria-hidden="true">A</span>'), "cachet habituel à l'initiale");
+  assert.ok(enveloppe({ o: "date", th: "amour", em: "🌹" }).includes('<span class="seal emoji" aria-hidden="true">🌹</span>'), "cachet habituel à l'emoji");
+});
+await test("Occasions Surprise : enveloppe neutre, cachet 💌 même avec un emoji choisi", () => {
+  for(const o of ["fetesurprise", "surprise", "voyagesurprise"]){
+    const h = enveloppe({ o, th: "mystere", em: "🎁" });
+    assert.ok(h.includes('<span class="seal emoji" aria-hidden="true">💌</span>') && !h.includes("🎁"), `${o} : 💌`);
+    assert.ok(!h.includes("env-deco"), `${o} : pas de décor`);
+  }
+  const tpl = PAGE.lire("TEMPLATES").filter(t => t.cat === "Surprise").map(t => t.occ).sort();
+  assert.deepEqual(tpl, [...PAGE.lire("ENV_NEUTRAL")].sort(), "toutes les occasions de la catégorie Surprise");
+});
+await test("Emoji ou initiale gardés sur le cachet décoré", () => {
+  assert.ok(enveloppe({ o: "halloween", th: "halloween", em: "🎃" }).includes('<span class="seal-t">🎃</span>'));
+  assert.ok(enveloppe({ o: "valentin", th: "valentin" }).includes('<span class="seal-t">A</span>'));
+  assert.ok(sceau("halloween", "", "<").includes('<span class="seal-t">&lt;</span>'), "initiale échappée");
+});
+await test("Décor : caché aux lecteurs d'écran, sur les bords, effacé à l'ouverture (prénom lisible)", () => {
+  for(const o of Object.keys(DECO)){
+    const d = decoEnv(o, "n");
+    assert.ok(d.startsWith('<svg class="env-deco ed-n" viewBox="0 0 300 200" aria-hidden="true" focusable="false">'), o);
+    assert.ok(!/\sid="/.test(d), `${o} : aucun identifiant (pas de doublon possible)`);
+    assert.ok(d.length < 4000, `${o} : dessin compact (${d.length} caractères)`);
+  }
+  assert.ok(regleCSS(".envelope.open .env-deco").includes("opacity:0"), "effacé à l'ouverture");
+  assert.ok(regleCSS(".env-deco").includes("pointer-events:none"), "ne gêne pas le toucher de l'enveloppe");
+});
+await test("Trois niveaux d'animation : classe du calque, rien en « Aucune » ni avec « moins de mouvement »", () => {
+  for(const an of ["n", "d", "0"]) assert.ok(enveloppe({ o: "noel", th: "noel", an }).includes(`class="env-deco ed-${an}"`), an);
+  assert.ok(!/\.ed-0[^{]*\{[^}]*animation/.test(CSS), "aucune animation en « Aucune »");
+  for(const r of CSS.match(/[^}]*\{[^}]*animation:ed-[^}]*\}/g) || []) assert.ok(/\.ed-[nd]\b|\.wiggle|\.beat-d/.test(r), `animation seulement en n ou d : ${r.trim().slice(0, 60)}`);
+});
+await test("Aperçu de la création : même cachet que l'enveloppe", () => {
+  const S = PAGE.lire("S");
+  Object.assign(S, { step: 4, from: "Alex", to: "Sam", occ: "halloween", em: "", link: "" });
+  PAGE.lire("renderCreator")();
+  assert.ok(PAGE.zones["#app"].innerHTML.includes('class="seal shaped seal-pumpkin "'));
+  Object.assign(S, { step: "home", occ: "juste" });
+});
+await test("Rien ne change dans les liens : le décodage ignore le décor", () => {
+  for(const nom of ["sanitize", "unpackLink", "packLink", "decodeData", "encodeData"]) assert.ok(!/ENV_DECO|sealHTML|envDeco/.test(PAGE.lire(nom).toString()), nom);
+});
+
 /* ---------- Bilan ---------- */
 console.log(`\n${ko ? "❌" : "✅"} ${ok} tests réussis, ${ko} en échec (graine ${GRAINE}${ko ? ` — pour rejouer : node tests/run.mjs --graine=${GRAINE}` : ""})`);
 if(ko){ console.log(echecs.map(e => "  - " + e).join("\n")); process.exitCode = 1; }

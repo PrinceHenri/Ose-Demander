@@ -187,6 +187,29 @@ Pendant les grands événements, le « ? » du logo (en-tête de la création et
 - **Animation** : léger balancement au survol ou au focus (`.lg-anim`), absent en « Aucune » (`S.anim`) et avec « moins de mouvement ».
 - Hors période, le logo est exactement l'habituel. Nouvelle période = son entrée dans `LOGO_PERIODS`, son dessin dans `LOGO_ART`, ses cas dans la section « Logo de saison » du banc.
 
+## 2 septies. Enveloppes décorées
+
+L'enveloppe de l'application reste la même (accent du thème, contours, rabat) ; selon l'**occasion** de l'invitation (`D.o`, jamais la date du jour), elle reçoit des décors sur les bords et un cachet adapté (`ENV_DECO`, `sealHTML`, `envDecoHTML`). Rien n'est ajouté au lien.
+
+| Occasion | Décors (bords) | Cachet | Animation (`n` ; `d` plus lente) |
+|---|---|---|---|
+| Halloween | toiles d'araignée (coin bas gauche, coin haut droit), araignée mignonne au bout d'un fil sous le rabat | citrouille | l'araignée monte et descend |
+| Repas de Noël | neige sur le bord du rabat, ruban de cadeau et nœud, houx | habituel | flocons qui tombent |
+| Réveillon | serpentins, étoiles dorées, paillettes | doré | paillettes qui scintillent |
+| Galette | frise dorée en pointillés, rayures de galette dans les coins | couronne posée sur le cachet | aucune |
+| Saint-Valentin | rose (bas droite), petits cœurs | cœur | le cœur bat |
+| Pâques | herbe, fleurs de printemps, œuf | habituel | l'œuf se balance |
+| Fête des mères | bouquet de fleurs séchées noué | habituel | pétales qui tombent |
+| Fête des pères | timbre rayé façon cravate (coin haut droit), nœud papillon | habituel | aucune |
+| Fête de la musique | portée en bas | habituel | notes qui sautillent |
+
+- **Occasions Surprise** (`ENV_NEUTRAL` : fête surprise, journée surprise, voyage surprise) : enveloppe neutre, cachet 💌 même si un emoji a été choisi (il pourrait dévoiler la surprise).
+- **Cachet** : la forme est dessinée (`SEAL_SHAPES`), l'emoji ou l'initiale reste posé dessus. Occasion sans forme : cachet habituel, au balisage identique.
+- **Calque** `.env-deco` (viewBox de l'enveloppe, au-dessus du rabat, `aria-hidden`, sans identifiant) **effacé à l'ouverture** : « Pour {prénom} » reste lisible. Décors près des bords, jamais sur le cachet.
+- **Couleurs** : comme le logo de saison, les objets gardent leurs couleurs (citrouille orange, houx vert) ; contours à l'encre (`.o`) ; un objet de la couleur de l'enveloppe est cerné d'encre (`edStreamer`, frise de la galette).
+- **Animations** : `.ed-n` / `.ed-d` seulement ; rien en `0` ni avec « moins de mouvement », les décors restent alors à leur place (aucun décor n'est caché au repos).
+- **Poids** : chaque décor < 4 000 caractères (vérifié par le banc) ; formes communes `edStar`, `edSpark`, `edWeb`, `edFlower`, `edStreamer`, `edFall`, `edAt` (agrandit autour d'un coin).
+
 ## 3. Typographie : deux polices, pas une de plus
 
 Polices **hébergées dans `fonts/`** (licence SIL OFL, aucun appel à Google Fonts — RGPD).
