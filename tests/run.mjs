@@ -59,7 +59,8 @@ await test("Les quatre formats (z, p, y, x) et les cinq tons du Non sont couvert
   assert.deepEqual([...new Set(REFERENCES.map(r => r.lien[0]))].sort(), ["p", "x", "y", "z"]);
   const tons = new Set(REFERENCES.map(r => r.attendu.tn || "taquin"));
   for(const t of FIGE.NO_TONES.map(t => t.id)) assert.ok(tons.has(t), `ton ${t} absent des références`);
-  for(const k of ["p", "sl", "l", "rv"]) assert.ok(REFERENCES.some(r => r.attendu[k]), `aucune référence avec « ${k} »`);
+  for(const k of ["p", "sl", "l", "rv", "ix"]) assert.ok(REFERENCES.some(r => r.attendu[k]), `aucune référence avec « ${k} »`);
+  for(const f of ["p", "y"]) assert.ok(REFERENCES.some(r => r.attendu.ix && r.lien[0] === f), `aucune introduction au format ${f}`);
   for(const f of ["p", "y", "z"]) assert.ok(REFERENCES.some(r => r.attendu.rv && r.lien[0] === f), `aucun lien de rappel au format ${f}`);
 });
 
@@ -118,6 +119,7 @@ function invitation(){
   if(pile(.3)) d.sl = Array.from({ length: ent(2, 3) }, () => [jour(), heure()]);
   else { d.d = pile(.05) ? jour(2025, 2025) : jour(); d.h = heure(); } // 2025 : hors plage du format compact
   if(pile(.1)) d.rv = 1; // ouverture depuis le rappel d'agenda
+  if(pile(.4)) d.ix = +un(Object.keys(FIGE.LINK_INTRO)); // introduction scénarisée
   return JSON.parse(JSON.stringify(d)); // comme le navigateur : les champs « undefined » disparaissent
 }
 let compact = 0, ancien = 0, tropLong = 0;
@@ -228,6 +230,14 @@ const TRAFIQUES = [
   ["Rappel : R = [1]", plat("x", { ...BASE, R: [1] })],
   ["Rappel : rv (nom de l'ancien format) dans un lien compact", plat("x", { ...BASE, rv: 1 })],
   ["Rappel : R = 2, compressé (y)", zip("y", { ...BASE, R: 2 })],
+  // Introduction : seulement un code connu de LINK_INTRO
+  ["Code d'introduction inconnu", plat("x", { ...BASE, I: 999 })],
+  ["Code d'introduction 0", plat("x", { ...BASE, I: 0 })],
+  ["Code d'introduction non entier", plat("x", { ...BASE, I: 1.5 })],
+  ["Introduction en texte au lieu d'un code", plat("x", { ...BASE, I: "1" })],
+  ["Introduction : textes écrits dans le lien", plat("x", { ...BASE, I: ["Salut…", "C'est moi."] })],
+  ["Introduction : ix (nom de l'ancien format) dans un lien compact", plat("x", { ...BASE, ix: 1 })],
+  ["Code d'introduction inconnu, compressé (y)", zip("y", { ...BASE, I: 999 })],
   // Ancien format : champs indispensables
   ["Ancien : prénom manquant", plat("p", sans(BASE_ANCIEN, "f"))],
   ["Ancien : question manquante", plat("p", sans(BASE_ANCIEN, "q"))],
@@ -270,7 +280,11 @@ const NETTOYES = [
   ["Indicateur de rappel invalide (rv ≠ 1) : lien normal", { ...BASE_ANCIEN, rv: 2 }, BASE_ANCIEN],
   ["Indicateur de rappel en texte : lien normal", { ...BASE_ANCIEN, rv: "1" }, BASE_ANCIEN],
   ["Indicateur de rappel à true : lien normal", { ...BASE_ANCIEN, rv: true }, BASE_ANCIEN],
-  ["Indicateur au nom du format compact (R) dans l'ancien format : ignoré", { ...BASE_ANCIEN, R: 1 }, BASE_ANCIEN]
+  ["Indicateur au nom du format compact (R) dans l'ancien format : ignoré", { ...BASE_ANCIEN, R: 1 }, BASE_ANCIEN],
+  ["Code d'introduction inconnu : directement la question", { ...BASE_ANCIEN, ix: 999 }, BASE_ANCIEN],
+  ["Introduction en texte : ignorée", { ...BASE_ANCIEN, ix: "1" }, BASE_ANCIEN],
+  ["Introduction écrite en toutes lettres : ignorée", { ...BASE_ANCIEN, ix: ["Salut…", "C'est moi."] }, BASE_ANCIEN],
+  ["Introduction au nom du format compact (I) dans l'ancien format : ignorée", { ...BASE_ANCIEN, I: 1 }, BASE_ANCIEN]
 ];
 const normal = d => { const x = { f: d.f, t: d.t, q: d.q, o: d.o, th: d.th, n: d.n, an: "n", c: "any", a: d.a.h !== undefined ? d.a : { v: "s", h: "" } }; if(d.l) x.l = d.l; x.d = d.d; x.h = d.h; return x; };
 for(const [nom, entree, sortie] of NETTOYES){
@@ -303,6 +317,16 @@ for(const [nom, quoi] of TABLES){
     assert.equal(new Set(vals).size, vals.length, `valeur en double dans ${nom}`);
   });
 }
+await test("LINK_INTRO (introductions) : les deux cartes de chaque code inchangées, pas de doublon", () => {
+  for(const [code, cartes] of Object.entries(FIGE.LINK_INTRO))
+    assert.deepEqual(L.LINK_INTRO[code], cartes, `les cartes du code ${code} ont changé ou disparu`);
+  for(const [code, cartes] of Object.entries(L.LINK_INTRO)){
+    assert.match(code, /^[1-9]\d*$/, `code ${code} invalide`);
+    assert.ok(Array.isArray(cartes) && cartes.length >= 1 && cartes.length <= 3 && cartes.every(c => typeof c === "string" && c.trim()), `code ${code} : 1 à 3 cartes de texte`);
+  }
+  const vals = Object.values(L.LINK_INTRO).map(c => JSON.stringify(c));
+  assert.equal(new Set(vals).size, vals.length, "introduction en double");
+});
 await test("LINK_KEYS : aucune clé retirée, pas de doublon ; origine des dates inchangée", () => {
   for(const k of FIGE.LINK_KEYS) assert.ok(L.LINK_KEYS.includes(k), `clé ${k} retirée`);
   assert.equal(new Set(L.LINK_KEYS).size, L.LINK_KEYS.length);
@@ -1203,10 +1227,16 @@ await test("Ambiances : occasions existantes au thème de décodage inchangé, n
   }
   for(const c of PAGE.lire("HOME_CATS")) assert.equal(PAGE.lire("catTemplates")(c.cat).find(t => !PAGE.lire("SEASONS")[t.occ]).theme, c.theme, `${c.cat} : miniature de l'accueil = ambiance du premier modèle`);
 });
-await test("Introductions : 2 cartes par occasion permanente gardée, courtes, tutoyées, neutres", () => {
-  const I = PAGE.lire("INTROS");
+await test("Introductions : 2 cartes par occasion gardée (permanente ou de saison), courtes, tutoyées, neutres", () => {
+  const I = PAGE.lire("INTROS"), IO = PAGE.lire("INTRO_OCC");
   assert.deepEqual(Object.keys(I), ["date", "annivamour", "couple", "weekend", "dinerspecial", "annivfam", "nouvelle", "parrain", "babyshower", "repasfam",
-    "monanniv", "temoin", "evc", "cremaillere", "soiree", "voyage", "fetesurprise", "surprise", "voyagesurprise"]);
+    "monanniv", "temoin", "evc", "cremaillere", "soiree", "voyage", "fetesurprise", "surprise", "voyagesurprise",
+    "halloween", "noel", "reveillon", "galette", "valentin", "paques", "meres", "peres", "musique"]);
+  for(const [o, c] of Object.entries(IO)){
+    assert.ok(PAGE.lire("OCC")[o], `${o} : occasion inconnue`);
+    assert.deepEqual(I[o], L.LINK_INTRO[c], `${o} : cartes du code ${c}`);
+  }
+  for(const t of PAGE.lire("TEMPLATES")) assert.ok(IO[t.occ], `${t.label} : introduction enregistrée (modèles de saison compris)`);
   for(const [id, cartes] of Object.entries(I)){
     assert.equal(cartes.length, 2, `${id} : deux cartes`);
     for(const c of cartes){
@@ -1214,7 +1244,77 @@ await test("Introductions : 2 cartes par occasion permanente gardée, courtes, t
       assert.ok(!/[→←]| · |(?<![-\p{L}])(vous|votre|vos)(?![-\p{L}])|\b(prête?|invitée?|ravie?)\b/iu.test(c), `${id} : « ${c} »`);
     }
   }
-  for(const t of PAGE.lire("TEMPLATES").filter(t => !PAGE.lire("SEASONS")[t.occ])) assert.ok(I[t.occ], `${t.label} : introduction enregistrée`);
+});
+
+/* =========================================================
+   12. Introduction scénarisée (cartes après l'enveloppe)
+   ========================================================= */
+titre("12. Introduction scénarisée");
+const avecIntro = (ix = 1, extra = {}) => INV({ ix, ...extra });
+const ecranIntro = d => { ouvrir(d); PAGE.lire("renderIntro")(); return PAGE.zones["#app"].innerHTML; };
+await test("Écran des cartes : titre focalisable, une seule action principale, « Passer » de 44 px", () => {
+  PAGE.vus.length = 0;
+  const h = ecranIntro(avecIntro(1));
+  assert.match(h, /<h1 class="intro-text" tabindex="-1">J&#39;ai une idée derrière la tête…<\/h1>/, "première carte en titre focalisable");
+  assert.ok(PAGE.vus.includes(".intro-text"), "le focus va à la première carte");
+  assert.deepEqual(principales(h), ["La suite"]);
+  assert.ok(h.includes('id="introSkip"') && h.includes(">Passer</button>"), "bouton « Passer »");
+  assert.ok(+(regleCSS(".intro-skip").match(/min-height:(\d+)px/) || [])[1] >= 44, "« Passer » : 44 px au moins");
+  assert.ok(/data-card="1" aria-hidden="true"/.test(h), "la carte suivante est cachée aux lecteurs d'écran");
+  assert.ok(regleCSS(".intro-card.under .intro-text").includes("opacity:0"), "la carte suivante ne se lit pas par transparence");
+  assert.ok(h.includes(PAGE.lire("SAFETY")), "mention anti-phishing");
+  assert.ok(!/[←→]| · /.test(h), "ni flèche ni « · »");
+});
+await test("Cartes : le prénom remplace {pour}, échappé", () => {
+  ouvrir(avecIntro(1, { t: "<b>Sam</b>" }));
+  const t = PAGE.lire("introText")("Coucou {pour}, {pour} !");
+  assert.equal(t, "Coucou &lt;b&gt;Sam&lt;/b&gt;, &lt;b&gt;Sam&lt;/b&gt; !");
+});
+await test("Chaque code d'introduction s'affiche (thème de son occasion), cartes courtes", () => {
+  const IO = PAGE.lire("INTRO_OCC"), OCC = PAGE.lire("OCC");
+  for(const [o, c] of Object.entries(IO)){
+    const h = ecranIntro(avecIntro(c, { o, th: OCC[o].createTheme || OCC[o].theme }));
+    for(const carte of L.LINK_INTRO[c]) assert.ok(h.includes(PAGE.lire("esc")(carte)), `${o} : « ${carte} » affichée`);
+    assert.equal((h.match(/class="intro-card/g) || []).length, L.LINK_INTRO[c].length, `${o} : une carte par texte`);
+  }
+});
+await test("Enveloppe : introduction si le lien en a une, sinon directement la question", () => {
+  const src = PAGE.lire("renderEnvelope").toString();
+  assert.ok(src.includes("D.ix ? renderIntro : renderInvite"));
+});
+await test("Le délai du vrai refus démarre à la question, pas pendant l'introduction", () => {
+  const src = PAGE.lire("renderIntro").toString() + PAGE.lire("introNext").toString();
+  assert.ok(!src.includes("refuseTimer") && !src.includes("showRefuseLink"), "aucune minuterie de refus dans l'introduction");
+  assert.ok(src.includes("renderInvite()"), "« Passer » et la dernière carte mènent à la question");
+  assert.ok(PAGE.lire("renderInvite").toString().includes("refuseTimer=setTimeout(showRefuseLink, REFUSE_DELAY)"));
+});
+await test("Trois niveaux d'animation : classe de l'écran, affichage direct en « Aucune »", () => {
+  for(const an of ["n", "d", "0"]) assert.ok(ecranIntro(avecIntro(1, { an })).includes(`class="intro-screen anim-${an}"`), `niveau ${an}`);
+  assert.ok(PAGE.lire("introNext").toString().includes('invAnim()==="0") top.remove()'), "« Aucune » : la carte disparaît sans attendre");
+  assert.ok(regleCSS(".intro-screen.anim-0 .intro-card,.intro-screen.anim-0 .intro-text").includes("transition:none"), "« Aucune » : aucune transition");
+  assert.ok(!/\.intro-screen\.anim-0[^{]*\{[^}]*animation:(?!none)/.test(CSS), "« Aucune » : aucune animation");
+});
+await test("Rappel d'agenda : jamais d'introduction (directement la carte)", () => {
+  const src = PAGE.lire("route").toString();
+  assert.ok(src.includes("if(D.rv){ Sound.init(); renderReminder(); } else renderEnvelope();"));
+});
+await test("Création : introduction activée avec un modèle, absente en partant de zéro, désactivable", async () => {
+  const S = PAGE.lire("S"), app = PAGE.lire("applyTemplate"), lien = PAGE.lire("buildLink"), dec = PAGE.lire("decodeData");
+  const lire = async () => { const u = await lien(); return dec(u.slice(u.indexOf("#i=") + 3)); };
+  Object.assign(S, { from: "Alex", to: "Sam", date: "2027-10-31", time: "20:00", choose: false, mode: "one" });
+  app("halloween"); assert.equal((await lire()).ix, 20, "Halloween : code 20");
+  app("rdv"); assert.equal((await lire()).ix, 1, "Proposer un date : code 1");
+  S.intro = false; assert.equal((await lire()).ix, undefined, "désactivée : rien dans le lien");
+  app("zero"); assert.equal((await lire()).ix, undefined, "partir de zéro : pas d'introduction");
+  S.occ = "libre"; S.occFree = "Fête"; S.intro = true; assert.equal((await lire()).ix, undefined, "occasion sans introduction : rien dans le lien");
+  app("rdv"); Object.assign(S, { step: 4, link: "" }); PAGE.lire("renderCreator")();
+  const h = PAGE.zones["#app"].innerHTML;
+  assert.ok(h.includes('id="intro" checked') && h.includes("Montrer deux cartes avant la question"), "case à cocher dans « Les mots »");
+  assert.ok(h.includes("<b>Introduction</b><span>« J&#39;ai une idée derrière la tête… » puis « Et elle te concerne. »</span>"), "récapitulatif");
+  Object.assign(S, { step: "home", occ: "juste", tpl: "", intro: false });
+});
+await test("« Voir un exemple » montre l'introduction", () => {
+  assert.equal(PAGE.lire("demoData")().ix, PAGE.lire("INTRO_OCC").date);
 });
 
 /* ---------- Bilan ---------- */

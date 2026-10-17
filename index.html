@@ -580,6 +580,32 @@ textarea.refuse-input{font-family:var(--hand);font-size:23px;line-height:1.2;min
 .envelope.open .env-flap{transform:rotateX(180deg);z-index:0}
 .envelope.open .seal{opacity:0}
 .envelope.open .env-paper{transform:translateY(-52%)}
+/* ---------- Introduction scénarisée : cartes de papier tirées de l'enveloppe ---------- */
+.intro-screen{position:relative;z-index:1;min-height:100vh;min-height:100dvh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:60px 16px 28px;text-align:center}
+.intro-screen .scene-sign{margin:0}
+.intro-from{margin:0;color:var(--muted);font-weight:600}
+.intro-deck{display:grid;width:min(340px,86vw);margin:4px 0 8px;cursor:pointer}
+.intro-card{grid-area:1/1;position:relative;z-index:1;min-height:210px;display:flex;align-items:center;justify-content:center;padding:30px 26px;background:var(--surface);border:2px solid var(--ink);border-radius:18px;box-shadow:6px 6px 0 var(--ink);transition:transform .45s cubic-bezier(.2,1.4,.4,1),opacity .45s}
+.intro-card::before{content:"";position:absolute;inset:9px;border:2px dashed var(--line);border-radius:11px;pointer-events:none}
+.intro-card.under{z-index:0;transform:rotate(3.5deg) translate(6px,8px)}
+.intro-card.gone{z-index:2;pointer-events:none;opacity:0;transform:translate(-120%,-16px) rotate(-16deg);transition:transform .5s cubic-bezier(.55,0,.7,.4),opacity .2s ease-in .28s}
+.intro-text{position:relative;margin:0;font-size:clamp(27px,7.4vw,35px);line-height:1.1;letter-spacing:-.025em;font-weight:800;font-variation-settings:"opsz" 96;overflow-wrap:anywhere;text-wrap:balance;transition:opacity .25s .34s}
+.intro-screen.anim-d .intro-text{transition-delay:.2s}
+.intro-card.under .intro-text{opacity:0}
+.intro-screen.anim-n [data-card="0"]{animation:intro-in .6s cubic-bezier(.2,1.4,.4,1) backwards}
+.intro-screen.anim-n .intro-card.under,.intro-screen.anim-d .intro-card.under{animation:intro-fade .4s .25s backwards}
+.intro-screen.anim-d [data-card="0"]{animation:intro-fade .4s backwards}
+.intro-screen.anim-d .intro-card.gone{transform:translateX(-28px);transition:transform .3s ease-in,opacity .2s ease-in}
+.intro-screen.anim-0 .intro-card,.intro-screen.anim-0 .intro-text{transition:none}
+@keyframes intro-in{from{opacity:0;transform:translateY(70px) scale(.9) rotate(-4deg)}}
+@keyframes intro-fade{from{opacity:0}}
+.intro-dots{display:flex;gap:8px;justify-content:center;margin:0}
+.intro-dots i{width:10px;height:10px;border-radius:50%;border:2px solid var(--ink);transition:background .2s}
+.intro-dots i.on{background:var(--accent)}
+.intro-btns{display:flex;flex-direction:column;align-items:center;gap:8px;width:min(340px,86vw)}
+.intro-btns .btn.primary{width:100%}
+.intro-skip{min-height:44px;padding:8px 22px;border-color:var(--line);color:var(--muted);font-weight:600}
+.intro-screen .safety{margin-top:4px}
 .envelope.wiggle:not(.open){animation:wiggle 3.4s ease-in-out infinite}
 @keyframes wiggle{0%,84%,100%{transform:rotate(0)}88%{transform:rotate(-3deg)}92%{transform:rotate(3deg)}96%{transform:rotate(-1.5deg)}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
@@ -1047,6 +1073,7 @@ function sanitize(x){
   }
   if(!d.sl){ if(!isDate(x.d)||!isTime(x.h)) throw new Error("no date"); d.d=x.d; d.h=x.h; }
   if(x.rv===1) d.rv=1; // ouverture depuis le rappel d'agenda (absent = lien normal)
+  if(Number.isInteger(x.ix) && own(LINK_INTRO, x.ix)) d.ix=x.ix; // introduction (absente = directement la question)
   return d;
 }
 /* Brouillage des infos à révélation programmée (pas lisibles en clair dans le lien) */
@@ -1112,7 +1139,27 @@ const LINK_AN = {1:"n",2:"d",3:"0"};
 const LINK_AC = {1:"framboise",2:"corail",3:"mandarine",4:"or",5:"menthe",6:"ocean",7:"violet",8:"nuit"};
 const LINK_EM = {1:"💌",2:"❤️",3:"🌹",4:"💍",5:"🌷",6:"👔",7:"🎂",8:"🎉",9:"🎁",10:"✨",11:"🍕",12:"☕",13:"🎃",14:"🎄",15:"🥂",16:"👑",17:"🐣",18:"🎶",19:"💘",20:"🤰",21:"🤱",22:"💐"};
 const LINK_TONE = {1:"taquin",2:"drole",3:"mignon",4:"theatral",5:"romantique"};
-const LINK_KEYS = ["f","t","o","F","q","T","n","N","A","C","E","s","S","c","i","m","H","a","l","D","p","e","M","b","w","L","R"];
+/* Introductions scénarisées : deux cartes montrées après l'enveloppe, avant la question (champ ix / I).
+   Seul le code est mis dans le lien : les deux textes d'un code ne changent jamais. « {pour} » = prénom de la personne invitée. */
+const LINK_INTRO = {
+  1:["J'ai une idée derrière la tête…","Et elle te concerne."], 2:["Un jour pas comme les autres approche…","Le tien."],
+  3:["Tu te souviens de notre premier jour ?","Moi, oui."], 4:["Et si on s'échappait un peu ?","Rien que nous deux."],
+  5:["Ce soir-là, pas de cuisine pour toi…","J'ai réservé."], 6:["Une année de plus, ça se fête…","En famille."],
+  7:["J'ai quelque chose à te dire…","Mais pas ici."], 8:["Un petit être va avoir besoin de quelqu'un…","Et j'ai pensé à toi."],
+  9:["Quelqu'un de tout petit arrive bientôt…","Et ça se fête !"], 10:["La table est mise…","Il manque juste toi."],
+  11:["Une bougie de plus sur le gâteau…","Et une place pour toi."], 12:["J'ai une question très sérieuse…","Enfin, presque."],
+  13:["Le grand jour approche…","Mais d'abord, la fête."], 14:["J'ai de nouvelles clés…","Et une porte ouverte pour toi."],
+  15:["Musique, rires, bonne compagnie…","Il ne manque que toi."], 16:["Tu as envie de changer d'air ?","Moi aussi."],
+  17:["Chut…","Tu sais garder un secret ?"], 18:["Ne prévois rien ce jour-là…","Je m'occupe de tout."],
+  19:["Et si on partait…","Sans te dire où ?"],
+  // Modèles de saison (validés le 2026-10-17)
+  20:["Les citrouilles sont prêtes…","Les frissons aussi."], 21:["Les guirlandes sont accrochées…","Et j'ai une place pour toi."],
+  22:["Le compte à rebours a commencé…","Et je veux le finir avec toi."], 23:["Une galette dorée sort du four…","Et peut-être une couronne pour toi."],
+  24:["Il y a des jours faits pour le dire…","Celui-là en est un."], 25:["Des œufs se cachent un peu partout…","Et j'en ai gardé un pour toi."],
+  26:["Tu as tant fait pour moi…","À mon tour, maman."], 27:["Tu as toujours été là pour moi…","À mon tour, papa."],
+  28:["Tu entends ce son au loin ?","C'est la fête qui commence."]
+};
+const LINK_KEYS = ["f","t","o","F","q","T","n","N","A","C","E","s","S","c","i","m","H","a","l","D","p","e","M","b","w","L","R","I"];
 /* Dates : minutes depuis le 1er janvier 2026 (heure locale de l'invitation, sans fuseau) */
 const LINK_T0 = Date.UTC(2026,0,1), LINK_TMAX = 60*24*366*100;
 const own = (o,k) => Object.prototype.hasOwnProperty.call(o,k);
@@ -1151,6 +1198,7 @@ function packLink(d){
   }
   if(d.sl) c.L=d.sl.map(s=>min(s[0]+"T"+s[1])); else c.w=min(d.d+"T"+d.h);
   if(d.rv) c.R=1;
+  if(d.ix) c.I=d.ix;
   return c;
 }
 /* Objet compact -> ancien format, puis sanitize. Strict : clé inconnue, mauvais type ou code inconnu = lien refusé */
@@ -1205,6 +1253,7 @@ function unpackLink(c){
   if(has("L")){ if(has("w")) bad(); x.sl=arr(c.L,2,3).map(v=>at(v).split("T")); }
   else { const w=at(c.w).split("T"); x.d=w[0]; x.h=w[1]; }
   if(has("R")){ if(c.R!==1) bad(); x.rv=1; }
+  if(has("I")){ dec(LINK_INTRO,c.I); x.ix=c.I; }
   return x;
 }
 
@@ -1340,30 +1389,12 @@ const TEMPLATES = [
   {id:"musique", cat:"Amis", label:"Fête de la musique", short:"fête de la musique", occ:"musique", theme:"musique", no:"fuit", tone:"drole", em:"🎶",
     q:"On sort pour la fête de la musique ?", msg:"Prépare tes oreilles, la soirée va être longue."}
 ];
-/* Introductions scénarisées (2 cartes, validées le 2026-10-16), par occasion permanente gardée à la création.
-   La fonctionnalité (cartes après l'enveloppe, bouton « Passer ») sera construite après les ambiances ;
-   chaque texte recevra alors un code, qui ne changera plus jamais. */
-const INTROS = {
-  date:["J'ai une idée derrière la tête…","Et elle te concerne."],
-  annivamour:["Un jour pas comme les autres approche…","Le tien."],
-  couple:["Tu te souviens de notre premier jour ?","Moi, oui."],
-  weekend:["Et si on s'échappait un peu ?","Rien que nous deux."],
-  dinerspecial:["Ce soir-là, pas de cuisine pour toi…","J'ai réservé."],
-  annivfam:["Une année de plus, ça se fête…","En famille."],
-  nouvelle:["J'ai quelque chose à te dire…","Mais pas ici."],
-  parrain:["Un petit être va avoir besoin de quelqu'un…","Et j'ai pensé à toi."],
-  babyshower:["Quelqu'un de tout petit arrive bientôt…","Et ça se fête !"],
-  repasfam:["La table est mise…","Il manque juste toi."],
-  monanniv:["Une bougie de plus sur le gâteau…","Et une place pour toi."],
-  temoin:["J'ai une question très sérieuse…","Enfin, presque."],
-  evc:["Le grand jour approche…","Mais d'abord, la fête."],
-  cremaillere:["J'ai de nouvelles clés…","Et une porte ouverte pour toi."],
-  soiree:["Musique, rires, bonne compagnie…","Il ne manque que toi."],
-  voyage:["Tu as envie de changer d'air ?","Moi aussi."],
-  fetesurprise:["Chut…","Tu sais garder un secret ?"],
-  surprise:["Ne prévois rien ce jour-là…","Je m'occupe de tout."],
-  voyagesurprise:["Et si on partait…","Sans te dire où ?"]
-};
+/* Introduction proposée pour chaque occasion (code de LINK_INTRO). Activée par défaut avec les modèles ;
+   textes validés le 2026-10-16 (occasions permanentes) et le 2026-10-17 (saisons). */
+const INTRO_OCC = {date:1, annivamour:2, couple:3, weekend:4, dinerspecial:5, annivfam:6, nouvelle:7, parrain:8, babyshower:9, repasfam:10,
+  monanniv:11, temoin:12, evc:13, cremaillere:14, soiree:15, voyage:16, fetesurprise:17, surprise:18, voyagesurprise:19,
+  halloween:20, noel:21, reveillon:22, galette:23, valentin:24, paques:25, meres:26, peres:27, musique:28};
+const INTROS = Object.fromEntries(Object.entries(INTRO_OCC).map(([o,c])=>[o, LINK_INTRO[c]]));
 const HOME_CATS = [
   {cat:"Amour", theme:"date", ico:"❤️"},
   {cat:"Famille", theme:"annivfam", ico:"🌷"},
@@ -1397,7 +1428,7 @@ const S = {
   date:"", time:"", choose:false, slots:[{d:"",t:""},{d:"",t:""}],
   q:"", qEdited:false, msg:"", hidden:false,
   no:"fuit", tone:"taquin", ch:"any", chId:"", link:"",
-  ac:"", em:"", sg:"", snd:true,
+  ac:"", em:"", sg:"", snd:true, intro:false,
   moreOpen:false, open:new Set(), err:"", errSec:""
 };
 
@@ -1406,7 +1437,7 @@ function applyTemplate(id){
   const p=(t&&t.plan)||{}, pr=S.preset||{};
   if(t) Object.assign(S,{tpl:t.id, occ:t.occ, occFree:"", theme:t.theme, q:t.q, qEdited:true, msg:t.msg, no:t.no, tone:t.tone||"taquin", em:t.em});
   else Object.assign(S,{tpl:"zero", occ:"juste", occFree:"", theme:"base", q:OCC.juste.q, qEdited:false, msg:"", no:"fuit", tone:"taquin", em:""});
-  Object.assign(S,{themeManual:false, hidden:false, ac:""});
+  Object.assign(S,{themeManual:false, hidden:false, ac:"", intro:!!t}); // introduction : activée avec un modèle, pas en partant de zéro
   // On défait ce que le modèle précédent avait préréglé, si la personne n'y a pas touché
   if(pr.prog && !p.steps) S.mode="one";
   if(pr.act && !p.act && S.act.x===pr.act) S.act={v:"v",x:"",h:"",at:""};
@@ -1546,6 +1577,7 @@ function screenHTML(){
       ${recapRow("Occasion", esc(occLabel()), 'data-goto="occ"')}
       ${recapRow("Question", esc(S.q), 'data-goto="words"')}
       ${recapRow("Message", S.msg ? esc(S.msg)+(S.hidden?" <em>(caché jusqu'au Oui)</em>":"") : "<em>Aucun</em>", 'data-goto="words"')}
+      ${INTRO_OCC[S.occ] ? recapRow("Introduction", introCode() ? introRecap(introCode()) : "<em>Aucune</em>", 'data-goto="words"') : ""}
       ${recapRow("Style", styleRecap(), 'data-goto="style"')}
       ${recapRow("Le Non", esc(NO_MODES.find(m=>m.id===S.no).t)+" · ton "+esc(noTone(S.tone).t.toLowerCase()), 'data-goto="no"')}
       ${recapRow("Réponse via", esc(CHANNELS.find(c=>c.id===S.ch).t)+(S.chId?" ("+esc(S.chId)+")":""), 'data-goto="reply"')}
@@ -1715,8 +1747,14 @@ function secWords(){
     <label class="field"><span>Ton message <em>(facultatif)</em></span><textarea class="input" id="msg" maxlength="300" placeholder="Écris un petit mot…">${esc(S.msg)}</textarea><div class="counter" id="cnt">${S.msg.length} / 300</div></label>
     <p class="group-title">Besoin d'inspiration ?</p>
     <div class="chips" style="margin-bottom:16px">${MSG_SUGG[cat].map((m,i)=>`<button type="button" class="chip" data-sugg="${i}">${esc(m)}</button>`).join("")}</div>
-    <label class="check"><input type="checkbox" id="hidden" ${S.hidden?"checked":""}><span>Garder le message caché jusqu'au Oui</span></label>`;
+    <label class="check"><input type="checkbox" id="hidden" ${S.hidden?"checked":""}><span>Garder le message caché jusqu'au Oui</span></label>
+    ${INTRO_OCC[S.occ] ? `<p class="group-title">Introduction</p>
+    <label class="check"><input type="checkbox" id="intro" ${S.intro?"checked":""}><span>Montrer deux cartes avant la question</span></label>
+    <p class="hint">${introRecap(INTRO_OCC[S.occ])}. Elles peuvent toujours être passées.</p>` : ""}`;
 }
+/* Introduction choisie : le code de l'occasion si elle est activée, sinon 0 (directement la question) */
+const introCode = () => (S.intro && INTRO_OCC[S.occ]) || 0;
+const introRecap = c => LINK_INTRO[c].map(t=>`« ${esc(t.replace("{pour}", S.to||"…"))} »`).join(" puis ");
 function secStyle(){
   const th=THEMES.find(t=>t.id===S.theme)||THEMES[0], initial=(S.from||"?").trim().charAt(0).toUpperCase();
   return `<p class="group-title">Thème</p>
@@ -1785,6 +1823,7 @@ function readAll(){
   if($("#chId")) S.chId=v("chId");
   if($("#sg")) S.sg=v("sg");
   if($("#sndInv")) S.snd=$("#sndInv").checked;
+  if($("#intro")) S.intro=$("#intro").checked;
 }
 /* Chaque vérification indique où corriger : un écran (nombre) ou une section de « Personnaliser davantage » */
 const CHECKS = {
@@ -1914,6 +1953,7 @@ function bindCreator(){
   // Quand
   $("#choose")?.addEventListener("change",e=>{ readAll(); S.choose=e.target.checked; S.link=""; renderCreator(); refocus("#choose"); Sound.tick(); });
   $("#sndInv")?.addEventListener("change",()=>{ readAll(); S.link=""; renderCreator(); refocus("#sndInv"); Sound.tick(); });
+  $("#intro")?.addEventListener("change",()=>{ readAll(); S.link=""; renderCreator(); refocus("#intro"); Sound.tick(); });
   on("[data-hour]", b=>{ S.time=b.dataset.hour; });
   on("#addSlot", ()=>{ if(S.slots.length<3) S.slots.push({d:"",t:""}); });
   on("[data-delslot]", b=>{ S.slots.splice(+b.dataset.delslot,1); });
@@ -1982,6 +2022,7 @@ async function buildLink(){
   }
   if(S.choose) d.sl=S.slots.filter(s=>s.d&&s.t).map(s=>[s.d,s.t]);
   else { d.d=S.date; d.h=S.time; }
+  const ix=introCode(); if(ix) d.ix=ix;
   const base=location.origin+location.pathname; // sans « ?… » (ex. traceurs ajoutés par les réseaux sociaux)
   return base+"#i="+await encodeData(d);
 }
@@ -2226,7 +2267,7 @@ let EXAMPLE=false;
 function demoData(){
   const d=new Date(); d.setDate(d.getDate()+7); d.setMinutes(d.getMinutes()-d.getTimezoneOffset());
   return sanitize({f:"Keke", t:"Loulou", o:"date", th:"amour", q:"Ça te dit un rendez-vous avec moi ?", n:"fuit", tn:"romantique", c:"any",
-    m:"Prépare ton plus beau sourire, je m'occupe du reste.", sg:"Ton Keke", em:"💌",
+    m:"Prépare ton plus beau sourire, je m'occupe du reste.", sg:"Ton Keke", em:"💌", ix:INTRO_OCC.date,
     a:{v:"v", x:"Dîner aux chandelles"}, l:{v:"s", h:"Pas loin de chez toi"}, d:d.toISOString().slice(0,10), h:"19:30"});
 }
 const demoBanner = () => EXAMPLE ? `<p class="demo-banner">Exemple · aucune réponse n'est envoyée · <a href="./">Créer la mienne</a></p>` : "";
@@ -2924,9 +2965,53 @@ function renderEnvelope(){
   $("#env").addEventListener("click",()=>{
     if(opened) return; opened=true;
     $("#env").classList.add("open"); $(".env-screen").classList.add("opened"); Sound.init(); Sound.pop(); buzz(20);
-    setTimeout(renderInvite, invAnim()==="0" ? 0 : 1150);
+    setTimeout(D.ix ? renderIntro : renderInvite, invAnim()==="0" ? 0 : 1150); // introduction éventuelle, puis la question
   });
   focusScreen(".env-from");
+}
+
+/* Introduction scénarisée : les cartes de LINK_INTRO, l'une après l'autre, avant la question.
+   Toujours passable ; le délai du vrai refus ne démarre qu'à la question (renderInvite). */
+let introIdx=0;
+const introText = t => esc(t).replaceAll("{pour}", esc(D.t));
+function renderIntro(){
+  const cards=LINK_INTRO[D.ix], anim=invAnim();
+  setTheme(D.th||"base", anim, D.ac, true);
+  document.title = `${D.f} a une question pour toi`;
+  introIdx=0;
+  $("#app").innerHTML = `
+  <main class="intro-screen anim-${anim}">
+    ${soundBtn()}${demoBanner()}${sceneSignHTML()}
+    <p class="intro-from">De la part de ${esc(D.f)}</p>
+    <div class="intro-deck" id="deck">${cards.map((t,i)=>`<div class="intro-card${i?" under":""}" data-card="${i}"${i?' aria-hidden="true"':""}>
+      <h1 class="intro-text"${i?"":' tabindex="-1"'}>${introText(t)}</h1></div>`).join("")}</div>
+    <p class="intro-dots" aria-hidden="true">${cards.map((_,i)=>`<i class="${i?"":"on"}"></i>`).join("")}</p>
+    <p class="sr" id="introPos" aria-live="polite">Carte 1 sur ${cards.length}</p>
+    <div class="intro-btns">
+      <button type="button" class="btn primary" id="introNext">${cards.length>1 ? "La suite" : "Voir la question"}</button>
+      <button type="button" class="btn ghost intro-skip" id="introSkip" aria-label="Passer l'introduction">Passer</button>
+    </div>
+    <p class="safety">${SAFETY}</p>
+  </main>`;
+  bindSound();
+  $("#introNext").addEventListener("click", introNext);
+  $("#deck").addEventListener("click", introNext);
+  $("#introSkip").addEventListener("click", ()=>{ Sound.pop(); renderInvite(); });
+  focusScreen(".intro-text");
+}
+function introNext(){
+  const cards=LINK_INTRO[D.ix];
+  if(!$("#deck")) return;
+  if(introIdx>=cards.length-1){ Sound.pop(); renderInvite(); return; }
+  const top=$(`.intro-card[data-card="${introIdx}"]`), nx=$(`.intro-card[data-card="${++introIdx}"]`);
+  Sound.card(); buzz(10);
+  if(invAnim()==="0") top.remove();
+  else { top.classList.add("gone"); top.setAttribute("aria-hidden","true"); setTimeout(()=>top.remove(), 520); }
+  nx.classList.remove("under"); nx.removeAttribute("aria-hidden");
+  $$(".intro-dots i").forEach((d,i)=>d.classList.toggle("on", i===introIdx));
+  const last=introIdx===cards.length-1;
+  $("#introPos").textContent=`Carte ${introIdx+1} sur ${cards.length} : ${cards[introIdx].replaceAll("{pour}", D.t)}`;
+  if(last){ $("#introNext").textContent="Voir la question"; $("#introSkip").style.visibility="hidden"; } // « Passer » ferait doublon (place gardée : rien ne saute)
 }
 
 function enableTilt(){
@@ -3731,6 +3816,7 @@ const Sound = {
     o.connect(g).connect(c.destination); o.start(t0); o.stop(t0+dur+.02);
   },
   pop(){ this.tone(700,1300,.09,"sine",.08); },
+  card(){ this.tone(420,880,.08,"triangle",.045); }, // carte de l'introduction qui s'envole
   no(){ this.tone(320,170,.18,"triangle",.09); },
   yes(){ [523,659,784,1047].forEach((f,i)=>this.tone(f,f*1.01,.28,"sine",.09,i*.09)); },
   // Révélation : déclic du cadenas puis scintillement. Sans geste préalable, le navigateur bloque le son :

@@ -1080,4 +1080,55 @@ export const REFERENCES = [
       "h": "07:00"
     }
   }
+,
+  {
+    "nom": "Introduction scénarisée (format compact y) : Halloween, code 20",
+    "lien": "yFck_CsIwFMDhq4Tf4vKGpimKb8_g0sUThPYJQmL8U1EQD9Rz9GKl6_f9uKD0NSFMKHG0G0JF_UF4oCEIPdoJEfVBKGjohIRyrtfnMpsb6mt6l2U2hLx5ytncaC7v4tfKPW_xQY_74NtGOKFt818B",
+    "attendu": {
+      "f": "Noa",
+      "t": "Eden",
+      "q": "Tu oses venir fêter Halloween avec moi ?",
+      "o": "halloween",
+      "th": "halloween",
+      "n": "fuit",
+      "tn": "theatral",
+      "an": "n",
+      "em": "🎃",
+      "c": "any",
+      "m": "Viens avec ton meilleur déguisement.",
+      "a": {
+        "v": "v",
+        "x": "Soirée costumée"
+      },
+      "l": {
+        "v": "v",
+        "x": "Salle de l'Exemple"
+      },
+      "d": "2027-10-31",
+      "h": "20:00",
+      "ix": 20
+    }
+  },
+  {
+    "nom": "Introduction scénarisée (ancien format p, date avant 2026) : rendez-vous, code 1",
+    "lien": "peyJmIjoiQWxleCIsInQiOiJTYW0iLCJvIjoiZGF0ZSIsInRoIjoiZGF0ZSIsInEiOiLDh2EgdGUgZGl0IHVuIHJlbmRlei12b3VzIGF2ZWMgbW9pID8iLCJuIjoiZnVpdCIsImMiOiJzbXMiLCJjaSI6IjA2IDAwIDAwIDAwIDAzIiwiYSI6eyJ2IjoicyIsImgiOiJQcsOpdm9pcyB1bmUgdmVzdGUifSwiZCI6IjIwMjUtMTItMjAiLCJoIjoiMTk6MDAiLCJpeCI6MX0",
+    "attendu": {
+      "f": "Alex",
+      "t": "Sam",
+      "q": "Ça te dit un rendez-vous avec moi ?",
+      "o": "date",
+      "th": "date",
+      "n": "fuit",
+      "an": "n",
+      "c": "sms",
+      "ci": "06 00 00 00 03",
+      "a": {
+        "v": "s",
+        "h": "Prévois une veste"
+      },
+      "d": "2025-12-20",
+      "h": "19:00",
+      "ix": 1
+    }
+  }
 ];

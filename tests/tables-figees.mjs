@@ -224,8 +224,40 @@ export const LINK_TONE = {
   "5": "romantique"
 };
 
+/* Introductions scénarisées (ajoutées le 2026-10-17) : les deux cartes d'un code ne changent jamais. */
+export const LINK_INTRO = {
+  "1": ["J'ai une idée derrière la tête…", "Et elle te concerne."],
+  "2": ["Un jour pas comme les autres approche…", "Le tien."],
+  "3": ["Tu te souviens de notre premier jour ?", "Moi, oui."],
+  "4": ["Et si on s'échappait un peu ?", "Rien que nous deux."],
+  "5": ["Ce soir-là, pas de cuisine pour toi…", "J'ai réservé."],
+  "6": ["Une année de plus, ça se fête…", "En famille."],
+  "7": ["J'ai quelque chose à te dire…", "Mais pas ici."],
+  "8": ["Un petit être va avoir besoin de quelqu'un…", "Et j'ai pensé à toi."],
+  "9": ["Quelqu'un de tout petit arrive bientôt…", "Et ça se fête !"],
+  "10": ["La table est mise…", "Il manque juste toi."],
+  "11": ["Une bougie de plus sur le gâteau…", "Et une place pour toi."],
+  "12": ["J'ai une question très sérieuse…", "Enfin, presque."],
+  "13": ["Le grand jour approche…", "Mais d'abord, la fête."],
+  "14": ["J'ai de nouvelles clés…", "Et une porte ouverte pour toi."],
+  "15": ["Musique, rires, bonne compagnie…", "Il ne manque que toi."],
+  "16": ["Tu as envie de changer d'air ?", "Moi aussi."],
+  "17": ["Chut…", "Tu sais garder un secret ?"],
+  "18": ["Ne prévois rien ce jour-là…", "Je m'occupe de tout."],
+  "19": ["Et si on partait…", "Sans te dire où ?"],
+  "20": ["Les citrouilles sont prêtes…", "Les frissons aussi."],
+  "21": ["Les guirlandes sont accrochées…", "Et j'ai une place pour toi."],
+  "22": ["Le compte à rebours a commencé…", "Et je veux le finir avec toi."],
+  "23": ["Une galette dorée sort du four…", "Et peut-être une couronne pour toi."],
+  "24": ["Il y a des jours faits pour le dire…", "Celui-là en est un."],
+  "25": ["Des œufs se cachent un peu partout…", "Et j'en ai gardé un pour toi."],
+  "26": ["Tu as tant fait pour moi…", "À mon tour, maman."],
+  "27": ["Tu as toujours été là pour moi…", "À mon tour, papa."],
+  "28": ["Tu entends ce son au loin ?", "C'est la fête qui commence."]
+};
+
 /* Clés du format compact : aucune ne doit disparaître (de nouvelles peuvent s'ajouter). */
-export const LINK_KEYS = ["f","t","o","F","q","T","n","N","A","C","E","s","S","c","i","m","H","a","l","D","p","e","M","b","w","L","R"];
+export const LINK_KEYS = ["f","t","o","F","q","T","n","N","A","C","E","s","S","c","i","m","H","a","l","D","p","e","M","b","w","L","R","I"];
 
 /* Origine des dates du format compact : ne doit jamais changer. */
 export const LINK_T0 = 1767225600000;

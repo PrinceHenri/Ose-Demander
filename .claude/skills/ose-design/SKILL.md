@@ -151,7 +151,18 @@ Chaque occasion permanente gardée à la création (liste révisée le 2026-10-1
 - **Animations vivantes et propres à l'événement** : chaque élément vedette combine plusieurs mouvements qui racontent l'occasion (cœurs qui montent `.sg-rise` / `petitCoeur()`, soleil qui tourne `.sg-spin`, valise qui roule `.sg-roll`, cloche qui se soulève `.sg-lift`, coin de page qui se soulève `.sg-flip`, oiseaux `.sg-fly`, cartes qui se retournent `.sg-turn` / `.sg-turnv`, porte qui s'ouvre `.sg-door`, objet qui s'agite `.sg-shake`, rabat qui s'ouvre `.sg-open`, couvercle qui saute `.sg-jiggle`, tasses qui trinquent `.sg-clink-l/-r`, pétales qui tombent `.sg-fall`, couvercle qui saute `.sg-pop`, confettis et éclats qui montent `confettiMontant()` / `eclatMontant()`, ballons qui se balancent `petitBallon()`, en plus de `.sg-beat`, `.sg-swing`, `.sg-flame`…), et le décor animé mêle formes dessinées et emojis du thème (`e:…`). Toujours immobile en « Aucune » et avec « moins de mouvement ».
 - **Scènes compactes** : réutiliser les **formes communes** avant d'en dessiner de nouvelles. Décor de fond : `fanions(id)`, `ampoules(id)`, `ballon(r)`, `paquet(w, h)`, `cadre(w, h)`, `plateau(y)` ; élément vedette : `gateau(cx, base, étages, bougies)` (flammes `.sg-flame`), `.sg-ring` / `.sg-ringo` (anneaux à l'accent cernés d'encre). Formes du décor animé ajoutées : `balloon`, `ring`.
 - **Poids** : donner à chaque lot le poids de `index.html`, brut et compressé (`gzip -6`, proche de ce que GitHub Pages envoie réellement). Au-delà de 150 Ko compressés, reparler de fichiers de scène séparés.
-- **Liste révisée** : occasions masquées à la création par `old:1` (mariage, grands-parents, sortie entre amis, anniversaire entre amis, me faire pardonner), toujours décodées ; « Juste comme ça » en coulisse (`hide:1`) pour « Partir de zéro » ; « Autre chose… » gardée. Les introductions (2 cartes par occasion) sont dans `INTROS`, en attendant la fonctionnalité.
+- **Liste révisée** : occasions masquées à la création par `old:1` (mariage, grands-parents, sortie entre amis, anniversaire entre amis, me faire pardonner), toujours décodées ; « Juste comme ça » en coulisse (`hide:1`) pour « Partir de zéro » ; « Autre chose… » gardée. Chaque occasion gardée a son introduction (§ 2 quinquies).
+
+## 2 quinquies. Introduction scénarisée
+
+Après l'enveloppe, avant la question : des **cartes de papier** tirées de l'enveloppe, l'une après l'autre (`renderIntro`, `introNext`).
+- **Textes** : table `LINK_INTRO` (code → 2 cartes), champ `ix` (ancien format) / `I` (compact). Seul le code va dans le lien : les textes d'un code ne changent jamais, une nouvelle formulation = un nouveau code (et une copie dans `tables-figees.mjs`). `INTRO_OCC` donne le code de chaque occasion (28 : les 19 permanentes et les 9 de saison). Textes courts (≤ 50 caractères), tutoyés, neutres, première carte qui intrigue (« … »), seconde qui conclut ; jamais d'heure ni de lieu. `{pour}` = prénom de la personne invitée, échappé (`introText`).
+- **Création** : activée avec un modèle (`S.intro`), absente en partant de zéro ; case « Montrer deux cartes avant la question » dans « Les mots » (seulement si l'occasion a une introduction) et ligne « Introduction » du récapitulatif.
+- **Carte** (`.intro-card`) : `--surface`, contour 2px encre, rayon 18px, ombre 6px 6px 0, cadre intérieur en pointillés `--line` ; texte en Bricolage 800 (`.intro-text`, comme `.question`, `text-wrap:balance`). La carte suivante est dessous, légèrement tournée, son texte invisible (pas de lecture par transparence) et `aria-hidden`.
+- **Écran** : élément vedette de la scène, « De la part de {prénom} », cartes, points d'étape (`--accent`, décor), une seule action principale (« La suite », puis « Voir la question » sur la dernière), « Passer » discret (contour `--line`, texte `--muted`, 44 px, masqué sur la dernière carte, place gardée), mention anti-phishing. Toucher la carte avance aussi.
+- **Animations** : `n` = la première carte monte de l'enveloppe avec un rebond, chaque carte s'envole vers la gauche en tournant (0,5 s ; elle reste opaque, puis s'efface ; le texte suivant n'apparaît qu'après) ; `d` = fondus et glissement court ; `0` / moins de mouvement = changement immédiat. Son bref `Sound.card`.
+- **Accessibilité** : focus sur la première carte (titre `h1` en `tabindex="-1"`), puis il reste sur le bouton ; chaque nouvelle carte est annoncée (`#introPos`, `aria-live`, « Carte 2 sur 2 : … »).
+- **Règles** : le délai du vrai refus (10 s) ne démarre qu'à la question ; jamais d'introduction depuis le rappel d'agenda ; « Voir un exemple » la montre.
 
 ## 3. Typographie : deux polices, pas une de plus
 
@@ -178,7 +189,7 @@ Règles pour toute nouvelle animation (intro, partage…) :
 - Courtes et vives : apparition `pop` (0,5 s, léger rebond `cubic-bezier(.2,1.4,.4,1)`), boutons 0,1–0,2 s, transitions de page ≤ 1,2 s. Animer `transform` et `opacity` seulement.
 - Les explosions et le décor reprennent les formes du thème (`DECOR` : cœurs, pétales, étoiles, bulles, confettis, étincelles) : pas de nouvel effet hors thème.
 - **Son** : `Sound` (sons brefs synthétisés, jamais de musique), activé par défaut mais respecte le réglage de l'invitation (`so:0`) et le bouton 🔊/🔇 toujours visible ; aucun son avant un geste. Un nouveau moment fort peut avoir **son** son bref (`Sound.xxx`), dans la même famille.
-- Une séquence (plusieurs étapes) se joue **l'une après l'autre**, avec défilement jusqu'à l'élément, et peut toujours être passée ou ignorée (bouton « Passer » pour l'intro).
+- Une séquence (plusieurs étapes) se joue **l'une après l'autre**, avec défilement jusqu'à l'élément, et peut toujours être passée ou ignorée (bouton « Passer » pour l'intro, § 2 quinquies).
 
 ## 5. Accessibilité
 
