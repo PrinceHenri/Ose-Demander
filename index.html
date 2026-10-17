@@ -194,6 +194,14 @@ button,input,textarea,select{font:inherit;color:inherit}
 textarea.input{min-height:90px;resize:vertical}
 .hint{font-size:14px;color:var(--muted);margin:6px 0 0}
 .row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.row2>.field{min-width:0} /* une colonne de grille ne s'élargit pas à la taille de son champ */
+input.input[type=date],input.input[type=time]{min-width:0;max-width:100%}
+/* iPhone et iPad (Safari) : le champ de date ou d'heure natif impose sa propre largeur et déborde du cadre ;
+   sans l'apparence native, il suit width:100% (même hauteur que les autres champs, texte à gauche) */
+@supports (-webkit-touch-callout:none){
+  input.input[type=date],input.input[type=time]{-webkit-appearance:none;appearance:none;display:block;min-height:50px;text-align:left}
+  input.input[type=date]::-webkit-date-and-time-value,input.input[type=time]::-webkit-date-and-time-value{text-align:left;margin:0}
+}
 @media (max-width:460px){.row2{grid-template-columns:1fr}}
 .group-title{font-weight:700;font-size:15px;margin:16px 0 8px}
 .chips{display:flex;flex-wrap:wrap;gap:8px}
@@ -2140,7 +2148,17 @@ function bindCreator(){
 
   // Tester, créer, partager
   const ready=()=>{ readAll(); const err=checkScreen(4); if(err){ showErr(err); return false; } return true; };
-  $("#preview")?.addEventListener("click",async()=>{ if(!ready()) return; const url=await buildLink(); window.open(url,"_blank","noopener"); });
+  // Safari bloque une fenêtre ouverte après une attente (compression du lien) : l'onglet est ouvert tout de suite, pendant le toucher,
+  // puis reçoit le lien. S'il a quand même été bloqué, un message l'explique (rien n'est perdu de la création en cours).
+  $("#preview")?.addEventListener("click",async()=>{
+    if(!ready()) return;
+    const w=window.open("","_blank");
+    try{
+      const url=await buildLink();
+      if(w){ try{ w.opener=null; }catch(e){} w.location.href=url; }
+      else toast("Ton navigateur a bloqué le nouvel onglet : autorise-le, ou crée ton lien et ouvre-le");
+    }catch(e){ if(w) w.close(); }
+  });
   $("#make")?.addEventListener("click",async()=>{
     if(!ready()) return;
     $$(".sec-body .error").forEach(el=>el.remove()); // erreurs corrigées

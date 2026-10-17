@@ -1586,6 +1586,27 @@ await test("Mentions légales : « la personne qui a créé l'invitation », jam
   assert.ok(ml.includes("la réponse n'est envoyée qu'à la personne qui a créé l'invitation"));
 });
 
+/* =========================================================
+   17. Safari (iPhone, iPad, Mac)
+   ========================================================= */
+titre("17. Safari");
+await test("« Tester l'invitation » : l'onglet s'ouvre pendant le toucher, avant toute attente", () => {
+  const src = PAGE.lire("bindCreator").toString(), i = src.indexOf('$("#preview")');
+  assert.ok(i >= 0, "bouton « Tester l'invitation » branché");
+  const bloc = src.slice(i, src.indexOf("});", i));
+  assert.ok(bloc.indexOf('window.open("","_blank")') >= 0 && bloc.indexOf('window.open("","_blank")') < bloc.indexOf("await"), "window.open avant le premier await (sinon Safari bloque l'onglet)");
+  assert.ok(bloc.includes("w.location.href=url") && bloc.includes("w.opener=null"), "le lien est ensuite chargé dans cet onglet, sans lien vers la page de création");
+});
+await test("Aucune fenêtre ouverte après une attente ailleurs dans la page", () => {
+  const html = readFileSync(RACINE + "index.html", "utf8");
+  for(const m of html.matchAll(/await [^;]*;[^\n]*window\.open\(/g)) assert.fail(`window.open après await : ${m[0].slice(0, 80)}`);
+});
+await test("Champs de date et d'heure : jamais plus larges que leur cadre (Safari sur iPhone)", () => {
+  assert.ok(regleCSS(".row2>.field").includes("min-width:0"));
+  assert.ok(regleCSS("input.input[type=date],input.input[type=time]").includes("min-width:0;max-width:100%"));
+  assert.ok(/@supports \(-webkit-touch-callout:none\)\{\s*input\.input\[type=date\],input\.input\[type=time\]\{-webkit-appearance:none;appearance:none;display:block/.test(CSS), "apparence native retirée sur iPhone et iPad");
+});
+
 /* ---------- Bilan ---------- */
 console.log(`\n${ko ? "❌" : "✅"} ${ok} tests réussis, ${ko} en échec (graine ${GRAINE}${ko ? ` — pour rejouer : node tests/run.mjs --graine=${GRAINE}` : ""})`);
 if(ko){ console.log(echecs.map(e => "  - " + e).join("\n")); process.exitCode = 1; }
