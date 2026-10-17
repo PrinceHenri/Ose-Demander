@@ -1571,6 +1571,21 @@ await test("Création : « Autoriser le partage » activé par défaut, pa = 0 s
   Object.assign(S, { step: "home", occ: "juste" }); S.open.delete("reply");
 });
 
+/* =========================================================
+   16. Textes neutres (ni masculin ni féminin pour les personnes)
+   ========================================================= */
+titre("16. Textes neutres");
+await test("Bas des billets : « Invitation créée avec Ose Demander. »", () => {
+  ouvrir(INV()); const h = PAGE.lire("ticketHTML")("");
+  assert.ok(h.includes("<br>Invitation créée avec Ose Demander.<br>"));
+  assert.ok(!/utilisateur d'Ose|créée par un/.test(h));
+});
+await test("Mentions légales : « la personne qui a créé l'invitation », jamais l'auteur, le créateur ou l'éditeur", () => {
+  const ml = readFileSync(RACINE + "mentions-legales.html", "utf8");
+  for(const mot of [/l'auteur/i, /créat(eur|rice)/i, /les utilisateurs/i, /l'éditeur/i, /seul responsable/i]) assert.ok(!mot.test(ml), `« ${mot.source} » trouvé`);
+  assert.ok(ml.includes("la réponse n'est envoyée qu'à la personne qui a créé l'invitation"));
+});
+
 /* ---------- Bilan ---------- */
 console.log(`\n${ko ? "❌" : "✅"} ${ok} tests réussis, ${ko} en échec (graine ${GRAINE}${ko ? ` — pour rejouer : node tests/run.mjs --graine=${GRAINE}` : ""})`);
 if(ko){ console.log(echecs.map(e => "  - " + e).join("\n")); process.exitCode = 1; }
