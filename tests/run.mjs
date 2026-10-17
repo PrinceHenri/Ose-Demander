@@ -1373,7 +1373,10 @@ await test("Chaque période : décor, texte pour les lecteurs d'écran, icône d
     const f = fav(seul); assert.ok(f.startsWith("data:image/svg+xml,"), `${id} : icône SVG`); icones.add(f);
   }
   assert.equal(icones.size, Object.keys(LOGO).length, "une icône différente par période");
-  for(const f of icones) assert.equal((decodeURIComponent(f).match(/<svg/g) || []).length, 1, "un seul dessin par icône");
+  for(const f of icones){
+    const n = (decodeURIComponent(f).match(/<svg/g) || []).length;
+    assert.ok(n === 2 || n === 3, "l'enveloppe, le motif au centre du cachet, au plus un accessoire sur le coin");
+  }
 });
 await test("Chevauchements : l'icône de l'onglet montre l'événement dont le jour J est le plus proche", () => {
   const principal = PAGE.lire("logoMain");

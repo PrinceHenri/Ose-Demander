@@ -821,14 +821,20 @@ function logoMain(iso){
   const t=Date.parse(iso), dist=id=>Math.abs(Date.parse(logoWindow(id, iso).day)-t);
   return logoAt(iso).reduce((a, id)=> a===null || dist(id)<dist(a) ? id : a, null);
 }
-/* Icône de l'onglet pendant une période : un seul dessin, le principal de l'événement (SVG en data:), ou null hors période.
-   Carré autour du dessin, avec une marge pour le contour ; contour plus épais pour rester lisible en 16 px. */
+/* Icône de l'onglet pendant une période : l'enveloppe de l'icône habituelle (SVG en data:), le motif de l'événement à la place
+   du « ? » dans le cachet, et parfois un accessoire sur le coin (LOGO_FAV : [centre, coin]) ; null hors période. */
+const LOGO_FAV = {rose:["ribbon"], halloween:["pumpkin","witch"], noel:["spark","santa"], reveillon:["spark","party"], galette:["crown"],
+  valentin:["heart"], paques:["egg"], meres:["flower"], peres:["bowtie"], musique:["note"]};
 function logoFavicon(iso){
   const id=logoMain(iso);
   if(!id) return null;
-  const art=LOGO_PERIODS[id].ribbon ? "ribbon" : LOGO_PERIODS[id].deco[0][1], [,, w, h]=LOGO_ART[art][0].split(" ").map(Number);
-  const s=Math.max(w, h)+3, vb=`${(w-s)/2} ${(h-s)/2} ${s} ${s}`;
-  const svg=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="${vb}" color="#1F1546"><g stroke="currentColor" stroke-width="2" stroke-linejoin="round">${LOGO_ART[art][1]}</g></svg>`;
+  const [mid, corner]=LOGO_FAV[id];
+  const art=(name, x, y, s, col) => { const [,, w, h]=LOGO_ART[name][0].split(" ").map(Number), k=s/Math.max(w, h);
+    return `<svg x="${x+(s-w*k)/2}" y="${y+(s-h*k)/2}" width="${w*k}" height="${h*k}" viewBox="${LOGO_ART[name][0]}" overflow="visible" color="${col}"><g stroke="currentColor" stroke-width="2" stroke-linejoin="round">${LOGO_ART[name][1]}</g></svg>`; };
+  const svg=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="12" fill="#ECE6FF"/>`
+    + `<rect x="5" y="17" width="54" height="42" rx="5" fill="#1F1546"/><rect x="2" y="14" width="54" height="42" rx="5" fill="#E83F86" stroke="#1F1546" stroke-width="3.5"/>`
+    + `<path d="M4 16l25 19 25-19" fill="none" stroke="#1F1546" stroke-width="3.5" stroke-linejoin="round"/><circle cx="29" cy="37" r="17" fill="#1F1546" stroke="#FFF" stroke-width="2.5"/>`
+    + art(mid, 16, 24, 26, "#FFF") + (corner ? `<g transform="rotate(14 50 12)">${art(corner, 37, 0, 26, "#1F1546")}</g>` : "") + `</svg>`;
   return "data:image/svg+xml," + encodeURIComponent(svg);
 }
 /* Emoji réservé à une saison (absent des emojis proposés toute l'année avant les saisons) */
