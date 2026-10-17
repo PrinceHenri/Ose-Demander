@@ -1833,6 +1833,50 @@ await test("« Mes invitations » : lien court, lien complet et jeton validés s
   assert.ok(PAGE.lire("duplicateInvitation").toString().includes("linkData(invLink(it))"), "dupliquer relit le lien complet (sans le service)");
 });
 
+/* =========================================================
+   20. Liens courts du rappel d'agenda et de « Partager la surprise » (chacun son contenu allégé, chiffré)
+   ========================================================= */
+titre("20. Liens courts du rappel et du partage");
+const attendre = async cond => { for(let i = 0; i < 200 && !cond(); i++) await new Promise(r => setTimeout(r, 10)); };
+const relire = async lien => { const [, id, key] = lien.match(/#s=([A-Za-z0-9_-]{22})\.([A-Za-z0-9_-]{22})$/) || []; assert.ok(id, `lien court attendu : ${lien.slice(0, 60)}`); return L.decodeData(await PAGE.lire("readShort")(id, key)); };
+const apresOuiCourt = async d => { ouvrir(d); PAGE.ecrire("remState", "wait"); PAGE.lire("prepReminder")(); await attendre(() => PAGE.lire("remState") !== "wait" && PAGE.lire("shareState") !== "wait"); return [PAGE.lire("remLink"), PAGE.lire("shareLink")]; };
+await essaiWorker("Après le Oui : rappel et partage en liens courts, chacun avec son propre contenu allégé", async () => {
+  const r = reseau(); brancher(r);
+  const d = INV({ m: "Secret", mh: 1, l: { v: "v", x: "Restaurant de l'Exemple" } });
+  const [rem, part] = await apresOuiCourt(d);
+  const dr = await relire(rem), dp = await relire(part);
+  assert.deepEqual(dr, PAGE.lire("reminderData")(d, null), "rappel : contenu de reminderData");
+  assert.equal(dr.rv, 1); assert.ok(!("ci" in dr), "rappel : sans le numéro du créateur");
+  assert.deepEqual(dp, PAGE.lire("shareData")(d, null), "partage : contenu de shareData");
+  assert.equal(dp.vu, 1); assert.ok(!("l" in dp) && !("m" in dp) && !("ci" in dp), "partage : sans lieu, message caché ni numéro");
+  assert.notEqual(rem.split("#s=")[1].split(".")[1], part.split("#s=")[1].split(".")[1], "deux clés différentes");
+  for(const req of r.journal) assert.ok(!req.body.includes("Restaurant") && !req.url.includes(rem.split(".").pop()), "rien en clair, aucune clé envoyée");
+});
+await essaiWorker("Repli : service muet, le rappel et le partage gardent le lien complet ; exemple : jamais de dépôt", async () => {
+  PAGE.ecrire("shortFetch", async () => { throw new TypeError("Failed to fetch"); });
+  const [rem, part] = await apresOuiCourt(INV());
+  assert.ok(rem.includes("#i=") && part.includes("#i="), "liens complets");
+  assert.equal((await L.decodeData(rem.split("#i=")[1])).rv, 1);
+  const r = reseau(); brancher(r); PAGE.ecrire("EXAMPLE", true);
+  const [rem2] = await apresOuiCourt(INV());
+  PAGE.ecrire("EXAMPLE", false);
+  assert.ok(rem2.includes("#i=") && r.journal.length === 0, "mode exemple : rien n'est déposé");
+});
+await essaiWorker("Carte ouverte depuis un lien de rappel court : ce même lien va dans l'agenda (aucun nouveau dépôt)", async () => {
+  const r = reseau(); brancher(r);
+  const d = PAGE.lire("reminderData")(INV(), null), sh = await PAGE.lire("createShort")(await L.encodeData(d), LOCAL + "/");
+  const n = r.journal.length;
+  PAGE.lire("location").hash = sh.link.slice(sh.link.indexOf("#"));
+  const [rem] = await apresOuiCourt(d);
+  PAGE.lire("location").hash = "";
+  assert.equal(rem, sh.link);
+  assert.equal(r.journal.filter(q => q.body.includes('"ct"')).length - n, 1, "seulement le lien de partage est déposé");
+});
+await test("Cas où le partage n'est pas proposé : aucun dépôt (refusé par le créateur ou version partagée)", () => {
+  const src = PAGE.lire("prepReminder").toString();
+  assert.ok(src.indexOf('if(D.pa===0 || D.vu) shareState="none";') < src.indexOf("encodeData(shareData(D, slot)).then(publish)"));
+});
+
 /* ---------- Bilan ---------- */
 console.log(`\n${ko ? "❌" : "✅"} ${ok} tests réussis, ${ko} en échec (graine ${GRAINE}${ko ? ` — pour rejouer : node tests/run.mjs --graine=${GRAINE}` : ""})`);
 if(ko){ console.log(echecs.map(e => "  - " + e).join("\n")); process.exitCode = 1; }

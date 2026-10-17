@@ -3780,10 +3780,16 @@ let shareLink="", shareState="wait"; // lien « Partager la surprise » (voir sh
 function prepReminder(){
   const slot=chosenSlot; remLink=""; remState="wait"; shareLink=""; shareState="wait";
   if(D.sl && slot===null) return;
+  const base=location.origin+location.pathname;
+  // Lien court chiffré (son propre contenu allégé, sa propre clé), sinon le lien complet ; jamais en mode exemple
+  const publish=async code=>{ if(!EXAMPLE){ const sh=await createShort(code, base); if(sh) return sh.link; } return base+"#i="+code; };
+  const refresh=()=>{ const a=$("#actions"); if(a){ a.innerHTML=actionsHTML(); bindActions(); } };
   if(D.pa===0 || D.vu) shareState="none";
-  else encodeData(shareData(D, slot)).then(s=>{ if(slot!==chosenSlot) return; shareLink=location.origin+location.pathname+"#i="+s; shareState="ok"; const a=$("#actions"); if(a){ a.innerHTML=actionsHTML(); bindActions(); } }).catch(()=>{ shareState="none"; });
-  const done=(link,state)=>{ if(slot!==chosenSlot) return; remLink=link; remState=state; const a=$("#actions"); if(a){ a.innerHTML=actionsHTML(); bindActions(); } };
-  encodeData(reminderData(D, slot)).then(s=>done(location.origin+location.pathname+"#i="+s,"ok")).catch(()=>done("","none"));
+  else encodeData(shareData(D, slot)).then(publish).then(l=>{ if(slot!==chosenSlot) return; shareLink=l; shareState="ok"; refresh(); }).catch(()=>{ shareState="none"; });
+  const done=(link,state)=>{ if(slot!==chosenSlot) return; remLink=link; remState=state; refresh(); };
+  // Déjà ouverte depuis un lien de rappel court : c'est ce lien-là qui va dans l'agenda (rien de nouveau n'est déposé)
+  if(D.rv && SHORT_HASH.test(location.hash)){ done(base+location.hash, "ok"); return; }
+  encodeData(reminderData(D, slot)).then(publish).then(l=>done(l,"ok")).catch(()=>done("","none"));
 }
 async function reply(){
   if(D.sl && chosenSlot===null){ toast("Choisis d'abord ton créneau"); return; }
