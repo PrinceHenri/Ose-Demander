@@ -1366,13 +1366,23 @@ await test("Chaque période : décor, texte pour les lecteurs d'écran, icône d
     const iso = fenLogo(LOGO[id], 2027).day, ids = logoA(iso), h = logoH(iso);
     assert.ok(ids.includes(id), `${id} ouverte le ${iso}`);
     assert.ok(h.includes(`aria-label="Ose Demander, édition ${PAGE.lire("esc")(PAGE.lire("logoName")(ids))}"`), `${id} : texte pour les lecteurs d'écran`);
-    for(const [place, art] of LOGO[id].deco || []) assert.ok(h.includes(`class="lg-deco lg-${place}" viewBox="${PAGE.lire("LOGO_ART")[art][0]}" aria-hidden="true"`), `${id} : ${art}`);
+    for(const [place, art] of LOGO[id].deco || []) assert.ok(h.includes(`class="lg-deco lg-${place} lg-a-${art}" viewBox="${PAGE.lire("LOGO_ART")[art][0]}" aria-hidden="true"`), `${id} : ${art}`);
     assert.equal((h.match(/<svg/g) || []).length, (h.match(/aria-hidden="true" focusable="false"/g) || []).length, `${id} : décors cachés aux lecteurs d'écran`);
     assert.ok(!/[←→]| · /.test(h), `${id} : ni flèche ni « · »`);
     let seul = fenLogo(LOGO[id], 2027).from; while(logoA(seul).join() !== id) seul = decale(seul, 1); // un jour où elle est seule
     const f = fav(seul); assert.ok(f.startsWith("data:image/svg+xml,"), `${id} : icône SVG`); icones.add(f);
   }
   assert.equal(icones.size, Object.keys(LOGO).length, "une icône différente par période");
+  for(const f of icones) assert.equal((decodeURIComponent(f).match(/<svg/g) || []).length, 1, "un seul dessin par icône");
+});
+await test("Chevauchements : l'icône de l'onglet montre l'événement dont le jour J est le plus proche", () => {
+  const principal = PAGE.lire("logoMain");
+  assert.equal(principal("2026-10-19"), "rose");
+  assert.equal(principal("2026-10-25"), "halloween", "fin octobre : Halloween");
+  assert.equal(fav("2026-10-25"), fav("2026-11-02"), "même icône qu'Halloween seul");
+  assert.equal(principal("2026-06-16"), "peres", "égalité (21 juin) : l'ordre de LOGO_PERIODS");
+  assert.equal(principal("2028-06-17"), "peres"); assert.equal(principal("2028-06-20"), "musique");
+  assert.equal(principal("2026-08-15"), null);
   assert.ok(logoH("2026-10-25").includes('aria-label="Ose Demander, édition Octobre rose et Halloween"'), "chevauchement : les deux noms");
   assert.ok(logoH("2027-02-10").includes("lg-nodot") && logoH("2026-10-25").includes("lg-nodot") && !logoH("2026-12-10").includes("lg-nodot"), "le point disparaît seulement quand un décor le remplace");
 });

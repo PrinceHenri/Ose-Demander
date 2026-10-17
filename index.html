@@ -149,15 +149,16 @@ button,input,textarea,select{font:inherit;color:inherit}
 .logo .q.lg{position:relative;line-height:1}
 .logo .q.lg-nodot .q-g{display:inline-block;clip-path:inset(0 0 24% 0)}
 .lg-deco{position:absolute;overflow:visible;color:var(--ink);pointer-events:none}
-.lg-dot{left:.13em;top:.6em;width:.3em}
+.lg-dot{left:.06em;top:.54em;width:.42em}
+.lg-dot.lg-a-egg{left:.1em;top:.5em;width:.34em}
 .lg-top{left:-.04em;top:-.38em;width:.7em}
 .lg-side{left:.56em;top:-.12em;width:.36em}
-.lg-stem{left:.1em;top:.43em;width:.38em}
+.lg-stem{left:.02em;top:.38em;width:.52em}
 .lg-s1{left:-.42em;top:.02em;width:.22em}
 .lg-s2{left:.62em;top:.18em;width:.2em}
 .lg-s3{left:.66em;top:-.32em;width:.16em}
-.lg-ribbon{display:inline-flex;align-items:center;justify-content:center;min-width:30px;min-height:44px;margin-left:6px;color:var(--ink)}
-.lg-ribbon svg{width:16px;height:24px;overflow:visible}
+.lg-ribbon{display:inline-flex;align-items:center;justify-content:center;min-width:24px;min-height:44px;margin-left:-2px;color:var(--ink)}
+.lg-ribbon svg{width:11px;height:17px;overflow:visible;margin-top:-10px}
 /* Animation légère au survol, seulement si les animations ne sont pas sur « Aucune » (et coupée par « moins de mouvement ») */
 .lg-anim:hover .lg-deco,.lg-anim:focus-visible .lg-deco,.lg-ribbon.lg-anim:hover svg,.lg-ribbon.lg-anim:focus-visible svg{animation:lg-wiggle .7s ease-in-out}
 @keyframes lg-wiggle{0%,100%{transform:rotate(0)}25%{transform:rotate(-12deg)}60%{transform:rotate(9deg)}}
@@ -793,34 +794,41 @@ const LOGO_ART = {
   egg:["0 0 16 20",`<path d="M8 1c4 0 7 6 7 11a7 7 0 0 1-14 0C1 7 4 1 8 1z" fill="#8FC1FF"/><path d="M1.7 10.5l2.1-2 2.1 2 2.1-2 2.1 2 2.1-2 2.1 2" fill="none" stroke="#E83F86" stroke-width="1.6"/>`],
   flower:["0 0 20 20",`<g fill="#FF8FB1"><circle cx="10" cy="5" r="4"/><circle cx="14.8" cy="8.5" r="4"/><circle cx="12.9" cy="14" r="4"/><circle cx="7.1" cy="14" r="4"/><circle cx="5.2" cy="8.5" r="4"/></g><circle cx="10" cy="10" r="3" fill="#FFD23F"/>`],
   bowtie:["0 0 22 12",`<path d="M1 1l9 4v2l-9 4zM21 1l-9 4v2l9 4z" fill="#2F5BFF"/><rect x="8.6" y="3.6" width="4.8" height="4.8" rx="1.2" fill="#2F5BFF"/>`],
-  note:["0 0 16 22",`<path d="M7 18V2c2 1 6 2 6 6.5" fill="none" stroke-width="2.2" stroke-linecap="round"/><ellipse cx="4.6" cy="18" rx="3.6" ry="2.8" fill="#1FA39A" transform="rotate(-18 4.6 18)"/>`],
+  note:["0 0 16 22",`<path d="M7 18V2c2 1 6 2 6 6.5" fill="none" stroke="#1FA39A" stroke-width="2.4" stroke-linecap="round"/><ellipse cx="4.6" cy="18" rx="3.6" ry="2.8" fill="#1FA39A" transform="rotate(-18 4.6 18)"/>`],
   ribbon:["0 0 16 24",`<path d="M4.5 22.5L11 11.5C13 7.5 12 1.8 8 1.8S3 7.5 5 11.5l6.5 11" fill="none" stroke="currentColor" stroke-width="5.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M4.5 22.5L11 11.5C13 7.5 12 1.8 8 1.8S3 7.5 5 11.5l6.5 11" fill="none" stroke="#F06CA0" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>`]
 };
 /* Périodes du logo ouvertes le jour iso, dans l'ordre de LOGO_PERIODS */
-function logoAt(iso){
+function logoWindow(id, iso){ // période de id qui contient iso, ou null
   const y=+iso.slice(0,4);
-  return Object.keys(LOGO_PERIODS).filter(id => [y-1, y, y+1].some(yy => { const w=periodWindow(LOGO_PERIODS[id], yy); return w.from<=iso && iso<=w.to; }));
+  for(const yy of [y-1, y, y+1]){ const w=periodWindow(LOGO_PERIODS[id], yy); if(w.from<=iso && iso<=w.to) return w; }
+  return null;
 }
+const logoAt = iso => Object.keys(LOGO_PERIODS).filter(id => logoWindow(id, iso));
 const logoName = ids => ids.map(id=>LOGO_PERIODS[id].name).join(" et ");
-const logoSvg = (art, attrs) => `<svg ${attrs} viewBox="${LOGO_ART[art][0]}" aria-hidden="true" focusable="false"><g stroke="currentColor" stroke-width="1.5" stroke-linejoin="round">${LOGO_ART[art][1]}</g></svg>`;
+/* Décors qui remplacent le point ou se posent sur la tige : contour plus épais, pour les reconnaître en petit */
+const logoSvg = (art, attrs, sw=1.5) => `<svg ${attrs} viewBox="${LOGO_ART[art][0]}" aria-hidden="true" focusable="false"><g stroke="currentColor" stroke-width="${sw}" stroke-linejoin="round">${LOGO_ART[art][1]}</g></svg>`;
 /* Logo de l'en-tête. anim : false en « Aucune » (pas d'animation au survol) */
 function logoHTML(iso, anim=true){
   const ids=logoAt(iso);
   if(!ids.length) return `<a class="logo" href="./">Ose Demander<span class="q">?</span></a>`;
   const deco=ids.flatMap(id=>LOGO_PERIODS[id].deco||[]), mv=anim ? " lg-anim" : "";
-  const q=`<span class="q lg${deco.some(d=>d[0]==="dot") ? " lg-nodot" : ""}" aria-hidden="true"><span class="q-g">?</span>${deco.map(([slot, art])=>logoSvg(art, `class="lg-deco lg-${slot}"`)).join("")}</span>`;
+  const q=`<span class="q lg${deco.some(d=>d[0]==="dot") ? " lg-nodot" : ""}" aria-hidden="true"><span class="q-g">?</span>${deco.map(([slot, art])=>logoSvg(art, `class="lg-deco lg-${slot} lg-a-${art}"`, slot==="dot"||slot==="stem" ? 2 : 1.5)).join("")}</span>`;
   const ribbon=ids.some(id=>LOGO_PERIODS[id].ribbon) ? `<a class="lg-ribbon${mv}" href="${LOGO_RIBBON_URL}" target="_blank" rel="noopener noreferrer" title="Octobre rose : s'informer sur le dépistage du cancer du sein" aria-label="Octobre rose : s'informer sur le dépistage du cancer du sein (nouvel onglet)">${logoSvg("ribbon", "")}</a>` : "";
   return `<span class="lg-wrap"><a class="logo${mv}" href="./" aria-label="Ose Demander, édition ${esc(logoName(ids))}">Ose Demander${q}</a>${ribbon}</span>`;
 }
-/* Icône de l'onglet pendant une période : l'enveloppe de l'icône habituelle, avec les décors (SVG en data:), ou null hors période */
-const LOGO_FAV = {dot:[38,34,26,26], top:[30,0,32,27], side:[44,0,20,20], stem:[20,44,26,15], s1:[0,2,12,12], s2:[2,50,10,10], s3:[22,2,9,9]};
+/* Période mise en avant quand plusieurs sont ouvertes : jour J le plus proche (à égalité, l'ordre de LOGO_PERIODS) */
+function logoMain(iso){
+  const t=Date.parse(iso), dist=id=>Math.abs(Date.parse(logoWindow(id, iso).day)-t);
+  return logoAt(iso).reduce((a, id)=> a===null || dist(id)<dist(a) ? id : a, null);
+}
+/* Icône de l'onglet pendant une période : un seul dessin, le principal de l'événement (SVG en data:), ou null hors période.
+   Carré autour du dessin, avec une marge pour le contour ; contour plus épais pour rester lisible en 16 px. */
 function logoFavicon(iso){
-  const ids=logoAt(iso);
-  if(!ids.length) return null;
-  const at=(art, [x,y,w,h]) => `<svg x="${x}" y="${y}" width="${w}" height="${h}" viewBox="${LOGO_ART[art][0]}" color="#1F1546"><g stroke="currentColor" stroke-width="1.5" stroke-linejoin="round">${LOGO_ART[art][1]}</g></svg>`;
-  const deco=ids.flatMap(id=>LOGO_PERIODS[id].deco||[]).map(([slot, art])=>at(art, LOGO_FAV[slot]));
-  if(ids.some(id=>LOGO_PERIODS[id].ribbon)) deco.push(at("ribbon", [0,0,16,24]));
-  const svg=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect x="4" y="16" width="56" height="40" rx="7" fill="#E83F86" stroke="#1F1546" stroke-width="4"/><path d="M6 19l26 18 26-18" fill="none" stroke="#1F1546" stroke-width="4" stroke-linejoin="round"/><circle cx="32" cy="38" r="10" fill="#FFF" stroke="#1F1546" stroke-width="3.5"/><text x="32" y="44" text-anchor="middle" font-family="Arial,sans-serif" font-weight="900" font-size="16" fill="#1F1546">?</text>${deco.join("")}</svg>`;
+  const id=logoMain(iso);
+  if(!id) return null;
+  const art=LOGO_PERIODS[id].ribbon ? "ribbon" : LOGO_PERIODS[id].deco[0][1], [,, w, h]=LOGO_ART[art][0].split(" ").map(Number);
+  const s=Math.max(w, h)+3, vb=`${(w-s)/2} ${(h-s)/2} ${s} ${s}`;
+  const svg=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="${vb}" color="#1F1546"><g stroke="currentColor" stroke-width="2" stroke-linejoin="round">${LOGO_ART[art][1]}</g></svg>`;
   return "data:image/svg+xml," + encodeURIComponent(svg);
 }
 /* Emoji réservé à une saison (absent des emojis proposés toute l'année avant les saisons) */
