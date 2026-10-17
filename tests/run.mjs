@@ -1611,7 +1611,9 @@ await test("Champs de date et d'heure : jamais plus larges que leur cadre (Safar
    18. Liens courts : le Worker (worker/src/index.js), testé avec une vraie base SQLite et le vrai schéma
    ========================================================= */
 titre("18. Liens courts : le Worker");
-const WORKER = (await import(new URL("../worker/src/index.js", import.meta.url).href));
+// Le module principal du Worker n'exporte que ses gestionnaires ; les règles (limites, SQL) sont dans regles.js
+const WORKER_MAIN = await import(new URL("../worker/src/index.js", import.meta.url).href);
+const WORKER = { ...(await import(new URL("../worker/src/regles.js", import.meta.url).href)), default: WORKER_MAIN.default };
 let sqlite = null; try{ sqlite = await import("node:sqlite"); }catch{}
 const SITE = "https://osedemander.fr";
 // Base D1 simulée sur SQLite (mêmes appels que D1 : prepare().bind().run() / first())
@@ -1699,8 +1701,12 @@ await essaiWorker("Limite par adresse IP (429) et quota gratuit atteint (503, le
   const env2 = ENV(); env2.DB.panne(true);
   assert.equal((await creer(env2)).status, 503); assert.equal((await appel(env2, "GET", "/v1/liens/" + ID_EX)).status, 503);
 });
+await test("Worker : le module principal n'exporte que ses gestionnaires (sinon Cloudflare refuse de le lancer)", () => {
+  assert.deepEqual(Object.keys(WORKER_MAIN), ["default"]);
+  assert.deepEqual(Object.keys(WORKER_MAIN.default).sort(), ["fetch", "scheduled"]);
+});
 await test("Worker : aucun journal, aucun secret, fichiers locaux ignorés", () => {
-  const src = readFileSync(RACINE + "worker/src/index.js", "utf8"), toml = readFileSync(RACINE + "worker/wrangler.toml", "utf8");
+  const src = readFileSync(RACINE + "worker/src/index.js", "utf8") + readFileSync(RACINE + "worker/src/regles.js", "utf8"), toml = readFileSync(RACINE + "worker/wrangler.toml", "utf8");
   assert.ok(!/console\.|\.log\(/.test(src.replace(/\/\*[\s\S]*?\*\//g, "")), "aucun console.* dans le Worker");
   assert.ok(/\[observability\]\s*\nenabled = false/.test(toml), "journaux Cloudflare coupés");
   for(const motif of [/api[_-]?token/i, /secret\s*=/i, /password/i, /CLOUDFLARE_API/i, /account_id/i])
