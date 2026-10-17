@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Ose Demander — crée une invitation à laquelle on ne dit pas non</title>
-<meta name="description" content="Crée gratuitement une invitation animée : date, fête des mères, journée surprise… Le bouton Non résiste. Sans compte, rien n'est stocké en ligne.">
+<meta name="description" content="Crée gratuitement une invitation animée : date, fête des mères, journée surprise… Le bouton Non résiste. Sans compte, rien n'est stocké en clair en ligne.">
 <!-- Aperçu du lien (WhatsApp, Snapchat, Messenger, LinkedIn, X…) -->
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Ose Demander">
@@ -695,8 +695,8 @@ textarea.refuse-input{font-family:var(--hand);font-size:23px;line-height:1.2;min
 <script>
 /* =========================================================
    Ose Demander — tout fonctionne dans le navigateur.
-   Les infos de l'invitation sont compressées dans le lien (#i=...).
-   Aucune donnée n'est envoyée ni stockée sur un serveur.
+   Les infos de l'invitation sont compressées dans le lien (#i=...), ou chiffrées ici même pour un lien court (#s=ID.CLÉ) :
+   le service des liens courts (worker/) ne reçoit que du contenu chiffré, jamais la clé. Rien n'est stocké en clair en ligne.
    ========================================================= */
 
 /* ---------- Données ---------- */
@@ -1859,7 +1859,7 @@ function readyHTML(){
       <button type="button" class="linkbtn" id="showLink" aria-expanded="false" aria-controls="linkbox">Afficher le lien en entier</button>
       <p class="hint" id="shortNote"></p>
       <p class="hint" id="savedNote"></p>
-      <p class="hint">Rien n'expire, rien n'est envoyé à un serveur. Toute personne qui a ce lien peut lire l'invitation : ne le partage qu'avec la bonne personne.</p>
+      <p class="hint">Toute personne qui a ce lien peut lire l'invitation : ne le partage qu'avec la bonne personne.</p>
     </div>`;
 }
 const themeName = id => (THEMES.find(t=>t.id===id)||THEMES[0]).name;
@@ -2239,8 +2239,9 @@ function bindCreator(){
     mk.disabled=false; mk.textContent="Créer mon lien";
     S.link = sh ? sh.link : long;
     $("#linkbox").textContent=S.link; $("#result").classList.remove("hidden"); Sound.done();
-    $("#shortNote").textContent = sh ? "Lien court : l'invitation est chiffrée, seul ce lien permet de la lire."
-      : SHORT_ORIGIN ? "Le service des liens courts n'a pas répondu : voici le lien complet, il fonctionne tout aussi bien." : "";
+    $("#shortNote").textContent = sh ? "Lien court : l'invitation est chiffrée, gardée un an en ligne sans pouvoir y être lue, puis effacée."
+      : SHORT_ORIGIN ? "Le service des liens courts n'a pas répondu : voici le lien complet. Il n'expire pas, et rien n'est envoyé en ligne."
+      : "Le lien complet n'expire pas, et rien n'est envoyé en ligne.";
     $("#make").classList.add("hidden"); // le lien affiché est à jour : une seule action principale, Partager ou Copier
     focusScreen(".ready-title");
     if(S.link.length>1800) toast("Le lien est long : raccourcis le message si l'appli le coupe.");

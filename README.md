@@ -3,7 +3,7 @@
 Générateur gratuit d'invitations animées : date, fête des mères, journée surprise…
 Le bouton « Non » résiste, et la réponse arrive par WhatsApp, SMS, Snapchat, Instagram ou Messenger.
 
-Aucun serveur, aucune base de données : toute l'invitation est compressée dans le lien (`#i=...`).
+Rien n'est stocké en clair en ligne : l'invitation est compressée dans le lien (`#i=...`), ou chiffrée dans le navigateur pour un lien court (`#s=ID.CLÉ`, AES-GCM). Le service des liens courts (`worker/`, Cloudflare Worker sur workers.dev, base D1) ne reçoit que du contenu chiffré, jamais la clé, et l'efface au bout d'un an.
 
 ## Fichiers
 

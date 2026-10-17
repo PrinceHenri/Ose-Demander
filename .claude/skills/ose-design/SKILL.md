@@ -218,6 +218,14 @@ Après son Oui (et sur la carte du rappel), la personne invitée peut montrer l'
 - **Écran** (`renderShared`) : billet du thème, titre « {pour} a dit oui ! 🎉 », « L'invitation de {de}, partagée par {pour}. », la question citée, détails avec la ligne « Lieu : Gardé secret 🤫 », mention « Version à partager : on ne peut pas y répondre, et le lieu reste secret. », une seule action principale « Créer ma propre invitation ». Ni enveloppe, ni introduction, ni Oui/Non.
 - **Création** : case « Autoriser le partage de la surprise » (section de la réponse, « Après le Oui »), cochée par défaut ; décochée = `pa:0` / `P:0` dans le lien (absent = autorisé, comme les anciens liens). Ligne « Partage » du récapitulatif.
 
+## 2 nonies. Liens courts chiffrés
+
+Lien `osedemander.fr/#s=ID.CLÉ` (`createShort`, `readShort`, `deleteShort` ; service `worker/`). Aucun nouvel écran : on réutilise l'existant.
+- **Création** : « Créer mon lien » devient « Création du lien… » (bouton désactivé) le temps du dépôt, puis la carte « Ton lien est prêt » ; une ligne sous le lien (`#shortNote`) dit ce qu'il en est : « Lien court : l'invitation est chiffrée, gardée un an en ligne sans pouvoir y être lue, puis effacée. » ou, en repli, « …voici le lien complet. Il n'expire pas, et rien n'est envoyé en ligne. » Jamais d'alerte : le lien complet fonctionne tout aussi bien.
+- **Ouverture** : « Ouverture de l'invitation… » (`role="status"`) le temps de la demande. Lien qui ne s'ouvre pas : billet sobre (`renderLinkError`), titre focalisable et une seule action principale : « Ce lien est introuvable », « Cette invitation a expiré », « Cette invitation a été supprimée », « Ce lien est incomplet » (« Créer une invitation ») ; « Le service des liens courts ne répond pas » (« Réessayer », et « Créer une invitation » en lien discret).
+- **Mes invitations** : ligne « Lien court, chiffré » ou « Lien court supprimé en ligne : le lien complet reste dans ton historique » ; bouton `.btn sm danger` « Supprimer le lien en ligne » (seulement avec un jeton, et tant que le lien est en ligne), toujours après `confirmSheet` ; « Supprimer » (local) s'appelle désormais « Retirer de l'historique » pour ne pas confondre.
+- **Textes** : « Rien n'est stocké en clair en ligne » (jamais « pas de serveur »).
+
 ## 3. Typographie : deux polices, pas une de plus
 
 Polices **hébergées dans `fonts/`** (licence SIL OFL, aucun appel à Google Fonts — RGPD).

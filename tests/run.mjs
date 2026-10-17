@@ -1877,6 +1877,26 @@ await test("Cas où le partage n'est pas proposé : aucun dépôt (refusé par l
   assert.ok(src.indexOf('if(D.pa===0 || D.vu) shareState="none";') < src.indexOf("encodeData(shareData(D, slot)).then(publish)"));
 });
 
+/* =========================================================
+   21. Liens courts : mentions légales et textes
+   ========================================================= */
+titre("21. Liens courts : mentions légales et textes");
+await test("Mentions légales : Cloudflare, chiffrement, clé jamais envoyée, un an, suppression, ouvertures visibles", () => {
+  const ml = readFileSync(RACINE + "mentions-legales.html", "utf8").replace(/\s+/g, " ");
+  for(const t of ['<h3 id="liens-courts">Liens courts</h3>', "Cloudflare, Inc., une entreprise américaine", "elle n'est jamais envoyée",
+    "supprimé automatiquement un an après la création", "« Supprimer le lien en ligne »", "seulement une empreinte",
+    "l'identifiant du lien et l'adresse IP de l'appareil qui l'ouvre", "Le service ne tient aucun journal",
+    "ne sont mises en cache ni par Cloudflare ni par le navigateur", "Rien n'est stocké en clair en ligne", "101 Townsend Street"].map(x => x.replace("seulement une empreinte", "n'en conserve qu'une empreinte")))
+    assert.ok(ml.includes(t), `« ${t} » absent des mentions légales`);
+  for(const t of ["ne possède ni base de données", "n'en stocke aucune sur un serveur", "Aucun serveur"]) assert.ok(!ml.includes(t), `« ${t} » n'est plus vrai`);
+});
+await test("Textes du site : « rien n'est stocké en clair en ligne », plus de « rien n'est envoyé à un serveur »", () => {
+  const html = readFileSync(RACINE + "index.html", "utf8");
+  assert.ok(html.includes("Sans compte, rien n'est stocké en clair en ligne."), "description de la page");
+  assert.ok(!/Rien n'expire, rien n'est envoyé à un serveur|rien n'est stocké en ligne/.test(html));
+  assert.ok(readFileSync(RACINE + "README.md", "utf8").includes("Rien n'est stocké en clair en ligne"));
+});
+
 /* ---------- Bilan ---------- */
 console.log(`\n${ko ? "❌" : "✅"} ${ok} tests réussis, ${ko} en échec (graine ${GRAINE}${ko ? ` — pour rejouer : node tests/run.mjs --graine=${GRAINE}` : ""})`);
 if(ko){ console.log(echecs.map(e => "  - " + e).join("\n")); process.exitCode = 1; }
