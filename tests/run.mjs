@@ -1469,6 +1469,19 @@ await test("Trois niveaux d'animation : classe du calque, rien en « Aucune » n
   assert.ok(!/\.ed-0[^{]*\{[^}]*animation/.test(CSS), "aucune animation en « Aucune »");
   for(const r of CSS.match(/[^}]*\{[^}]*animation:ed-[^}]*\}/g) || []) assert.ok(/\.ed-[nd]\b|\.wiggle|\.beat-d/.test(r), `animation seulement en n ou d : ${r.trim().slice(0, 60)}`);
 });
+await test("Décors toujours derrière le contenu et transparents aux clics (scènes, cachets, enveloppe, logo)", () => {
+  // Le contenu passe au-dessus des couches fixes du décor
+  assert.ok(regleCSS(".wrap,.inv").includes("position:relative;z-index:1"), "création et invitation au-dessus du décor");
+  for(const sel of [".env-screen", ".intro-screen"]) assert.ok(/position:relative;z-index:1/.test(regleCSS(sel)), `${sel} au-dessus du décor`);
+  // Toute couche décorative laisse passer les clics
+  for(const sel of ["#scene", "#decor", "#confetti", ".scene-sign", ".env-deco", ".seal-shape", ".lg-deco"])
+    assert.ok(regleCSS(sel).includes("pointer-events:none"), `${sel} : pointer-events:none`);
+  // Un dessin en position absolue reste dans son cachet : le cachet de l'aperçu ne doit jamais être « static »
+  // (bug du 2026-10-17 : la citrouille du cachet Halloween recouvrait tout le formulaire de l'aperçu)
+  assert.ok(regleCSS(".seal-shape").includes("position:absolute"));
+  for(const sel of [".seal", ".pv-env .seal"]) assert.ok(/position:(relative|absolute)/.test(regleCSS(sel)), `${sel} : conteneur positionné`);
+  assert.ok(!/position:static/.test(regleCSS(".pv-env .seal")));
+});
 await test("Aperçu de la création : même cachet que l'enveloppe", () => {
   const S = PAGE.lire("S");
   Object.assign(S, { step: 4, from: "Alex", to: "Sam", occ: "halloween", em: "", link: "" });

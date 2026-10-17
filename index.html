@@ -157,7 +157,7 @@ button,input,textarea,select{font:inherit;color:inherit}
 .lg-s1{left:-.42em;top:.02em;width:.22em}
 .lg-s2{left:.62em;top:.18em;width:.2em}
 .lg-s3{left:.66em;top:-.32em;width:.16em}
-.lg-ribbon{display:inline-flex;align-items:center;justify-content:center;min-width:24px;min-height:44px;margin-left:-2px;color:var(--ink)}
+.lg-ribbon{display:inline-flex;align-items:center;justify-content:center;min-width:24px;min-height:44px;margin-left:5px;color:var(--ink)} /* margin : la citrouille du point (fin octobre) ne mord pas sur la zone du lien */
 .lg-ribbon svg{width:11px;height:17px;overflow:visible;margin-top:-10px}
 /* Animation légère au survol, seulement si les animations ne sont pas sur « Aucune » (et coupée par « moins de mouvement ») */
 .lg-anim:hover .lg-deco,.lg-anim:focus-visible .lg-deco,.lg-ribbon.lg-anim:hover svg,.lg-ribbon.lg-anim:focus-visible svg{animation:lg-wiggle .7s ease-in-out}
@@ -308,7 +308,8 @@ textarea.input{min-height:90px;resize:vertical}
 .preview .answer{min-height:0;pointer-events:none}
 .preview .yes,.preview .no{font-size:16px;padding:9px 22px;cursor:default}
 .pv-env{display:flex;align-items:center;gap:10px;font-size:14px;color:var(--muted);margin:0 0 12px}
-.pv-env .seal{position:static;transform:none;width:40px;height:40px;font-size:17px;flex:none}
+/* relative (pas static) : le dessin du cachet de l'occasion (.seal-shape, en absolu) reste dans le cachet */
+.pv-env .seal{position:relative;left:auto;top:auto;transform:none;width:40px;height:40px;font-size:17px;flex:none}
 .pv-env .seal.emoji{font-size:20px}
 /* Aperçu : la scène telle que la personne invitée la verra (décor de fond, élément vedette, billet) */
 .pv-stage{position:relative;overflow:hidden;border:2px solid var(--ink);border-radius:var(--r);background:var(--bg);padding:14px 14px 20px}
@@ -607,7 +608,7 @@ textarea.refuse-input{font-family:var(--hand);font-size:23px;line-height:1.2;min
 .ed-web{fill:none;stroke:#FFF;stroke-opacity:.85;stroke-width:1.6;stroke-linejoin:round}
 .ed-staff{fill:none;stroke:var(--ink);stroke-width:1.3;opacity:.45}
 .seal.shaped{background:none;border:0;width:60px;height:60px;color:#3B1F0A}
-.seal-shape{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
+.seal-shape{position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none}
 .seal-t{position:relative}
 .seal-pumpkin .seal-t{margin-top:9px}
 .seal.seal-heart{color:#FFF}
