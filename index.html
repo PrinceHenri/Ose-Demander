@@ -2042,7 +2042,7 @@ function secReply(){
     ${ch.need ? `<label class="field"><span>${tel?"Ton numéro":"Ton nom d'utilisateur"}</span><input class="input" id="chId" maxlength="40" placeholder="${ch.ph}" value="${esc(S.chId)}" ${tel?'inputmode="tel"':''}></label>
     <p class="hint">Il sera inclus dans le lien, visible seulement par les personnes qui l'ont.</p>` : ""}
     <p class="group-title">Après le Oui</p>
-    <label class="check"><input type="checkbox" id="share" ${S.share?"checked":""}><span>Autoriser le partage de la surprise</span></label>
+    <label class="check"><input type="checkbox" id="allowShare" ${S.share?"checked":""}><span>Autoriser le partage de la surprise</span></label>
     <p class="hint">${esc(S.to||"La personne invitée")} pourra montrer l'invitation à ses proches : une version en lecture seule, sans le lieu, les surprises, le message caché ni tes coordonnées.</p>`;
 }
 function occLabel(){ if(S.occ==="libre") return S.occFree || "Autre"; return OCC[S.occ]?.label || ""; }
@@ -2066,7 +2066,7 @@ function readAll(){
   if($("#q")){ const q=v("q"); if(q!==S.q){ S.q=q; S.qEdited=true; } }
   if($("#msg")) S.msg=$("#msg").value.trim();
   if($("#hidden")) S.hidden=$("#hidden").checked;
-  if($("#share")) S.share=$("#share").checked;
+  if($("#allowShare")) S.share=$("#allowShare").checked; // (pas « share » : c'est l'identifiant du bouton « Partager le lien »)
   if($("#chId")) S.chId=v("chId");
   if($("#sg")) S.sg=v("sg");
   if($("#sndInv")) S.snd=$("#sndInv").checked;

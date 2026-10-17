@@ -1567,7 +1567,7 @@ await test("Création : « Autoriser le partage » activé par défaut, pa = 0 s
   assert.ok(PAGE.zones["#app"].innerHTML.includes("<b>Partage</b><span><em>Non autorisé</em></span>"), "récapitulatif");
   S.share = true; S.open.add("reply"); PAGE.lire("renderCreator")();
   const h = PAGE.zones["#app"].innerHTML;
-  assert.ok(h.includes('<input type="checkbox" id="share" checked><span>Autoriser le partage de la surprise</span>'), "case à cocher");
+  assert.ok(h.includes('<input type="checkbox" id="allowShare" checked><span>Autoriser le partage de la surprise</span>'), "case à cocher");
   Object.assign(S, { step: "home", occ: "juste" }); S.open.delete("reply");
 });
 
@@ -1901,6 +1901,43 @@ await test("Textes du site : « rien n'est stocké en clair en ligne », plus de
   assert.ok(html.includes("Sans compte, rien n'est stocké en clair en ligne."), "description de la page");
   assert.ok(!/Rien n'expire, rien n'est envoyé à un serveur|rien n'est stocké en ligne/.test(html));
   assert.ok(readFileSync(RACINE + "README.md", "utf8").includes("Rien n'est stocké en clair en ligne"));
+});
+
+/* =========================================================
+   22. Identifiants uniques : un identifiant en double branche un bouton sur le mauvais élément
+   (bug du 2026-10-17 : « Partager le lien » et la case « Autoriser le partage » portaient tous deux id="share")
+   ========================================================= */
+titre("22. Identifiants uniques");
+const doublons = h => { const ids = [...h.matchAll(/\sid="([^"]+)"/g)].map(m => m[1]); return [...new Set(ids.filter((x, i) => ids.indexOf(x) !== i))]; };
+await test("Création : aucun identifiant en double, à chaque étape et avec chaque modèle (lien prêt compris)", () => {
+  for(const P of [PAGE, PAGE_PARTAGE]){
+    const S = P.lire("S");
+    for(const tpl of P.lire("TEMPLATES").map(t => t.id).concat("zero")){
+      P.lire("applyTemplate")(tpl);
+      for(const step of ["home", 1, 2, 3, 4]){
+        Object.assign(S, { from: "Alex", to: "Sam", step, link: step === 4 ? LIEN_EX : "", choose: false });
+        P.lire("renderCreator")();
+        const d = doublons(P.zones["#app"].innerHTML);
+        assert.deepEqual(d, [], `${tpl}, étape ${step} : identifiants en double ${d.join(", ")}`);
+      }
+      S.choose = true; S.step = 3; P.lire("renderCreator")();
+      assert.deepEqual(doublons(P.zones["#app"].innerHTML), [], `${tpl}, créneaux au choix`);
+    }
+    Object.assign(S, { step: "home", occ: "juste", choose: false, link: "" });
+  }
+});
+await test("Invitation : aucun identifiant en double (enveloppe, question, après le Oui, rappel, version partagée)", () => {
+  for(const [nom, f] of [["enveloppe", () => { ouvrir(INV()); PAGE.lire("renderEnvelope")(); }], ["question", () => { ouvrir(INV()); PAGE.lire("renderInvite")(); }],
+    ["après le Oui", () => { ouvrir(INV()); PAGE.ecrire("shareState", "ok"); PAGE.zones["#app"].innerHTML = PAGE.lire("ticketHTML")(PAGE.lire("afterHTML")("C'est un oui !", "")); }],
+    ["rappel", () => { ouvrir(PAGE.lire("reminderData")(INV(), null), null, "reminder"); PAGE.lire("renderReminder")(); }],
+    ["version partagée", () => { ouvrir(PAGE.lire("shareData")(INV(), 0)); PAGE.lire("renderShared")(); }]]){
+    f(); const d = doublons(PAGE.zones["#app"].innerHTML); assert.deepEqual(d, [], `${nom} : ${d.join(", ")}`);
+  }
+});
+await test("« Partager le lien » est branché sur le bouton, la case de partage a son propre identifiant", () => {
+  const src = PAGE.lire("bindCreator").toString(), lire = PAGE.lire("readAll").toString();
+  assert.ok(src.includes('$("#share")?.addEventListener("click",()=>navigator.share('));
+  assert.ok(lire.includes('$("#allowShare").checked') && !lire.includes('$("#share")'));
 });
 
 /* ---------- Bilan ---------- */
