@@ -151,7 +151,7 @@ function pageOccasion(p){
 <h1>${t(p.h1)}</h1>
 <p class="lead">${t(p.lead)}</p>
 <p class="cta"><a class="btn primary" href="${lien}">Créer mon invitation</a></p>
-${(p.autresModeles || []).length ? `<p class="alt">${p.autresModeles.map(([id, txt]) => `<a href="/#modele=${id}">${t(txt)}</a>`).join(" ou ")}</p>` : ""}
+${(p.autresModeles || []).length ? `<p class="alt">${t(p.autresIntro)} ${p.autresModeles.map(([id, txt]) => `<a href="/#modele=${id}">${t(txt)}</a>`).join(" ou ")}</p>` : ""}
 </section>
 <section class="panel"><h2>${t(p.ideesTitre)}</h2>
 <ul class="list">${p.idees.map(i => `<li>${t(i)}</li>`).join("")}</ul></section>
