@@ -1801,11 +1801,12 @@ await essaiWorker("Messages clairs : introuvable, expiré, supprimé, incomplet 
   const sh2 = await PAGE.lire("createShort")(await CODE_EX(), LOCAL + "/");
   assert.equal(await PAGE.lire("deleteShort")(sh2.id, sh2.jeton), "ok");
   const h = await ouvrirLien(sh2.link);
-  assert.equal(titre(h), "Cette invitation a été supprimée"); assert.ok(h.includes("La personne qui l&#39;a créée l&#39;a retirée.") || h.includes("La personne qui l'a créée l'a retirée."));
+  assert.equal(titre(h), "Cette invitation a été supprimée"); assert.ok(h.includes("La personne qui t'a envoyé cette invitation l'a retirée."));
   PAGE.ecrire("shortFetch", async () => { throw new TypeError("Failed to fetch"); });
   const muet = await ouvrirLien(sh2.link);
-  assert.equal(titre(muet), "Le service des liens courts ne répond pas");
-  assert.deepEqual(principales(muet), ["Réessayer"], "une seule action principale : réessayer");
+  assert.equal(titre(muet), "Le service ne répond pas");
+  assert.deepEqual(principales(muet), ["Créer ma propre invitation"], "une seule action principale");
+  assert.ok(muet.includes('<button type="button" class="btn" id="retry">Réessayer</button>'), "« Réessayer » en action secondaire");
   for(const k of ["introuvable", "expire", "supprime", "incomplet"]){ PAGE.lire("renderLinkError")(k); assert.equal(principales(PAGE.zones["#app"].innerHTML).length, 1, k); }
 });
 await essaiWorker("Suppression du lien en ligne : jeton faux refusé, bon jeton accepté, lien supprimé qui l'annonce", async () => {
@@ -1938,6 +1939,45 @@ await test("« Partager le lien » est branché sur le bouton, la case de partag
   const src = PAGE.lire("bindCreator").toString(), lire = PAGE.lire("readAll").toString();
   assert.ok(src.includes('$("#share")?.addEventListener("click",()=>navigator.share('));
   assert.ok(lire.includes('$("#allowShare").checked') && !lire.includes('$("#share")'));
+});
+
+/* =========================================================
+   23. Pages d'un lien qui ne s'ouvre pas (supprimé, expiré, introuvable, incomplet, service muet)
+   ========================================================= */
+titre("23. Pages d'erreur des liens");
+const ERREURS = { supprime: "Cette invitation a été supprimée", expire: "Cette invitation a expiré", introuvable: "Ce lien est introuvable", incomplet: "Ce lien est incomplet", reseau: "Le service ne répond pas" };
+const pageErreur = (k, lv = "n") => { PAGE.vus.length = 0; PAGE.lire("renderLinkError")(k, lv); return PAGE.zones["#app"].innerHTML; };
+await test("Chaque cas : titre focalisable, texte qui explique quoi faire, illustration cachée aux lecteurs d'écran", () => {
+  for(const [k, t] of Object.entries(ERREURS)){
+    const h = pageErreur(k);
+    assert.ok(h.includes(`<h1 class="question" tabindex="-1">${t}</h1>`), k);
+    assert.ok(PAGE.vus.includes(".question"), `${k} : le focus va au titre`);
+    assert.ok(new RegExp(`<svg class="err-ill anim-n" viewBox="0 0 200 140" aria-hidden="true" focusable="false">`).test(h), `${k} : illustration décorative`);
+    assert.ok(h.includes(`data-err="${k}"`), `${k} : illustration propre au cas`);
+    const texte = (h.match(/<p class="err-text">([^<]+)<\/p>/) || [])[1] || "";
+    assert.ok(texte.length > 60 && /demande|réessaie/i.test(texte), `${k} : dit quoi faire`);
+    assert.ok(!/[←→]| · /.test(h), `${k} : ni flèche ni « · »`);
+  }
+  assert.equal(new Set(Object.values(PAGE.lire("ERR_ART"))).size, 5, "cinq illustrations différentes");
+  assert.equal(PAGE.lire("LINK_ERRORS").supprime.p, "La personne qui t'a envoyé cette invitation l'a retirée. Si tu penses que c'est une erreur, demande-lui de te la renvoyer.");
+});
+await test("Actions : « Créer ma propre invitation » principale partout, « Réessayer » seulement quand le service ne répond pas", () => {
+  for(const k of Object.keys(ERREURS)){
+    const h = pageErreur(k);
+    assert.deepEqual(principales(h), ["Créer ma propre invitation"], k);
+    assert.equal(h.includes('id="retry"'), k === "reseau", `${k} : « Réessayer »`);
+  }
+  assert.ok(PAGE.lire("renderLinkError").toString().includes("route();"), "« Réessayer » relance l'ouverture du lien");
+  assert.ok(pageErreur("inconnu").includes("Ce lien est incomplet"), "cas inconnu : incomplet");
+});
+await test("Scène de l'accueil en fond, décor animé, trois niveaux d'animation", () => {
+  const src = PAGE.lire("renderLinkError").toString();
+  assert.ok(src.includes('setTheme("base", lv, "", "home")'), "scène de l'accueil et décor animé au niveau choisi");
+  assert.ok(src.includes('lv=REDUCED_ANIM ? "0" : "n"'), "« moins de mouvement » : aucune animation");
+  for(const lv of ["n", "d", "0"]) assert.ok(pageErreur("reseau", lv).includes(`class="err-ill anim-${lv}"`), lv);
+  assert.ok(!pageErreur("reseau", "0").includes("pop-in"), "« Aucune » : pas d'apparition animée");
+  assert.ok(!/\.err-ill\.anim-0[^{]*\{[^}]*animation/.test(CSS), "aucune animation en « Aucune »");
+  for(const r of CSS.match(/[^}]*\{[^}]*animation:ea-[^}]*\}/g) || []) assert.ok(/\.err-ill\.anim-[nd]/.test(r), `animation seulement en n ou d : ${r.trim().slice(0, 50)}`);
 });
 
 /* ---------- Bilan ---------- */
