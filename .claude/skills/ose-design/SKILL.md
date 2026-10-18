@@ -227,6 +227,12 @@ Lien `osedemander.fr/#s=ID.CLÉ` (`createShort`, `readShort`, `deleteShort` ; se
 - **Mes invitations** : ligne « Lien court, chiffré » ou « Lien court supprimé en ligne : le lien complet reste dans ton historique » ; bouton `.btn sm danger` « Supprimer le lien en ligne » (seulement avec un jeton, et tant que le lien est en ligne), toujours après `confirmSheet` ; « Supprimer » (local) s'appelle désormais « Retirer de l'historique » pour ne pas confondre.
 - **Textes** : « Rien n'est stocké en clair en ligne » (jamais « pas de serveur »).
 
+## 2 decies. Partager en image (QR code)
+
+Après « Ton lien est prêt », bouton secondaire « Partager en image » ; panneau (`openImageSheet`, `.sheet`, titre focalisable, Échap) : format Story / Carré (`.seg`), option « Retirer mes coordonnées de l'image » (cochée par défaut, seulement si l'invitation a un numéro ou un nom d'utilisateur), aperçu, mention « Toute personne qui scanne ce code peut ouvrir l'invitation, avec son lieu et sa date. Pour une story publique, pense à qui pourra la voir. », « Partager l'image » (principal ; fichier préparé avant le toucher, pour Safari) et « Enregistrer l'image » (principal si l'appareil ne sait pas partager un fichier). Lien trop long : « L'image n'est pas disponible pour le moment. Réessaie dans quelques minutes. »
+- **Image** (`drawInviteImage`, 1080 × 1920 ou 1080 × 1080) : fond du thème, enveloppe de l'occasion (`envelopeSVG`, mêmes formes et décors que l'invitation, couleurs résolues), cachet (💌 pour les occasions Surprise), « {pour}, j'ai une question pour toi 💌 » en Bricolage 800 sur deux lignes équilibrées, QR code sur carte blanche (contour et ombre décalée à l'encre), « Scanne pour ouvrir l'invitation » (story) et « osedemander.fr ». QR code toujours foncé sur blanc (contraste ≥ 7:1), marge de 4 modules ; code dense (lien complet) : enveloppe réduite et code agrandi.
+- **QR code** (`qrEncode`) : intégré, mode octets, niveau Q pour un lien court (version 6), M pour un lien complet (1 200 caractères au plus). Banc : lecteur indépendant (`tests/qr-lecteur.mjs`).
+
 ## 3. Typographie : deux polices, pas une de plus
 
 Polices **hébergées dans `fonts/`** (licence SIL OFL, aucun appel à Google Fonts — RGPD).

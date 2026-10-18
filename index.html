@@ -681,6 +681,18 @@ textarea.refuse-input{font-family:var(--hand);font-size:23px;line-height:1.2;min
 .intro-btns .btn.primary{width:100%}
 .intro-skip{min-height:44px;padding:8px 22px;border-color:var(--line);color:var(--muted);font-weight:600}
 .intro-screen .safety{margin-top:4px}
+/* ---------- Partager en image (QR code) ---------- */
+.img-sheet .sheet-card{max-height:calc(100dvh - 32px);overflow:auto}
+.img-sheet .seg{margin:0 0 12px}
+.img-prev{display:grid;place-items:center;min-height:180px;margin:0 0 12px}
+.img-prev img{display:block;max-width:100%;max-height:44vh;height:auto;border:2px solid var(--ink);border-radius:12px;box-shadow:4px 4px 0 var(--ink)}
+.img-prev .img-wait{margin:0;color:var(--muted)}
+.img-sheet .hint{margin:0 0 14px}
+.img-sheet .check{margin:0 0 6px}
+.img-btns{margin:0 0 6px}
+.img-btns .btn{flex:1 1 160px}
+.img-btns a.btn{display:block;text-align:center;text-decoration:none}
+.img-close{display:block;min-height:44px;margin:4px auto 0}
 /* ---------- Lien qui ne s'ouvre pas (renderLinkError) : scène de l'accueil, petite illustration propre à chaque cas ---------- */
 .err-screen{min-height:100vh;min-height:100dvh;display:flex;flex-direction:column;justify-content:center;padding-top:28px}
 .err-card .main{min-height:0;padding:20px 22px 26px}
@@ -1226,6 +1238,93 @@ async function deleteShort(id, jeton){
     const r=await shortCall(`/${id}/supprimer`, {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({jeton})});
     return {200:"ok", 410:"deja", 403:"jeton", 404:"introuvable"}[r.status] || "reseau";
   }catch(e){ return "reseau"; }
+}
+
+/* ---------- QR code (norme ISO/IEC 18004), calculé ici : le lien ne sort jamais de l'appareil ----------
+   Mode octets seulement (les liens), niveaux de correction L, M, Q, H, versions 1 à 40, masque choisi par le calcul de pénalité.
+   qrEncode(texte, niveau) -> {size, version, mask, dark(x, y)} ; null si le texte est trop long pour ce niveau. */
+const QR_ECL = {L:{i:0, bits:1}, M:{i:1, bits:0}, Q:{i:2, bits:3}, H:{i:3, bits:2}};
+// Codes correcteurs par bloc et nombre de blocs, par niveau (L, M, Q, H) et par version (index 0 inutilisé)
+const QR_ECC = [
+  [0,7,10,15,20,26,18,20,24,30,18,20,24,26,30,22,24,28,30,28,28,28,28,30,30,26,28,30,30,30,30,30,30,30,30,30,30,30,30,30,30],
+  [0,10,16,26,18,24,16,18,22,22,26,30,22,22,24,24,28,28,26,26,26,26,28,28,28,28,28,28,28,28,28,28,28,28,28,28,28,28,28,28,28],
+  [0,13,22,18,26,18,24,18,22,20,24,28,26,24,20,30,24,28,28,26,30,28,30,30,30,30,28,30,30,30,30,30,30,30,30,30,30,30,30,30,30],
+  [0,17,28,22,16,22,28,26,26,24,28,24,28,22,24,24,30,28,28,26,28,30,24,30,30,30,30,30,30,30,30,30,30,30,30,30,30,30,30,30,30]];
+const QR_BLOCKS = [
+  [0,1,1,1,1,1,2,2,2,2,4,4,4,4,4,6,6,6,6,7,8,8,9,9,10,12,12,12,13,14,15,16,17,18,19,19,20,21,22,24,25],
+  [0,1,1,1,2,2,4,4,4,5,5,5,8,9,9,10,10,11,13,14,16,17,17,18,20,21,23,25,26,28,29,31,33,35,37,38,40,43,45,47,49],
+  [0,1,1,2,2,4,4,6,6,8,8,8,10,12,16,12,17,16,18,21,20,23,23,25,27,29,34,34,35,38,40,43,45,48,51,53,56,59,62,65,68],
+  [0,1,1,2,4,4,4,5,6,8,8,11,11,16,16,18,16,19,21,25,25,25,34,30,32,35,37,40,42,45,48,51,54,57,60,63,66,70,74,77,81]];
+const qrRawModules = v => { let r=(16*v+128)*v+64; if(v>=2){ const n=Math.floor(v/7)+2; r-=(25*n-10)*n-55; if(v>=7) r-=36; } return r; };
+const qrDataCodewords = (v, e) => Math.floor(qrRawModules(v)/8) - QR_ECC[e][v]*QR_BLOCKS[e][v];
+const qrAlign = v => { if(v===1) return []; const n=Math.floor(v/7)+2, size=v*4+17, step=v===32 ? 26 : Math.ceil((v*4+4)/(n*2-2))*2;
+  const r=[6]; for(let i=0, p=size-7; i<n-1; i++, p-=step) r.splice(1, 0, p); return r; };
+// Corps de Galois GF(256), polynôme 0x11D ; reste de la division par le polynôme générateur de degré n
+const QR_EXP=new Uint8Array(512), QR_LOG=new Uint8Array(256);
+for(let i=0, x=1; i<255; i++){ QR_EXP[i]=x; QR_LOG[x]=i; x<<=1; if(x&256) x^=0x11D; }
+for(let i=255; i<512; i++) QR_EXP[i]=QR_EXP[i-255];
+const qrMul = (a, b) => a && b ? QR_EXP[QR_LOG[a]+QR_LOG[b]] : 0;
+function qrReedSolomon(data, n){
+  let g=[1]; for(let i=0; i<n; i++){ const ng=new Array(g.length+1).fill(0); g.forEach((c,j)=>{ ng[j]^=c; ng[j+1]^=qrMul(c, QR_EXP[i]); }); g=ng; }
+  const r=new Array(n).fill(0);
+  for(const b of data){ const f=b^r.shift(); r.push(0); for(let j=0; j<n; j++) r[j]^=qrMul(g[j+1], f); }
+  return r;
+}
+const QR_MASKS = [(x,y)=>(x+y)%2===0, (x,y)=>y%2===0, (x,y)=>x%3===0, (x,y)=>(x+y)%3===0, (x,y)=>(Math.floor(x/3)+Math.floor(y/2))%2===0,
+  (x,y)=>x*y%2+x*y%3===0, (x,y)=>(x*y%2+x*y%3)%2===0, (x,y)=>((x+y)%2+x*y%3)%2===0];
+function qrEncode(text, level="Q", forceMask=-1){
+  const bytes=utf8(text), e=QR_ECL[level].i;
+  let v=1; for(; v<=40; v++) if(4+(v<10?8:16)+bytes.length*8 <= qrDataCodewords(v, e)*8) break;
+  if(v>40) return null;
+  // Bits : mode octets (0100), longueur, octets, fin, remplissage
+  const cap=qrDataCodewords(v, e)*8, bits=[];
+  const put=(val, len)=>{ for(let i=len-1; i>=0; i--) bits.push((val>>>i)&1); };
+  put(4, 4); put(bytes.length, v<10 ? 8 : 16); for(const b of bytes) put(b, 8);
+  put(0, Math.min(4, cap-bits.length)); while(bits.length%8) bits.push(0);
+  for(let pad=0xEC; bits.length<cap; pad^=0xEC^0x11) put(pad, 8);
+  const data=[]; for(let i=0; i<bits.length; i+=8) data.push(bits.slice(i, i+8).reduce((a,b)=>a*2+b, 0));
+  // Blocs (les derniers ont un octet de données de plus), codes correcteurs, entrelacement
+  const nb=QR_BLOCKS[e][v], ne=QR_ECC[e][v], raw=Math.floor(qrRawModules(v)/8), nShort=nb-raw%nb, shortLen=Math.floor(raw/nb)-ne;
+  const blocks=[]; for(let i=0, k=0; i<nb; i++){ const len=shortLen+(i<nShort ? 0 : 1); blocks.push(data.slice(k, k+len)); k+=len; }
+  const eccs=blocks.map(b=>qrReedSolomon(b, ne)), all=[];
+  for(let i=0; i<=shortLen; i++) for(const b of blocks) if(i<b.length) all.push(b[i]);
+  for(let i=0; i<ne; i++) for(const c of eccs) all.push(c[i]);
+  // Matrice : motifs fixes, puis données en zigzag
+  const size=v*4+17, M=[...Array(size)].map(()=>new Array(size).fill(false)), F=[...Array(size)].map(()=>new Array(size).fill(false));
+  const set=(x, y, d)=>{ M[y][x]=d; F[y][x]=true; };
+  for(let i=0; i<size; i++){ set(6, i, i%2===0); set(i, 6, i%2===0); }
+  for(const [cx, cy] of [[3,3],[size-4,3],[3,size-4]]) for(let dy=-4; dy<=4; dy++) for(let dx=-4; dx<=4; dx++){
+    const x=cx+dx, y=cy+dy, d=Math.max(Math.abs(dx), Math.abs(dy)); if(x>=0 && x<size && y>=0 && y<size) set(x, y, d!==2 && d!==4); }
+  const al=qrAlign(v);
+  al.forEach((ay, i)=>al.forEach((ax, j)=>{ if((i===0&&j===0) || (i===0&&j===al.length-1) || (i===al.length-1&&j===0)) return;
+    for(let dy=-2; dy<=2; dy++) for(let dx=-2; dx<=2; dx++) set(ax+dx, ay+dy, Math.max(Math.abs(dx), Math.abs(dy))!==1); }));
+  const format=mask=>{ const d=QR_ECL[level].bits<<3|mask; let r=d; for(let i=0; i<10; i++) r=(r<<1)^((r>>>9)*0x537); return (d<<10|r)^0x5412; };
+  const drawFormat=mask=>{ const b=format(mask), bit=i=>((b>>>i)&1)===1;
+    for(let i=0; i<=5; i++) set(8, i, bit(i)); set(8, 7, bit(6)); set(8, 8, bit(7)); set(7, 8, bit(8));
+    for(let i=9; i<15; i++) set(14-i, 8, bit(i));
+    for(let i=0; i<8; i++) set(size-1-i, 8, bit(i)); for(let i=8; i<15; i++) set(8, size-15+i, bit(i));
+    set(8, size-8, true); };
+  drawFormat(0);
+  if(v>=7){ let r=v; for(let i=0; i<12; i++) r=(r<<1)^((r>>>11)*0x1F25); const b=v<<12|r;
+    for(let i=0; i<18; i++){ const d=((b>>>i)&1)===1, a=size-11+i%3, c=Math.floor(i/3); set(a, c, d); set(c, a, d); } }
+  let n=0;
+  for(let right=size-1; right>=1; right-=2){ if(right===6) right=5;
+    for(let vert=0; vert<size; vert++) for(let j=0; j<2; j++){ const x=right-j, up=((right+1)&2)===0, y=up ? size-1-vert : vert;
+      if(!F[y][x] && n<all.length*8){ M[y][x]=((all[n>>>3]>>>(7-(n&7)))&1)===1; n++; } } }
+  const apply=mask=>{ for(let y=0; y<size; y++) for(let x=0; x<size; x++) if(!F[y][x] && QR_MASKS[mask](x, y)) M[y][x]=!M[y][x]; };
+  // Masque : le moins pénalisé (longues lignes, carrés 2 × 2, faux motifs de repérage, déséquilibre clair / foncé)
+  const penalty=()=>{ let p=0, dark=0;
+    const line=get=>{ let run=1; for(let i=1; i<=size; i++){ if(i<size && get(i)===get(i-1)) run++; else { if(run>=5) p+=run-2; run=1; } }
+      for(let i=0; i+7<=size; i++){ const s=[0,1,2,3,4,5,6].map(k=>get(i+k)?1:0).join("");
+        if(s==="1011101"){ const l=k=>i-k<0 || !get(i-k), r=k=>i+6+k>=size || !get(i+6+k); if([1,2,3,4].every(l) || [1,2,3,4].every(r)) p+=40; } } };
+    for(let y=0; y<size; y++){ line(x=>M[y][x]); line(x=>M[x][y]); }
+    for(let y=0; y<size-1; y++) for(let x=0; x<size-1; x++){ const c=M[y][x]; if(c===M[y][x+1] && c===M[y+1][x] && c===M[y+1][x+1]) p+=3; }
+    for(const row of M) for(const c of row) if(c) dark++;
+    return p+(Math.ceil(Math.abs(dark*20-size*size*10)/(size*size))-1)*10; };
+  let best=forceMask;
+  if(best<0){ let min=Infinity; for(let m=0; m<8; m++){ apply(m); drawFormat(m); const p=penalty(); if(p<min){ min=p; best=m; } apply(m); } }
+  apply(best); drawFormat(best);
+  return {size, version:v, mask:best, level, dark:(x, y)=>M[y][x]};
 }
 
 /* Décompression deflate brute (RFC 1951) en pur JavaScript, sortie limitée à « max » octets */
@@ -1900,6 +1999,7 @@ function readyHTML(){
         ${share ? `<button type="button" class="btn primary" id="share">Partager le lien</button>
         <button type="button" class="btn" id="copy">Copier le lien</button>`
         : `<button type="button" class="btn primary" id="copy">Copier le lien</button>`}
+        <button type="button" class="btn" id="imgOpen">Partager en image</button>
       </div>
       <div class="linkbox one" id="linkbox">${esc(S.link)}</div>
       <button type="button" class="linkbtn" id="showLink" aria-expanded="false" aria-controls="linkbox">Afficher le lien en entier</button>
@@ -2283,7 +2383,7 @@ function bindCreator(){
     const mk=$("#make"); mk.disabled=true; mk.textContent="Création du lien…";
     const long=await buildLink(), sh=await createShort(linkData(long), location.origin+location.pathname); // lien court chiffré, sinon le long
     mk.disabled=false; mk.textContent="Créer mon lien";
-    S.link = sh ? sh.link : long;
+    S.link = sh ? sh.link : long; S.longLink = long; S.imgLinks = {}; // liens de l'image : préparés à l'ouverture de « Partager en image »
     $("#linkbox").textContent=S.link; $("#result").classList.remove("hidden"); Sound.done();
     $("#shortNote").textContent = sh ? "Lien court : l'invitation est chiffrée, gardée un an en ligne sans pouvoir y être lue, puis effacée."
       : SHORT_ORIGIN ? "Le service des liens courts n'a pas répondu : voici le lien complet. Il n'expire pas, et rien n'est envoyé en ligne."
@@ -2299,11 +2399,163 @@ function bindCreator(){
     $("#result").scrollIntoView({block:"nearest"});
   });
   $("#copy")?.addEventListener("click",async()=>{ toast(await copyText(S.link)?"Lien copié":"Copie impossible, sélectionne le lien à la main"); });
+  $("#imgOpen")?.addEventListener("click", e=>openImageSheet(e.currentTarget));
   $("#share")?.addEventListener("click",()=>navigator.share({title:"Ose Demander",text:shareText(),url:S.link}).catch(()=>{}));
   $("#showLink")?.addEventListener("click",e=>{
     const open=$("#linkbox").classList.toggle("one")===false;
     e.currentTarget.setAttribute("aria-expanded",open); e.currentTarget.textContent = open ? "Replier le lien" : "Afficher le lien en entier";
   });
+}
+
+/* ---------- Partager en image : QR code et enveloppe de l'occasion, dessinés ici (rien n'est envoyé pour fabriquer l'image) ----------
+   L'image ne contient que le prénom de la personne invitée, les couleurs du thème, l'enveloppe de l'occasion, le cachet et le lien.
+   Jamais la question, le message, le lieu, la date, les surprises, ni le numéro ou le nom d'utilisateur de qui a créé l'invitation. */
+const QR_LONG_MAX = 1200; // au-delà, le QR code serait trop serré pour une story (repli sur le lien complet seulement)
+const IMG_FORMATS = {story:{w:1080, h:1920, label:"Story"}, carre:{w:1080, h:1080, label:"Carré"}};
+const IMG_UNAVAILABLE = "L'image n'est pas disponible pour le moment. Réessaie dans quelques minutes.";
+/* Version de l'invitation pour l'image quand on retire ses coordonnées : sans canal ni identifiant (réponse par le partage du téléphone) */
+function imageData(d){ const x={...d, c:"any"}; delete x.ci; return sanitize(JSON.parse(JSON.stringify(x))); }
+/* Lien que porte l'image : le lien court de l'invitation, ou un lien court séparé sans les coordonnées ; null si trop long */
+async function imageLink(strip){
+  const key = strip ? "strip" : "main", long = S.longLink || (S.link.includes("#i=") ? S.link : "");
+  S.imgLinks ||= {};
+  if(S.imgLinks[key]) return S.imgLinks[key];
+  let link = S.link, sh = null;
+  if(strip){
+    if(!long) return null;
+    const code = await encodeData(imageData(await decodeData(linkData(long))));
+    sh = await createShort(code, location.origin+location.pathname);
+    link = sh ? sh.link : location.origin+location.pathname+"#i="+code;
+    if(sh) noteImageLink(sh); // gardé dans « Mes invitations », pour pouvoir le supprimer en ligne
+  }
+  return S.imgLinks[key] = link.length<=QR_LONG_MAX ? link : null;
+}
+function noteImageLink(sh){
+  const list=loadHistory(), it=list.find(x=>x.link===S.link);
+  if(it){ it.img=sh.link; it.imgJeton=sh.jeton; storeHistory(list); }
+}
+/* Couleurs du thème (et de l'accent choisi) pour le dessin ; le QR code est toujours foncé sur blanc */
+function imageColors(th, ac){
+  const t=THEMES.find(x=>x.id===th)||THEMES[0], v=ac ? accentVars(th, ac) : null, a=v ? v.accent : t.a;
+  return {bg:t.c, surface:t.s||"#FFFFFF", ink:t.i, accent:a, seal:readable(a, [t.i], 3), qr:contrast(t.i, "#FFFFFF")>=7 ? t.i : "#1F1546"};
+}
+/* L'enveloppe de l'invitation (mêmes formes que renderEnvelope, décor de l'occasion compris), en SVG autonome aux couleurs résolues */
+function envelopeSVG(col, occ, shape){
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-6 -6 320 222" width="640" height="444">
+    <style>.o{stroke:${col.ink};stroke-width:2;stroke-linejoin:round;stroke-linecap:round}.ed-ink{fill:none;stroke:${col.ink};stroke-linecap:round}
+    .ed-web{fill:none;stroke:#FFF;stroke-opacity:.85;stroke-width:1.6;stroke-linejoin:round}.ed-staff{fill:none;stroke:${col.ink};stroke-width:1.3;opacity:.45}</style>
+    <rect x="8" y="8" width="300" height="200" rx="12" fill="${col.ink}"/>
+    <rect x="0" y="0" width="300" height="200" rx="12" fill="${col.accent}" stroke="${col.ink}" stroke-width="2.5"/>
+    <path d="M2 2 L150 118 L298 2 L298 188 Q298 198 288 198 L12 198 Q2 198 2 188 Z" fill="${col.accent}"/>
+    <path d="M2 2 L150 118 L298 2 L298 188 Q298 198 288 198 L12 198 Q2 198 2 188 Z" fill="rgba(0,0,0,.08)" stroke="${col.ink}" stroke-width="2.5" stroke-linejoin="round"/>
+    <path d="M4 196 L122 96 M296 196 L178 96" stroke="${col.ink}" stroke-width="1.5" opacity=".3"/>
+    <path d="M2 2 L298 2 L150 114 Z" fill="${col.accent}" stroke="${col.ink}" stroke-width="2.5" stroke-linejoin="round"/>
+    <path d="M2 2 L298 2 L150 114 Z" fill="rgba(255,255,255,.14)"/>
+    ${shape ? `<svg x="124" y="84" width="52" height="52" viewBox="0 0 56 56" overflow="visible">${SEAL_SHAPES[shape]}</svg>`
+      : `<circle cx="150" cy="110" r="22" fill="${col.ink}" stroke="${col.surface}" stroke-width="3"/>`}
+    ${ENV_DECO[occ] ? ENV_DECO[occ].svg() : ""}
+  </svg>`;
+}
+const svgImage = svg => new Promise((ok, ko)=>{ const i=new Image(); i.onload=()=>ok(i); i.onerror=ko; i.src="data:image/svg+xml;charset=utf-8,"+encodeURIComponent(svg); });
+/* Coupe le texte en lignes équilibrées (comme text-wrap:balance) : sur deux lignes, la coupure qui rend la plus longue la plus courte */
+function wrapText(ctx, text, max){
+  const words=text.split(" "), wd=t=>ctx.measureText(t).width;
+  if(wd(text)<=max) return [text];
+  let best=null;
+  for(let i=1; i<words.length; i++){ const a=words.slice(0,i).join(" "), b=words.slice(i).join(" "), m=Math.max(wd(a), wd(b));
+    if(m<=max && (!best || m<best.m)) best={m, lines:[a, b]}; }
+  if(best) return best.lines;
+  const lines=[]; let line="";
+  for(const w of words){ const t=line ? line+" "+w : w; if(wd(t)>max && line){ lines.push(line); line=w; } else line=t; }
+  if(line) lines.push(line); return lines;
+}
+/* Dessine l'image (format story ou carre) ; renvoie le canevas et la place du QR code (pour le banc de test) */
+async function drawInviteImage(fmt, o, canvas=document.createElement("canvas")){
+  const {w, h}=IMG_FORMATS[fmt], story=fmt==="story", col=imageColors(o.th, o.ac);
+  canvas.width=w; canvas.height=h;
+  const x=canvas.getContext("2d"), font=(weight, px)=>`${weight} ${px}px "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif`;
+  try{ await Promise.all([font(800, 64), font(600, 34)].map(f=>document.fonts.load(f))); }catch(e){}
+  // Code dense (lien complet, en repli seulement) : enveloppe plus petite, QR code plus grand, pour des modules lisibles
+  const q=qrEncode(o.link, o.link.includes("#s=") ? "Q" : "M"), dense=q.size>61;
+  const L = story ? (dense ? {env:360, envY:230, text:64, textY:560, card:900, cardY:700, foot:1730} : {env:600, envY:230, text:72, textY:780, card:620, cardY:1000, foot:1730})
+                  : (dense ? {env:0, envY:0, text:44, textY:70, card:820, cardY:150, foot:1036} : {env:340, envY:50, text:52, textY:335, card:500, cardY:450, foot:1028});
+  x.fillStyle=col.bg; x.fillRect(0, 0, w, h);
+  // L'enveloppe de l'occasion et son cachet (emoji, initiale, ou 💌 pour les occasions Surprise)
+  const shape=(ENV_DECO[o.occ]||{}).seal, ew=L.env, eh=ew*222/320, ex=(w-ew)/2, k=ew/320;
+  x.textAlign="center"; x.textBaseline="middle";
+  if(ew){
+    try{ x.drawImage(await svgImage(envelopeSVG(col, o.occ, shape)), ex, L.envY, ew, eh); }catch(e){}
+    const seal = ENV_NEUTRAL.includes(o.occ) ? "💌" : o.em || o.initial, sx=ex+(150+6)*k, sy=L.envY+(110+6)*k;
+    x.fillStyle = shape==="pumpkin" ? "#3B1F0A" : shape==="heart" ? "#FFFFFF" : shape==="gold" ? "#4A2C10" : col.seal;
+    x.font=font(800, Math.round((o.em || seal==="💌" ? 25 : 21)*k*1.15));
+    x.fillText(seal, sx, sy + (shape==="pumpkin" ? 6*k : shape==="heart" ? -3*k : 0));
+  }
+  // Le texte
+  x.fillStyle=col.ink; x.font=font(800, L.text);
+  wrapText(x, `${o.to}, j'ai une question pour toi 💌`, w-170).forEach((l, i)=>x.fillText(l, w/2, L.textY+i*L.text*1.12));
+  // Le QR code, sur une carte blanche (contour et ombre décalée), marge de 4 modules
+  const cx=(w-L.card)/2;
+  x.fillStyle=col.ink; x.fillRect(cx+14, L.cardY+14, L.card, L.card);
+  x.fillStyle="#FFFFFF"; x.fillRect(cx, L.cardY, L.card, L.card);
+  x.lineWidth=6; x.strokeStyle=col.ink; x.strokeRect(cx+3, L.cardY+3, L.card-6, L.card-6);
+  const m=Math.floor((L.card-24)/(q.size+8)), side=m*q.size, qx=Math.round(cx+(L.card-side)/2), qy=Math.round(L.cardY+(L.card-side)/2);
+  x.fillStyle=col.qr;
+  for(let yy=0; yy<q.size; yy++) for(let xx=0; xx<q.size; xx++) if(q.dark(xx, yy)) x.fillRect(qx+xx*m, qy+yy*m, m, m);
+  // Le pied
+  x.fillStyle=col.ink; x.font=font(600, story ? 40 : 30);
+  if(story) x.fillText("Scanne pour ouvrir l'invitation", w/2, L.foot);
+  x.globalAlpha=.75; x.font=font(600, story ? 34 : 28); x.fillText("osedemander.fr", w/2, story ? L.foot+64 : L.foot); x.globalAlpha=1;
+  return {canvas, qr:{x:qx, y:qy, module:m, size:q.size, color:col.qr}};
+}
+/* Panneau « Partager en image » : aperçu, format, coordonnées retirées (cochées par défaut), partager ou enregistrer.
+   Safari : le fichier est préparé AVANT le toucher, navigator.share est appelé sans aucune attente. */
+function openImageSheet(opener){
+  const hasId=!!S.chId, st={fmt:"story", strip:hasId, file:null, url:"", job:0};
+  const d=document.createElement("div"); d.className="sheet img-sheet"; d.setAttribute("role","dialog"); d.setAttribute("aria-modal","true"); d.setAttribute("aria-labelledby","imgTitle");
+  d.innerHTML=`<div class="sheet-card">
+    <h3 id="imgTitle" tabindex="-1">Partager en image</h3>
+    <div class="seg" role="group" aria-label="Format de l'image">${Object.entries(IMG_FORMATS).map(([k,f])=>`<button type="button" data-fmt="${k}" aria-pressed="${k===st.fmt}">${f.label}</button>`).join("")}</div>
+    ${hasId ? `<label class="check"><input type="checkbox" id="imgStrip" checked><span>Retirer mes coordonnées de l'image</span></label>
+    <p class="hint">L'image ouvre alors une version de l'invitation sans ton numéro ni ton nom d'utilisateur : la réponse se fera par le partage du téléphone.</p>` : ""}
+    <div class="img-prev" id="imgPrevBox"><p class="img-wait" role="status">Préparation de l'image…</p></div>
+    <p class="hint">Toute personne qui scanne ce code peut ouvrir l'invitation, avec son lieu et sa date. Pour une story publique, pense à qui pourra la voir.</p>
+    <div class="btns img-btns" id="imgBtns" hidden>
+      <button type="button" class="btn primary" id="imgSend">Partager l'image</button>
+      <a class="btn" id="imgSave" href="#" download="invitation-ose-demander.png">Enregistrer l'image</a>
+    </div>
+    <button type="button" class="linkbtn img-close" id="imgClose">Fermer</button>
+  </div>`;
+  const onKey=e=>{ if(e.key==="Escape") close(); };
+  const close=()=>{ d.remove(); document.removeEventListener("keydown", onKey); if(st.url) URL.revokeObjectURL(st.url); try{ opener?.focus(); }catch(e){} };
+  const box=$("#imgPrevBox", d), btns=$("#imgBtns", d), send=$("#imgSend", d), save=$("#imgSave", d);
+  const prepare=async()=>{
+    const job=++st.job; btns.hidden=true; box.innerHTML=`<p class="img-wait" role="status">Préparation de l'image…</p>`;
+    let link=null; try{ link=await imageLink(st.strip); }catch(e){}
+    if(job!==st.job) return;
+    if(!link){ box.innerHTML=`<p class="img-wait" role="status">${IMG_UNAVAILABLE}</p>`; return; }
+    const {canvas}=await drawInviteImage(st.fmt, {to:S.to, th:S.theme, ac:S.ac, occ:S.occ, em:S.em, initial:(S.from||"?").trim().charAt(0).toUpperCase(), link});
+    const blob=await new Promise(r=>canvas.toBlob(r, "image/png"));
+    if(job!==st.job || !blob) return;
+    if(st.url) URL.revokeObjectURL(st.url);
+    st.url=URL.createObjectURL(blob);
+    st.file=new File([blob], `invitation-ose-demander-${st.fmt}.png`, {type:"image/png"});
+    box.innerHTML=`<img src="${st.url}" alt="Image à partager : « ${esc(S.to)}, j'ai une question pour toi », avec un QR code qui ouvre l'invitation">`;
+    save.href=st.url; save.download=st.file.name;
+    const canShare=!!(navigator.canShare && navigator.canShare({files:[st.file]}));
+    send.hidden=!canShare; save.classList.toggle("primary", !canShare); // une seule action principale
+    btns.hidden=false;
+  };
+  d.addEventListener("click", e=>{
+    if(e.target===d) return close();
+    const f=e.target.closest("[data-fmt]");
+    if(f){ st.fmt=f.dataset.fmt; $$("[data-fmt]", d).forEach(b=>b.setAttribute("aria-pressed", b===f)); prepare(); }
+  });
+  $("#imgStrip", d)?.addEventListener("change", e=>{ st.strip=e.target.checked; prepare(); });
+  send.addEventListener("click", ()=>{ if(st.file) navigator.share({files:[st.file], title:"Ose Demander", text:shareText()}).catch(()=>{}); });
+  $("#imgClose", d).addEventListener("click", close);
+  document.addEventListener("keydown", onKey);
+  document.body.appendChild(d); focusScreen("#imgTitle");
+  prepare();
 }
 
 function packItem(it){
@@ -2343,7 +2595,7 @@ async function buildLink(){
    (localStorage). Jamais envoyé nulle part, jamais lu côté destinataire.
    ========================================================= */
 const HIST_KEY="ose-historique", HIST_MAX=200, SITE_HOST="osedemander.fr";
-const HIST_FIELDS=["id","from","to","occ","occFree","when","link","created","long","jeton","gone"];
+const HIST_FIELDS=["id","from","to","occ","occFree","when","link","created","long","jeton","gone","img","imgJeton"];
 // Lien court : link = #s=…, long = le lien complet (#i=…, l'historique fonctionne même sans le service), jeton = pour supprimer le lien en ligne
 const invLink = it => it.long || it.link;
 const newId=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,8);
@@ -2377,13 +2629,16 @@ function validEntry(x){
     && isOwnLink(x.link)
     && (shortId(x.link)
       ? isOwnLink(x.long) && x.long.includes("#i=") && (x.jeton===undefined || (typeof x.jeton==="string" && /^[A-Za-z0-9_-]{43}$/.test(x.jeton))) && (x.gone===undefined || x.gone===true)
-      : x.long===undefined && x.jeton===undefined && x.gone===undefined);
+      : x.long===undefined && x.jeton===undefined && x.gone===undefined)
+    // Lien de l'image (sans coordonnées) : un lien court, avec son jeton de suppression
+    && (x.img===undefined ? x.imgJeton===undefined : !!shortId(x.img) && isOwnLink(x.img) && typeof x.imgJeton==="string" && /^[A-Za-z0-9_-]{43}$/.test(x.imgJeton));
 }
 /* L'entrée est toujours reconstruite à partir du lien décodé et validé : ce qui est affiché correspond au lien */
 function entryFrom(d, link, created=new Date().toISOString(), id=newId(), extra={}){
   const e={id, from:d.f, to:d.t, occ:d.o, when: d.sl ? d.sl.map(s=>[s[0],s[1]]) : [[d.d,d.h]], link, created};
   if(d.o==="libre" && d.of) e.occFree=d.of;
   if(shortId(link)){ e.long=extra.long; if(extra.jeton) e.jeton=extra.jeton; if(extra.gone) e.gone=true; }
+  if(extra.img && extra.imgJeton){ e.img=extra.img; e.imgJeton=extra.imgJeton; }
   return e;
 }
 function loadHistory(){
@@ -2493,10 +2748,11 @@ function renderHistory(){
    Le lien court affichera « Cette invitation a été supprimée » ; l'invitation reste dans l'historique avec son lien complet. */
 async function unpublishShort(it){
   const ok=await confirmSheet("Supprimer le lien en ligne ?",
-    `Le lien court envoyé à ${it.to} ne s'ouvrira plus : il affichera « Cette invitation a été supprimée ». Le contenu chiffré est effacé tout de suite. L'invitation reste dans ton historique, avec son lien complet.`,
+    `Le lien court envoyé à ${it.to} ne s'ouvrira plus : il affichera « Cette invitation a été supprimée »${it.img ? ", tout comme le QR code de l'image" : ""}. Le contenu chiffré est effacé tout de suite. L'invitation reste dans ton historique, avec son lien complet.`,
     "Supprimer le lien");
   if(!ok) return;
   const r=await deleteShort(shortId(it.link), it.jeton);
+  if(it.img && it.imgJeton) await deleteShort(shortId(it.img), it.imgJeton); // le lien de l'image aussi
   if(r==="ok" || r==="deja" || r==="introuvable"){
     storeHistory(loadHistory().map(x=>x.id===it.id ? {...x, gone:true} : x));
     renderHistory(); toast(r==="ok" ? "Lien en ligne supprimé" : "Ce lien n'est déjà plus en ligne");

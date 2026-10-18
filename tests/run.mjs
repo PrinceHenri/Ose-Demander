@@ -1980,6 +1980,132 @@ await test("Scène de l'accueil en fond, décor animé, trois niveaux d'animatio
   for(const r of CSS.match(/[^}]*\{[^}]*animation:ea-[^}]*\}/g) || []) assert.ok(/\.err-ill\.anim-[nd]/.test(r), `animation seulement en n ou d : ${r.trim().slice(0, 50)}`);
 });
 
+/* =========================================================
+   24. QR code : encodeur du site, relu par un lecteur indépendant (tests/qr-lecteur.mjs)
+   ========================================================= */
+titre("24. QR code");
+const { lireQR, capaciteOctets, NIVEAUX, VERSIONS_LUES, tableauCoherent } = await import(new URL("./qr-lecteur.mjs", import.meta.url).href);
+const qr = PAGE.lire("qrEncode");
+const relireQR = q => lireQR(q.size, q.dark);
+const lienAuHasard = (n, graine) => { let x = graine, t = ""; const a = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_"; while(t.length < n){ x = (x * 1103515245 + 12345) % 2147483648; t += a[x % 64]; } return t; };
+await test("Capacités de la norme (mode octets) : tableau du lecteur et calcul de l'encodeur d'accord", () => {
+  assert.ok(tableauCoherent(), "tableau du lecteur cohérent");
+  const norme = { 1: [17, 14, 11, 7], 5: [106, 84, 60, 44], 6: [134, 106, 74, 58], 10: [271, 213, 151, 119], 20: [858, 666, 482, 382], 27: [1465, 1125, 805, 625], 29: [1628, 1264, 908, 698] };
+  for(const [v, caps] of Object.entries(norme)) NIVEAUX.forEach((n, i) => assert.equal(capaciteOctets(+v, n), caps[i], `version ${v}-${n}`));
+  const dc = PAGE.lire("qrDataCodewords");
+  for(const v of VERSIONS_LUES) NIVEAUX.forEach((n, e) => assert.equal(Math.floor((dc(v, e) * 8 - 4 - (v < 10 ? 8 : 16)) / 8), capaciteOctets(v, n), `encodeur ${v}-${n}`));
+});
+await test("Reed-Solomon : exemple de la norme (« 01234567 », version 1-M)", () => {
+  const donnees = [0x10, 0x20, 0x0C, 0x56, 0x61, 0x80, 0xEC, 0x11, 0xEC, 0x11, 0xEC, 0x11, 0xEC, 0x11, 0xEC, 0x11];
+  assert.deepEqual(PAGE.lire("qrReedSolomon")(donnees, 10), [0xA5, 0x24, 0xD4, 0xC1, 0xED, 0x36, 0xC7, 0x87, 0x2C, 0x55]);
+});
+await test("Informations de format et de version : valeurs connues de la norme", () => {
+  const fmt = q => [[8,0],[8,1],[8,2],[8,3],[8,4],[8,5],[8,7],[8,8],[7,8],[5,8],[4,8],[3,8],[2,8],[1,8],[0,8]].reduce((v, [x, y], i) => v | (q.dark(x, y) ? 1 << i : 0), 0);
+  const connus = { L: "111011111000100", M: "101010000010010", Q: "011010101011111", H: "001011010001001" }; // masque 0
+  for(const [n, bits] of Object.entries(connus)) assert.equal(fmt(qr("test", n, 0)).toString(2).padStart(15, "0"), bits, `format ${n}, masque 0`);
+  const q7 = qr(lienAuHasard(110, 7), "M"); assert.equal(q7.version, 7);
+  let v = 0; for(let i = 0; i < 18; i++) if(q7.dark(q7.size - 11 + i % 3, Math.floor(i / 3))) v |= 1 << i;
+  assert.equal(v.toString(2).padStart(18, "0"), "000111110010010100", "information de version 7");
+});
+await test("Lien court : niveau Q, version 6 (41 × 41), relu à l'identique avec chacun des 8 masques", () => {
+  const lien = "https://osedemander.fr/#s=" + lienAuHasard(22, 1) + "." + lienAuHasard(22, 2);
+  const q = qr(lien, "Q"); assert.equal(q.version, 6); assert.equal(q.size, 41);
+  assert.equal(relireQR(q).texte, lien);
+  for(let m = 0; m < 8; m++){ const r = relireQR(qr(lien, "Q", m)); assert.equal(r.texte, lien, `masque ${m}`); assert.equal(r.masque, m); }
+  for(const n of NIVEAUX) assert.equal(relireQR(qr(lien, n)).texte, lien, `niveau ${n}`);
+});
+await test("Liens complets jusqu'à 1 200 caractères (niveau M) : relus à l'identique, version 29 au plus", () => {
+  for(let n = 30; n <= 1200; n += 47){
+    const lien = "https://osedemander.fr/#i=y" + lienAuHasard(n - 27, n);
+    const q = qr(lien, "M"); assert.ok(q && q.version <= 29, `${n} caractères : version ${q && q.version}`);
+    assert.equal(relireQR(q).texte, lien, `${n} caractères`);
+  }
+  for(let m = 0; m < 8; m++){ const lien = "https://osedemander.fr/#i=y" + lienAuHasard(900, m); assert.equal(relireQR(qr(lien, "M", m)).texte, lien, `900 caractères, masque ${m}`); }
+  assert.equal(qr("x".repeat(3000), "H"), null, "trop long : null");
+});
+
+/* =========================================================
+   25. Partager en image : lien de l'image, dessin relu par le lecteur QR, rien de secret, Safari
+   ========================================================= */
+titre("25. Partager en image");
+// Faux canevas : enregistre ce qui est peint (rectangles et textes)
+const fauxCanevas = () => { const peint = [], textes = [];
+  const ctx = { fillStyle: "", strokeStyle: "", font: "", lineWidth: 1, globalAlpha: 1, textAlign: "", textBaseline: "",
+    fillRect(x, y, w, h){ peint.push({ c: this.fillStyle, x, y, w, h }); }, fillText(t){ textes.push(t); }, measureText: t => ({ width: [...t].length * 30 }),
+    strokeRect(){}, drawImage(){} };
+  return { canvas: { width: 0, height: 0, getContext: () => ctx }, peint, textes };
+};
+// Relit le QR code à partir des rectangles peints (un rectangle par module foncé)
+const relirePeint = (peint, q) => {
+  const fonce = new Set(peint.filter(r => r.c === q.color && r.w === q.module).map(r => `${Math.round((r.x - q.x) / q.module)},${Math.round((r.y - q.y) / q.module)}`));
+  return lireQR(q.size, (x, y) => fonce.has(`${x},${y}`));
+};
+const DESSIN = { to: "Sam", th: "halloween", ac: "", occ: "halloween", em: "🎃", initial: "A" };
+await test("Le dessin : le QR code peint redonne exactement le lien (story et carré, lien court et lien complet)", async () => {
+  const court = "https://osedemander.fr/#s=" + lienAuHasard(22, 3) + "." + lienAuHasard(22, 4), long = "https://osedemander.fr/#i=y" + lienAuHasard(1100, 5);
+  for(const fmt of ["story", "carre"]) for(const [lien, niveau] of [[court, "Q"], [long, "M"]]) for(const th of ["base", "halloween", "mystere", "noel"]){
+    const f = fauxCanevas(), { qr: q } = await PAGE.lire("drawInviteImage")(fmt, { ...DESSIN, th, link: lien }, f.canvas);
+    const r = relirePeint(f.peint, q);
+    assert.equal(r.texte, lien, `${fmt}, ${th}, ${lien.length} caractères`); assert.equal(r.niveau, niveau);
+    assert.ok(!f.peint.some(p => p.c === q.color && p.w === q.module && (p.x < q.x || p.y < q.y || p.x >= q.x + q.size * q.module || p.y >= q.y + q.size * q.module)), "rien dans la marge");
+    assert.ok(q.module >= (lien === court ? 9 : 5), `modules assez gros (${q.module} px)`);
+    assert.ok(PAGE.lire("contrast")(q.color, "#FFFFFF") >= 7, `${th} : QR code foncé sur blanc`);
+  }
+});
+await test("L'image ne contient que le prénom, le texte prévu, le cachet et le pied (jamais la question, le message, le lieu, la date ni les coordonnées)", async () => {
+  const f = fauxCanevas();
+  await PAGE.lire("drawInviteImage")("story", { ...DESSIN, link: "https://osedemander.fr/#s=" + lienAuHasard(22, 6) + "." + lienAuHasard(22, 7) }, f.canvas);
+  const permis = new Set(["🎃", "Scanne pour ouvrir l'invitation", "osedemander.fr"]);
+  assert.equal(f.textes.filter(t => !permis.has(t)).join(" "), "Sam, j'ai une question pour toi 💌");
+  const src = PAGE.lire("openImageSheet").toString();
+  assert.ok(src.includes('{to:S.to, th:S.theme, ac:S.ac, occ:S.occ, em:S.em, initial:(S.from||"?").trim().charAt(0).toUpperCase(), link}'), "le dessin ne reçoit que ces champs");
+  const f2 = fauxCanevas(); await PAGE.lire("drawInviteImage")("carre", { ...DESSIN, occ: "voyagesurprise", em: "🎁", link: "https://osedemander.fr/#s=" + lienAuHasard(22, 8) + "." + lienAuHasard(22, 9) }, f2.canvas);
+  assert.ok(f2.textes.includes("💌") && !f2.textes.includes("🎁"), "occasion Surprise : cachet 💌");
+});
+await essaiWorker("« Retirer mes coordonnées » : lien court séparé, sans le canal ni l'identifiant (le numéro n'y est jamais)", async () => {
+  const r = reseau(); brancher(r);
+  const S = PAGE.lire("S"), d = INV({ c: "wa", ci: "06 00 00 00 01", l: { v: "v", x: "Salle de l'Exemple" } });
+  const long = LOCAL + "/#i=" + await L.encodeData(d), sh = await PAGE.lire("createShort")(long.split("#i=")[1], LOCAL + "/");
+  Object.assign(S, { link: sh.link, longLink: long, imgLinks: {}, chId: "06 00 00 00 01", to: "Sam" });
+  const lienImage = await PAGE.lire("imageLink")(true);
+  assert.ok(lienImage && lienImage !== sh.link && /#s=/.test(lienImage), "lien court séparé");
+  const relu = await relire(lienImage);
+  assert.equal(relu.c, "any"); assert.ok(!("ci" in relu), "aucun identifiant");
+  assert.ok(!JSON.stringify(relu).includes("06 00 00 00 01"), "le numéro n'est nulle part");
+  assert.equal(relu.l.x, "Salle de l'Exemple", "le reste de l'invitation est gardé");
+  for(const q of r.journal) assert.ok(!q.body.includes("06 00 00 00 01"), "rien en clair envoyé");
+  assert.equal(await PAGE.lire("imageLink")(false), sh.link, "sans l'option : le lien de l'invitation");
+  assert.equal(await PAGE.lire("imageLink")(true), lienImage, "préparé une seule fois");
+  Object.assign(S, { link: LOCAL + "/#i=y" + "A".repeat(1300), longLink: "", imgLinks: {} });
+  assert.equal(await PAGE.lire("imageLink")(false), null, "plus de 1 200 caractères : pas d'image");
+  Object.assign(S, { link: "", longLink: undefined, imgLinks: {}, chId: "" });
+});
+await test("Panneau : mention de confidentialité, image indisponible, Safari (aucune attente avant le partage), une action principale", () => {
+  const src = PAGE.lire("openImageSheet").toString();
+  assert.ok(src.includes("Toute personne qui scanne ce code peut ouvrir l'invitation, avec son lieu et sa date. Pour une story publique, pense à qui pourra la voir."));
+  assert.ok(src.includes(`<input type="checkbox" id="imgStrip" checked><span>Retirer mes coordonnées de l'image</span>`), "option cochée par défaut");
+  assert.ok(src.includes('const hasId=!!S.chId, st={fmt:"story", strip:hasId'), "seulement si l'invitation contient des coordonnées");
+  assert.equal(PAGE.lire("IMG_UNAVAILABLE"), "L'image n'est pas disponible pour le moment. Réessaie dans quelques minutes.");
+  const clic = src.slice(src.indexOf('send.addEventListener("click"'), src.indexOf('$("#imgClose", d)'));
+  assert.ok(clic.includes("navigator.share({files:[st.file]") && !clic.includes("await"), "partage lancé pendant le toucher, fichier déjà prêt");
+  assert.ok(src.includes('save.classList.toggle("primary", !canShare)') && src.includes("send.hidden=!canShare"), "une seule action principale");
+  assert.ok(src.includes('focusScreen("#imgTitle")') && src.includes('e.key==="Escape"'), "focus et Échap");
+});
+await test("Carte « Ton lien est prêt » : « Partager en image » en action secondaire", () => {
+  const h = PAGE_PARTAGE.lire("readyHTML")();
+  assert.ok(h.includes('<button type="button" class="btn" id="imgOpen">Partager en image</button>'));
+  assert.deepEqual(principales(h), ["Partager le lien"]);
+});
+await test("« Mes invitations » : lien de l'image et son jeton validés, supprimés avec le lien en ligne", () => {
+  const ok = PAGE.lire("validEntry"), base = { id: "abc123", from: "Alex", to: "Sam", occ: "date", when: [["2026-11-14", "20:00"]], created: "2026-10-17T10:00:00.000Z",
+    link: `${LOCAL}/#s=${"A".repeat(22)}.${"B".repeat(22)}`, long: `${LOCAL}/#i=yAAAA`, jeton: "C".repeat(43) };
+  assert.ok(ok({ ...base, img: `${LOCAL}/#s=${"D".repeat(22)}.${"E".repeat(22)}`, imgJeton: "F".repeat(43) }));
+  assert.ok(!ok({ ...base, img: `${LOCAL}/#s=${"D".repeat(22)}.${"E".repeat(22)}` }), "lien de l'image sans jeton");
+  assert.ok(!ok({ ...base, imgJeton: "F".repeat(43) }), "jeton sans lien");
+  assert.ok(!ok({ ...base, img: `${LOCAL}/#i=yAAAA`, imgJeton: "F".repeat(43) }), "l'image utilise toujours un lien court");
+  assert.ok(PAGE.lire("unpublishShort").toString().includes("if(it.img && it.imgJeton) await deleteShort(shortId(it.img), it.imgJeton);"));
+});
+
 /* ---------- Bilan ---------- */
 console.log(`\n${ko ? "❌" : "✅"} ${ok} tests réussis, ${ko} en échec (graine ${GRAINE}${ko ? ` — pour rejouer : node tests/run.mjs --graine=${GRAINE}` : ""})`);
 if(ko){ console.log(echecs.map(e => "  - " + e).join("\n")); process.exitCode = 1; }
