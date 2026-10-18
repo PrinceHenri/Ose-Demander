@@ -2144,6 +2144,43 @@ await test("Invitations jamais indexées : « noindex » dès qu'une invitation 
   assert.ok(!/<meta name="robots"/.test(lireFichier("index.html")), "l'accueil lui-même reste indexable");
 });
 
+/* =========================================================
+   27. Référencement : route #modele= (pages d'occasion) et liens « Idées d'invitations »
+   ========================================================= */
+titre("27. Référencement : route #modele=");
+const ouvrirModele = async hash => { const S = PAGE.lire("S"); Object.assign(S, { step: "home", tpl: "" }); PAGE.lire("location").hash = hash; await PAGE.lire("route")(); return S; };
+await test("#modele= ouvre directement le modèle (étape 2), comme un choix sur l'accueil, puis disparaît de l'adresse", async () => {
+  for(const p of PAGE.lire("OCC_PAGES")){
+    const S = await ouvrirModele("#modele=" + p.tpl);
+    assert.equal(S.tpl, p.tpl, p.path); assert.equal(S.step, 2, `${p.path} : étape 2`);
+    assert.equal(PAGE.lire("location").hash, "", `${p.path} : #modele= retiré de l'adresse`);
+  }
+});
+await test("Modèles de saison ouverts toute l'année par lien, sans changer la liste proposée à la création", async () => {
+  PAGE.ecrire("SEASON_TODAY", "2026-08-15");
+  const S = await ouvrirModele("#modele=noel");
+  assert.equal(S.tpl, "noel"); assert.equal(S.theme, "noel");
+  assert.ok(!PAGE.lire("catTemplates")("Famille").map(t => t.id).includes("noel"), "en août, Noël reste absent de la liste");
+  PAGE.ecrire("SEASON_TODAY", "2026-10-15");
+});
+await test("Identifiant inconnu ou piégé : l'accueil, rien n'est appliqué", async () => {
+  for(const h of ["#modele=inconnu", "#modele=../../etc", "#modele=noel<script>", "#modele="]){
+    const S = await ouvrirModele(h);
+    assert.equal(S.step, "home", h); assert.equal(S.tpl, "", h);
+  }
+  PAGE.lire("location").hash = "";
+});
+await test("Accueil : « Idées d'invitations », un lien par page d'occasion, cibles de 44 px", () => {
+  const S = PAGE.lire("S"); Object.assign(S, { step: "home" }); PAGE.lire("renderCreator")();
+  const h = PAGE.zones["#app"].innerHTML, P = PAGE.lire("OCC_PAGES");
+  assert.equal(P.length, 6);
+  for(const p of P){ assert.ok(h.includes(`<a href="/${p.path}/">`), p.path); assert.ok(PAGE.lire("TEMPLATES").some(t => t.id === p.tpl), `${p.tpl} : modèle existant`); }
+  assert.ok(+(regleCSS(".ideas a").match(/min-height:(\d+)px/) || [])[1] >= 44);
+  assert.deepEqual(P.map(p => p.path).sort(), ["demande-parrain-marraine", "demande-temoin-mariage", "invitation-anniversaire", "invitation-repas-de-noel", "invitation-reveillon-nouvel-an", "invitation-saint-valentin"]);
+  S.step = 2; PAGE.lire("renderCreator")(); assert.ok(!PAGE.zones["#app"].innerHTML.includes("Idées d'invitations"), "seulement sur l'accueil");
+  S.step = "home";
+});
+
 /* ---------- Bilan ---------- */
 console.log(`\n${ko ? "❌" : "✅"} ${ok} tests réussis, ${ko} en échec (graine ${GRAINE}${ko ? ` — pour rejouer : node tests/run.mjs --graine=${GRAINE}` : ""})`);
 if(ko){ console.log(echecs.map(e => "  - " + e).join("\n")); process.exitCode = 1; }

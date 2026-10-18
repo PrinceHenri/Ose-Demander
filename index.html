@@ -684,6 +684,12 @@ textarea.refuse-input{font-family:var(--hand);font-size:23px;line-height:1.2;min
 .intro-btns .btn.primary{width:100%}
 .intro-skip{min-height:44px;padding:8px 22px;border-color:var(--line);color:var(--muted);font-weight:600}
 .intro-screen .safety{margin-top:4px}
+/* ---------- Idées d'invitations (accueil) : liens vers les pages d'occasion ---------- */
+.ideas{margin:30px 0 0;text-align:center}
+.ideas h2{margin:0 0 10px;font-size:15px;font-weight:700;color:var(--muted)}
+.ideas ul{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;justify-content:center;gap:8px}
+.ideas a{display:inline-flex;align-items:center;min-height:44px;padding:8px 14px;border:2px solid var(--line);border-radius:999px;background:var(--surface);color:var(--ink);font-size:14px;font-weight:600;text-decoration:none;transition:border-color .15s}
+.ideas a:hover{border-color:var(--ink)}
 /* ---------- Partager en image (QR code) ---------- */
 .img-sheet .sheet-card{max-height:calc(100dvh - 32px);overflow:auto}
 .img-sheet .seg{margin:0 0 12px}
@@ -1821,6 +1827,17 @@ const S = {
   moreOpen:false, open:new Set(), err:"", errSec:""
 };
 
+/* Pages d'occasion (référencement) : adresse, nom affiché, modèle ouvert par « Créer mon invitation » (/#modele=…) */
+const OCC_PAGES = [
+  {path:"invitation-repas-de-noel", label:"Repas de Noël", tpl:"noel"},
+  {path:"invitation-reveillon-nouvel-an", label:"Réveillon du Nouvel An", tpl:"reveillon"},
+  {path:"invitation-saint-valentin", label:"Saint-Valentin", tpl:"valentin"},
+  {path:"demande-temoin-mariage", label:"Demande de témoin", tpl:"temoin"},
+  {path:"demande-parrain-marraine", label:"Parrain ou marraine", tpl:"parrain"},
+  {path:"invitation-anniversaire", label:"Anniversaire", tpl:"monanniv"}
+];
+const ideasHTML = () => `<nav class="ideas" aria-labelledby="ideasTitle"><h2 id="ideasTitle">Idées d'invitations</h2>
+  <ul>${OCC_PAGES.map(p=>`<li><a href="/${p.path}/">${esc(p.label)}</a></li>`).join("")}</ul></nav>`;
 function applyTemplate(id){
   const t=TEMPLATES.find(x=>x.id===id);
   const p=(t&&t.plan)||{}, pr=S.preset||{};
@@ -1868,6 +1885,7 @@ function renderCreator(){
         ${n===2||n===3 ? `<button type="submit" class="btn primary">${n===3 ? "Voir l'aperçu" : "Continuer"}</button>` : ""}
       </div>
     </form>`}
+    ${n==="home" ? ideasHTML() : ""}
     <p class="foot">Rien n'est stocké en clair en ligne : l'invitation tient dans son lien, chiffrée si le lien est court. <a href="mentions-legales.html#confidentialite">Confidentialité</a><br><a href="mentions-legales.html">Mentions légales</a></p>
   </div>`;
   S.err=""; S.errSec="";
@@ -4651,6 +4669,13 @@ async function route(){
   setNoindex(!!(m || ms || EXAMPLE));
   if(!m && !ms && !EXAMPLE) Sound.on=Sound.pref(); // côté créateur : le choix gardé sur cet appareil
   if(location.hash==="#mes-invitations"){ renderHistory(); focusScreen(".panel h2"); return; }
+  // Lien d'une page d'occasion : ouvre directement ce modèle (de saison compris, toute l'année), comme un choix sur l'accueil.
+  // L'identifiant est validé contre la liste des modèles ; on le retire ensuite de l'adresse (un rechargement ne réinitialise rien).
+  const mod=location.hash.match(/^#modele=([a-z]{2,20})$/), tpl=mod && TEMPLATES.find(t=>t.id===mod[1]);
+  if(mod){
+    history.replaceState(null, "", location.pathname);
+    if(tpl){ S.tplCat=tpl.cat; applyTemplate(tpl.id); S.step=2; S.link=""; renderCreator(); window.scrollTo({top:0}); focusScreen(".panel h2"); return; }
+  }
   if(m || ms || EXAMPLE){
     try{
       let code = m ? m[1] : "";

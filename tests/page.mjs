@@ -33,7 +33,7 @@ export function chargerPage({ share = false, ios = false } = {}){
   const window = { CompressionStream, addEventListener: rien, devicePixelRatio: 1, location, scrollTo: rien };
   const navigator = { userAgent: ios ? "iPhone" : "Android", platform: "", maxTouchPoints: 0, ...(share ? { share: async () => {} } : {}) };
   const globaux = {
-    window, document, navigator, location,
+    window, document, navigator, location, history: { replaceState: () => { location.hash = ""; } },
     matchMedia: () => ({ matches: false }),
     localStorage: { getItem: () => null, setItem: rien, removeItem: rien },
     requestAnimationFrame: rien, cancelAnimationFrame: rien, addEventListener: rien,
