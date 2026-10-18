@@ -2181,6 +2181,78 @@ await test("Accueil : « Idées d'invitations », un lien par page d'occasion, c
   S.step = "home";
 });
 
+/* =========================================================
+   28. Pages d'occasion et page 404 (outils/pages.mjs) : à jour, uniques, accessibles, légères, jamais d'invitation
+   ========================================================= */
+titre("28. Pages d'occasion");
+const { fichiers: fabriquer } = await import(new URL("../outils/pages.mjs", import.meta.url).href);
+const { PAGES: PAGES_OCC } = await import(new URL("../outils/pages-data.mjs", import.meta.url).href);
+const FAB = fabriquer();
+await test("Pages publiées à jour (identiques à ce que fabrique outils/pages.mjs)", () => {
+  for(const [nom, contenu] of Object.entries(FAB)) assert.equal(lireFichier(nom).replace(/\r\n/g, "\n"), contenu, `${nom} : relancer « node outils/pages.mjs »`);
+});
+await test("Chaque page : titre et description uniques, adresse canonique, un seul h1, plan du site", () => {
+  const titres = new Set(), descriptions = new Set(), plan = pagesDuPlan();
+  for(const p of PAGES_OCC){
+    const h = FAB[`${p.path}/index.html`], titre = h.match(/<title>([^<]+)<\/title>/)[1], desc = h.match(/<meta name="description" content="([^"]+)">/)[1];
+    assert.ok(titre.length >= 30 && titre.length <= 65, `${p.path} : titre de ${titre.length} caractères`);
+    assert.ok(desc.length >= 110 && desc.length <= 170, `${p.path} : description de ${desc.length} caractères`);
+    assert.ok(!titres.has(titre) && !descriptions.has(desc), `${p.path} : titre et description uniques`); titres.add(titre); descriptions.add(desc);
+    assert.ok(h.includes(`<link rel="canonical" href="${SITE_URL}${p.path}/">`), `${p.path} : canonique`);
+    assert.equal((h.match(/<h1[ >]/g) || []).length, 1, `${p.path} : un seul h1`);
+    assert.ok(plan.includes(`${SITE_URL}${p.path}/`), `${p.path} : dans le plan du site`);
+    assert.ok(h.includes('<html lang="fr"'), "langue");
+  }
+});
+await test("Données structurées : fil d'Ariane et questions fréquentes, identiques au texte de la page", () => {
+  for(const p of PAGES_OCC){
+    const h = FAB[`${p.path}/index.html`], j = JSON.parse(h.match(/<script type="application\/ld\+json">([^<]+)<\/script>/)[1]);
+    const [fil, faq] = j["@graph"];
+    assert.equal(fil["@type"], "BreadcrumbList"); assert.equal(fil.itemListElement[1].item, `${SITE_URL}${p.path}/`);
+    assert.equal(faq["@type"], "FAQPage");
+    assert.equal(faq.mainEntity.length, (h.match(/<details>/g) || []).length, `${p.path} : autant de questions que dans la page`);
+  }
+});
+await test("Une seule action principale : « Créer mon invitation » vers le bon modèle (/#modele=)", () => {
+  const T = PAGE.lire("TEMPLATES"), OP = PAGE.lire("OCC_PAGES");
+  for(const p of PAGES_OCC){
+    const h = FAB[`${p.path}/index.html`];
+    assert.deepEqual(principales(h), ["Créer mon invitation"], p.path);
+    assert.ok(h.includes(`<a class="btn primary" href="/#modele=${p.tpl}">`), `${p.path} : lien du modèle`);
+    assert.ok(T.some(t => t.id === p.tpl), `${p.tpl} : modèle existant`);
+    for(const [, id] of h.matchAll(/href="\/#modele=([a-z]+)"/g)) assert.ok(T.some(t => t.id === id), `${p.path} : modèle ${id}`);
+    const o = OP.find(x => x.path === p.path); assert.ok(o && o.tpl === p.tpl && o.label === p.label, `${p.path} : même adresse, nom et modèle que OCC_PAGES (index.html)`);
+  }
+});
+await test("Pages légères, sans appel extérieur, sans aucun lien d'invitation, textes neutres sans flèche", () => {
+  for(const [nom, h] of Object.entries(FAB)){
+    if(!nom.endsWith(".html")) continue;
+    assert.ok(gzipSync(h).length < 20000, `${nom} : ${gzipSync(h).length} octets compressés`);
+    for(const [, u] of h.matchAll(/(?:src|href)="([^"]+)"/g)) assert.ok(u.startsWith("/") || u.startsWith("#") || u.startsWith(SITE_URL), `${nom} : ressource extérieure ${u}`);
+    assert.ok(!/#i=|#s=|#exemple/.test(h), `${nom} : aucun lien d'invitation`);
+    assert.ok(!/<script(?! type="application\/ld\+json")/.test(h), `${nom} : aucun script (contenu lisible sans JavaScript)`);
+    const texte = h.replace(/<style>[\s\S]*?<\/style>|<script[\s\S]*?<\/script>|<svg[\s\S]*?<\/svg>/g, "");
+    assert.ok(!/[←→]| · /.test(texte), `${nom} : ni flèche ni « · »`);
+    const mots = texte.replace(/<[^>]+>|&nbsp;/g, " ").split(/[\s,.;:!?«»()]+/);
+    for(const m of ["Prêt", "prêt", "Prête", "prête", "invité", "invités", "Invité"]) assert.ok(!mots.includes(m), `${nom} : formulation genrée « ${m} »`);
+  }
+});
+await test("Accessibilité : lien d'évitement, décor caché aux lecteurs d'écran, questions au clavier, cibles de 44 px", () => {
+  for(const p of PAGES_OCC){
+    const h = FAB[`${p.path}/index.html`];
+    assert.ok(h.includes('<a class="skip" href="#contenu">Aller au contenu</a>') && h.includes('<main id="contenu">'));
+    assert.ok(h.includes('<div id="scene" aria-hidden="true">') && h.includes('<div class="scene-sign anim-n" aria-hidden="true">'));
+    assert.ok(/summary\{[^}]*min-height:48px/.test(h) && /\.ideas a\{[^}]*min-height:44px/.test(h) && /\.btn\{[^}]*min-height:50px/.test(h));
+    assert.ok(h.includes("@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}"), "moins de mouvement");
+  }
+});
+await test("Page 404 : jamais indexée, lien vers l'accueil et les idées d'invitations", () => {
+  const h = FAB["404.html"];
+  assert.ok(h.includes('<meta name="robots" content="noindex">') && !h.includes('rel="canonical"'));
+  assert.deepEqual(principales(h), ["Créer ma propre invitation"]);
+  for(const p of PAGES_OCC) assert.ok(h.includes(`<a href="/${p.path}/">`), p.path);
+});
+
 /* ---------- Bilan ---------- */
 console.log(`\n${ko ? "❌" : "✅"} ${ok} tests réussis, ${ko} en échec (graine ${GRAINE}${ko ? ` — pour rejouer : node tests/run.mjs --graine=${GRAINE}` : ""})`);
 if(ko){ console.log(echecs.map(e => "  - " + e).join("\n")); process.exitCode = 1; }
