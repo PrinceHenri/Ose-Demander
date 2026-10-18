@@ -5,6 +5,10 @@ Le bouton « Non » résiste, et la réponse arrive par WhatsApp, SMS, Snapchat,
 
 Rien n'est stocké en clair en ligne : l'invitation est compressée dans le lien (`#i=...`), ou chiffrée dans le navigateur pour un lien court (`#s=ID.CLÉ`, AES-GCM). Le service des liens courts (`worker/`, Cloudflare Worker sur workers.dev, base D1) ne reçoit que du contenu chiffré, jamais la clé, et l'efface au bout d'un an.
 
+## Pages d'occasion (référencement)
+
+Les pages `/invitation-…/` et `/demande-…/`, `404.html` et `sitemap.xml` sont fabriquées par `node outils/pages.mjs` à partir des textes de `outils/pages-data.mjs` et du code du site. Après toute modification, relancer le script : le banc de test vérifie que les pages publiées sont à jour.
+
 ## Fichiers
 
 ```

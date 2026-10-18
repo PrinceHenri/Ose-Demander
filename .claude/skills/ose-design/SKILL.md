@@ -233,6 +233,13 @@ Après « Ton lien est prêt », bouton secondaire « Partager en image » ; pan
 - **Image** (`drawInviteImage`, 1080 × 1920 ou 1080 × 1080) : fond du thème, enveloppe de l'occasion (`envelopeSVG`, mêmes formes et décors que l'invitation, couleurs résolues), cachet (💌 pour les occasions Surprise), « {pour}, j'ai une question pour toi 💌 » en Bricolage 800 sur deux lignes équilibrées, QR code sur carte blanche (contour et ombre décalée à l'encre), « Scanne pour ouvrir l'invitation » (story) et « osedemander.fr ». QR code toujours foncé sur blanc (contraste ≥ 7:1), marge de 4 modules ; code dense (lien complet) : enveloppe réduite et code agrandi.
 - **QR code** (`qrEncode`) : intégré, mode octets, niveau Q pour un lien court (version 6), M pour un lien complet (1 200 caractères au plus). Banc : lecteur indépendant (`tests/qr-lecteur.mjs`).
 
+## 2 undecies. Pages d'occasion (référencement)
+
+Pages statiques fabriquées par `node outils/pages.mjs` à partir de `outils/pages-data.mjs` (textes) et du vrai code du site (couleurs du thème du modèle, scène `SCENES[thème]` : décor en fond et élément vedette en tête, exemple d'invitation tiré de `TEMPLATES`). Adresses : `/invitation-repas-de-noel/`, `/invitation-reveillon-nouvel-an/`, `/invitation-saint-valentin/`, `/demande-temoin-mariage/`, `/demande-parrain-marraine/`, `/invitation-anniversaire/` (liste `OCC_PAGES` dans index.html, liens « Idées d'invitations » en bas de l'accueil). Page `404.html` (scène de l'accueil, `noindex`).
+- **Structure** : logo ; panneau d'en-tête (élément vedette, `h1`, introduction, « Créer mon invitation » = seule action principale, vers `/#modele=…`) ; idées ; exemple d'invitation (billet) ; « Comment ça marche » ; questions fréquentes (`details`) ; phrase de fin propre à la page (neutre, jamais « Prêt pour… ») avec un bouton secondaire ; autres idées ; pied.
+- **Textes** : tutoyés, neutres, uniques par page ; titre de 30 à 65 caractères, description de 110 à 170 ; typographie française automatique (espaces insécables devant `? ! : ;` et dans les guillemets, « Saint-Valentin », « Nouvel An », « jour J » jamais coupés).
+- **Technique** : aucun script (sauf JSON-LD), aucun appel extérieur, CSS limité à ce qui sert (polices, couleurs du thème, scène, mise en page), moins de 20 Ko compressés ; données structurées `BreadcrumbList` et `FAQPage` ; balise canonique ; « moins de mouvement » respecté. Toute modification des textes : relancer le script (le banc vérifie que les pages publiées sont à jour).
+
 ## 3. Typographie : deux polices, pas une de plus
 
 Polices **hébergées dans `fonts/`** (licence SIL OFL, aucun appel à Google Fonts — RGPD).

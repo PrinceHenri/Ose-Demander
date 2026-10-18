@@ -2253,6 +2253,14 @@ await test("Page 404 : jamais indexée, lien vers l'accueil et les idées d'invi
   for(const p of PAGES_OCC) assert.ok(h.includes(`<a href="/${p.path}/">`), p.path);
 });
 
+await test("Service worker : pages d'occasion gardées à la visite (jamais une 404), plan du site et robots.txt jamais en cache", () => {
+  const sw = lireFichier("sw.js");
+  assert.ok(sw.includes('if (url.pathname === "/sitemap.xml" || url.pathname === "/robots.txt") return;'), "plan du site et robots.txt : toujours le serveur");
+  assert.ok(sw.includes('if (res.ok) { const copy = res.clone(); caches.open(VERSION).then(c => c.put(req, copy)); }'), "une page 404 n'est jamais gardée");
+  assert.ok(sw.includes('.catch(() => caches.match(req).then(r => r || caches.match("./index.html")))'), "hors connexion : la page gardée, sinon l'accueil");
+  assert.ok(!/invitation-|demande-/.test(sw.slice(sw.indexOf("const CORE"), sw.indexOf("];"))), "pages d'occasion non préchargées (installation légère)");
+});
+
 /* ---------- Bilan ---------- */
 console.log(`\n${ko ? "❌" : "✅"} ${ok} tests réussis, ${ko} en échec (graine ${GRAINE}${ko ? ` — pour rejouer : node tests/run.mjs --graine=${GRAINE}` : ""})`);
 if(ko){ console.log(echecs.map(e => "  - " + e).join("\n")); process.exitCode = 1; }

@@ -32,14 +32,16 @@ self.addEventListener("fetch", event => {
   if (req.method !== "GET") return;
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return; // on ne touche jamais aux autres sites
+  // Plan du site et consignes aux moteurs de recherche : toujours la version du serveur, jamais de cache
+  if (url.pathname === "/sitemap.xml" || url.pathname === "/robots.txt") return;
 
-  // Pages : réseau d'abord (pour avoir toujours la dernière version), cache si hors connexion.
+  // Pages (accueil, pages d'occasion comme /invitation-saint-valentin/, mentions) : réseau d'abord (pour avoir
+  // toujours la dernière version), gardées à chaque visite ; hors connexion, la page gardée, sinon l'accueil.
   // Le contenu des invitations est après le « # » : il n'est jamais envoyé ni mis en cache.
   if (req.mode === "navigate") {
     event.respondWith(
       fetch(req).then(res => {
-        const copy = res.clone();
-        caches.open(VERSION).then(c => c.put(req, copy));
+        if (res.ok) { const copy = res.clone(); caches.open(VERSION).then(c => c.put(req, copy)); } // jamais une page 404
         return res;
       }).catch(() => caches.match(req).then(r => r || caches.match("./index.html")))
     );
