@@ -28,6 +28,9 @@
 <meta name="apple-mobile-web-app-title" content="Ose Demander">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="referrer" content="no-referrer">
+<!-- Référencement : adresse de référence et données structurées (application web gratuite) -->
+<link rel="canonical" href="https://osedemander.fr/">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"WebApplication","name":"Ose Demander","url":"https://osedemander.fr/","description":"Crée gratuitement une invitation animée à envoyer par lien : rendez-vous, anniversaire, témoin, fêtes de l'année. Le bouton Non résiste, mais un vrai refus reste possible.","applicationCategory":"LifestyleApplication","operatingSystem":"Tous (navigateur web)","inLanguage":"fr","isAccessibleForFree":true,"offers":{"@type":"Offer","price":"0","priceCurrency":"EUR"}}</script>
 <link rel="preload" href="fonts/bricolage-grotesque.woff2" as="font" type="font/woff2" crossorigin>
 <style>
 /* ---------- Polices (hébergées sur le site, aucun appel à Google) ---------- */
@@ -4635,9 +4638,17 @@ function renderLinkError(kind, lv=REDUCED_ANIM ? "0" : "n"){
   $("#retry")?.addEventListener("click", e=>{ e.currentTarget.disabled=true; e.currentTarget.textContent="Nouvel essai…"; route(); });
   focusScreen(".question");
 }
+/* Une invitation ouverte (#i=, #s=, exemple) n'est jamais indexée par les moteurs de recherche.
+   Sa partie après « # » n'est de toute façon jamais envoyée au serveur ; ceci est une sécurité de plus. */
+function setNoindex(on){
+  let m=document.querySelector('meta[name="robots"]');
+  if(on && !m){ m=document.createElement("meta"); m.name="robots"; m.content="noindex, nofollow"; document.head.appendChild(m); }
+  if(!on && m) m.remove();
+}
 async function route(){
   const ms=location.hash.match(SHORT_HASH), m=ms ? null : location.hash.match(/^#i=(.+)$/);
   EXAMPLE = location.hash==="#exemple";
+  setNoindex(!!(m || ms || EXAMPLE));
   if(!m && !ms && !EXAMPLE) Sound.on=Sound.pref(); // côté créateur : le choix gardé sur cet appareil
   if(location.hash==="#mes-invitations"){ renderHistory(); focusScreen(".panel h2"); return; }
   if(m || ms || EXAMPLE){

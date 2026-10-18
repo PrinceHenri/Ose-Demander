@@ -1,0 +1,6 @@
+User-agent: *
+Disallow: /tests/
+Disallow: /worker/
+Disallow: /outils/
+
+Sitemap: https://osedemander.fr/sitemap.xml

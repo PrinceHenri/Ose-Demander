@@ -2106,6 +2106,44 @@ await test("« Mes invitations » : lien de l'image et son jeton validés, suppr
   assert.ok(PAGE.lire("unpublishShort").toString().includes("if(it.img && it.imgJeton) await deleteShort(shortId(it.img), it.imgJeton);"));
 });
 
+/* =========================================================
+   26. Référencement : bases techniques (robots.txt, sitemap.xml, canonique, données structurées, invitations jamais indexées)
+   ========================================================= */
+titre("26. Référencement : bases");
+const SITE_URL = "https://osedemander.fr/";
+const lireFichier = f => readFileSync(RACINE + f, "utf8");
+const pagesDuPlan = () => [...lireFichier("sitemap.xml").matchAll(/<loc>([^<]+)<\/loc>/g)].map(m => m[1]);
+await test("robots.txt : tout autorisé sauf tests, worker et outils ; adresse du plan du site", () => {
+  const r = lireFichier("robots.txt");
+  assert.match(r, /^User-agent: \*$/m);
+  for(const d of ["/tests/", "/worker/", "/outils/"]) assert.ok(r.includes(`Disallow: ${d}\n`), `Disallow: ${d}`);
+  assert.ok(!/^Disallow: \/$/m.test(r), "le site n'est jamais bloqué en entier");
+  assert.ok(r.includes(`Sitemap: ${SITE_URL}sitemap.xml`));
+});
+await test("sitemap.xml : bien formé, adresses du site seulement, jamais d'invitation", () => {
+  const x = lireFichier("sitemap.xml");
+  assert.ok(x.startsWith('<?xml version="1.0" encoding="UTF-8"?>') && x.includes('<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">') && x.trim().endsWith("</urlset>"));
+  const locs = pagesDuPlan();
+  assert.ok(locs.includes(SITE_URL) && locs.includes(SITE_URL + "mentions-legales.html"));
+  assert.equal(new Set(locs).size, locs.length, "aucune adresse en double");
+  for(const l of locs){ assert.ok(l.startsWith(SITE_URL) && !l.includes("#"), l); }
+  assert.equal((x.match(/<url>/g) || []).length, (x.match(/<lastmod>\d{4}-\d{2}-\d{2}<\/lastmod>/g) || []).length, "une date par adresse");
+});
+await test("Accueil : adresse canonique et données structurées (application web gratuite)", () => {
+  const h = lireFichier("index.html");
+  assert.ok(h.includes('<link rel="canonical" href="https://osedemander.fr/">'));
+  const j = JSON.parse(h.match(/<script type="application\/ld\+json">([^<]+)<\/script>/)[1]);
+  assert.equal(j["@type"], "WebApplication"); assert.equal(j.url, SITE_URL); assert.equal(j.inLanguage, "fr");
+  assert.equal(j.isAccessibleForFree, true); assert.deepEqual(j.offers, { "@type": "Offer", price: "0", priceCurrency: "EUR" });
+  assert.ok(lireFichier("mentions-legales.html").includes('<link rel="canonical" href="https://osedemander.fr/mentions-legales.html">'));
+});
+await test("Invitations jamais indexées : « noindex » dès qu'une invitation s'ouvre (#i=, #s=, exemple)", () => {
+  const route = PAGE.lire("route").toString(), ni = PAGE.lire("setNoindex").toString();
+  assert.ok(route.includes("setNoindex(!!(m || ms || EXAMPLE));"));
+  assert.ok(ni.includes('m.content="noindex, nofollow"') && ni.includes("m.remove()"), "posé à l'ouverture, retiré au retour à la création");
+  assert.ok(!/<meta name="robots"/.test(lireFichier("index.html")), "l'accueil lui-même reste indexable");
+});
+
 /* ---------- Bilan ---------- */
 console.log(`\n${ko ? "❌" : "✅"} ${ok} tests réussis, ${ko} en échec (graine ${GRAINE}${ko ? ` — pour rejouer : node tests/run.mjs --graine=${GRAINE}` : ""})`);
 if(ko){ console.log(echecs.map(e => "  - " + e).join("\n")); process.exitCode = 1; }
