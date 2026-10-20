@@ -1209,5 +1209,55 @@ export const REFERENCES = [
       "h": "20:00",
       "pa": 0
     }
+  },
+  {
+    "nom": "Notification de réponse demandée, créneaux au choix (format compact)",
+    "lien": "yHcTPCoIwAAfgVxm_S5cRm5DSbpYiSEI5F7LoMGkmOftrIEQP1KWX8MWCvsP3Qg2B0NkBFD0EpOlAcYHgFLf_BQQPKAwEovF7tndinmRp6vFDDpa4STzY7uosKFYQO98LfMao780ZZ3sKDYGNSqM83iY5a1LZ9lmhZmsVTnXZuKpcPLTkrZb8VCVqyI54_wA",
+    "attendu": {
+      "f": "Alex",
+      "t": "Sam",
+      "q": "Ça te dit un rendez-vous avec moi ?",
+      "o": "date",
+      "th": "date",
+      "n": "fuit",
+      "an": "n",
+      "c": "any",
+      "a": {
+        "v": "v",
+        "x": "Dîner au Café de l'Exemple"
+      },
+      "sl": [
+        [
+          "2027-03-12",
+          "20:00"
+        ],
+        [
+          "2027-03-13",
+          "19:30"
+        ]
+      ],
+      "nz": "QUJDREVGR0hJSktMTU5PUA.ZXhlbXBsZS1kZS1jbGUxMg"
+    }
+  },
+  {
+    "nom": "Notification de réponse demandée (ancien format p)",
+    "lien": "peyJmIjoiQWxleCIsInQiOiJTYW0iLCJxIjoiw4dhIHRlIGRpdCB1biByZW5kZXotdm91cyBhdmVjIG1vaSA_IiwibyI6ImRhdGUiLCJ0aCI6ImRhdGUiLCJuIjoiZnVpdCIsImFuIjoibiIsImMiOiJhbnkiLCJhIjp7InYiOiJ2IiwieCI6IkTDrm5lciBhdSBDYWbDqSBkZSBsJ0V4ZW1wbGUifSwibnoiOiJRVUpEUkVWR1IwaEpTa3RNVFU1UFVBLlpYaGxiWEJzWlMxa1pTMWpiR1V4TWciLCJkIjoiMjAyNy0wMy0xMiIsImgiOiIyMDowMCJ9",
+    "attendu": {
+      "f": "Alex",
+      "t": "Sam",
+      "q": "Ça te dit un rendez-vous avec moi ?",
+      "o": "date",
+      "th": "date",
+      "n": "fuit",
+      "an": "n",
+      "c": "any",
+      "a": {
+        "v": "v",
+        "x": "Dîner au Café de l'Exemple"
+      },
+      "d": "2027-03-12",
+      "h": "20:00",
+      "nz": "QUJDREVGR0hJSktMTU5PUA.ZXhlbXBsZS1kZS1jbGUxMg"
+    }
   }
 ];

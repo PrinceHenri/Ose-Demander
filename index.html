@@ -227,6 +227,11 @@ input.input[type=date],input.input[type=time]{min-width:0;max-width:100%}
 .check{display:flex;gap:10px;align-items:flex-start;margin:0 0 14px;cursor:pointer}
 .check input{-webkit-appearance:none;appearance:none;flex:none;display:grid;place-content:center;width:22px;height:22px;margin:2px 0 0;border:2px solid var(--ink);border-radius:6px;background:var(--surface);cursor:pointer}
 .check input:checked{background:var(--accent-btn)}
+.check input:disabled{opacity:.45;cursor:not-allowed}
+.notif-opt{margin:18px 0 0;padding:12px 16px;border:2px dashed var(--line);border-radius:14px}
+.notif-opt .check{margin:0}.notif-opt .check span{font-weight:700}.notif-opt .hint{margin:6px 0 0}
+.notif-box{display:grid;gap:6px;justify-items:center;margin-top:4px}
+.rep{margin:2px 0 4px;font-weight:800}.rep-o{color:var(--accent-text)}
 .check input:checked::after{content:"";width:6px;height:11px;margin-top:-3px;border:solid var(--accent-ink);border-width:0 3px 3px 0;transform:rotate(45deg)}
 /* La page se déclare « light dark » (sinon Chrome l'assombrit de force) : thème sombre du téléphone = icônes natives claires, on les remet foncées */
 @media (prefers-color-scheme:dark){input::-webkit-calendar-picker-indicator{filter:invert(1)}}
@@ -1203,6 +1208,7 @@ const SHORT_ORIGIN = typeof location!=="undefined" && location.hostname==="local
 const SHORT_TIMEOUT=5000, SHORT_CT_MAX=16384;
 let shortFetch = (u, o) => fetch(u, o); // remplacé par le banc de test
 const SHORT_HASH = /^#s=([A-Za-z0-9_-]{22})\.([A-Za-z0-9_-]{22})$/;
+const NOTIF_RE = /^[A-Za-z0-9_-]{22}\.[A-Za-z0-9_-]{22}$/; // champ nz / Z : identifiant de notification . clé de la réponse
 const rndBytes = n => crypto.getRandomValues(new Uint8Array(n));
 const utf8 = s => new TextEncoder().encode(s);
 const aesKey = (raw, use) => crypto.subtle.importKey("raw", raw, "AES-GCM", false, [use]);
@@ -1261,6 +1267,86 @@ async function deleteShort(id, jeton){
     const r=await shortCall(`/${id}/supprimer`, {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({jeton})});
     return {200:"ok", 410:"deja", 403:"jeton", 404:"introuvable"}[r.status] || "reseau";
   }catch(e){ return "reseau"; }
+}
+
+/* ---------- Notifications de réponse (facultatives) ----------
+   La personne qui crée l'invitation coche « Me prévenir dès que … répond » : son appareil s'abonne (Web Push, clé publique
+   VAPID ci-dessous) et dépose l'abonnement auprès du Worker, qui le chiffre. Le lien reçoit nz = identifiant.clé (128 bits
+   chacun). Après sa réponse, la personne invitée peut toucher « Prévenir … de ma réponse » : sa réponse (oui ou non, et le
+   créneau) est chiffrée ICI avec la clé du lien, le Worker la transmet sans pouvoir la lire, puis efface l'abonnement.
+   Le service worker (sw.js) la déchiffre avec la clé gardée sur l'appareil (IndexedDB « ose-notifs ») et l'affiche.
+   Ouvrir une invitation n'appelle jamais le Worker : aucun suivi des ouvertures. */
+const PUSH_PUB = "BO0i81U9evIx9nmwltbUyZLH_p_hXXYadDPHRzamX3YeVApCHX8hZ8BiaYNyzK3uDGoLBYx_ChWYaONznnoakTI";
+const NOTIF_DB = "ose-notifs";
+async function notifCall(path, opts={}){
+  const ac=new AbortController(), t=setTimeout(()=>ac.abort(), SHORT_TIMEOUT);
+  try{ return await shortFetch(SHORT_ORIGIN+"/v1/notifs"+path, {...opts, signal:ac.signal, cache:"no-store", credentials:"omit", referrerPolicy:"no-referrer"}); }
+  finally{ clearTimeout(t); }
+}
+/* "ok" | "ios" (iPhone hors de l'appli installée) | "refuse" (bloquées pour ce site) | "non" (navigateur sans notifications) */
+function notifSupport(){
+  const ok = !!SHORT_ORIGIN && typeof navigator!=="undefined" && "serviceWorker" in navigator && typeof PushManager!=="undefined" && typeof Notification!=="undefined";
+  if(!ok) return isIOS() && !isStandalone() ? "ios" : "non";
+  return Notification.permission==="denied" ? "refuse" : "ok";
+}
+function notifDb(){
+  return new Promise((res,rej)=>{
+    const r=indexedDB.open(NOTIF_DB,1);
+    r.onupgradeneeded=()=>{ r.result.createObjectStore("cles",{keyPath:"nid"}); r.result.createObjectStore("reponses",{keyPath:"nid"}); };
+    r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error);
+  });
+}
+async function notifStore(store, mode, fn){
+  const db=await notifDb();
+  try{ return await new Promise((res,rej)=>{ const tx=db.transaction(store,mode), q=fn(tx.objectStore(store)); tx.oncomplete=()=>res(q && q.result); tx.onerror=()=>rej(tx.error); }); }
+  finally{ db.close(); }
+}
+/* Abonne cet appareil (l'autorisation doit déjà être accordée) : {nz, nid, jeton} ou null. info : prénom et créneaux, pour le texte de la notification */
+async function subscribeNotif(expire, info){
+  if(notifSupport()!=="ok" || Notification.permission!=="granted") return null;
+  try{
+    const reg=await Promise.race([navigator.serviceWorker.ready, new Promise(r=>setTimeout(()=>r(null),SHORT_TIMEOUT))]);
+    if(!reg) return null;
+    const opts={userVisibleOnly:true, applicationServerKey:unb64url(PUSH_PUB)};
+    let sub;
+    try{ sub=await reg.pushManager.subscribe(opts); }
+    catch(e){ const old=await reg.pushManager.getSubscription(); if(!old) throw e; await old.unsubscribe(); sub=await reg.pushManager.subscribe(opts); } // ancienne clé
+    const j=sub.toJSON(), abo={endpoint:j.endpoint, keys:{p256dh:j.keys.p256dh, auth:j.keys.auth}};
+    for(let essai=0; essai<2; essai++){ // identifiant déjà pris (409, improbable) : on retire au sort une fois
+      const nid=b64url(rndBytes(16)), key=b64url(rndBytes(16)), jeton=b64url(rndBytes(32));
+      const del=b64url(new Uint8Array(await crypto.subtle.digest("SHA-256", utf8(jeton))));
+      const r=await notifCall("", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({id:nid, abo, del, expire})});
+      if(r.status===201){ await notifStore("cles","readwrite",st=>st.put({nid, key, to:info.to, when:info.when})); return {nz:nid+"."+key, nid, jeton}; }
+      if(r.status!==409) return null;
+    }
+  }catch(e){}
+  return null;
+}
+/* Fin de vie de l'abonnement : dernier créneau + 7 jours, un an au plus */
+function notifExpire(when){
+  const last=Math.max(...when.map(w=>new Date(w[0]+"T"+w[1]).getTime()).filter(n=>!isNaN(n)), Date.now());
+  return Math.min(Math.max(last+7*864e5, Date.now()+864e5), Date.now()+365*864e5);
+}
+/* Réponse chiffrée avec la clé du lien (version 1, IV de 12 octets, contenu chiffré et étiquette ; identifiant en données associées) */
+async function sealReply(nz, r, s){
+  const [id,key]=nz.split("."), iv=rndBytes(12);
+  const c=new Uint8Array(await crypto.subtle.encrypt({name:"AES-GCM", iv, additionalData:utf8(id)}, await aesKey(unb64url(key),"encrypt"), utf8(JSON.stringify(s==null ? {r} : {r,s}))));
+  const blob=new Uint8Array(13+c.length); blob[0]=1; blob.set(iv,1); blob.set(c,13);
+  return b64url(blob);
+}
+/* Envoie la réponse ("o" ou "n", créneau ou null) : "ok", "deja" (déjà envoyée), "fini" (plus possible) ou "reseau" */
+async function sendNotif(nz, r, s){
+  if(!SHORT_ORIGIN || !NOTIF_RE.test(nz||"")) return "fini";
+  try{
+    const res=await notifCall(`/${nz.slice(0,22)}/reponse`, {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({c:await sealReply(nz, r, s)})});
+    if(res.status===200) return "ok";
+    if(res.status===410){ let x={}; try{ x=await res.json(); }catch(e){} return x && x.raison==="envoye" ? "deja" : "fini"; }
+    return res.status===404 ? "fini" : "reseau";
+  }catch(e){ return "reseau"; }
+}
+/* Renoncer à une notification (invitation retirée de l'historique) */
+async function cancelNotif(nid, jeton){
+  try{ await notifCall(`/${nid}/supprimer`, {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({jeton})}); }catch(e){}
 }
 
 /* ---------- QR code (norme ISO/IEC 18004), calculé ici : le lien ne sort jamais de l'appareil ----------
@@ -1466,6 +1552,8 @@ function sanitize(x){
   if(x.vu===1) d.vu=1; // version partagée par la personne invitée, en lecture seule (voir shareData)
   if(x.pa===0) d.pa=0; // partage de la surprise refusé par le créateur (absent = autorisé)
   if(Number.isInteger(x.ix) && own(LINK_INTRO, x.ix)) d.ix=x.ix; // introduction (absente = directement la question)
+  // Notification de réponse demandée par le créateur (absente = pas de notification) ; jamais dans un rappel ni une version partagée
+  if(typeof x.nz==="string" && NOTIF_RE.test(x.nz) && !d.rv && !d.vu) d.nz=x.nz;
   return d;
 }
 /* Brouillage des infos à révélation programmée (pas lisibles en clair dans le lien) */
@@ -1551,7 +1639,7 @@ const LINK_INTRO = {
   26:["Tu as tant fait pour moi…","À mon tour, maman."], 27:["Tu as toujours été là pour moi…","À mon tour, papa."],
   28:["Tu entends ce son au loin ?","C'est la fête qui commence."]
 };
-const LINK_KEYS = ["f","t","o","F","q","T","n","N","A","C","E","s","S","c","i","m","H","a","l","D","p","e","M","b","w","L","R","I","V","P"];
+const LINK_KEYS = ["f","t","o","F","q","T","n","N","A","C","E","s","S","c","i","m","H","a","l","D","p","e","M","b","w","L","R","I","V","P","Z"];
 /* Dates : minutes depuis le 1er janvier 2026 (heure locale de l'invitation, sans fuseau) */
 const LINK_T0 = Date.UTC(2026,0,1), LINK_TMAX = 60*24*366*100;
 const own = (o,k) => Object.prototype.hasOwnProperty.call(o,k);
@@ -1593,6 +1681,7 @@ function packLink(d){
   if(d.ix) c.I=d.ix;
   if(d.vu) c.V=1;
   if(d.pa===0) c.P=0;
+  if(d.nz) c.Z=d.nz;
   return c;
 }
 /* Objet compact -> ancien format, puis sanitize. Strict : clé inconnue, mauvais type ou code inconnu = lien refusé */
@@ -1650,6 +1739,7 @@ function unpackLink(c){
   if(has("I")){ dec(LINK_INTRO,c.I); x.ix=c.I; }
   if(has("V")){ if(c.V!==1) bad(); x.vu=1; }
   if(has("P")){ if(c.P!==0) bad(); x.pa=0; }
+  if(has("Z")){ if(typeof c.Z!=="string" || !NOTIF_RE.test(c.Z)) bad(); x.nz=c.Z; }
   return x;
 }
 
@@ -1659,7 +1749,7 @@ function unpackLink(c){
    Créneaux au choix : seul le créneau choisi est gardé. */
 function reminderData(d, slot){
   const x={...d, c:"any", rv:1};
-  delete x.ci;
+  delete x.ci; delete x.nz; // ni notification : le rappel est dans l'agenda, la réponse est déjà faite
   if(x.sl){ const s=x.sl[slot] || x.sl[0]; delete x.sl; x.d=s[0]; x.h=s[1]; }
   return sanitize(JSON.parse(JSON.stringify(x)));
 }
@@ -1669,7 +1759,7 @@ function reminderData(d, slot){
    contenir une adresse) ; l'écran affiche « Lieu : gardé secret 🤫 ». Créneaux au choix : seul le créneau choisi est gardé. */
 function shareData(d, slot){
   const x={...d, c:"any", vu:1};
-  for(const k of ["ci","rv","ix","pa","l","dt","me"]) delete x[k];
+  for(const k of ["ci","rv","ix","pa","l","dt","me","nz"]) delete x[k];
   if(x.mh){ delete x.m; delete x.mh; }
   if(x.sl){ const s=x.sl[slot] || x.sl[0]; delete x.sl; x.d=s[0]; x.h=s[1]; }
   if(x.a && x.a.v==="r") x.a={v:"s", h:x.a.h};
@@ -2014,6 +2104,7 @@ function screenHTML(){
       ${section("no","Le Non",secNo())}
       ${section("reply","La réponse",secReply())}
     </details>
+    ${notifHTML()}
     <div class="btns" style="margin-top:18px">
       <button type="button" class="btn" id="preview">Tester l'invitation</button>
       <button type="button" class="btn primary ${S.link?"hidden":""}" id="make">Créer mon lien</button>
@@ -2021,6 +2112,23 @@ function screenHTML(){
     ${readyHTML()}`;
   }
 }
+/* Notifications de réponse : case décochée par défaut (une demande d'autorisation non sollicitée est souvent refusée,
+   et un refus bloque le site durablement), mais déjà cochée si l'autorisation a été accordée auparavant */
+function notifHTML(){
+  const st=notifSupport();
+  if(S.notif===undefined) S.notif = st==="ok" && Notification.permission==="granted";
+  const to=esc(S.to||"la personne invitée");
+  const note = st==="ios" ? "Sur iPhone, ajoute d'abord Ose Demander à ton écran d'accueil (bouton Partager, puis « Sur l'écran d'accueil »), puis crée ton invitation depuis l'appli."
+    : st==="refuse" ? "Les notifications sont bloquées pour ce site. Autorise-les dans les réglages de ton navigateur pour utiliser cette option."
+    : st==="non" ? "Ce navigateur ne permet pas les notifications : la réponse t'arrivera par message, comme d'habitude."
+    : Notification.permission==="granted" ? `Une seule notification, si ${to} choisit de te prévenir : sa réponse et le créneau, rien d'autre.`
+    : `Ton navigateur te demandera l'autorisation. Une seule notification, si ${to} choisit de te prévenir : sa réponse et le créneau, rien d'autre.`;
+  return `<div class="notif-opt ${S.link?"hidden":""}">
+      <label class="check"><input type="checkbox" id="notifMe" ${st==="ok"&&S.notif?"checked":""} ${st==="ok"?"":"disabled"}><span>🔔 Me prévenir dès que ${to} répond</span></label>
+      <p class="hint" id="notifNote">${note}</p>
+    </div>`;
+}
+const whenList = () => S.choose ? S.slots.filter(s=>s.d&&s.t).map(s=>[s.d,s.t]) : [[S.date,S.time]];
 /* Le lien est prêt : une seule action principale (Partager si le téléphone le permet, sinon Copier),
    le message qui part avec le lien, et l'adresse repliée sur une ligne (elle est longue et intimidante) */
 const shareText = () => `${S.to}, j'ai une question pour toi 💌`;
@@ -2040,6 +2148,7 @@ function readyHTML(){
       <div class="linkbox one" id="linkbox">${esc(S.link)}</div>
       <button type="button" class="linkbtn" id="showLink" aria-expanded="false" aria-controls="linkbox">Afficher le lien en entier</button>
       <p class="hint" id="shortNote"></p>
+      <p class="hint" id="notifDone"></p>
       <p class="hint" id="savedNote"></p>
       <p class="hint">Toute personne qui a ce lien peut lire l'invitation : ne le partage qu'avec la bonne personne.</p>
     </div>`;
@@ -2366,7 +2475,7 @@ function bindCreator(){
     const err=checkScreen(S.step); if(err){ showErr(err); return; }
     go(S.step+1);
   });
-  f.addEventListener("input",()=>{ if(S.link){ S.link=""; $("#result")?.classList.add("hidden"); $("#make")?.classList.remove("hidden"); } });
+  f.addEventListener("input",()=>{ if(S.link){ S.link=""; $("#result")?.classList.add("hidden"); $("#make")?.classList.remove("hidden"); $(".notif-opt")?.classList.remove("hidden"); } });
   $("#back")?.addEventListener("click",()=>{ readAll(); go(S.step===1 ? "home" : S.step-1); });
   $$("[data-edit]").forEach(b=>b.addEventListener("click",()=>{ readAll(); go(+b.dataset.edit); }));
   $$("[data-goto]").forEach(b=>b.addEventListener("click",()=>{ readAll(); openSection(b.dataset.goto); }));
@@ -2419,11 +2528,18 @@ function bindCreator(){
       else toast("Ton navigateur a bloqué le nouvel onglet : autorise-le, ou crée ton lien et ouvre-le");
     }catch(e){ if(w) w.close(); }
   });
+  $("#notifMe")?.addEventListener("change",e=>{ S.notif=e.target.checked; });
   $("#make")?.addEventListener("click",async()=>{
     if(!ready()) return;
+    // Notification : l'autorisation est demandée ICI, pendant le toucher (Safari l'exige), et seulement si la case est cochée
+    const wantNotif = S.notif && notifSupport()==="ok";
+    const perm = !wantNotif ? null : Notification.permission==="granted" ? Promise.resolve("granted")
+      : (()=>{ try{ return Promise.resolve(Notification.requestPermission()).catch(()=>"denied"); }catch(e){ return Promise.resolve("denied"); } })();
     $$(".sec-body .error").forEach(el=>el.remove()); // erreurs corrigées
     const mk=$("#make"); mk.disabled=true; mk.textContent="Création du lien…";
-    const long=await buildLink(), sh=await createShort(linkData(long), location.origin+location.pathname); // lien court chiffré, sinon le long
+    const granted = perm ? (await perm)==="granted" : false;
+    const notif = granted ? await subscribeNotif(notifExpire(whenList()), {to:S.to, when:whenList()}) : null;
+    const long=await buildLink(notif?.nz), sh=await createShort(linkData(long), location.origin+location.pathname); // lien court chiffré, sinon le long
     mk.disabled=false; mk.textContent="Créer mon lien";
     S.link = sh ? sh.link : long; S.longLink = long; S.imgLinks = {}; // liens de l'image : préparés à l'ouverture de « Partager en image »
     $("#linkbox").textContent=S.link; $("#result").classList.remove("hidden"); Sound.done();
@@ -2431,10 +2547,15 @@ function bindCreator(){
       : SHORT_ORIGIN ? "Le service des liens courts n'a pas répondu : voici le lien complet. Il n'expire pas, et rien n'est envoyé en ligne."
       : "Le lien complet n'expire pas, et rien n'est envoyé en ligne.";
     $("#make").classList.add("hidden"); // le lien affiché est à jour : une seule action principale, Partager ou Copier
+    $(".notif-opt")?.classList.add("hidden");
+    $("#notifDone").textContent = !wantNotif ? ""
+      : notif ? `🔔 Notification activée : tu la recevras sur cet appareil si ${S.to} choisit de te prévenir.`
+      : !granted ? "Notifications non autorisées : la réponse t'arrivera par message, comme d'habitude."
+      : "La notification n'a pas pu être activée : la réponse t'arrivera par message, comme d'habitude.";
     focusScreen(".ready-title");
     if(S.link.length>1800) toast("Le lien est long : raccourcis le message si l'appli le coupe.");
     // Historique : uniquement ici, côté créateur (jamais côté destinataire)
-    const saved=await addToHistory(long, sh);
+    const saved=await addToHistory(long, sh, notif);
     $("#savedNote").textContent = saved ? "Ajoutée à « Mes invitations ». Ton historique reste uniquement sur cet appareil." : "";
     const n=loadHistory().length, badge=$("#histBadge");
     if(badge){ badge.textContent=n; badge.classList.toggle("hidden",!n); }
@@ -2456,16 +2577,18 @@ const QR_LONG_MAX = 1200; // au-delà, le QR code serait trop serré pour une st
 const IMG_FORMATS = {story:{w:1080, h:1920, label:"Story"}, carre:{w:1080, h:1080, label:"Carré"}};
 const IMG_UNAVAILABLE = "L'image n'est pas disponible pour le moment. Réessaie dans quelques minutes.";
 /* Version de l'invitation pour l'image quand on retire ses coordonnées : sans canal ni identifiant (réponse par le partage du téléphone) */
-function imageData(d){ const x={...d, c:"any"}; delete x.ci; return sanitize(JSON.parse(JSON.stringify(x))); }
+/* Version de l'invitation pour l'image : toujours sans notification (le QR code peut circuler), et sans coordonnées si demandé */
+function imageData(d, strip=true){ const x={...d}; delete x.nz; if(strip){ x.c="any"; delete x.ci; } return sanitize(JSON.parse(JSON.stringify(x))); }
 /* Lien que porte l'image : le lien court de l'invitation, ou un lien court séparé sans les coordonnées ; null si trop long */
 async function imageLink(strip){
   const key = strip ? "strip" : "main", long = S.longLink || (S.link.includes("#i=") ? S.link : "");
   S.imgLinks ||= {};
   if(S.imgLinks[key]) return S.imgLinks[key];
   let link = S.link, sh = null;
-  if(strip){
-    if(!long) return null;
-    const code = await encodeData(imageData(await decodeData(linkData(long))));
+  let d0 = null; if(long){ try{ d0 = await decodeData(linkData(long)); }catch(e){} }
+  if(strip || d0?.nz){ // lien séparé : sans coordonnées, ou sans la notification de réponse
+    if(!d0) return null;
+    const code = await encodeData(imageData(d0, strip));
     sh = await createShort(code, location.origin+location.pathname);
     link = sh ? sh.link : location.origin+location.pathname+"#i="+code;
     if(sh) noteImageLink(sh); // gardé dans « Mes invitations », pour pouvoir le supprimer en ligne
@@ -2605,7 +2728,7 @@ function packItem(it){
   if(it.v==="r") return {v:"r", h:it.h||undefined, at:it.at, e:scramble(it.x)};
   return it.x ? {v:"v", x:it.x} : undefined;
 }
-async function buildLink(){
+async function buildLink(nz){
   const d={ f:S.from, t:S.to, o:S.occ, th:S.theme, q:S.q, n:S.no, c:S.ch };
   if(S.occ==="libre") d.of=S.occFree;
   if(S.tone!=="taquin") d.tn=S.tone;
@@ -2614,6 +2737,7 @@ async function buildLink(){
   if(S.ac) d.ac=S.ac; if(S.em) d.em=S.em; if(S.sg) d.sg=S.sg;
   if(!S.snd) d.so=0;
   if(!S.share) d.pa=0; // partage de la surprise refusé (absent = autorisé)
+  if(nz) d.nz=nz; // notification de réponse (voir subscribeNotif)
   if(S.msg){ d.m=S.msg; if(S.hidden) d.mh=1; }
   if(S.mode==="one"){
     d.a=packItem(S.act); const l=packItem(S.lieu); if(l) d.l=l; if(S.details) d.dt=S.details;
@@ -2637,7 +2761,8 @@ async function buildLink(){
    (localStorage). Jamais envoyé nulle part, jamais lu côté destinataire.
    ========================================================= */
 const HIST_KEY="ose-historique", HIST_MAX=200, SITE_HOST="osedemander.fr";
-const HIST_FIELDS=["id","from","to","occ","occFree","when","link","created","long","jeton","gone","img","imgJeton"];
+const HIST_FIELDS=["id","from","to","occ","occFree","when","link","created","long","jeton","gone","img","imgJeton","nid","njeton","rep","repAt","repSlot"];
+// Notification : nid = identifiant (dans le lien), njeton = pour y renoncer ; rep = "o" ou "n", repAt = date de réception, repSlot = créneau choisi
 // Lien court : link = #s=…, long = le lien complet (#i=…, l'historique fonctionne même sans le service), jeton = pour supprimer le lien en ligne
 const invLink = it => it.long || it.link;
 const newId=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,8);
@@ -2673,7 +2798,13 @@ function validEntry(x){
       ? isOwnLink(x.long) && x.long.includes("#i=") && (x.jeton===undefined || (typeof x.jeton==="string" && /^[A-Za-z0-9_-]{43}$/.test(x.jeton))) && (x.gone===undefined || x.gone===true)
       : x.long===undefined && x.jeton===undefined && x.gone===undefined)
     // Lien de l'image (sans coordonnées) : un lien court, avec son jeton de suppression
-    && (x.img===undefined ? x.imgJeton===undefined : !!shortId(x.img) && isOwnLink(x.img) && typeof x.imgJeton==="string" && /^[A-Za-z0-9_-]{43}$/.test(x.imgJeton));
+    && (x.img===undefined ? x.imgJeton===undefined : !!shortId(x.img) && isOwnLink(x.img) && typeof x.imgJeton==="string" && /^[A-Za-z0-9_-]{43}$/.test(x.imgJeton))
+    // Notification de réponse
+    && (x.nid===undefined ? x.njeton===undefined && x.rep===undefined : typeof x.nid==="string" && /^[A-Za-z0-9_-]{22}$/.test(x.nid))
+    && (x.njeton===undefined || (typeof x.njeton==="string" && /^[A-Za-z0-9_-]{43}$/.test(x.njeton)))
+    && (x.rep===undefined ? x.repAt===undefined && x.repSlot===undefined
+      : (x.rep==="o" || x.rep==="n") && typeof x.repAt==="string" && !isNaN(Date.parse(x.repAt)) && x.repAt.length<=30
+        && (x.repSlot===undefined || (Number.isInteger(x.repSlot) && x.repSlot>=0 && x.repSlot<x.when.length)));
 }
 /* L'entrée est toujours reconstruite à partir du lien décodé et validé : ce qui est affiché correspond au lien */
 function entryFrom(d, link, created=new Date().toISOString(), id=newId(), extra={}){
@@ -2681,6 +2812,11 @@ function entryFrom(d, link, created=new Date().toISOString(), id=newId(), extra=
   if(d.o==="libre" && d.of) e.occFree=d.of;
   if(shortId(link)){ e.long=extra.long; if(extra.jeton) e.jeton=extra.jeton; if(extra.gone) e.gone=true; }
   if(extra.img && extra.imgJeton){ e.img=extra.img; e.imgJeton=extra.imgJeton; }
+  if(d.nz){ // l'identifiant vient du lien : le statut ne peut concerner que cette invitation
+    e.nid=d.nz.slice(0,22);
+    if(extra.njeton) e.njeton=extra.njeton;
+    if(extra.rep){ e.rep=extra.rep; e.repAt=extra.repAt; if(extra.repSlot!==undefined) e.repSlot=extra.repSlot; }
+  }
   return e;
 }
 function loadHistory(){
@@ -2694,13 +2830,37 @@ function storeHistory(list){
     return true;
   }catch(e){ return false; }
 }
+/* Réponses reçues par notification (enregistrées par sw.js dans IndexedDB) : ajoutées à l'historique. true si quelque chose a changé */
+async function syncReplies(){
+  if(typeof indexedDB==="undefined") return false;
+  let reps; try{ reps=await notifStore("reponses","readonly",st=>st.getAll()); }catch(e){ return false; }
+  if(!Array.isArray(reps) || !reps.length) return false;
+  let changed=false;
+  const list=loadHistory().map(it=>{
+    const r=it.nid && reps.find(x=>x && x.nid===it.nid);
+    if(!r || it.rep) return it;
+    const e={...it, rep:r.r==="o" ? "o" : "n", repAt:String(r.at||new Date().toISOString()).slice(0,30)};
+    if(e.rep==="o" && Number.isInteger(r.s) && r.s>=0 && r.s<it.when.length) e.repSlot=r.s;
+    if(!validEntry(e)) return it;
+    changed=true; return e;
+  });
+  if(changed) storeHistory(list);
+  return changed;
+}
+function histReply(it){
+  if(it.rep){
+    const w = it.rep==="o" && it.when.length>1 && it.repSlot!==undefined ? it.when[it.repSlot] : null;
+    return `<p class="rep rep-${it.rep}">Répondu : ${it.rep==="o" ? "Oui 🎉" : "Non"}${w ? `, ${esc(frDate(w[0]))} à ${esc(frTime(w[1]))}` : ""}</p>`;
+  }
+  return it.nid ? `<p class="meta">🔔 Notification activée sur cet appareil</p>` : "";
+}
 /* Demande au navigateur de ne pas effacer l'historique automatiquement */
 function askPersist(){
   try{ navigator.storage?.persisted?.().then(p=>{ if(!p) return navigator.storage.persist(); }).catch(()=>{}); }catch(e){}
 }
-async function addToHistory(link, sh=null){
+async function addToHistory(link, sh=null, notif=null){
   try{
-    const e=entryFrom(await decodeData(linkData(link)), sh ? sh.link : link, undefined, undefined, sh ? {long:link, jeton:sh.jeton} : {});
+    const e=entryFrom(await decodeData(linkData(link)), sh ? sh.link : link, undefined, undefined, {...(sh ? {long:link, jeton:sh.jeton} : {}), ...(notif ? {njeton:notif.jeton} : {})});
     link=e.link;
     if(!validEntry(e)) return false;
     const list=loadHistory().filter(x=>x.link!==link);
@@ -2732,6 +2892,7 @@ function renderHistory(){
       ${list.length ? `<ul class="hist" id="histList">${list.map(it=>`
         <li data-id="${esc(it.id)}">
           <p class="who">Pour ${esc(it.to)}</p>
+          ${histReply(it)}
           <p class="meta">De ${esc(it.from)} · ${esc(histOcc(it))}</p>
           <p class="meta">${esc(histWhen(it))}</p>
           <p class="meta">Créée le ${esc(new Date(it.created).toLocaleDateString("fr-FR",{day:"numeric",month:"long",year:"numeric"}))}</p>
@@ -2757,6 +2918,7 @@ function renderHistory(){
   </div>`;
   refreshInstall();
   bindSound(true);
+  syncReplies().then(ch=>{ if(ch && location.hash==="#mes-invitations") renderHistory(); });
 
   $("#histList")?.addEventListener("click", async e=>{
     const b=e.target.closest("[data-act]"); if(!b) return;
@@ -2768,6 +2930,7 @@ function renderHistory(){
       case "dup": duplicateInvitation(it); break;
       case "unpub": unpublishShort(it); break;
       case "del":
+        if(it.nid && it.njeton && !it.rep) cancelNotif(it.nid, it.njeton); // plus de statut à afficher : plus de notification
         if(storeHistory(loadHistory().filter(x=>x.id!==id))){ renderHistory(); toast("Invitation retirée de l'historique"); }
         else toast("Impossible de modifier l'historique sur cet appareil");
         break;
@@ -2782,6 +2945,7 @@ function renderHistory(){
       `${n>1?`Les ${n} invitations`:"L'invitation"} de cet appareil ${n>1?"seront retirées":"sera retirée"} de l'historique. Les liens déjà envoyés continueront de fonctionner. Exporte ton historique avant si tu veux le garder.`,
       "Tout effacer");
     if(!ok) return;
+    for(const it of loadHistory()) if(it.nid && it.njeton && !it.rep) cancelNotif(it.nid, it.njeton);
     if(storeHistory([])){ renderHistory(); toast("Historique effacé"); }
     else toast("Impossible d'effacer l'historique sur cet appareil");
   });
@@ -2892,6 +3056,7 @@ async function importHistory(file){
    INVITATION (côté destinataire)
    ========================================================= */
 let D=null, chosenSlot=null, countTimer=null, yesDone=false;
+let notifSent=""; // notification de réponse : "" | "wait" | "ok" | "deja" | "fini" | "reseau"
 // Vrai refus : proposé après 3 tentatives sur le Non ou 10 s sans réponse (le premier des deux)
 let noTries=0, refuseTimer=null, refused=false, refuseOffered=false, refuseWhy="non";
 const REFUSE_TRIES=3, REFUSE_DELAY=10000;
@@ -3817,6 +3982,7 @@ function openRefuse(){
       <div class="after-actions">
         <button type="button" class="btn primary" id="replyNo">${replyLabel()}</button>
         <button type="button" class="btn ghost" id="copyNo">Copier ma réponse</button>
+        ${D.nz && !EXAMPLE ? `<div class="notif-box" id="notifBox">${notifBtnHTML("n")}</div>` : ""}
         <button type="button" class="refuse" id="undoNo">Finalement, je reviens en arrière</button>
       </div>
       ${signHTML()}
@@ -3833,6 +3999,7 @@ function openRefuse(){
   const withText=fn=>()=>{ const t=current(); if(!t){ toast("Écris d'abord ta réponse"); ta.focus(); return; } fn(t); };
   $("#replyNo").addEventListener("click",withText(t=>sendReply(t)));
   $("#copyNo").addEventListener("click",withText(async t=>toast(await copyText(t)?"Réponse copiée":"Copie impossible")));
+  $("#notifR")?.addEventListener("click",()=>notifyReply("n"));
   $("#undoNo").addEventListener("click",renderInvite);
   $("#replyNo").focus();
 }
@@ -3926,7 +4093,32 @@ function sendHTML(){
     : `<strong>Dernière étape :</strong> envoie ta réponse à ${who}. Tant qu'elle n'est pas partie, ${who} ne sait rien.`;
   return `<p class="send-lead">${lead}</p>
     <button type="button" class="btn primary" id="reply">${replyLabel()}</button>
-    <button type="button" class="btn ghost" id="copyR">Copier ma réponse</button>`;
+    <button type="button" class="btn ghost" id="copyR">Copier ma réponse</button>
+    ${afterMode==="yes" ? `<div class="notif-box" id="notifBox">${notifBtnHTML("o")}</div>` : ""}`;
+}
+/* « Prévenir … de ma réponse » : bouton secondaire, seulement si le créateur l'a demandé (D.nz). La réponse par message
+   reste l'action principale ; la notification ne transmet que oui ou non et le créneau, chiffrés avec la clé du lien. */
+function notifBtnHTML(kind){
+  if(!D || !D.nz || EXAMPLE) return "";
+  const who=esc(D.f);
+  if(notifSent==="ok" || notifSent==="deja") return `<p class="cal-note" id="notifStatus" role="status" tabindex="-1">🔔 ${notifSent==="ok" ? `Notification envoyée à ${who}.` : "Ta réponse a déjà été envoyée en notification."}</p>`;
+  if(notifSent==="fini") return `<p class="cal-note" id="notifStatus" role="status" tabindex="-1">Plus possible de prévenir ${who} par notification : envoie ta réponse par message.</p>`;
+  return `<button type="button" class="btn" id="notifR" ${notifSent==="wait"?"disabled":""}>${notifSent==="wait" ? "Envoi en cours…" : `🔔 Prévenir ${who} de ma réponse`}</button>
+    <p class="cal-note" ${notifSent==="reseau" ? 'role="alert"' : ""}>${notifSent==="reseau" ? "La notification n'est pas partie. Réessaie dans un instant." : kind==="n" ? "Seulement ta réponse, sans ton message." : "Seulement ta réponse et le créneau choisi, rien d'autre."}</p>`;
+}
+function paintNotif(kind){
+  const b=$("#notifBox"); if(!b) return;
+  b.innerHTML=notifBtnHTML(kind);
+  $("#notifR")?.addEventListener("click",()=>notifyReply(kind));
+}
+async function notifyReply(kind){
+  if(kind==="o" && D.sl && chosenSlot===null){ toast("Choisis d'abord ton créneau"); return; }
+  if(notifSent==="wait") return;
+  notifSent="wait"; paintNotif(kind);
+  notifSent=await sendNotif(D.nz, kind, kind==="o" && D.sl ? chosenSlot : null);
+  paintNotif(kind);
+  if(notifSent==="ok"){ Sound.done(); buzz(20); }
+  ($("#notifStatus")||$("#notifR"))?.focus();
 }
 /* Ouverture depuis le rappel d'agenda : ni enveloppe ni question, directement la carte.
    Le lien du rappel n'a pas de canal : la réponse se partage ou se copie (« Peu importe »). */
@@ -4114,6 +4306,7 @@ function bindAfter(){
 }
 function bindSend(){
   $("#reply").addEventListener("click",reply);
+  $("#notifR")?.addEventListener("click",()=>notifyReply("o"));
   $("#copyR").addEventListener("click",async()=>toast(await copyText(replyText())?"Réponse copiée":"Copie impossible"));
 }
 function bindActions(){
@@ -4625,6 +4818,8 @@ function showIOSHelp(){
 }
 if("serviceWorker" in navigator && (location.protocol==="https:" || location.hostname==="localhost")){
   window.addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));
+  // Réponse reçue par notification pendant que la page est ouverte (voir sw.js) : « Mes invitations » se met à jour
+  navigator.serviceWorker.addEventListener("message",e=>{ if(e.data && e.data.type==="ose-reponse") syncReplies().then(ch=>{ if(ch && location.hash==="#mes-invitations") renderHistory(); }); });
 }
 
 /* ---------- Routage ---------- */
@@ -4710,7 +4905,7 @@ async function route(){
         $("#app").innerHTML=`<main class="inv"><p class="lead" role="status" style="text-align:center">Ouverture de l'invitation…</p></main>`;
         code = await readShort(ms[1], ms[2]);
       }
-      D = EXAMPLE ? demoData() : await decodeData(code); chosenSlot=null; yesDone=false; // decodeData : sanitize, comme pour un lien long
+      D = EXAMPLE ? demoData() : await decodeData(code); chosenSlot=null; yesDone=false; notifSent=""; // decodeData : sanitize, comme pour un lien long
       Sound.on = D.so!==0; // côté destinataire : réglage de l'invitation, rien n'est lu ni enregistré
       noTries=0; refused=false; refuseOffered=false; refuseWhy="non"; refuseDrafts={}; clearTimeout(refuseTimer);
       clearInterval(countTimer); clearTimeout(revStart); revQueue=[]; remLink=""; remState="wait";

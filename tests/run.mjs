@@ -1772,7 +1772,7 @@ await essaiWorker("Repli sur le lien long : service absent, quota atteint (503),
   assert.equal(r.journal.length, 0, "rien n'est envoyé dans ces cas");
   assert.ok(PAGE.lire("route").toString().includes("readShort(ms[1], ms[2])"));
   const make = PAGE.lire("bindCreator").toString();
-  assert.ok(make.includes("S.link = sh ? sh.link : long;") && make.includes("addToHistory(long, sh)"), "création : le court si possible, sinon le long ; l'historique garde les deux");
+  assert.ok(make.includes("S.link = sh ? sh.link : long;") && make.includes("addToHistory(long, sh, notif)"), "création : le court si possible, sinon le long ; l'historique garde les deux");
 });
 // Ouvre un lien comme la page : location.hash puis route() ; renvoie le HTML affiché
 const ouvrirLien = async lien => { PAGE.lire("location").hash = lien.slice(lien.indexOf("#")); await PAGE.lire("route")(); const h = PAGE.zones["#app"].innerHTML; PAGE.lire("location").hash = ""; return h; };
@@ -2562,6 +2562,156 @@ await test("Notifications : clés hors du dépôt (secrets Cloudflare), clé pub
   for(const r of ["LIMITE_ABO", "LIMITE_ENVOI"]) assert.ok(toml.includes(`name = "${r}"`), r);
   const sch = readFileSync(RACINE + "worker/schema.sql", "utf8");
   assert.ok(/CREATE TABLE IF NOT EXISTS notifs \(\s*id\s+TEXT PRIMARY KEY,\s*abo\s+TEXT,\s*del\s+TEXT NOT NULL,\s*expire INTEGER NOT NULL,\s*etat\s+TEXT\s*\)/.test(sch), "aucune colonne pour la réponse ni pour l'invitation");
+});
+
+/* =========================================================
+   35. Notifications de réponse : le site (lien, confidentialité, écrans, envoi de bout en bout, historique, sw.js)
+   ========================================================= */
+titre("35. Notifications : le site");
+const NZ_EX = "QUJDREVGR0hJSktMTU5PUA.ZXhlbXBsZS1kZS1jbGUxMg";
+await test("Lien : champ nz / Z validé strictement ; jamais dans un rappel ni une version partagée", async () => {
+  const d = INV({ nz: NZ_EX });
+  assert.equal(d.nz, NZ_EX);
+  assert.equal((await L.decodeData(await L.encodeData(d))).nz, NZ_EX, "aller-retour (format compact)");
+  for(const faux of ["court.court", NZ_EX + "A", NZ_EX.replace(".", ":"), 12, null, NZ_EX + ".x"]) assert.ok(!("nz" in INV({ nz: faux })), `refusé : ${faux}`);
+  assert.ok(!("nz" in L.sanitize({ ...INV(), nz: NZ_EX, rv: 1 })) && !("nz" in L.sanitize({ ...INV(), nz: NZ_EX, vu: 1 })), "ni rappel ni version partagée");
+  const compact = c => L.decodeData("x" + Buffer.from(JSON.stringify(c)).toString("base64url"));
+  const base = { f: "Alex", t: "Sam", q: 1, a: "Dîner", w: 600000 };
+  assert.equal((await compact({ ...base, Z: NZ_EX })).nz, NZ_EX);
+  await assert.rejects(compact({ ...base, Z: "court" }), "Z mal formé : lien refusé");
+  await assert.rejects(compact({ ...base, Z: 5 }));
+  assert.ok(L.LINK_KEYS.includes("Z"));
+});
+await test("Liens dérivés sans notification : rappel d'agenda, « Partager la surprise », image (avec ou sans coordonnées)", () => {
+  const d = INV({ nz: NZ_EX, c: "wa", ci: "06 00 00 00 01" });
+  assert.ok(!("nz" in PAGE.lire("reminderData")(d, 0)), "rappel");
+  assert.ok(!("nz" in PAGE.lire("shareData")(d, 0)), "partage");
+  const img = PAGE.lire("imageData");
+  assert.ok(!("nz" in img(d, true)) && !("nz" in img(d, false)), "image");
+  assert.equal(img(d, false).ci, "06 00 00 00 01", "sans l'option : les coordonnées restent");
+  assert.ok(!("ci" in img(d, true)));
+});
+await essaiWorker("Ouvrir une invitation avec notification n'appelle jamais le Worker (aucun suivi des ouvertures)", async () => {
+  const r = reseau(); brancher(r);
+  const lien = LOCAL + "/#i=" + await L.encodeData(INV({ nz: NZ_EX }));
+  const h = await ouvrirLien(lien);
+  assert.ok(h.includes('class="envelope'), "l'invitation s'ouvre");
+  assert.equal(PAGE.lire("D").nz, NZ_EX);
+  assert.equal(r.journal.length, 0, "aucune requête à l'ouverture");
+});
+await essaiWorker("Envoi de bout en bout : la page chiffre, le Worker transmet sans lire, l'appareil abonné déchiffre « oui » et le créneau, rien d'autre", async () => {
+  await avecPush(async () => {
+    const r = reseau(ENV_N({ ORIGINES: LOCAL })); brancher(r);
+    const app = WP.appareil(), key = Buffer.from(crypto.getRandomValues(new Uint8Array(16))).toString("base64url"), nz = NID + "." + key;
+    assert.equal((await appel(r.env, "POST", "/v1/notifs", { id: NID, abo: { endpoint: ENDPOINT_EX, keys: app.keys }, del: await empreinteDe(JETON_EX), expire: Date.now() + 864e5 }, LOCAL)).status, 201);
+    const envoyer = PAGE.lire("sendNotif");
+    assert.equal(await envoyer(nz, "o", 1), "ok");
+    const corps = r.journal.at(-1).body;
+    assert.ok(/^\{"c":"[\w-]+"\}$/.test(corps), "la requête ne contient que la réponse chiffrée");
+    for(const clair of ['"r"', '"o"', "Alex", "Sam", key]) assert.ok(!corps.includes(clair), `en clair dans la requête : ${clair}`);
+    const m = JSON.parse(WP.dechiffrer(app, envois[0].corps));
+    // Ce que fait sw.js : AES-GCM avec la clé du lien, l'identifiant en données associées
+    const blob = Buffer.from(m.c, "base64url"); assert.equal(blob[0], 1);
+    const k = await crypto.subtle.importKey("raw", Buffer.from(key, "base64url"), "AES-GCM", false, ["decrypt"]);
+    const rep = JSON.parse(Buffer.from(await crypto.subtle.decrypt({ name: "AES-GCM", iv: blob.subarray(1, 13), additionalData: Buffer.from(NID) }, k, blob.subarray(13))));
+    assert.deepEqual(rep, { r: "o", s: 1 }, "seulement la réponse et le créneau");
+    assert.equal(await envoyer(nz, "n", null), "deja", "second envoi : « déjà envoyée »");
+    assert.equal(await envoyer("M".repeat(22) + "." + key, "o", null), "fini", "inconnu : plus possible");
+    PAGE.ecrire("shortFetch", async () => { throw new TypeError("Failed to fetch"); });
+    assert.equal(await envoyer(nz, "o", null), "reseau");
+  });
+});
+await test("Fin de vie de l'abonnement : dernier créneau + 7 jours, un an au plus, jamais dans le passé", () => {
+  const exp = PAGE.lire("notifExpire"), j = 864e5, iso = t => { const x = new Date(t); return [x.toISOString().slice(0, 10), "12:00"]; };
+  const loin = Date.now() + 30 * j, plusLoin = Date.now() + 60 * j;
+  const e = exp([iso(loin), iso(plusLoin)]);
+  assert.ok(Math.abs(e - (new Date(iso(plusLoin)[0] + "T12:00").getTime() + 7 * j)) < 1000, "dernier créneau + 7 jours");
+  assert.ok(exp([iso(Date.now() + 900 * j)]) <= Date.now() + 365 * j + 1000, "un an au plus");
+  assert.ok(exp([["2020-01-01", "10:00"]]) > Date.now(), "jamais dans le passé");
+});
+await test("Création : case décochée par défaut, cochée si l'autorisation est déjà accordée ; messages clairs quand ce n'est pas possible", () => {
+  const S = PAGE.lire("S"), html = PAGE.lire("notifHTML"), avant = PAGE.lire("notifSupport");
+  const essai = (support, permission) => {
+    globalThis.Notification = { permission }; PAGE.ecrire("notifSupport", () => support);
+    Object.assign(S, { notif: undefined, to: "Sam", link: "" });
+    return html();
+  };
+  try{
+    let h = essai("ok", "default");
+    assert.ok(h.includes("🔔 Me prévenir dès que Sam répond") && !/id="notifMe" checked/.test(h), "décochée par défaut");
+    assert.ok(h.includes("Ton navigateur te demandera l'autorisation."));
+    h = essai("ok", "granted");
+    assert.ok(/id="notifMe" checked/.test(h), "déjà autorisé : cochée");
+    h = essai("ios", "default");
+    assert.ok(/id="notifMe"\s+disabled/.test(h) && h.includes("Sur iPhone, ajoute d'abord Ose Demander à ton écran d'accueil"));
+    h = essai("refuse", "denied");
+    assert.ok(h.includes("disabled") && h.includes("Les notifications sont bloquées pour ce site."));
+    h = essai("non", "default");
+    assert.ok(h.includes("disabled") && h.includes("Ce navigateur ne permet pas les notifications"));
+    assert.deepEqual(principales(h), [], "aucune action principale de plus");
+  } finally { delete globalThis.Notification; PAGE.ecrire("notifSupport", avant); Object.assign(S, { notif: undefined, to: "" }); }
+  // Sans navigateur compatible (banc) : « non » ; iPhone hors de l'appli installée : « ios »
+  assert.equal(PAGE.lire("notifSupport")(), "non");
+  assert.equal(chargerPage({ ios: true }).lire("notifSupport")(), "ios");
+  const make = PAGE.lire("bindCreator").toString();
+  const avantAttente = make.slice(make.indexOf('$("#make")?.addEventListener'), make.indexOf("await perm"));
+  assert.ok(avantAttente.includes("Notification.requestPermission()") && !avantAttente.includes("await "), "autorisation demandée pendant le toucher, avant toute attente (Safari)");
+  assert.ok(make.includes("S.notif && notifSupport()===\"ok\""), "seulement si la case est cochée");
+  assert.ok(make.includes("buildLink(notif?.nz)"));
+});
+await test("Personne invitée : « Prévenir … de ma réponse » en bouton secondaire, après le Oui et après un vrai refus ; états clairs", () => {
+  const D0 = PAGE.lire("D"), html = PAGE.lire("notifBtnHTML");
+  try{
+    PAGE.ecrire("D", INV({ nz: NZ_EX })); PAGE.ecrire("notifSent", "");
+    let h = html("o");
+    assert.ok(h.includes('class="btn" id="notifR"') && h.includes("🔔 Prévenir Alex de ma réponse"), "bouton secondaire");
+    assert.ok(h.includes("Seulement ta réponse et le créneau choisi, rien d'autre."));
+    assert.ok(html("n").includes("Seulement ta réponse, sans ton message."), "refus : sans le texte écrit");
+    assert.deepEqual(principales(h), []);
+    PAGE.ecrire("notifSent", "ok"); assert.ok(html("o").includes("Notification envoyée à Alex.") && html("o").includes('role="status"'));
+    PAGE.ecrire("notifSent", "deja"); assert.ok(html("o").includes("Ta réponse a déjà été envoyée en notification."));
+    PAGE.ecrire("notifSent", "fini"); assert.ok(html("o").includes("Plus possible de prévenir Alex par notification : envoie ta réponse par message."));
+    PAGE.ecrire("notifSent", "reseau"); assert.ok(html("o").includes("La notification n'est pas partie. Réessaie dans un instant.") && html("o").includes('id="notifR"'));
+    PAGE.ecrire("D", INV()); PAGE.ecrire("notifSent", ""); assert.equal(html("o"), "", "sans notification demandée : rien");
+  } finally { PAGE.ecrire("D", D0); PAGE.ecrire("notifSent", ""); }
+  assert.ok(PAGE.lire("sendHTML").toString().includes('afterMode==="yes" ? `<div class="notif-box" id="notifBox">${notifBtnHTML("o")}</div>`'), "après le Oui (jamais depuis le rappel)");
+  assert.ok(PAGE.lire("openRefuse").toString().includes('notifBtnHTML("n")'), "après un vrai refus");
+  assert.ok(PAGE.lire("notifyReply").toString().includes('toast("Choisis d\'abord ton créneau")'), "créneau choisi d'abord");
+});
+await test("Mes invitations : statut « Répondu : Oui / Non » gardé sur l'appareil, validé strictement, exporté", async () => {
+  const lien = LOCAL + "/#i=" + await L.encodeData(INV({ nz: NZ_EX, sl: [["2027-03-12", "20:00"], ["2027-03-13", "19:30"]], d: undefined, h: undefined }));
+  const d = await L.decodeData(lien.split("#i=")[1]);
+  const e = PAGE.lire("entryFrom")(d, lien, undefined, undefined, { njeton: JETON_EX });
+  assert.equal(e.nid, NZ_EX.slice(0, 22), "identifiant tiré du lien");
+  const ok = PAGE.lire("validEntry");
+  assert.ok(ok(e));
+  const recu = { ...e, rep: "o", repAt: "2027-03-01T10:00:00.000Z", repSlot: 1 };
+  assert.ok(ok(recu));
+  for(const faux of [{ rep: "peut-être" }, { repSlot: 2 }, { repAt: "hier" }, { nid: "court" }, { njeton: "x" }, { rep: undefined }])
+    assert.ok(!ok({ ...recu, ...faux }), `refusé : ${JSON.stringify(faux)}`);
+  assert.ok(!ok({ ...e, nid: undefined, njeton: JETON_EX }), "pas de jeton sans identifiant");
+  const aff = PAGE.lire("histReply");
+  assert.ok(aff(recu).includes("Répondu : Oui 🎉, samedi 13 mars à 19 h 30"), aff(recu));
+  assert.ok(aff({ ...recu, rep: "n", repSlot: undefined }).includes("Répondu : Non"));
+  assert.ok(aff(e).includes("🔔 Notification activée sur cet appareil"));
+  assert.equal(aff({ ...e, nid: undefined, njeton: undefined }), "");
+  assert.ok(PAGE.lire("HIST_FIELDS").includes("rep"), "le statut part avec l'export");
+});
+await test("sw.js : notification toujours affichée, réponse déchiffrée sur l'appareil, aucun envoi ailleurs", () => {
+  const sw = readFileSync(RACINE + "sw.js", "utf8"), push = sw.slice(sw.indexOf("Notifications de réponse"));
+  assert.ok(push.includes('self.addEventListener("push"') && push.includes('self.addEventListener("notificationclick"'));
+  assert.ok(push.includes("await self.registration.showNotification(title"), "toujours une notification (exigé par les navigateurs)");
+  assert.ok(!/\bfetch\(/.test(push), "aucune requête réseau à la réception");
+  assert.ok(push.includes("additionalData: new TextEncoder().encode(nid)"), "réponse liée à son identifiant");
+  assert.ok(push.includes('a répondu oui 🎉') && push.includes('a répondu non') && push.includes("Merci d'avoir osé demander 💛"));
+  assert.ok(push.includes('"./#mes-invitations"'), "le toucher ouvre « Mes invitations »");
+  const idx = readFileSync(RACINE + "index.html", "utf8");
+  assert.ok(idx.includes('const NOTIF_DB = "ose-notifs";') && sw.includes('const NOTIF_DB = "ose-notifs";'), "même base des deux côtés");
+});
+await test("Notifications : clé publique VAPID identique dans index.html et wrangler.toml", () => {
+  const toml = readFileSync(RACINE + "worker/wrangler.toml", "utf8");
+  assert.equal(PAGE.lire("PUSH_PUB"), /^VAPID_PUBLIQUE = "([\w-]{87})"$/m.exec(toml)[1]);
+  assert.equal(Buffer.from(PAGE.lire("PUSH_PUB"), "base64url")[0], 4, "point P-256 non compressé");
 });
 
 /* ---------- Bilan ---------- */
