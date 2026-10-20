@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
 <title>Ose Demander — crée une invitation à laquelle on ne dit pas non</title>
 <meta name="description" content="Crée gratuitement une invitation animée : date, fête des mères, journée surprise… Le bouton Non résiste. Sans compte, rien n'est stocké en clair en ligne.">
 <!-- Aperçu du lien (WhatsApp, Snapchat, Messenger, LinkedIn, X…) -->
@@ -224,7 +225,13 @@ input.input[type=date],input.input[type=time]{min-width:0;max-width:100%}
 .prog-step header{display:flex;justify-content:space-between;align-items:center;margin:0 0 10px;font-weight:700}
 .linkbtn{background:none;border:0;color:var(--accent-text);font-weight:600;cursor:pointer;padding:4px;text-decoration:underline;text-underline-offset:3px}
 .check{display:flex;gap:10px;align-items:flex-start;margin:0 0 14px;cursor:pointer}
-.check input{width:20px;height:20px;margin-top:3px;accent-color:var(--accent-text)}
+.check input{-webkit-appearance:none;appearance:none;flex:none;display:grid;place-content:center;width:22px;height:22px;margin:2px 0 0;border:2px solid var(--ink);border-radius:6px;background:var(--surface);cursor:pointer}
+.check input:checked{background:var(--accent-btn)}
+.check input:checked::after{content:"";width:6px;height:11px;margin-top:-3px;border:solid var(--accent-ink);border-width:0 3px 3px 0;transform:rotate(45deg)}
+/* La page se déclare « light dark » (sinon Chrome l'assombrit de force) : thème sombre du téléphone = icônes natives claires, on les remet foncées */
+@media (prefers-color-scheme:dark){input::-webkit-calendar-picker-indicator{filter:invert(1)}}
+[data-theme="mystere"] input,[data-theme="halloween"] input,[data-theme="reveillon"] input,[data-theme="dinerspecial"] input{color-scheme:dark}
+[data-theme="mystere"] input::-webkit-calendar-picker-indicator,[data-theme="halloween"] input::-webkit-calendar-picker-indicator,[data-theme="reveillon"] input::-webkit-calendar-picker-indicator,[data-theme="dinerspecial"] input::-webkit-calendar-picker-indicator{filter:none}
 .counter{font-size:13px;color:var(--muted);text-align:right;margin-top:4px}
 .cards{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:0 0 16px}
 .optcard{text-align:left;border:2px solid var(--line);background:var(--soft);border-radius:14px;padding:12px;cursor:pointer}

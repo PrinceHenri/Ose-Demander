@@ -106,6 +106,7 @@ const tete = ({ titre, description, canonique, theme, robots, jsonld }) => {
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
 <title>${esc(titre)}</title>
 <meta name="description" content="${esc(description)}">
 ${robots ? `<meta name="robots" content="${robots}">\n` : ""}${canonique ? `<link rel="canonical" href="${canonique}">
