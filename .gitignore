@@ -1,0 +1,29 @@
+# Ce dépôt est PUBLIC : aucune clé, aucun mot de passe, aucun fichier d'appli compilé.
+
+# Clés de signature et certificats (la clé de l'appli Android reste hors du dépôt, dans ../Ose-Demander-cle/)
+*.keystore
+*.jks
+*.p12
+*.pfx
+*.pem
+*.key
+*.der
+keystore.properties
+signing.properties
+
+# Fichiers d'appli compilés (à garder hors du dépôt, ils se refabriquent avec « bubblewrap build »)
+*.apk
+*.aab
+*.idsig
+
+# Projet Android fabriqué par Bubblewrap à partir de android/twa-manifest.json (seuls ce fichier,
+# le mode d'emploi et la fiche du Play Store sont dans le dépôt)
+/android/*
+!/android/twa-manifest.json
+!/android/README.md
+!/android/fiche/
+
+# Divers
+.env
+.env.*
+node_modules/

@@ -1,7 +1,7 @@
 {
   "name": "Ose Demander",
   "short_name": "Ose Demander",
-  "description": "Crée des invitations animées auxquelles on ne dit pas non. Gratuit, sans compte, rien n'est stocké.",
+  "description": "Crée des invitations animées auxquelles on ne dit pas non. Gratuit, sans compte, rien n'est stocké en clair en ligne.",
   "lang": "fr",
   "dir": "ltr",
   "id": "./",

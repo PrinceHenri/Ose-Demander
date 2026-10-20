@@ -2343,6 +2343,53 @@ await test("Carte d'exemple de l'accueil : le Non reste toujours à 20 px au moi
   assert.ok(CSS.includes("@media (max-width:560px){.demo-answer.dodging{min-height:176px;align-items:flex-start}}"));
 });
 
+/* =========================================================
+   32. Appli Android (TWA) : configuration, aucun secret dans le dépôt, liaison avec le site
+   ========================================================= */
+titre("32. Appli Android");
+const TWA = JSON.parse(lireFichier("android/twa-manifest.json")), MANIF = JSON.parse(lireFichier("manifest.webmanifest"));
+await test("Configuration : paquet fr.osedemander.app, osedemander.fr, nom, couleurs et icônes du site, sans notifications", () => {
+  assert.equal(TWA.packageId, "fr.osedemander.app"); assert.equal(TWA.host, "osedemander.fr");
+  assert.equal(TWA.name, "Ose Demander"); assert.equal(TWA.launcherName, "Ose Demander");
+  assert.equal(TWA.startUrl, "/"); assert.equal(TWA.display, "standalone"); assert.equal(TWA.enableNotifications, false);
+  assert.equal(TWA.themeColor, MANIF.theme_color); assert.equal(TWA.backgroundColor, MANIF.background_color);
+  assert.equal(TWA.iconUrl, SITE_URL + "icons/icon-512.png"); assert.equal(TWA.maskableIconUrl, SITE_URL + "icons/maskable-512.png");
+  assert.ok(Number.isInteger(TWA.appVersionCode) && TWA.appVersionCode >= 1, "numéro de version entier (à augmenter à chaque envoi)");
+  assert.equal(TWA.webManifestUrl, SITE_URL + "manifest.webmanifest");
+});
+await test("Clé de signature : hors du dépôt, chemin relatif sans nom d'utilisateur, jamais suivie par Git", () => {
+  const p = TWA.signingKey.path;
+  assert.ok(p.startsWith("../../") && !/^[A-Za-z]:|Users|HENRI|home/i.test(p), `chemin hors du dépôt et anonyme : ${p}`);
+  const gi = lireFichier(".gitignore");
+  for(const r of ["*.keystore", "*.jks", "*.p12", "*.apk", "*.aab", "/android/*", "!/android/twa-manifest.json"]) assert.ok(gi.split("\n").includes(r), `.gitignore : ${r}`);
+  const suivis = execFileSync("git", ["ls-files"], { cwd: RACINE, encoding: "utf8" }).split("\n");
+  assert.ok(!suivis.some(f => /\.(keystore|jks|p12|pfx|apk|aab|idsig)$/i.test(f)), "aucune clé ni appli compilée suivie par Git");
+  assert.deepEqual(suivis.filter(f => f.startsWith("android/")).sort(), ["android/README.md", "android/fiche/banniere-1024x500.png", "android/fiche/icone-512.png", "android/twa-manifest.json"].filter(f => suivis.includes(f)).sort());
+});
+await test("Site : .well-known publié par GitHub Pages (_config.yml), projet Android exclu", () => {
+  const c = lireFichier("_config.yml");
+  assert.ok(/^include:\n  - \.well-known$/m.test(c), "include: .well-known");
+  assert.ok(/^exclude:\n  - android$/m.test(c));
+});
+await test("Liaison (.well-known/assetlinks.json) : relie fr.osedemander.app à des empreintes SHA-256 valides", () => {
+  let txt; try{ txt = lireFichier(".well-known/assetlinks.json"); }catch{ console.log("    (assetlinks.json pas encore créé : en attente de l'empreinte de la clé)"); return; }
+  const j = JSON.parse(txt);
+  assert.ok(Array.isArray(j) && j.length >= 1);
+  for(const e of j){
+    assert.deepEqual(e.relation, ["delegate_permission/common.handle_all_urls"]);
+    assert.equal(e.target.namespace, "android_app"); assert.equal(e.target.package_name, "fr.osedemander.app");
+    assert.ok(e.target.sha256_cert_fingerprints.length >= 1);
+    for(const f of e.target.sha256_cert_fingerprints) assert.match(f, /^([0-9A-F]{2}:){31}[0-9A-F]{2}$/, "empreinte SHA-256 en majuscules, octets séparés par « : »");
+  }
+});
+await test("Fiche du Play Store : icône 512 × 512 et bannière 1 024 × 500", () => {
+  const taille = f => { const b = readFileSync(RACINE + f); return [b.readUInt32BE(16), b.readUInt32BE(20), b[25]]; }; // largeur, hauteur, type de couleur PNG
+  assert.deepEqual(taille("android/fiche/icone-512.png"), [512, 512, 6], "icône : 512 × 512, PNG 32 bits (RVBA)");
+  assert.deepEqual(taille("android/fiche/banniere-1024x500.png").slice(0, 2), [1024, 500]);
+  assert.ok(taille("android/fiche/banniere-1024x500.png")[2] === 2, "bannière sans transparence");
+  assert.ok(lireFichier("mentions-legales.html").includes('<h3 id="android">Application Android</h3>'), "mentions légales : l'appli Android");
+});
+
 /* ---------- Bilan ---------- */
 console.log(`\n${ko ? "❌" : "✅"} ${ok} tests réussis, ${ko} en échec (graine ${GRAINE}${ko ? ` — pour rejouer : node tests/run.mjs --graine=${GRAINE}` : ""})`);
 if(ko){ console.log(echecs.map(e => "  - " + e).join("\n")); process.exitCode = 1; }

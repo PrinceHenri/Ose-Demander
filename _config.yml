@@ -1,0 +1,8 @@
+# GitHub Pages (Jekyll) ignore par défaut les dossiers qui commencent par un point.
+# .well-known/assetlinks.json doit être publié : il relie l'appli Android fr.osedemander.app au site
+# (affichage plein écran, sans barre d'adresse). NE JAMAIS RETIRER cette ligne ni ce fichier.
+include:
+  - .well-known
+# Le projet Android local n'a rien à faire sur le site
+exclude:
+  - android
