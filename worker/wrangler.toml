@@ -12,6 +12,9 @@ enabled = false
 [vars]
 # Seul le site peut appeler le Worker depuis un navigateur (CORS)
 ORIGINES = "https://osedemander.fr"
+# Clé publique VAPID des notifications de réponse (publique : elle est aussi dans index.html). La clé privée et la clé de
+# stockage des abonnements sont des secrets Cloudflare (wrangler secret put VAPID_PRIVEE / CLE_STOCKAGE), jamais dans le dépôt.
+VAPID_PUBLIQUE = "BO0i81U9evIx9nmwltbUyZLH_p_hXXYadDPHRzamX3YeVApCHX8hZ8BiaYNyzK3uDGoLBYx_ChWYaONznnoakTI"
 
 [[d1_databases]]
 binding = "DB"
@@ -32,3 +35,14 @@ simple = { limit = 10, period = 60 }
 name = "LIMITE_LECTURE"
 namespace_id = "2702"
 simple = { limit = 120, period = 60 }
+
+# Notifications de réponse : abonnements et envois, 10 par minute et par adresse IP chacun
+[[ratelimits]]
+name = "LIMITE_ABO"
+namespace_id = "2703"
+simple = { limit = 10, period = 60 }
+
+[[ratelimits]]
+name = "LIMITE_ENVOI"
+namespace_id = "2704"
+simple = { limit = 10, period = 60 }

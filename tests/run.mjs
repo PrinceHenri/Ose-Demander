@@ -2417,6 +2417,153 @@ await test("Pages fabriquées : mots insécables avec espace en « &nbsp; » (un
   for(const [nom, h] of Object.entries(FAB)) assert.ok(!/<span class="nw">[^<]* [^<]*<\/span>/.test(h), `${nom} : espace dans un .nw`);
 });
 
+/* =========================================================
+   34. Notifications de réponse : le Worker (Web Push chiffré, VAPID, un seul envoi, expiration, limites)
+   Le « service de notification » est simulé : le banc intercepte l'envoi, le déchiffre comme l'appareil abonné
+   (tests/webpush-lecteur.mjs, node:crypto) et vérifie la signature VAPID.
+   ========================================================= */
+titre("34. Notifications : le Worker");
+const WP = await import(new URL("./webpush-lecteur.mjs", import.meta.url).href);
+const PUSH = await import(new URL("../worker/src/push.js", import.meta.url).href);
+// Clés de test, tirées à chaque passage (jamais les vraies : celles-ci sont des secrets Cloudflare)
+const VAPID_TEST = await (async () => {
+  const p = await crypto.subtle.generateKey({ name: "ECDSA", namedCurve: "P-256" }, true, ["sign"]);
+  return { pub: Buffer.from(await crypto.subtle.exportKey("raw", p.publicKey)).toString("base64url"), d: (await crypto.subtle.exportKey("jwk", p.privateKey)).d };
+})();
+const ENV_N = (extra = {}) => ENV({ VAPID_PUBLIQUE: VAPID_TEST.pub, VAPID_PRIVEE: VAPID_TEST.d, CLE_STOCKAGE: Buffer.from(crypto.getRandomValues(new Uint8Array(32))).toString("base64url"), ...extra });
+const ENDPOINT_EX = "https://fcm.googleapis.com/fcm/send/exemple-abonnement-fictif";
+const NID = "NNNNNNNNNNNNNNNNNNNNNN", REP_EX = "R".repeat(60);
+// Service de notification simulé : enregistre chaque envoi et répond avec le code demandé
+let envois = [], codePush = 201;
+const vraiFetch = globalThis.fetch;
+const avecPush = async f => {
+  envois = []; codePush = 201;
+  globalThis.fetch = async (url, o) => { envois.push({ url: String(url), headers: o.headers, corps: Buffer.from(o.body) }); return new Response(null, { status: codePush }); };
+  try{ await f(); }finally{ globalThis.fetch = vraiFetch; }
+};
+const abonner = async (env, app, extra = {}) => appel(env, "POST", "/v1/notifs", { id: NID, abo: { endpoint: ENDPOINT_EX, keys: app.keys }, del: await empreinteDe(JETON_EX), expire: Date.now() + 30 * 864e5, ...extra });
+const repondre = (env, c = REP_EX, id = NID, ip) => appel(env, "POST", `/v1/notifs/${id}/reponse`, { c }, SITE, ip);
+
+await essaiWorker("S'abonner puis répondre : la notification part chiffrée (RFC 8291), signée (VAPID), avec seulement la réponse chiffrée", async () => {
+  await avecPush(async () => {
+    const env = ENV_N(), app = WP.appareil();
+    const r = await abonner(env, app); assert.equal(r.status, 201);
+    const rep = await repondre(env); assert.equal(rep.status, 200); assert.deepEqual(await rep.json(), { ok: true });
+    assert.equal(envois.length, 1); const e = envois[0];
+    assert.equal(e.url, ENDPOINT_EX);
+    assert.equal(e.headers["Content-Encoding"], "aes128gcm"); assert.ok(+e.headers.TTL > 0 && +e.headers.TTL <= 7 * 86400);
+    const rev = WP.verifierVapid(e.headers.Authorization, ENDPOINT_EX, VAPID_TEST.pub);
+    assert.equal(rev.sub, WORKER.SUJET_VAPID); assert.match(rev.sub, /^mailto:contact.osedemander\.fr$/);
+    const message = JSON.parse(WP.dechiffrer(app, e.corps));
+    assert.deepEqual(message, { v: 1, i: NID, c: REP_EX }, "le message ne contient que l'identifiant et la réponse chiffrée par la personne invitée");
+  });
+});
+await essaiWorker("Un seul envoi : l'abonnement est effacé dès l'envoi, puis « déjà envoyée » (410) ; identifiant oublié 30 jours après l'expiration", async () => {
+  await avecPush(async () => {
+    const env = ENV_N(); await abonner(env, WP.appareil()); await repondre(env);
+    assert.deepEqual({ ...env.DB.db.prepare("SELECT abo, etat FROM notifs").get() }, { abo: null, etat: "envoye" }, "abonnement effacé de la base");
+    const r2 = await repondre(env); assert.equal(r2.status, 410); assert.deepEqual(await r2.json(), { raison: "envoye" });
+    assert.equal(envois.length, 1, "aucun second envoi");
+    env.DB.db.prepare("UPDATE notifs SET expire = ?").run(Date.now() - WORKER.NOTIF_GARDE - 1000);
+    await WORKER.default.scheduled({}, env);
+    assert.equal(env.DB.db.prepare("SELECT COUNT(*) AS n FROM notifs").get().n, 0);
+    assert.equal((await repondre(env)).status, 404);
+  });
+});
+await essaiWorker("Abonnement chiffré au repos : ni l'adresse du service ni les clés de l'appareil ne sont lisibles dans la base", async () => {
+  await avecPush(async () => {
+    const env = ENV_N(), app = WP.appareil(); await abonner(env, app);
+    const abo = env.DB.db.prepare("SELECT abo FROM notifs").get().abo;
+    for(const fragment of ["fcm.googleapis.com", "exemple-abonnement", app.keys.p256dh.slice(0, 20), app.keys.auth]) assert.ok(!abo.includes(fragment), `en clair : ${fragment}`);
+    assert.match(abo, /^[\w-]{16}\.[\w-]+$/);
+    // Lié à son identifiant : recopié sur un autre identifiant, il ne s'ouvre pas
+    await assert.rejects(PUSH.ouvrirAbo(abo, "M".repeat(22), env));
+    assert.equal((await PUSH.ouvrirAbo(abo, NID, env)).endpoint, ENDPOINT_EX);
+  });
+});
+await essaiWorker("Expiration : dernier créneau + 7 jours, un an au plus ; abonnement jamais utilisé effacé par la tâche quotidienne", async () => {
+  await avecPush(async () => {
+    const env = ENV_N();
+    const r = await abonner(env, WP.appareil(), { expire: Date.now() + 3 * 365 * 864e5 });
+    assert.ok((await r.json()).expire <= Date.now() + 365 * 864e5, "plafonné à un an");
+    assert.equal((await abonner(ENV_N(), WP.appareil(), { expire: Date.now() - 1000 })).status, 400, "date passée refusée");
+    env.DB.db.prepare("UPDATE notifs SET expire = ?").run(Date.now() - 1000);
+    const rep = await repondre(env); assert.equal(rep.status, 410); assert.deepEqual(await rep.json(), { raison: "expire" });
+    assert.equal(envois.length, 0, "rien n'est envoyé après l'expiration");
+    const env2 = ENV_N(); await abonner(env2, WP.appareil());
+    env2.DB.db.prepare("UPDATE notifs SET expire = ?").run(Date.now() - 1000);
+    await WORKER.default.scheduled({}, env2);
+    assert.deepEqual({ ...env2.DB.db.prepare("SELECT abo, etat FROM notifs").get() }, { abo: null, etat: "expire" });
+  });
+});
+await essaiWorker("Appareil désabonné (404 / 410 du service) : abonnement effacé ; erreur passagère (500) : gardé, on peut réessayer (502)", async () => {
+  await avecPush(async () => {
+    const env = ENV_N(); await abonner(env, WP.appareil());
+    codePush = 500; assert.equal((await repondre(env)).status, 502);
+    assert.equal(env.DB.db.prepare("SELECT etat FROM notifs").get().etat, null, "gardé après une erreur passagère");
+    codePush = 410; const r = await repondre(env); assert.equal(r.status, 410); assert.deepEqual(await r.json(), { raison: "expire" });
+    assert.deepEqual({ ...env.DB.db.prepare("SELECT abo, etat FROM notifs").get() }, { abo: null, etat: "expire" });
+  });
+});
+await essaiWorker("Renoncer : jeton faux refusé (403), bon jeton accepté, plus aucun envoi ensuite", async () => {
+  await avecPush(async () => {
+    const env = ENV_N(); await abonner(env, WP.appareil());
+    assert.equal((await appel(env, "POST", `/v1/notifs/${NID}/supprimer`, { jeton: "C".repeat(43) })).status, 403);
+    assert.equal((await appel(env, "POST", `/v1/notifs/${NID}/supprimer`, { jeton: JETON_EX })).status, 200);
+    const r = await repondre(env); assert.equal(r.status, 410); assert.deepEqual(await r.json(), { raison: "supprime" });
+    assert.equal(envois.length, 0);
+  });
+});
+await essaiWorker("Validation stricte : service de notification inconnu, http, clés mal formées, champ en trop, réponse trop longue ou trop courte", async () => {
+  await avecPush(async () => {
+    const app = WP.appareil(), del = await empreinteDe(JETON_EX), exp = Date.now() + 864e5;
+    const abo = (endpoint, keys = app.keys, plus = {}) => appel(ENV_N(), "POST", "/v1/notifs", { id: NID, abo: { endpoint, keys, ...plus }, del, expire: exp });
+    for(const ep of ["https://exemple.com/push", "http://fcm.googleapis.com/fcm/send/x", "https://fcm.googleapis.com:8443/x", "https://fcm.googleapis.com.exemple.com/x", "https://u:p" + "@fcm.googleapis.com/x", "fcm.googleapis.com/x"])
+      assert.equal((await abo(ep)).status, 400, ep);
+    for(const ep of ["https://updates.push.services.mozilla.com/wpush/v2/x", "https://web.push.apple.com/x", "https://wns2-par02p.notify.windows.com/w/?token=x"])
+      assert.equal((await abo(ep)).status, 201, ep);
+    assert.equal((await abo(ENDPOINT_EX, { ...app.keys, p256dh: "A".repeat(87) })).status, 400, "pas un point P-256 non compressé");
+    assert.equal((await abo(ENDPOINT_EX, { p256dh: app.keys.p256dh })).status, 400);
+    assert.equal((await abo(ENDPOINT_EX, app.keys, { expirationTime: null })).status, 400, "champ en trop");
+    assert.equal((await appel(ENV_N(), "POST", "/v1/notifs", { id: NID, abo: { endpoint: ENDPOINT_EX, keys: app.keys }, del, expire: exp, x: 1 })).status, 400);
+    assert.equal((await appel(ENV_N(), "POST", "/v1/notifs", "x".repeat(WORKER.NOTIF_CORPS_MAX + 1))).status, 413);
+    const env = ENV_N(); await abonner(env, app);
+    assert.equal((await repondre(env, "R".repeat(WORKER.REPONSE_MAX + 1))).status, 400);
+    assert.equal((await repondre(env, "R".repeat(20))).status, 400);
+    assert.equal((await repondre(env, "R+R/".repeat(15))).status, 400, "hors base64url");
+    assert.equal((await appel(env, "GET", `/v1/notifs/${NID}/reponse`)).status, 405, "aucune lecture");
+    assert.equal((await appel(env, "GET", `/v1/notifs/${NID}`)).status, 404);
+    assert.equal(envois.length, 0);
+  });
+});
+await essaiWorker("Limites par adresse IP (429), clés absentes ou base indisponible (503)", async () => {
+  await avecPush(async () => {
+    const comptes = new Map(), limiteur = { limit: async ({ key }) => { const n = (comptes.get(key) || 0) + 1; comptes.set(key, n); return { success: n <= 2 }; } };
+    const env = ENV_N({ LIMITE_ENVOI: limiteur }); await abonner(env, WP.appareil());
+    codePush = 500;
+    assert.deepEqual([(await repondre(env)).status, (await repondre(env)).status, (await repondre(env)).status], [502, 502, 429]);
+    assert.equal((await repondre(env, REP_EX, NID, "198.51.100.9")).status, 502, "autre adresse : pas concernée");
+    comptes.clear(); const env2 = ENV_N({ LIMITE_ABO: limiteur });
+    const a = i => appel(env2, "POST", "/v1/notifs", { id: String(i).padStart(22, "N"), abo: { endpoint: ENDPOINT_EX, keys: WP.appareil().keys }, del: JETON_EX.slice(0, 43), expire: Date.now() + 864e5 });
+    assert.deepEqual([(await a(1)).status, (await a(2)).status, (await a(3)).status], [201, 201, 429]);
+    assert.equal((await abonner(ENV_N({ VAPID_PRIVEE: undefined }), WP.appareil())).status, 503, "sans clé VAPID");
+    const env3 = ENV_N(); env3.DB.panne(true); assert.equal((await abonner(env3, WP.appareil())).status, 503);
+  });
+});
+await test("Notifications : clés hors du dépôt (secrets Cloudflare), clé publique identique dans wrangler.toml et index.html", () => {
+  const toml = readFileSync(RACINE + "worker/wrangler.toml", "utf8"), push = readFileSync(RACINE + "worker/src/push.js", "utf8");
+  const pub = /^VAPID_PUBLIQUE = "([\w-]{87})"$/m.exec(toml);
+  assert.ok(pub, "clé publique VAPID dans wrangler.toml");
+  assert.ok(!/VAPID_PRIVEE\s*=|CLE_STOCKAGE\s*=/.test(toml), "jamais la clé privée ni la clé de stockage dans wrangler.toml");
+  assert.ok(!/console\.|\.log\(/.test(push.replace(/\/\*[\s\S]*?\*\//g, "")), "aucun journal");
+  // Aucune clé privée EC dans le dépôt : ni JWK « d », ni PEM
+  const suivis = execFileSync("git", ["ls-files"], { cwd: RACINE, encoding: "utf8" }).split("\n").filter(f => /\.(js|mjs|json|toml|html|md|txt)$/.test(f));
+  for(const f of suivis){ const t = readFileSync(RACINE + f, "utf8"); assert.ok(!/"d"\s*:\s*"[\w-]{43}"/.test(t) && !/BEGIN (EC )?PRIVATE KEY/.test(t), `clé privée possible dans ${f}`); }
+  for(const r of ["LIMITE_ABO", "LIMITE_ENVOI"]) assert.ok(toml.includes(`name = "${r}"`), r);
+  const sch = readFileSync(RACINE + "worker/schema.sql", "utf8");
+  assert.ok(/CREATE TABLE IF NOT EXISTS notifs \(\s*id\s+TEXT PRIMARY KEY,\s*abo\s+TEXT,\s*del\s+TEXT NOT NULL,\s*expire INTEGER NOT NULL,\s*etat\s+TEXT\s*\)/.test(sch), "aucune colonne pour la réponse ni pour l'invitation");
+});
+
 /* ---------- Bilan ---------- */
 console.log(`\n${ko ? "❌" : "✅"} ${ok} tests réussis, ${ko} en échec (graine ${GRAINE}${ko ? ` — pour rejouer : node tests/run.mjs --graine=${GRAINE}` : ""})`);
 if(ko){ console.log(echecs.map(e => "  - " + e).join("\n")); process.exitCode = 1; }
