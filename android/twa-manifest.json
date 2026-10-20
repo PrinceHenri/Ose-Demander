@@ -17,6 +17,7 @@
   "fullScopeUrl": "https://osedemander.fr/",
   "iconUrl": "https://osedemander.fr/icons/icon-512.png",
   "maskableIconUrl": "https://osedemander.fr/icons/maskable-512.png",
+  "monochromeIconUrl": "https://osedemander.fr/icons/monochrome-512.png",
   "splashScreenFadeOutDuration": 300,
   "signingKey": {
     "path": "../../Ose-Demander-cle/ose-demander.keystore",

@@ -2359,6 +2359,11 @@ await test("Configuration : paquet fr.osedemander.app, osedemander.fr, nom, coul
   assert.equal(TWA.iconUrl, SITE_URL + "icons/icon-512.png"); assert.equal(TWA.maskableIconUrl, SITE_URL + "icons/maskable-512.png");
   assert.ok(Number.isInteger(TWA.appVersionCode) && TWA.appVersionCode >= 1, "numéro de version entier (à augmenter à chaque envoi)");
   assert.equal(TWA.webManifestUrl, SITE_URL + "manifest.webmanifest");
+  // Petite icône des notifications : silhouette blanche sur fond transparent (une icône opaque donnerait un carré blanc dans la barre d'état)
+  assert.equal(TWA.monochromeIconUrl, SITE_URL + "icons/monochrome-512.png");
+  assert.ok(MANIF.icons.some(i => i.src === "icons/monochrome-512.png" && i.purpose === "monochrome"), "icône monochrome dans le manifeste du site");
+  const mono = readFileSync(RACINE + "icons/monochrome-512.png");
+  assert.deepEqual([mono.readUInt32BE(16), mono.readUInt32BE(20), mono[25]], [512, 512, 6], "512 × 512, RVBA (transparence)");
   assert.equal(TWA.enableSiteSettingsShortcut, true, "raccourci « Paramètres du site » activé (sinon R8 renomme ManageDataLauncherActivity et l'appli plante au démarrage)");
   assert.ok(TWA.minSdkVersion >= 24,"minSdkVersion 24 au moins (exigé par androidbrowserhelper, sinon bubblewrap build échoue)");
 });

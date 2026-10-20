@@ -42,6 +42,11 @@ Dans un terminal, depuis le dossier `android` du projet :
 - Un nouvel envoi n'est nécessaire que pour changer l'icône, le nom, l'écran de démarrage, ou pour l'exigence annuelle de Google (niveau d'API Android visé) : `bubblewrap update` (augmente `appVersionCode`), puis `bubblewrap build`. **Le numéro de version (`appVersionCode`) doit augmenter à chaque envoi.**
 - Après le premier envoi, la Play Console (Configuration, Intégrité de l'application) donne l'empreinte SHA-256 de **Google Play App Signing** : elle doit être ajoutée à `.well-known/assetlinks.json`, à côté de celle de la clé locale.
 
+## Notifications de réponse
+
+`enableNotifications: true` : Chrome confie les notifications du site à l'appli (délégation de la TWA). Elles s'affichent au nom d'« Ose Demander », et, sur Android 13 et plus, la demande d'autorisation est celle de l'appli (autorisation `POST_NOTIFICATIONS`). Elle n'est faite que si l'on coche « Me prévenir dès que … répond ».
+La petite icône de la barre d'état vient de `monochromeIconUrl` (`icons/monochrome-512.png` du site) : une silhouette blanche sur fond transparent. Sans elle, Bubblewrap reprendrait l'icône en couleur, et Android afficherait un carré blanc. Toute modification de `twa-manifest.json` : `bubblewrap update --skipVersionUpgrade` (le site doit déjà être en ligne, Bubblewrap télécharge les icônes) puis `bubblewrap build`.
+
 ## Fiche du Play Store
 
 - Icône : `fiche/icone-512.png` (512 × 512, PNG 32 bits).
