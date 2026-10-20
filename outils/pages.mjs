@@ -14,7 +14,8 @@ const esc = P.lire("esc"), SCENES = P.lire("SCENES"), TEMPLATES = P.lire("TEMPLA
 /* Texte visible : échappé, puis typographie française (espaces insécables devant ? ! : ; et dans les guillemets),
    mots composés jamais coupés en fin de ligne */
 const INSECABLES = ["Saint-Valentin", "Nouvel An", "jour J"];
-const t = s => INSECABLES.reduce((x, m) => x.split(esc(m)).join(`<span class="nw">${esc(m)}</span>`),
+// Espace insécable plutôt qu'un <span> quand c'est possible : dans un lien en flex, l'espace avant le <span> disparaissait (« duNouvel An »)
+const t = s => INSECABLES.reduce((x, m) => x.split(esc(m)).join(m.includes(" ") ? esc(m).replace(/ /g, "&nbsp;") : `<span class="nw">${esc(m)}</span>`),
   esc(s).replace(/ ([?!:;»])/g, "&nbsp;$1").replace(/« /g, "«&nbsp;"));
 const html = readFileSync(RACINE + "index.html", "utf8").replace(/\r\n/g, "\n"), CSS = html.slice(html.indexOf("<style>") + 7, html.indexOf("</style>"));
 

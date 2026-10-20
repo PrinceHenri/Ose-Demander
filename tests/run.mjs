@@ -2392,6 +2392,31 @@ await test("Fiche du Play Store : icône 512 × 512 et bannière 1 024 × 500", 
   assert.ok(lireFichier("mentions-legales.html").includes('<h3 id="android">Application Android</h3>'), "mentions légales : l'appli Android");
 });
 
+/* =========================================================
+   33. Thème sombre du téléphone : pas d'assombrissement forcé par Chrome
+   ========================================================= */
+titre("33. Thème sombre du téléphone");
+const PAGES_HTML = ["index.html", "mentions-legales.html", ...Object.keys(FAB).filter(f => f.endsWith(".html"))];
+await test("Chaque page se déclare « light dark » (sinon Chrome, en thème sombre, inverse ses couleurs, y compris dans l'appli Android)", () => {
+  for(const p of PAGES_HTML){
+    const h = lireFichier(p);
+    assert.equal((h.match(/<meta name="color-scheme" content="light dark">/g) || []).length, 1, `${p} : balise color-scheme`);
+  }
+  const css = lireFichier("index.html");
+  assert.ok(!/color-scheme:\s*(only )?light\b(?!\s+dark)/.test(css.replace(/content="light dark"/, "")), "aucun élément « clair seulement » : Chrome l'assombrirait quand même");
+});
+await test("Thème sombre du téléphone : cases à cocher dessinées, icônes de date lisibles dans les thèmes clairs et sombres", () => {
+  const css = lireFichier("index.html");
+  assert.ok(/\.check input\{-webkit-appearance:none;appearance:none;/.test(css), "cases à cocher aux couleurs du thème");
+  assert.ok(css.includes("@media (prefers-color-scheme:dark){input::-webkit-calendar-picker-indicator{filter:invert(1)}}"));
+  const sombres = [...css.matchAll(/\[data-theme="(\w+)"\] \.error/g)].map(m => m[1]); // thèmes sombres (variante sombre des erreurs)
+  assert.ok(sombres.length >= 4);
+  for(const t of sombres) assert.ok(css.includes(`[data-theme="${t}"] input::-webkit-calendar-picker-indicator`) && [",", "{"].some(c => css.includes(`[data-theme="${t}"] input${c}`)),`thème sombre ${t} : icônes claires`);
+});
+await test("Pages fabriquées : mots insécables avec espace en « &nbsp; » (un <span> perdait l'espace avant lui : « duNouvel An »)", () => {
+  for(const [nom, h] of Object.entries(FAB)) assert.ok(!/<span class="nw">[^<]* [^<]*<\/span>/.test(h), `${nom} : espace dans un .nw`);
+});
+
 /* ---------- Bilan ---------- */
 console.log(`\n${ko ? "❌" : "✅"} ${ok} tests réussis, ${ko} en échec (graine ${GRAINE}${ko ? ` — pour rejouer : node tests/run.mjs --graine=${GRAINE}` : ""})`);
 if(ko){ console.log(echecs.map(e => "  - " + e).join("\n")); process.exitCode = 1; }
