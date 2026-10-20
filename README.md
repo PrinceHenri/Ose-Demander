@@ -9,6 +9,8 @@ Rien n'est stocké en clair en ligne : l'invitation est compressée dans le lien
 
 Les pages `/invitation-…/` et `/demande-…/`, `404.html` et `sitemap.xml` sont fabriquées par `node outils/pages.mjs` à partir des textes de `outils/pages-data.mjs` et du code du site. Après toute modification, relancer le script : le banc de test vérifie que les pages publiées sont à jour.
 
+Après chaque publication (une fois que GitHub Pages sert la nouvelle version), `node outils/indexnow.mjs` prévient Bing et les autres moteurs compatibles IndexNow des pages nouvelles ou modifiées (`--essai` pour voir sans envoyer, `--toutes` pour tout le plan du site). La clé IndexNow est publique par nature : c'est le fichier `4b649693dccca13e8d5110e80084e50b.txt` à la racine.
+
 ## Fichiers
 
 ```

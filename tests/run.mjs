@@ -2283,6 +2283,35 @@ await test("Pages d'occasion : le texte de l'élément vedette se lit avec ses e
   }
 });
 
+/* =========================================================
+   30. IndexNow : fichier de clé, adresses signalées, corps de la requête
+   ========================================================= */
+titre("30. IndexNow");
+const IN = await import(new URL("../outils/indexnow.mjs", import.meta.url).href);
+await test("Fichier de clé à la racine : un seul, nommé d'après la clé, qui contient exactement la clé", () => {
+  const cles = readdirSync(RACINE).filter(f => /^[a-f0-9]{32}\.txt$/.test(f));
+  assert.deepEqual(cles, [IN.FICHIER_CLE], "un seul fichier de clé, celui du script");
+  assert.equal(lireFichier(IN.FICHIER_CLE).trim(), IN.CLE);
+  assert.ok(/^[a-f0-9]{32}$/.test(IN.CLE), "clé de 32 caractères hexadécimaux (8 à 128 autorisés)");
+  assert.ok(!pagesDuPlan().some(u => u.includes(IN.CLE)), "le fichier de clé n'est pas dans le plan du site");
+});
+await test("Adresses signalées : seulement celles du plan du site, d'après les fichiers modifiés", () => {
+  const plan = pagesDuPlan();
+  assert.deepEqual(IN.adressesModifiees(["index.html", "invitation-saint-valentin/index.html", "sw.js", "tests/run.mjs", "404.html", "outils/pages.mjs"], plan),
+    [SITE_URL, SITE_URL + "invitation-saint-valentin/"], "accueil et page modifiée ; rien de technique");
+  assert.deepEqual(IN.adressesModifiees(["mentions-legales.html"], plan), [SITE_URL + "mentions-legales.html"]);
+  assert.deepEqual(IN.adressesModifiees(["README.md", "worker/src/index.js"], plan), [], "rien à signaler");
+  assert.deepEqual(IN.adressesDuPlan(), plan);
+});
+await test("Corps de la requête : hôte, clé, emplacement de la clé, jamais d'invitation", () => {
+  const c = IN.corps(pagesDuPlan());
+  assert.equal(c.host, "osedemander.fr"); assert.equal(c.key, IN.CLE); assert.equal(c.keyLocation, `${SITE_URL}${IN.FICHIER_CLE}`);
+  for(const u of c.urlList) assert.ok(u.startsWith(SITE_URL) && !u.includes("#"), u);
+  assert.equal(IN.POINT, "https://api.indexnow.org/indexnow");
+  const src = readFileSync(RACINE + "outils/indexnow.mjs", "utf8");
+  assert.ok(src.indexOf("fetch(SITE + FICHIER_CLE") < src.indexOf("fetch(POINT"), "le fichier de clé est vérifié en ligne avant l'envoi");
+});
+
 /* ---------- Bilan ---------- */
 console.log(`\n${ko ? "❌" : "✅"} ${ok} tests réussis, ${ko} en échec (graine ${GRAINE}${ko ? ` — pour rejouer : node tests/run.mjs --graine=${GRAINE}` : ""})`);
 if(ko){ console.log(echecs.map(e => "  - " + e).join("\n")); process.exitCode = 1; }
