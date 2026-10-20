@@ -258,6 +258,9 @@ input.input[type=date],input.input[type=time]{min-width:0;max-width:100%}
 
 /* ---------- Mes invitations (historique local) ---------- */
 .back{display:inline-block;margin:0 0 8px;color:var(--muted);font-size:15px;font-weight:600;text-underline-offset:3px}
+/* « Retour » en haut de l'étape du choix du modèle (au lieu d'« Accueil » tout en bas, sous la liste) */
+.back-top{display:inline-flex;align-items:center;min-height:44px;margin:-6px 0 12px;padding:6px 16px;background:transparent;border:2px solid var(--line);border-radius:999px;color:var(--ink);font-size:15px;font-weight:700;cursor:pointer;transition:border-color .15s}
+.back-top:hover{border-color:var(--ink)}
 .tip{background:var(--soft);border:2px dashed var(--line);border-radius:12px;padding:10px 12px;font-size:15px;margin:0 0 16px}
 .hist{list-style:none;margin:0 0 18px;padding:0;display:flex;flex-direction:column;gap:12px}
 .hist li{border:2px solid var(--line);border-radius:14px;padding:14px;background:var(--soft)}
@@ -278,6 +281,8 @@ input.input[type=date],input.input[type=time]{min-width:0;max-width:100%}
 .demo-ticket .question{font-size:clamp(28px,7vw,36px);margin:0 0 12px}
 .demo-answer{position:relative;min-height:96px}
 .demo-answer .no.dodge{position:absolute;margin:0;transition:left .25s ease, top .25s ease}
+/* Écran étroit : pas de place à côté du Oui ; la zone s'agrandit et le Oui monte, pour que le Non ait toujours où aller */
+@media (max-width:560px){.demo-answer.dodging{min-height:176px;align-items:flex-start}}
 .demo-ticket .tease{margin-top:8px}
 .home-cards{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:0 0 18px}
 .home-card{display:flex;flex-direction:column;align-items:stretch;text-align:left;background:var(--surface);color:var(--ink);border:2px solid var(--ink);border-radius:var(--r);padding:0;overflow:hidden;cursor:pointer;box-shadow:4px 4px 0 var(--ink);transition:transform .1s,box-shadow .1s}
@@ -346,8 +351,10 @@ input.input[type=date],input.input[type=time]{min-width:0;max-width:100%}
 .chip.emo{font-size:20px;line-height:1.25;padding:5px 11px}
 .swatch.acc{width:38px;height:38px}
 .swatch:disabled{opacity:.22;cursor:not-allowed}
-.demo-banner{position:fixed;top:calc(12px + env(safe-area-inset-top,0px));left:12px;right:96px;z-index:30;margin:0;background:var(--ink);color:var(--bg);border-radius:12px;padding:6px 12px;font-size:13px;font-weight:600;width:fit-content;max-width:calc(100% - 108px)}
-.demo-banner a{color:inherit}
+.demo-banner{position:fixed;top:calc(10px + env(safe-area-inset-top,0px));left:10px;right:96px;z-index:30;margin:0;display:flex;align-items:center;gap:10px;background:var(--ink);color:var(--bg);border-radius:14px;padding:4px 12px 4px 4px;font-size:13px;font-weight:600;width:fit-content;max-width:calc(100% - 106px)}
+/* Retour à l'accueil depuis l'exemple : bouton de 44 px, bien visible */
+.demo-back{display:inline-flex;align-items:center;min-height:44px;padding:0 16px;border-radius:10px;background:var(--surface);color:var(--ink);font-size:15px;font-weight:700;text-decoration:none;flex:none}
+.demo-back:active{transform:translate(1px,1px)}
 .sheet-card .btns .btn{flex:1}
 
 /* ---------- Invitation (ticket) ---------- */
@@ -1876,14 +1883,15 @@ function renderCreator(){
     ${topHTML(false)}
     ${n==="home" ? homeHTML() : `
     <form class="panel" id="form" novalidate>
+      ${n===1 ? `<button type="button" class="back-top" id="back">Retour</button>` : ""}
       <div class="progress" aria-hidden="true">${STEP_TITLES.map((_,i)=>`<i class="${i<n?"on":""}"></i>`).join("")}</div>
       <p class="stepnum">Étape ${n} sur ${STEP_TITLES.length} · ${STEP_TITLES[n-1]}</p>
       ${screenHTML()}
       <p class="error ${S.err && !S.errSec ? "" : "hidden"}" id="err" role="alert">${esc(S.errSec ? "" : S.err)}</p>
-      <div class="nav">
-        <button type="button" class="btn ghost" id="back">${n===1 ? "Accueil" : "Retour"}</button>
+      ${n===1 ? "" : `<div class="nav">
+        <button type="button" class="btn ghost" id="back">Retour</button>
         ${n===2||n===3 ? `<button type="submit" class="btn primary">${n===3 ? "Voir l'aperçu" : "Continuer"}</button>` : ""}
-      </div>
+      </div>`}
     </form>`}
     ${n==="home" ? ideasHTML() : ""}
     <p class="foot">Rien n'est stocké en clair en ligne : l'invitation tient dans son lien, chiffrée si le lien est court. <a href="mentions-legales.html#confidentialite">Confidentialité</a><br><a href="mentions-legales.html">Mentions légales</a></p>
@@ -2301,12 +2309,18 @@ function bindDemoTicket(){
     const now=Date.now(); if(now-last<250) return; last=now; // un seul effet par geste
     tease.textContent=lines[Math.min(n++,lines.length-1)]; Sound.no();
     if(still()) return;
-    const b=box.getBoundingClientRect(), r=no.getBoundingClientRect(), y=yes.getBoundingClientRect();
-    if(!no.classList.contains("dodge")){ no.style.left=(r.left-b.left)+"px"; no.style.top=(r.top-b.top)+"px"; no.classList.add("dodge"); no.offsetHeight; }
-    const yl=y.left-b.left, yt=y.top-b.top, cl=r.left-b.left, ct=r.top-b.top;
+    let r=no.getBoundingClientRect();
+    if(!no.classList.contains("dodge")){ const b0=box.getBoundingClientRect(); no.style.left=(r.left-b0.left)+"px"; no.style.top=(r.top-b0.top)+"px"; no.classList.add("dodge"); box.classList.add("dodging"); no.offsetHeight; }
+    // Mesures après la mise en place (la zone a pu grandir et le Oui se déplacer)
+    const b=box.getBoundingClientRect(), y=yes.getBoundingClientRect(); r=no.getBoundingClientRect();
+    const G=20, yl=y.left-b.left, yt=y.top-b.top, cl=r.left-b.left, ct=r.top-b.top, W=Math.max(0,b.width-r.width), H=Math.max(0,b.height-r.height);
+    const libre=(x,t)=>x+r.width<=yl-G || x>=yl+y.width+G || t+r.height<=yt-G || t>=yt+y.height+G; // jamais à moins de 20 px du Oui
     let x, t, tries=0;
-    do{ x=Math.random()*Math.max(0,b.width-r.width); t=Math.random()*Math.max(0,b.height-r.height); tries++; }
-    while(tries<30 && ((x<yl+y.width+12 && x+r.width>yl-12 && t<yt+y.height+12 && t+r.height>yt-12) || Math.hypot(x-cl,t-ct)<60));
+    do{ x=Math.random()*W; t=Math.random()*H; tries++; } while(tries<60 && (!libre(x,t) || Math.hypot(x-cl,t-ct)<60));
+    if(!libre(x,t)){ // repli : le coin libre le plus éloigné de la place actuelle
+      const coins=[[0,H],[W,H],[0,0],[W,0]].filter(([a,c])=>libre(a,c)).sort((p,q)=>Math.hypot(q[0]-cl,q[1]-ct)-Math.hypot(p[0]-cl,p[1]-ct));
+      if(coins.length) [x,t]=coins[0]; else { x=cl; t=ct; }
+    }
     no.style.left=x+"px"; no.style.top=t+"px";
   };
   no.addEventListener("pointerenter",e=>{ if(e.pointerType==="mouse") dodge(); });
@@ -2883,7 +2897,7 @@ function demoData(){
     m:"Prépare ton plus beau sourire, je m'occupe du reste.", sg:"Ton Keke", em:"💌", ix:INTRO_OCC.date,
     a:{v:"v", x:"Dîner aux chandelles"}, l:{v:"s", h:"Pas loin de chez toi"}, d:d.toISOString().slice(0,10), h:"19:30"});
 }
-const demoBanner = () => EXAMPLE ? `<p class="demo-banner">Exemple · aucune réponse n'est envoyée · <a href="./">Créer la mienne</a></p>` : "";
+const demoBanner = () => EXAMPLE ? `<p class="demo-banner"><a class="demo-back" href="./">Retour</a> <span>Exemple : aucune réponse n'est envoyée.</span></p>` : "";
 const REDUCED = matchMedia("(prefers-reduced-motion: reduce)").matches;
 const invAnim = () => REDUCED ? "0" : (D && D.an) || "n";
 const buzz = pat => { if(invAnim()!=="0" && navigator.vibrate) try{ navigator.vibrate(pat); }catch(e){} };

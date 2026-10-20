@@ -2312,6 +2312,37 @@ await test("Corps de la requête : hôte, clé, emplacement de la clé, jamais d
   assert.ok(src.indexOf("fetch(SITE + FICHIER_CLE") < src.indexOf("fetch(POINT"), "le fichier de clé est vérifié en ligne avant l'envoi");
 });
 
+/* =========================================================
+   31. Retours et carte d'exemple de l'accueil
+   ========================================================= */
+titre("31. Retours et carte d'exemple");
+await test("Choix du modèle : « Retour » en haut de l'étape (plus de bouton « Accueil » tout en bas)", () => {
+  const S = PAGE.lire("S"); PAGE.lire("applyTemplate")("rdv");
+  Object.assign(S, { step: 1 }); PAGE.lire("renderCreator")();
+  const h = PAGE.zones["#app"].innerHTML;
+  assert.ok(h.includes('<button type="button" class="back-top" id="back">Retour</button>'));
+  assert.ok(h.indexOf('id="back"') < h.indexOf('class="progress"'), "avant la barre de progression, en haut");
+  assert.ok(!h.includes('class="nav"') && !h.includes(">Accueil</button>"), "plus rien tout en bas");
+  assert.ok(+(regleCSS(".back-top").match(/min-height:(\d+)px/) || [])[1] >= 44, "cible de 44 px");
+  for(const step of [2, 3]){ S.step = step; PAGE.lire("renderCreator")(); const h2 = PAGE.zones["#app"].innerHTML;
+    assert.ok(h2.includes('<button type="button" class="btn ghost" id="back">Retour</button>') && !h2.includes("back-top"), `étape ${step} : Retour en bas, à côté de Continuer`); }
+  S.step = "home";
+  assert.ok(PAGE.lire("bindCreator").toString().includes('go(S.step===1 ? "home" : S.step-1)'), "Retour de l'étape 1 : l'accueil");
+});
+await test("« Voir un exemple » : un bouton « Retour » de 44 px vers l'accueil, texte lisible", () => {
+  PAGE.ecrire("EXAMPLE", true); const b = PAGE.lire("demoBanner")(); PAGE.ecrire("EXAMPLE", false);
+  assert.equal(b, `<p class="demo-banner"><a class="demo-back" href="./">Retour</a> <span>Exemple : aucune réponse n'est envoyée.</span></p>`);
+  assert.ok(+(regleCSS(".demo-back").match(/min-height:(\d+)px/) || [])[1] >= 44);
+  assert.equal(PAGE.lire("demoBanner")(), "", "rien hors de l'exemple");
+});
+await test("Carte d'exemple de l'accueil : le Non reste toujours à 20 px au moins du Oui, même sur un téléphone étroit", () => {
+  const src = PAGE.lire("bindDemoTicket").toString();
+  assert.ok(src.includes('box.classList.add("dodging")') && src.includes("const G=20"), "zone agrandie et marge de 20 px");
+  assert.ok(src.includes("x+r.width<=yl-G || x>=yl+y.width+G || t+r.height<=yt-G || t>=yt+y.height+G"), "position libre seulement hors de la marge du Oui");
+  assert.ok(src.includes("const coins=[[0,H],[W,H],[0,0],[W,0]].filter(([a,c])=>libre(a,c))"), "repli sur un coin libre, jamais sur le Oui");
+  assert.ok(CSS.includes("@media (max-width:560px){.demo-answer.dodging{min-height:176px;align-items:flex-start}}"));
+});
+
 /* ---------- Bilan ---------- */
 console.log(`\n${ko ? "❌" : "✅"} ${ok} tests réussis, ${ko} en échec (graine ${GRAINE}${ko ? ` — pour rejouer : node tests/run.mjs --graine=${GRAINE}` : ""})`);
 if(ko){ console.log(echecs.map(e => "  - " + e).join("\n")); process.exitCode = 1; }
