@@ -3494,6 +3494,10 @@ const SCENES = {
       <path class="sg-wire" d="M258 114v54"/>${panel(196,40,122,74,8)}${label(257,72,19,"Destination")}${label(257,102,19,"secrète")}`)
   }
 };
+/* Texte des scènes : un espace après chaque </text> (invisible à l'écran). Sans lui, une lecture sans mise en page
+   (moteur de recherche, lecteur d'écran, copier-coller) colle les lignes de l'élément vedette : « Un cœurpour toi ». */
+const sepText = svg => svg.replace(/<\/text>(?!\s)/g, "</text> ");
+for(const sc of Object.values(SCENES)){ sc.sign=sepText(sc.sign); sc.wall=sepText(sc.wall); }
 /* Scène de l'accueil : envoyer une demande. Décor de fond seulement (le mini-billet est l'élément principal),
    dans les couleurs du thème en cours. Boîte aux lettres, enveloppe qui s'envole, motif de « ? », de cœurs et d'enveloppes.
    .hs-wide : éléments des côtés, masqués sur téléphone (le contenu couvre presque toute la largeur).
@@ -4638,6 +4642,7 @@ const ERR_ART={
     <path class="en eo" d="M78 86 q7 7 14 0 M110 86 q7 7 14 0"/><circle class="ea" cx="72" cy="98" r="5" opacity=".55"/><circle class="ea" cx="130" cy="98" r="5" opacity=".55"/><path class="en eo" d="M96 100 q5 3 10 0"/></g>
     <text class="eq ea-z" x="150" y="54" font-size="16">z</text><text class="eq ea-z" style="animation-delay:1s" x="162" y="36" font-size="21">z</text><text class="eq ea-z" style="animation-delay:2s" x="176" y="16" font-size="26">z</text>`
 };
+for(const k of Object.keys(ERR_ART)) ERR_ART[k]=sepText(ERR_ART[k]);
 function renderLinkError(kind, lv=REDUCED_ANIM ? "0" : "n"){
   const e=LINK_ERRORS[kind] ? kind : "incomplet", {t,p}=LINK_ERRORS[e];
   setTheme("base", lv, "", "home");

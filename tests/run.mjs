@@ -2111,7 +2111,7 @@ await test("« Mes invitations » : lien de l'image et son jeton validés, suppr
    ========================================================= */
 titre("26. Référencement : bases");
 const SITE_URL = "https://osedemander.fr/";
-const lireFichier = f => readFileSync(RACINE + f, "utf8");
+const lireFichier = f => readFileSync(RACINE + f, "utf8").replace(/\r\n/g, "\n"); // fins de ligne Windows possibles (git)
 const pagesDuPlan = () => [...lireFichier("sitemap.xml").matchAll(/<loc>([^<]+)<\/loc>/g)].map(m => m[1]);
 await test("robots.txt : tout autorisé sauf tests, worker et outils ; adresse du plan du site", () => {
   const r = lireFichier("robots.txt");
@@ -2259,6 +2259,28 @@ await test("Service worker : pages d'occasion gardées à la visite (jamais une 
   assert.ok(sw.includes('if (res.ok) { const copy = res.clone(); caches.open(VERSION).then(c => c.put(req, copy)); }'), "une page 404 n'est jamais gardée");
   assert.ok(sw.includes('.catch(() => caches.match(req).then(r => r || caches.match("./index.html")))'), "hors connexion : la page gardée, sinon l'accueil");
   assert.ok(!/invitation-|demande-/.test(sw.slice(sw.indexOf("const CORE"), sw.indexOf("];"))), "pages d'occasion non préchargées (installation légère)");
+});
+
+/* =========================================================
+   29. Texte des décors lisible sans mise en page (moteurs de recherche, lecteurs d'écran, copier-coller)
+   ========================================================= */
+titre("29. Texte des décors");
+// Lecture « à plat », comme un moteur de recherche : on retire les balises sans rien ajouter
+const aPlat = svg => svg.replace(/<[^>]+>/g, "").replace(/&#39;/g, "'").replace(/&nbsp;/g, " ").replace(/\s+/g, " ").trim();
+await test("Scènes, page d'accueil et pages d'erreur : jamais deux lignes de texte collées", () => {
+  const S = PAGE.lire("SCENES"), E = PAGE.lire("ERR_ART");
+  const svgs = [...Object.entries(S).flatMap(([k, s]) => [[`${k} (élément vedette)`, s.sign], [`${k} (décor)`, s.wall]]), ...Object.entries(E).map(([k, s]) => [`erreur ${k}`, s])];
+  for(const [nom, s] of svgs) assert.ok(!/<\/text>(?!\s)/.test(s), `${nom} : </text> suivi d'une autre balise sans espace`);
+  assert.equal(aPlat(S.valentin.sign), "Un cœur pour toi");
+  assert.equal(aPlat(S.noel.sign).replace(/ ?\?$/, ""), "Il reste une place à table");
+});
+await test("Pages d'occasion : le texte de l'élément vedette se lit avec ses espaces", () => {
+  const attendu = { "invitation-saint-valentin": "Un cœur pour toi", "invitation-repas-de-noel": "Il reste une place à table", "invitation-reveillon-nouvel-an": "Bientôt minuit…",
+    "demande-temoin-mariage": "À mes côtés ?", "demande-parrain-marraine": "Un rôle pour toi", "invitation-anniversaire": "C'est ma fête !" };
+  for(const [p, phrase] of Object.entries(attendu)){
+    const h = lireFichier(`${p}/index.html`), signe = h.slice(h.indexOf('<div class="scene-sign'), h.indexOf("</div>", h.indexOf('<div class="scene-sign')));
+    assert.ok(aPlat(signe).includes(phrase), `${p} : « ${aPlat(signe)} » au lieu de « ${phrase} »`);
+  }
 });
 
 /* ---------- Bilan ---------- */
