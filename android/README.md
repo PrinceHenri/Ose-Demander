@@ -17,7 +17,7 @@ L'appli `fr.osedemander.app` est une **TWA** (Trusted Web Activity) : elle affic
 
 Dans un terminal, depuis le dossier `android` du projet :
 
-1. `bubblewrap update --skipVersionUpgrade` : fabrique le projet Android à partir de `twa-manifest.json` (nom, icônes, couleurs, écran de démarrage).
+1. `bubblewrap update --skipVersionUpgrade` : fabrique le projet Android à partir de `twa-manifest.json` (nom, icônes, couleurs, écran de démarrage). `minSdkVersion` vaut **24** (Android 7.0 au minimum) : c'est le minimum exigé par la bibliothèque `androidbrowserhelper` de Bubblewrap, ne pas le baisser (la fabrication échoue en dessous).
 2. **Clé de signature** (une seule fois, à vie) :
    ```
    keytool -genkeypair -v -keystore ..\..\Ose-Demander-cle\ose-demander.keystore -alias ose-demander -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Ose Demander, O=Ose Demander, C=FR"

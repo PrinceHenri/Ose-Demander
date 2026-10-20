@@ -2356,6 +2356,7 @@ await test("Configuration : paquet fr.osedemander.app, osedemander.fr, nom, coul
   assert.equal(TWA.iconUrl, SITE_URL + "icons/icon-512.png"); assert.equal(TWA.maskableIconUrl, SITE_URL + "icons/maskable-512.png");
   assert.ok(Number.isInteger(TWA.appVersionCode) && TWA.appVersionCode >= 1, "numéro de version entier (à augmenter à chaque envoi)");
   assert.equal(TWA.webManifestUrl, SITE_URL + "manifest.webmanifest");
+  assert.ok(TWA.minSdkVersion >= 24, "minSdkVersion 24 au moins (exigé par androidbrowserhelper, sinon bubblewrap build échoue)");
 });
 await test("Clé de signature : hors du dépôt, chemin relatif sans nom d'utilisateur, jamais suivie par Git", () => {
   const p = TWA.signingKey.path;
