@@ -2083,8 +2083,11 @@ await essaiWorker("« Retirer mes coordonnées » : lien court séparé, sans le
 await test("Panneau : mention de confidentialité, image indisponible, Safari (aucune attente avant le partage), une action principale", () => {
   const src = PAGE.lire("openImageSheet").toString();
   assert.ok(src.includes("Toute personne qui scanne ce code peut ouvrir l'invitation, avec son lieu et sa date. Pour une story publique, pense à qui pourra la voir."));
-  assert.ok(src.includes(`<input type="checkbox" id="imgStrip" checked><span>Retirer mes coordonnées de l'image</span>`), "option cochée par défaut");
-  assert.ok(src.includes('const hasId=!!S.chId, st={fmt:"story", strip:hasId'), "seulement si l'invitation contient des coordonnées");
+  assert.ok(src.includes(`<p class="img-q" id="imgWhoLbl">Pour qui est cette image ?</p>`), "une seule question");
+  assert.ok(src.includes(`<button type="button" data-who="groupe" aria-pressed="true">Pour une story ou un groupe</button>`), "« story ou groupe » par défaut");
+  assert.ok(src.includes('<button type="button" data-who="perso" aria-pressed="false">Pour ${esc(S.to)} uniquement</button>'));
+  assert.ok(src.includes('const hasId=!!S.chId, hasNz=!!S.nz, ask=hasId||hasNz, st={fmt:"story", strip:true'), "seulement s'il y a des coordonnées ou une notification");
+  assert.ok(!src.includes("imgStrip"), "plus de case séparée");
   assert.equal(PAGE.lire("IMG_UNAVAILABLE"), "L'image n'est pas disponible pour le moment. Réessaie dans quelques minutes.");
   const clic = src.slice(src.indexOf('send.addEventListener("click"'), src.indexOf('$("#imgClose", d)'));
   assert.ok(clic.includes("navigator.share({files:[st.file]") && !clic.includes("await"), "partage lancé pendant le toucher, fichier déjà prêt");
@@ -2587,9 +2590,35 @@ await test("Liens dérivés sans notification : rappel d'agenda, « Partager la 
   assert.ok(!("nz" in PAGE.lire("reminderData")(d, 0)), "rappel");
   assert.ok(!("nz" in PAGE.lire("shareData")(d, 0)), "partage");
   const img = PAGE.lire("imageData");
-  assert.ok(!("nz" in img(d, true)) && !("nz" in img(d, false)), "image");
-  assert.equal(img(d, false).ci, "06 00 00 00 01", "sans l'option : les coordonnées restent");
-  assert.ok(!("ci" in img(d, true)));
+  assert.ok(!("nz" in img(d)) && !("ci" in img(d)) && img(d).c === "any", "image « story ou groupe » : ni coordonnées ni notification");
+});
+await essaiWorker("Image « Pour qui ? » : « {prénom} uniquement » = le lien de l'invitation (coordonnées et notification) ; « story ou groupe » = lien séparé sans les deux", async () => {
+  const r = reseau(); brancher(r);
+  const S = PAGE.lire("S"), image = PAGE.lire("imageLink");
+  try{
+    // Notification seule (sans coordonnées)
+    const d = INV({ nz: NZ_EX, c: "any" }), long = LOCAL + "/#i=" + await L.encodeData(d), sh = await PAGE.lire("createShort")(long.split("#i=")[1], LOCAL + "/");
+    Object.assign(S, { link: sh.link, longLink: long, imgLinks: {}, chId: "", nz: NZ_EX, to: "Sam" });
+    assert.equal(await image(false), sh.link, "pour Sam : le même lien court que le lien direct");
+    assert.equal((await relire(await image(false))).nz, NZ_EX, "avec la notification");
+    const groupe = await image(true);
+    assert.ok(groupe !== sh.link && /#s=/.test(groupe), "story ou groupe : lien court séparé");
+    assert.ok(!("nz" in await relire(groupe)), "sans la notification");
+    // Rien à retirer : le même lien dans les deux cas, aucun dépôt de plus
+    const d2 = INV({ c: "any" }), long2 = LOCAL + "/#i=" + await L.encodeData(d2), sh2 = await PAGE.lire("createShort")(long2.split("#i=")[1], LOCAL + "/");
+    Object.assign(S, { link: sh2.link, longLink: long2, imgLinks: {}, chId: "", nz: "" });
+    const n = r.journal.length;
+    assert.equal(await image(true), sh2.link); assert.equal(r.journal.length, n, "aucun lien séparé inutile");
+  } finally { Object.assign(S, { link: "", longLink: undefined, imgLinks: {}, chId: "", nz: "", to: "" }); }
+  const note = PAGE.lire("imageWhoNote");
+  Object.assign(S, { to: "Sam" });
+  assert.equal(note(true, true, true), "L'image ouvre une version sans tes coordonnées ni la notification de réponse : elle peut circuler sans risque. La réponse se fera par le partage du téléphone.");
+  assert.equal(note(true, false, true), "L'image ouvre une version sans la notification de réponse : elle peut circuler sans risque. La réponse se fera par le partage du téléphone.");
+  assert.equal(note(false, true, true), "L'image ouvre l'invitation comme le lien direct, avec tes coordonnées et la notification de réponse. Envoie-la seulement à Sam.");
+  assert.equal(note(false, false, true), "L'image ouvre l'invitation comme le lien direct, avec la notification de réponse. Envoie-la seulement à Sam.");
+  assert.equal(note(false, true, false), "L'image ouvre l'invitation comme le lien direct, avec tes coordonnées. Envoie-la seulement à Sam.");
+  Object.assign(S, { to: "" });
+  assert.ok(PAGE.lire("bindCreator").toString().includes('S.nz = notif?.nz || "";'), "la notification du lien est retenue à la création");
 });
 await essaiWorker("Ouvrir une invitation avec notification n'appelle jamais le Worker (aucun suivi des ouvertures)", async () => {
   const r = reseau(); brancher(r);
@@ -2719,7 +2748,8 @@ await test("Mentions légales : notifications facultatives, ce qui est gardé, c
   for(const t of ['<h3 id="notifications">Notifications de réponse</h3>', "facultative et décochée par défaut", "Seuls sa réponse (oui ou non) et le créneau choisi",
     "Le message écrit pour un refus n'est jamais transmis", "elle n'est déchiffrée que sur votre appareil", "l'abonnement est effacé dès que la notification est partie",
     "sept jours après le dernier créneau proposé, et au plus tard un an", "Ouvrir une invitation n'envoie rien à ce service", "jamais dans le code publié",
-    "Elle ne demande qu'une autorisation, celle d'afficher des notifications", "Notifications de réponse, seulement si vous les demandez."])
+    "Elle ne demande qu'une autorisation, celle d'afficher des notifications", "Notifications de réponse, seulement si vous les demandez.",
+    "une question est posée : « Pour qui est cette image ? »", "Avec « Pour une story ou un groupe », choisi par défaut", "n'envoyez cette image qu'à la personne invitée"])
     assert.ok(ml.includes(t), `« ${t} » absent des mentions légales`);
   const rd = readFileSync(RACINE + "android/README.md", "utf8");
   assert.ok(rd.includes("Identifiants de l'appareil ou autres") && rd.includes("POST_NOTIFICATIONS"), "README : formulaire « Sécurité des données »");

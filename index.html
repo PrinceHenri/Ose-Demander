@@ -717,6 +717,8 @@ textarea.refuse-input{font-family:var(--hand);font-size:23px;line-height:1.2;min
 .img-prev .img-wait{margin:0;color:var(--muted)}
 .img-sheet .hint{margin:0 0 14px}
 .img-sheet .check{margin:0 0 6px}
+.img-q{margin:0 0 6px;font-weight:800}
+.img-who button{min-height:44px}
 .img-btns{margin:0 0 6px}
 .img-btns .btn{flex:1 1 160px}
 .img-btns a.btn{display:block;text-align:center;text-decoration:none}
@@ -2541,7 +2543,7 @@ function bindCreator(){
     const notif = granted ? await subscribeNotif(notifExpire(whenList()), {to:S.to, when:whenList()}) : null;
     const long=await buildLink(notif?.nz), sh=await createShort(linkData(long), location.origin+location.pathname); // lien court chiffré, sinon le long
     mk.disabled=false; mk.textContent="Créer mon lien";
-    S.link = sh ? sh.link : long; S.longLink = long; S.imgLinks = {}; // liens de l'image : préparés à l'ouverture de « Partager en image »
+    S.link = sh ? sh.link : long; S.longLink = long; S.imgLinks = {}; S.nz = notif?.nz || ""; // liens de l'image : préparés à l'ouverture de « Partager en image »
     $("#linkbox").textContent=S.link; $("#result").classList.remove("hidden"); Sound.done();
     $("#shortNote").textContent = sh ? "Lien court : l'invitation est chiffrée, gardée un an en ligne sans pouvoir y être lue, puis effacée."
       : SHORT_ORIGIN ? "Le service des liens courts n'a pas répondu : voici le lien complet. Il n'expire pas, et rien n'est envoyé en ligne."
@@ -2577,18 +2579,21 @@ const QR_LONG_MAX = 1200; // au-delà, le QR code serait trop serré pour une st
 const IMG_FORMATS = {story:{w:1080, h:1920, label:"Story"}, carre:{w:1080, h:1080, label:"Carré"}};
 const IMG_UNAVAILABLE = "L'image n'est pas disponible pour le moment. Réessaie dans quelques minutes.";
 /* Version de l'invitation pour l'image quand on retire ses coordonnées : sans canal ni identifiant (réponse par le partage du téléphone) */
-/* Version de l'invitation pour l'image : toujours sans notification (le QR code peut circuler), et sans coordonnées si demandé */
-function imageData(d, strip=true){ const x={...d}; delete x.nz; if(strip){ x.c="any"; delete x.ci; } return sanitize(JSON.parse(JSON.stringify(x))); }
-/* Lien que porte l'image : le lien court de l'invitation, ou un lien court séparé sans les coordonnées ; null si trop long */
+/* Image « Pour une story ou un groupe » : sans coordonnées ni notification de réponse (le QR code peut circuler) ;
+   la réponse se fait alors par le partage du téléphone */
+function imageData(d){ const x={...d, c:"any"}; delete x.ci; delete x.nz; return sanitize(JSON.parse(JSON.stringify(x))); }
+/* Lien que porte l'image : « Pour {prénom} uniquement » (strip=false) = le lien de l'invitation, comme le lien direct ;
+   « Pour une story ou un groupe » (strip=true) = un lien court séparé, sans coordonnées ni notification
+   (ou le même lien s'il n'y a rien à retirer) ; null si trop long */
 async function imageLink(strip){
   const key = strip ? "strip" : "main", long = S.longLink || (S.link.includes("#i=") ? S.link : "");
   S.imgLinks ||= {};
   if(S.imgLinks[key]) return S.imgLinks[key];
   let link = S.link, sh = null;
   let d0 = null; if(long){ try{ d0 = await decodeData(linkData(long)); }catch(e){} }
-  if(strip || d0?.nz){ // lien séparé : sans coordonnées, ou sans la notification de réponse
+  if(strip && (!d0 || d0.ci || d0.nz)){ // lien séparé, seulement s'il y a quelque chose à retirer
     if(!d0) return null;
-    const code = await encodeData(imageData(d0, strip));
+    const code = await encodeData(imageData(d0));
     sh = await createShort(code, location.origin+location.pathname);
     link = sh ? sh.link : location.origin+location.pathname+"#i="+code;
     if(sh) noteImageLink(sh); // gardé dans « Mes invitations », pour pouvoir le supprimer en ligne
@@ -2672,16 +2677,26 @@ async function drawInviteImage(fmt, o, canvas=document.createElement("canvas")){
   x.globalAlpha=.75; x.font=font(600, story ? 34 : 28); x.fillText("osedemander.fr", w/2, story ? L.foot+64 : L.foot); x.globalAlpha=1;
   return {canvas, qr:{x:qx, y:qy, module:m, size:q.size, color:col.qr}};
 }
-/* Panneau « Partager en image » : aperçu, format, coordonnées retirées (cochées par défaut), partager ou enregistrer.
+/* Panneau « Partager en image » : aperçu, format, « Pour qui est cette image ? » (story ou groupe par défaut), partager ou enregistrer.
+   La question n'apparaît que si l'invitation contient des coordonnées ou une notification de réponse (sinon les deux choix sont identiques).
    Safari : le fichier est préparé AVANT le toucher, navigator.share est appelé sans aucune attente. */
+function imageWhoNote(group, hasId, hasNz){
+  const to=esc(S.to);
+  if(group) return `L'image ouvre une version ${hasId && hasNz ? "sans tes coordonnées ni la notification de réponse" : hasId ? "sans ton numéro ni ton nom d'utilisateur" : "sans la notification de réponse"} : elle peut circuler sans risque. La réponse se fera par le partage du téléphone.`;
+  return `L'image ouvre l'invitation comme le lien direct${hasId ? ", avec tes coordonnées" : ""}${hasNz ? (hasId ? " et la notification de réponse" : ", avec la notification de réponse") : ""}. Envoie-la seulement à ${to}.`;
+}
 function openImageSheet(opener){
-  const hasId=!!S.chId, st={fmt:"story", strip:hasId, file:null, url:"", job:0};
+  const hasId=!!S.chId, hasNz=!!S.nz, ask=hasId||hasNz, st={fmt:"story", strip:true, file:null, url:"", job:0};
   const d=document.createElement("div"); d.className="sheet img-sheet"; d.setAttribute("role","dialog"); d.setAttribute("aria-modal","true"); d.setAttribute("aria-labelledby","imgTitle");
   d.innerHTML=`<div class="sheet-card">
     <h3 id="imgTitle" tabindex="-1">Partager en image</h3>
     <div class="seg" role="group" aria-label="Format de l'image">${Object.entries(IMG_FORMATS).map(([k,f])=>`<button type="button" data-fmt="${k}" aria-pressed="${k===st.fmt}">${f.label}</button>`).join("")}</div>
-    ${hasId ? `<label class="check"><input type="checkbox" id="imgStrip" checked><span>Retirer mes coordonnées de l'image</span></label>
-    <p class="hint">L'image ouvre alors une version de l'invitation sans ton numéro ni ton nom d'utilisateur : la réponse se fera par le partage du téléphone.</p>` : ""}
+    ${ask ? `<p class="img-q" id="imgWhoLbl">Pour qui est cette image ?</p>
+    <div class="seg img-who" role="group" aria-labelledby="imgWhoLbl">
+      <button type="button" data-who="groupe" aria-pressed="true">Pour une story ou un groupe</button>
+      <button type="button" data-who="perso" aria-pressed="false">Pour ${esc(S.to)} uniquement</button>
+    </div>
+    <p class="hint" id="imgWhoNote" aria-live="polite">${imageWhoNote(true, hasId, hasNz)}</p>` : ""}
     <div class="img-prev" id="imgPrevBox"><p class="img-wait" role="status">Préparation de l'image…</p></div>
     <p class="hint">Toute personne qui scanne ce code peut ouvrir l'invitation, avec son lieu et sa date. Pour une story publique, pense à qui pourra la voir.</p>
     <div class="btns img-btns" id="imgBtns" hidden>
@@ -2714,8 +2729,14 @@ function openImageSheet(opener){
     if(e.target===d) return close();
     const f=e.target.closest("[data-fmt]");
     if(f){ st.fmt=f.dataset.fmt; $$("[data-fmt]", d).forEach(b=>b.setAttribute("aria-pressed", b===f)); prepare(); }
+    const who=e.target.closest("[data-who]");
+    if(who && (who.dataset.who==="groupe")!==st.strip){
+      st.strip=who.dataset.who==="groupe";
+      $$("[data-who]", d).forEach(b=>b.setAttribute("aria-pressed", b===who));
+      $("#imgWhoNote", d).innerHTML=imageWhoNote(st.strip, hasId, hasNz);
+      prepare();
+    }
   });
-  $("#imgStrip", d)?.addEventListener("change", e=>{ st.strip=e.target.checked; prepare(); });
   send.addEventListener("click", ()=>{ if(st.file) navigator.share({files:[st.file], title:"Ose Demander", text:shareText()}).catch(()=>{}); });
   $("#imgClose", d).addEventListener("click", close);
   document.addEventListener("keydown", onKey);
