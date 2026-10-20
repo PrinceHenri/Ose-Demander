@@ -2348,10 +2348,10 @@ await test("Carte d'exemple de l'accueil : le Non reste toujours à 20 px au moi
    ========================================================= */
 titre("32. Appli Android");
 const TWA = JSON.parse(lireFichier("android/twa-manifest.json")), MANIF = JSON.parse(lireFichier("manifest.webmanifest"));
-await test("Configuration : paquet fr.osedemander.app, osedemander.fr, nom, couleurs et icônes du site, sans notifications", () => {
+await test("Configuration : paquet fr.osedemander.app, osedemander.fr, nom, couleurs et icônes du site, notifications de réponse", () => {
   assert.equal(TWA.packageId, "fr.osedemander.app"); assert.equal(TWA.host, "osedemander.fr");
   assert.equal(TWA.name, "Ose Demander"); assert.equal(TWA.launcherName, "Ose Demander");
-  assert.equal(TWA.startUrl, "/"); assert.equal(TWA.display, "standalone"); assert.equal(TWA.enableNotifications, false);
+  assert.equal(TWA.startUrl, "/"); assert.equal(TWA.display, "standalone"); assert.equal(TWA.enableNotifications, true, "notifications de réponse : Chrome les confie à l'appli (autorisation demandée seulement si la case est cochée)");
   assert.equal(TWA.themeColor, MANIF.theme_color); assert.equal(TWA.backgroundColor, MANIF.background_color);
   assert.equal(TWA.iconUrl, SITE_URL + "icons/icon-512.png"); assert.equal(TWA.maskableIconUrl, SITE_URL + "icons/maskable-512.png");
   assert.ok(Number.isInteger(TWA.appVersionCode) && TWA.appVersionCode >= 1, "numéro de version entier (à augmenter à chaque envoi)");
@@ -2712,6 +2712,17 @@ await test("Notifications : clé publique VAPID identique dans index.html et wra
   const toml = readFileSync(RACINE + "worker/wrangler.toml", "utf8");
   assert.equal(PAGE.lire("PUSH_PUB"), /^VAPID_PUBLIQUE = "([\w-]{87})"$/m.exec(toml)[1]);
   assert.equal(Buffer.from(PAGE.lire("PUSH_PUB"), "base64url")[0], 4, "point P-256 non compressé");
+});
+
+await test("Mentions légales : notifications facultatives, ce qui est gardé, combien de temps, chiffrement de bout en bout, appli Android", () => {
+  const ml = readFileSync(RACINE + "mentions-legales.html", "utf8").replace(/\s+/g, " ");
+  for(const t of ['<h3 id="notifications">Notifications de réponse</h3>', "facultative et décochée par défaut", "Seuls sa réponse (oui ou non) et le créneau choisi",
+    "Le message écrit pour un refus n'est jamais transmis", "elle n'est déchiffrée que sur votre appareil", "l'abonnement est effacé dès que la notification est partie",
+    "sept jours après le dernier créneau proposé, et au plus tard un an", "Ouvrir une invitation n'envoie rien à ce service", "jamais dans le code publié",
+    "Elle ne demande qu'une autorisation, celle d'afficher des notifications", "Notifications de réponse, seulement si vous les demandez."])
+    assert.ok(ml.includes(t), `« ${t} » absent des mentions légales`);
+  const rd = readFileSync(RACINE + "android/README.md", "utf8");
+  assert.ok(rd.includes("Identifiants de l'appareil ou autres") && rd.includes("POST_NOTIFICATIONS"), "README : formulaire « Sécurité des données »");
 });
 
 /* ---------- Bilan ---------- */

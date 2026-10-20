@@ -56,4 +56,8 @@ Dans un terminal, depuis le dossier `android` du projet :
   6. Après le Oui : « Dernière étape : envoie ta réponse » ;
   7. Partager en image (story avec le QR code) ;
   8. Mes invitations.
-- Formulaire « Sécurité des données » : à mettre à jour si le traitement des données change (voir les mentions légales du site).
+- Formulaire « Sécurité des données » : à mettre à jour si le traitement des données change (voir les mentions légales du site). Depuis les notifications de réponse (`enableNotifications: true`) :
+  - Données collectées : « Identifiants de l'appareil ou autres » (l'abonnement aux notifications du navigateur). Collecte facultative (case décochée par défaut), usage « Fonctionnalité de l'application », non partagées, chiffrées en transit, supprimées automatiquement (après l'envoi, ou 7 jours après le dernier créneau, un an au plus) et sur demande (retirer l'invitation de « Mes invitations »).
+  - La réponse (oui ou non, créneau) est chiffrée de bout en bout dans le navigateur de la personne invitée : ni Ose Demander ni Cloudflare ne peuvent la lire. Relire au moment de remplir la définition de Google des données chiffrées de bout en bout (elles ne comptent alors pas comme collectées).
+  - Autorisation Android déclarée : notifications (POST_NOTIFICATIONS, Android 13 et plus), demandée seulement quand on coche « Me prévenir dès que … répond ».
+  - Règles de confidentialité : https://osedemander.fr/mentions-legales.html#notifications

@@ -12,7 +12,7 @@
   "navigationDividerColor": "#CFC4F5",
   "navigationDividerColorDark": "#1C1838",
   "backgroundColor": "#ECE6FF",
-  "enableNotifications": false,
+  "enableNotifications": true,
   "startUrl": "/",
   "fullScopeUrl": "https://osedemander.fr/",
   "iconUrl": "https://osedemander.fr/icons/icon-512.png",
