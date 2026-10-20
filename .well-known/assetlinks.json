@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "fr.osedemander.app",
+      "sha256_cert_fingerprints": [
+        "21:E0:78:45:3E:FD:8C:3E:24:D1:69:17:48:83:F4:E8:B9:4E:68:59:64:62:31:BB:82:9A:32:30:B0:6F:6D:12"
+      ]
+    }
+  }
+]
