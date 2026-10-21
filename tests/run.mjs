@@ -2391,6 +2391,11 @@ await test("Liaison (.well-known/assetlinks.json) : relie fr.osedemander.app à 
     assert.ok(e.target.sha256_cert_fingerprints.length >= 1);
     for(const f of e.target.sha256_cert_fingerprints) assert.match(f, /^([0-9A-F]{2}:){31}[0-9A-F]{2}$/, "empreinte SHA-256 en majuscules, octets séparés par « : »");
   }
+  // Les deux empreintes : la clé locale (apk installé à la main) et Google Play App Signing (appli du Play Store)
+  const fp = j[0].target.sha256_cert_fingerprints;
+  assert.ok(fp.includes("21:E0:78:45:3E:FD:8C:3E:24:D1:69:17:48:83:F4:E8:B9:4E:68:59:64:62:31:BB:82:9A:32:30:B0:6F:6D:12"), "clé de signature locale");
+  assert.ok(fp.includes("AD:2D:84:89:74:FE:65:DD:99:F8:8C:D2:E5:89:74:22:36:5E:FC:E3:75:E8:43:4B:34:63:A9:04:62:90:7A:29"), "Google Play App Signing");
+  assert.equal(new Set(fp).size, fp.length, "aucune empreinte en double");
 });
 await test("Fiche du Play Store : icône 512 × 512 et bannière 1 024 × 500", () => {
   const taille = f => { const b = readFileSync(RACINE + f); return [b.readUInt32BE(16), b.readUInt32BE(20), b[25]]; }; // largeur, hauteur, type de couleur PNG
