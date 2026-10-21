@@ -100,7 +100,7 @@ h2,.handnote,.question,.lead{text-wrap:balance}
   return [...polices, ...couleurs, ...scene, ...images, mise].join("\n");
 }
 
-const tete = ({ titre, description, canonique, theme, robots, jsonld }) => {
+const tete = ({ titre, description, canonique, theme, robots, jsonld, css = "" }) => {
   const t = THEMES.find(x => x.id === theme) || THEMES[0];
   return `<!doctype html>
 <html lang="fr" data-theme="${theme === "base" ? "" : theme}">
@@ -126,7 +126,7 @@ ${robots ? `<meta name="robots" content="${robots}">\n` : ""}${canonique ? `<lin
 <meta name="referrer" content="no-referrer">
 <link rel="preload" href="/fonts/bricolage-grotesque.woff2" as="font" type="font/woff2" crossorigin>
 ${jsonld ? `<script type="application/ld+json">${JSON.stringify(jsonld)}</script>\n` : ""}<style>
-${cssPage(theme)}
+${cssPage(theme)}${css ? "\n" + css : ""}
 </style>
 </head>`;
 };
@@ -198,11 +198,78 @@ ${pied}
 `;
 }
 
+/* Page « Supprimer mes données » (lien demandé par la Play Console) : ce que chacun peut supprimer soi-même,
+   la demande par e-mail, et ce qui est supprimé ou conservé, avec les durées. Doit rester fidèle aux mentions légales. */
+export const SUPPRESSION = { path: "supprimer-mes-donnees", maj: "2026-10-21",
+  title: "Supprimer mes données | Ose Demander",
+  description: "Comment supprimer tes données d'Ose Demander, sur l'appli Android comme sur le site : liens courts, notifications de réponse, historique, ou demande par e-mail." };
+function pageSuppression(){
+  const p = SUPPRESSION, url = `${SITE}${p.path}/`;
+  const jsonld = { "@context": "https://schema.org", "@type": "BreadcrumbList", itemListElement: [
+    { "@type": "ListItem", position: 1, name: "Ose Demander", item: SITE }, { "@type": "ListItem", position: 2, name: "Supprimer mes données", item: url }] };
+  const mail = "mailto:contact@osedemander.fr?subject=" + encodeURIComponent("Suppression de mes données");
+  return `${tete({ titre: p.title, description: p.description, canonique: url, theme: "base", jsonld, css: "h3{font-size:18px;line-height:1.25;margin:20px 0 8px}\nh2+h3{margin-top:4px}" })}
+<body>
+<a class="skip" href="#contenu">Aller au contenu</a>
+<div id="scene" class="scene-home" aria-hidden="true">${HOME_SCENE}</div>
+<div class="wrap">
+<header class="top"><a class="logo" href="/">Ose Demander<span class="q" aria-hidden="true">?</span></a></header>
+<main id="contenu">
+<section class="panel hero">
+<h1>Supprimer mes données</h1>
+<p class="lead">${t("Cette page concerne l'appli « Ose Demander », sur Google Play, et le site osedemander.fr. Il n'y a pas de compte : presque tout se supprime toi-même, en quelques gestes. Tu peux aussi le demander par e-mail.")}</p>
+<p class="cta"><a class="btn primary" href="/#mes-invitations">Ouvrir « Mes invitations »</a></p>
+</section>
+<section class="panel" aria-labelledby="toi-meme"><h2 id="toi-meme">Supprimer toi-même</h2>
+<h3>Un lien court</h3>
+<ol class="steps">
+<li>${t("Ouvre l'appli ou le site, puis « Mes invitations ».")}</li>
+<li>${t("Sous l'invitation, touche « Supprimer le lien en ligne », puis confirme.")}</li>
+<li>${t("Le contenu chiffré est effacé tout de suite : le lien affiche désormais « Cette invitation a été supprimée ». Le lien de l'image, s'il existe, est supprimé en même temps.")}</li>
+</ol>
+<p>${t("Ce bouton ne fonctionne que sur l'appareil qui a créé l'invitation : c'est lui qui garde le jeton de suppression. Sinon, demande la suppression par e-mail.")}</p>
+<h3>Un abonnement aux notifications de réponse</h3>
+<p>${t("Il est effacé automatiquement dès que la notification est partie. Pour l'effacer avant, retire l'invitation de « Mes invitations » (bouton « Retirer de l'historique ») : l'abonnement est effacé en même temps. Tu peux aussi retirer l'autorisation des notifications dans les réglages de ton téléphone ou de ton navigateur.")}</p>
+<h3>L'historique « Mes invitations »</h3>
+<p>${t("Il reste uniquement sur ton appareil : Ose Demander n'en a aucune copie. Pour l'effacer :")}</p>
+<ul class="list">
+<li>${t("dans « Mes invitations », « Retirer de l'historique » pour une invitation, ou « Tout effacer » ;")}</li>
+<li>${t("ou en effaçant les données de l'appli (Paramètres d'Android, Applications, Ose Demander, Stockage, « Effacer les données ») ou celles du site osedemander.fr dans les réglages de ton navigateur.")}</li>
+</ul>
+</section>
+<section class="panel" aria-labelledby="mail"><h2 id="mail">Demander la suppression par e-mail</h2>
+<p>${t("Écris à")} <a href="${mail}">contact@osedemander.fr</a> ${t("en indiquant :")}</p>
+<ul class="list">
+<li>${t("le lien de l'invitation concernée, tel que tu l'as envoyé, ou celui de l'image ;")}</li>
+<li>${t("ce que tu veux supprimer : le lien court, l'abonnement aux notifications, ou les deux.")}</li>
+</ul>
+<p>${t("Sans le lien, impossible de retrouver une invitation : rien n'est rattaché à un nom, à une adresse e-mail ou à un appareil. Tu reçois une réponse dans un délai d'un mois au plus, comme le prévoit le RGPD.")}</p>
+<p class="cta"><a class="btn" href="${mail}">Écrire à contact@osedemander.fr</a></p>
+</section>
+<section class="panel" aria-labelledby="duree"><h2 id="duree">Ce qui est supprimé, ce qui est conservé</h2>
+<ul class="list">
+<li>${t("Lien court : le contenu chiffré est effacé tout de suite à ta demande, sinon automatiquement un an au plus après la création du lien. L'identifiant du lien, sans aucun contenu, est gardé un an de plus, seulement pour afficher « Cette invitation a expiré » ou « a été supprimée ».")}</li>
+<li>${t("Abonnement aux notifications : effacé dès l'envoi de la notification, sinon automatiquement 7 jours après le dernier créneau proposé, et au plus tard un an après la création. Son identifiant, sans l'abonnement, est gardé 30 jours de plus.")}</li>
+<li>${t("Réponse envoyée en notification : jamais conservée. Elle est chiffrée de bout en bout et seulement transmise.")}</li>
+<li>${t("Journaux : aucun. L'adresse IP sert seulement, sur le moment, à limiter le nombre de demandes ; elle n'est jamais enregistrée.")}</li>
+<li>${t("Lien complet, le lien long utilisé quand le service des liens courts ne répond pas : toute l'invitation est dans le lien, rien n'est conservé en ligne. Pour la faire disparaître, supprime les messages qui le contiennent.")}</li>
+<li>${t("Google Play peut traiter des données liées au téléchargement de l'appli, selon sa propre politique de confidentialité.")}</li>
+</ul>
+<p>${t("Le détail est dans les")} <a href="/mentions-legales.html#confidentialite">${t("mentions légales, section « Confidentialité »")}</a>.</p>
+</section>
+</main>
+${pied}
+</div>
+</body>
+</html>
+`;
+}
+
 function plan(){
-  const adresses = [SITE, ...PAGES.map(p => `${SITE}${p.path}/`), `${SITE}mentions-legales.html`];
+  const adresses = [[SITE, MISE_A_JOUR], ...PAGES.map(p => [`${SITE}${p.path}/`, MISE_A_JOUR]), [`${SITE}mentions-legales.html`, MISE_A_JOUR], [`${SITE}${SUPPRESSION.path}/`, SUPPRESSION.maj]];
   return `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-${adresses.map(a => `  <url><loc>${a}</loc><lastmod>${MISE_A_JOUR}</lastmod></url>`).join("\n")}
+${adresses.map(([a, d]) => `  <url><loc>${a}</loc><lastmod>${d}</lastmod></url>`).join("\n")}
 </urlset>
 `;
 }
@@ -210,6 +277,7 @@ ${adresses.map(a => `  <url><loc>${a}</loc><lastmod>${MISE_A_JOUR}</lastmod></ur
 export function fichiers(){
   const f = { "404.html": page404(), "sitemap.xml": plan() };
   for(const p of PAGES) f[`${p.path}/index.html`] = pageOccasion(p);
+  f[`${SUPPRESSION.path}/index.html`] = pageSuppression();
   return f;
 }
 

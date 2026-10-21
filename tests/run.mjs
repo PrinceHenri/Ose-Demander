@@ -2231,7 +2231,7 @@ await test("Pages légères, sans appel extérieur, sans aucun lien d'invitation
   for(const [nom, h] of Object.entries(FAB)){
     if(!nom.endsWith(".html")) continue;
     assert.ok(gzipSync(h).length < 20000, `${nom} : ${gzipSync(h).length} octets compressés`);
-    for(const [, u] of h.matchAll(/(?:src|href)="([^"]+)"/g)) assert.ok(u.startsWith("/") || u.startsWith("#") || u.startsWith(SITE_URL), `${nom} : ressource extérieure ${u}`);
+    for(const [, u] of h.matchAll(/(?:src|href)="([^"]+)"/g)) assert.ok(u.startsWith("/") || u.startsWith("#") || u.startsWith(SITE_URL) || u.startsWith("mailto:contact" + "@osedemander.fr"), `${nom} : ressource extérieure ${u}`);
     assert.ok(!/#i=|#s=|#exemple/.test(h), `${nom} : aucun lien d'invitation`);
     assert.ok(!/<script(?! type="application\/ld\+json")/.test(h), `${nom} : aucun script (contenu lisible sans JavaScript)`);
     const texte = h.replace(/<style>[\s\S]*?<\/style>|<script[\s\S]*?<\/script>|<svg[\s\S]*?<\/svg>/g, "");
@@ -2758,6 +2758,31 @@ await test("Mentions légales : notifications facultatives, ce qui est gardé, c
     assert.ok(ml.includes(t), `« ${t} » absent des mentions légales`);
   const rd = readFileSync(RACINE + "android/README.md", "utf8");
   assert.ok(rd.includes("Identifiants de l'appareil ou autres") && rd.includes("POST_NOTIFICATIONS"), "README : formulaire « Sécurité des données »");
+});
+
+/* =========================================================
+   36. Page « Supprimer mes données » (lien demandé par la Play Console)
+   ========================================================= */
+titre("36. Supprimer mes données");
+await test("Page /supprimer-mes-donnees/ : nom de l'appli, suppression soi-même, demande par e-mail, durées, liens", () => {
+  const h = FAB["supprimer-mes-donnees/index.html"];
+  assert.ok(h, "page fabriquée par outils/pages.mjs");
+  const txt = h.replace(/<style>[\s\S]*?<\/style>|<svg[\s\S]*?<\/svg>/g, "").replace(/<[^>]+>/g, " ").replace(/&nbsp;/g, " ").replace(/&#39;/g, "'").replace(/\s+/g, " ");
+  for(const t of ["l'appli « Ose Demander », sur Google Play", "« Supprimer le lien en ligne »", "effacé automatiquement dès que la notification est partie",
+    "« Retirer de l'historique »", "Il reste uniquement sur ton appareil", "« Effacer les données »", "le lien de l'invitation concernée",
+    "dans un délai d'un mois au plus, comme le prévoit le RGPD", "un an au plus après la création du lien", "7 jours après le dernier créneau proposé",
+    "Journaux : aucun.", "jamais conservée"])
+    assert.ok(txt.includes(t), `« ${t} » absent`);
+  assert.ok(h.includes('href="mailto:contact' + '@osedemander.fr?subject=Suppression%20de%20mes%20donn%C3%A9es"'), "lien e-mail avec objet");
+  assert.ok(h.includes('href="/mentions-legales.html#confidentialite"'), "lien vers la confidentialité");
+  assert.ok(h.includes('<a class="btn primary" href="/#mes-invitations">Ouvrir « Mes invitations »</a>'), "une action principale : Mes invitations");
+  assert.equal((h.match(/class="btn primary"/g) || []).length, 1);
+  assert.equal((h.match(/<h1[ >]/g) || []).length, 1);
+  assert.ok(h.includes(`<link rel="canonical" href="${SITE_URL}supprimer-mes-donnees/">`));
+  assert.ok(!/noindex/.test(h), "page indexable (la Play Console doit pouvoir l'ouvrir)");
+  assert.ok(pagesDuPlan().includes(`${SITE_URL}supprimer-mes-donnees/`), "dans le plan du site");
+  assert.ok(lireFichier("mentions-legales.html").includes('<a href="/supprimer-mes-donnees/">Supprimer mes données</a>'), "lien depuis les mentions légales");
+  assert.ok(!/\b(prévenu|averti|informé)\b/.test(txt), "textes neutres");
 });
 
 /* ---------- Bilan ---------- */
