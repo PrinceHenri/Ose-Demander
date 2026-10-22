@@ -2,6 +2,9 @@
    Il lit une matrice de modules (dark(x, y) -> booléen, taille connue) comme un téléphone après repérage :
    informations de format (code BCH le plus proche), version (déduite de la taille), masque, lecture en zigzag,
    désentrelacement des blocs, contrôle Reed-Solomon (tous les syndromes nuls), puis mode octets -> texte UTF-8.
+   Modules inconnus (cachés par un logo, comme sur l'image « Partager en image ») : les mots de code touchés sont des
+   effacements, reconstitués par Reed-Solomon (système linéaire sur GF(256)), comme le fait l'appareil photo d'un téléphone ;
+   le bloc doit ensuite avoir tous ses syndromes nuls. Au-delà de la capacité du niveau, le code est illisible.
    Les tables par version viennent de la norme ISO/IEC 18004 (tableau 9), saisies ici indépendamment. */
 
 // Tableau 9 de la norme : pour chaque version, [nombre total de mots de code, puis par niveau L, M, Q, H : [codes correcteurs par bloc, groupes [[nb blocs, mots de données], …]]]
@@ -64,6 +67,23 @@ function syndromesNuls(bloc, n){
   for(let i = 0; i < n; i++){ let s = 0; for(const c of bloc) s = mul(s, EXP[i]) ^ c; if(s !== 0) return false; }
   return true;
 }
+const inverse = a => EXP[(255 - LOG[a]) % 255], puissance = (a, n) => n === 0 ? 1 : a === 0 ? 0 : EXP[(LOG[a] * n) % 255];
+/* Reconstitue les mots effacés d'un bloc (indices connus) : S_i = Σ E_k · X_k^i (X_k = α^position), résolu par Gauss ; renvoie le nombre de mots corrigés */
+function effacements(bloc, n, ix){
+  if(!ix.length) return 0;
+  if(ix.length > n) throw new Error(`trop de modules cachés : ${ix.length} mots effacés pour ${n} codes correcteurs`);
+  const S = []; for(let i = 0; i < n; i++){ let s = 0; for(const c of bloc) s = mul(s, EXP[i]) ^ c; S.push(s); }
+  const X = ix.map(k => EXP[(bloc.length - 1 - k) % 255]), e = ix.length;
+  const A = [...Array(e)].map((_, i) => [...X.map(x => puissance(x, i)), S[i]]);
+  for(let c = 0; c < e; c++){
+    const r = A.findIndex((l, j) => j >= c && l[c] !== 0); if(r < 0) throw new Error("effacements non résolubles");
+    [A[c], A[r]] = [A[r], A[c]];
+    const iv = inverse(A[c][c]); A[c] = A[c].map(v => mul(v, iv));
+    for(let j = 0; j < e; j++) if(j !== c && A[j][c] !== 0){ const f = A[j][c]; A[j] = A[j].map((v, k) => v ^ mul(f, A[c][k])); }
+  }
+  ix.forEach((k, j) => { bloc[k] ^= A[j][e]; });
+  return e;
+}
 
 // Les 32 informations de format possibles, calculées par division polynomiale (générateur 10100110111), masque 101010000010010
 const FORMATS = [];
@@ -95,8 +115,9 @@ function zonesFixes(taille, version){
   return f;
 }
 
-/* Lit une matrice : {texte, version, niveau, masque} ; lance une erreur si le code est illisible ou abîmé */
-export function lireQR(taille, dark){
+/* Lit une matrice : {texte, version, niveau, masque, effaces} ; lance une erreur si le code est illisible ou abîmé.
+   inconnu(x, y) : module caché (facultatif) ; effaces = nombre de mots de code reconstitués */
+export function lireQR(taille, dark, inconnu = () => false){
   const version = (taille - 17) / 4;
   if(!Number.isInteger(version) || !T[version]) throw new Error(`taille ${taille} : version non prise en charge par le lecteur`);
   // Format : première copie (autour du repère en haut à gauche), le plus proche des 32 possibles
@@ -108,19 +129,23 @@ export function lireQR(taille, dark){
   const masques = [(i, j) => (i + j) % 2 === 0, i => i % 2 === 0, (i, j) => j % 3 === 0, (i, j) => (i + j) % 3 === 0,
     (i, j) => (Math.floor(i / 2) + Math.floor(j / 3)) % 2 === 0, (i, j) => (i * j) % 2 + (i * j) % 3 === 0,
     (i, j) => ((i * j) % 2 + (i * j) % 3) % 2 === 0, (i, j) => ((i + j) % 2 + (i * j) % 3) % 2 === 0]; // i = ligne, j = colonne
-  const fixe = zonesFixes(taille, version), bits = [];
+  const fixe = zonesFixes(taille, version), bits = [], caches = [];
   for(let col = taille - 1, montee = true; col > 0; col -= 2, montee = !montee){
     if(col === 6) col--;
     for(let k = 0; k < taille; k++){ const y = montee ? taille - 1 - k : k;
-      for(const x of [col, col - 1]) if(!fixe[y][x]) bits.push(dark(x, y) !== masques[masque](y, x) ? 1 : 0); }
+      for(const x of [col, col - 1]) if(!fixe[y][x]){ const c = inconnu(x, y); caches.push(c); bits.push(c ? 0 : dark(x, y) !== masques[masque](y, x) ? 1 : 0); } }
   }
+  if(pos.some(([x, y]) => inconnu(x, y))) throw new Error("informations de format cachées");
   const [total, ...par] = T[version], [ne, groupes] = par[NIVEAUX.indexOf(niveau)];
-  const mots = []; for(let i = 0; i + 8 <= bits.length && mots.length < total; i += 8) mots.push(bits.slice(i, i + 8).reduce((a, b) => a * 2 + b, 0));
-  // Désentrelacement
-  const tailles = groupes.flatMap(([n, k]) => Array(n).fill(k)), blocs = tailles.map(() => []);
-  let p = 0; for(let i = 0; i < Math.max(...tailles); i++) tailles.forEach((k, b) => { if(i < k) blocs[b].push(mots[p++]); });
-  for(let i = 0; i < ne; i++) blocs.forEach(b => b.push(mots[p++]));
-  blocs.forEach((b, i) => { if(!syndromesNuls(b, ne)) throw new Error(`bloc ${i} abîmé (Reed-Solomon)`); });
+  const mots = [], motCache = [];
+  for(let i = 0; i + 8 <= bits.length && mots.length < total; i += 8){ mots.push(bits.slice(i, i + 8).reduce((a, b) => a * 2 + b, 0)); motCache.push(caches.slice(i, i + 8).some(Boolean)); }
+  // Désentrelacement (avec, pour chaque bloc, les indices des mots effacés)
+  const tailles = groupes.flatMap(([n, k]) => Array(n).fill(k)), blocs = tailles.map(() => []), trous = tailles.map(() => []);
+  const range = (b, m) => { if(motCache[m]) trous[b].push(blocs[b].length); blocs[b].push(mots[m]); };
+  let p = 0; for(let i = 0; i < Math.max(...tailles); i++) tailles.forEach((k, b) => { if(i < k) range(b, p++); });
+  for(let i = 0; i < ne; i++) blocs.forEach((b, j) => range(j, p++));
+  let effaces = 0;
+  blocs.forEach((b, i) => { effaces += effacements(b, ne, trous[i]); if(!syndromesNuls(b, ne)) throw new Error(`bloc ${i} abîmé (Reed-Solomon)`); });
   const donnees = blocs.flatMap((b, i) => b.slice(0, tailles[i]));
   // Mode octets
   const flux = donnees.flatMap(o => [7,6,5,4,3,2,1,0].map(s => o >> s & 1));
@@ -128,5 +153,5 @@ export function lireQR(taille, dark){
   if(lire(0, 4) !== 4) throw new Error("mode inattendu (octets attendu)");
   const lb = version < 10 ? 8 : 16, n = lire(4, lb), octets = [];
   for(let i = 0; i < n; i++) octets.push(lire(4 + lb + 8 * i, 8));
-  return { texte: new TextDecoder("utf-8", { fatal: true }).decode(new Uint8Array(octets)), version, niveau, masque };
+  return { texte: new TextDecoder("utf-8", { fatal: true }).decode(new Uint8Array(octets)), version, niveau, masque, effaces };
 }

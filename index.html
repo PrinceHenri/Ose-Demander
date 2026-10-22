@@ -2713,43 +2713,137 @@ function wrapText(ctx, text, max){
   for(const w of words){ const t=line ? line+" "+w : w; if(wd(t)>max && line){ lines.push(line); line=w; } else line=t; }
   if(line) lines.push(line); return lines;
 }
-/* Dessine l'image (format story ou carre) ; renvoie le canevas et la place du QR code (pour le banc de test) */
+/* ---------- Dessin de l'image : un faire-part ----------
+   Fond : la scène du thème (SCENES, couleurs résolues) et des décors du thème (formes du décor animé), jamais sur le texte ni sur le QR code.
+   Le QR code reste droit, foncé sur blanc (≥ 7:1), avec sa marge blanche de 4 modules ; rien ne le recouvre sauf le petit logo central,
+   posé seulement sur un lien court (niveau Q : 25 % de modules récupérables ; version 6, sans motif d'alignement au centre ;
+   le logo n'en cache qu'environ 5 %). Lien complet (code dense) : niveau M, sans logo.
+   Mise en scène (choisie le 2026-10-23) : la fête (scène en plein cadre, décors du thème, enveloppe penchée, texte manuscrit sur une
+   banderole) et le billet du site (talon « Scanne-moi », perforation à encoches) qui porte le QR code, une carte à l'accent penchée derrière. */
+/* Couleurs résolues du thème (et de l'accent choisi) pour le dessin */
+function imageTheme(th, ac){
+  const c=imageColors(th, ac), t=THEMES.find(x=>x.id===th)||THEMES[0], v=ac ? accentVars(th, ac) : null;
+  const r={...c, soft:t.so||c.surface, line:c.bg, btn:v ? v.btn : c.accent, btnInk:v ? v.ink : "#FFFFFF"};
+  try{ // valeurs exactes du thème, lues dans la feuille de style (navigateur)
+    const el=document.createElement("div"); el.dataset.theme=th; el.style.display="none"; document.body.appendChild(el);
+    const cs=getComputedStyle(el), g=n=>cs.getPropertyValue(n).trim();
+    if(g("--line")) Object.assign(r, {soft:g("--soft")||r.soft, line:g("--line"), btn:v ? v.btn : g("--accent-btn")||r.btn, btnInk:v ? v.ink : g("--accent-ink")||r.btnInk});
+    el.remove();
+  }catch(e){}
+  return r;
+}
+/* Le décor de fond de la scène, en SVG autonome aux couleurs résolues (dessiné à l'échelle 2, comme sur un téléphone) */
+function sceneImageSVG(th, w, h, col){
+  const sc=SCENES[th]||SCENES.base, css=`.sc-bg{fill:${col.bg}}.sc-a{fill:${col.soft}}.sc-b{fill:${col.surface}}.sc-out{stroke:${col.line};stroke-width:1.5;stroke-linejoin:round}
+.sc-line{fill:none;stroke:${col.line};stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}.sc-wire{fill:none;stroke:${col.line};stroke-width:3;stroke-linecap:round}
+.sc-mount{fill:${col.line};stroke:${col.bg};stroke-width:2}.sc-speck-l{fill:${col.ink};opacity:.06}.sc-speck-d{fill:${col.bg};opacity:.5}.sc-dash{stroke-dasharray:5 7}
+.sc-neon text{font-family:sans-serif;font-weight:700}.sc-halo text{fill:none;stroke:${col.accent};stroke-width:9;opacity:.2}.sc-tube text{fill:${col.accent}}`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w/2} ${h/2}"><style>${css}</style>${sc.wall}</svg>`;
+}
+const imgRand = seed => () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+/* Décors du thème semés sur le fond, hors des zones protégées (texte, QR code, cartes) */
+function sprinkle(x, th, w, h, avoid, n, seed, big=1){
+  const cfg=DECOR[th]||DECOR.base, kinds=[...new Set([...(Array.isArray(cfg.shape)?cfg.shape:[cfg.shape]), ...(cfg.burst||[])])], rnd=imgRand(seed);
+  let posed=0;
+  for(let essai=0; essai<n*25 && posed<n; essai++){
+    const px=rnd()*w, py=rnd()*h, sz=(16+rnd()*22)*big, m=sz*1.6;
+    if(avoid.some(([ax,ay,aw,ah])=>px>ax-m && px<ax+aw+m && py>ay-m && py<ay+ah+m)) continue;
+    const kind=kinds[Math.floor(rnd()*kinds.length)], cols=(cfg.kcols&&cfg.kcols[kind])||cfg.cols;
+    x.save(); x.translate(px, py); x.rotate(rnd()*6.28); x.globalAlpha=.55+rnd()*.4;
+    try{ Decor.paint(x, kind, sz, cols[Math.floor(rnd()*cols.length)]); }catch(e){}
+    x.restore(); posed++;
+  }
+}
+/* Rectangle arrondi (tracé) */
+function rrect(x, X, Y, W, H, r){ x.beginPath(); x.moveTo(X+r, Y); x.arcTo(X+W, Y, X+W, Y+H, r); x.arcTo(X+W, Y+H, X, Y+H, r); x.arcTo(X, Y+H, X, Y, r); x.arcTo(X, Y, X+W, Y, r); x.closePath(); }
+/* Carte en papier : ombre décalée à l'encre, fond, contour (la signature du site) */
+function paperCard(x, X, Y, W, H, r, col, fill=col.surface, sh=16){
+  x.fillStyle=col.ink; rrect(x, X+sh, Y+sh, W, H, r); x.fill();
+  x.fillStyle=fill; rrect(x, X, Y, W, H, r); x.fill();
+  x.lineWidth=6; x.strokeStyle=col.ink; rrect(x, X+3, Y+3, W-6, H-6, r-3); x.stroke();
+}
+/* Le QR code : carte blanche (marge de 4 modules), modules foncés, petit logo central si le niveau le permet ; renvoie sa place */
+function drawQR(x, q, X, Y, side, col, logo){
+  x.fillStyle="#FFFFFF"; rrect(x, X, Y, side, side, Math.round(side*.06)); x.fill();
+  const m=Math.floor(side/(q.size+8)), qs=m*q.size, qx=Math.round(X+(side-qs)/2), qy=Math.round(Y+(side-qs)/2);
+  const L = logo ? (Math.round(q.size*.21)|1) : 0, l0=(q.size-L)/2, inLogo=(a,b)=>L && a>=l0 && a<l0+L && b>=l0 && b<l0+L;
+  x.fillStyle=col.qr;
+  for(let yy=0; yy<q.size; yy++) for(let xx=0; xx<q.size; xx++) if(q.dark(xx, yy) && !inLogo(xx, yy)) x.fillRect(qx+xx*m, qy+yy*m, m, m);
+  if(L){ // logo : pastille à l'accent cernée de blanc, « ? » blanc
+    const lx=qx+l0*m, ly=qy+l0*m, ls=L*m, p=m*.9;
+    x.fillStyle=col.btn; rrect(x, lx+p, ly+p, ls-2*p, ls-2*p, (ls-2*p)*.28); x.fill();
+    x.fillStyle=col.btnInk; x.font=`800 ${Math.round(ls*.62)}px "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif`; x.textAlign="center"; x.textBaseline="middle";
+    x.fillText("?", lx+ls/2, ly+ls/2+ls*.03);
+  }
+  return {x:qx, y:qy, module:m, size:q.size, color:col.qr, logo:L ? {from:l0, size:L} : null};
+}
+/* L'enveloppe de l'occasion et son cachet (emoji, initiale, ou 💌 pour les occasions Surprise) */
+async function drawEnvelope(x, o, col, X, Y, W, rot=0){
+  const shape=(ENV_DECO[o.occ]||{}).seal, H=W*222/320, k=W/320;
+  x.save(); x.translate(X+W/2, Y+H/2); x.rotate(rot);
+  try{ x.drawImage(await svgImage(envelopeSVG(col, o.occ, shape)), -W/2, -H/2, W, H); }catch(e){}
+  const seal = ENV_NEUTRAL.includes(o.occ) ? "💌" : o.em || o.initial;
+  x.fillStyle = shape==="pumpkin" ? "#3B1F0A" : shape==="heart" ? "#FFFFFF" : shape==="gold" ? "#4A2C10" : col.seal;
+  x.font=`800 ${Math.round((o.em || seal==="💌" ? 25 : 21)*k*1.15)}px "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif`; x.textAlign="center"; x.textBaseline="middle";
+  x.fillText(seal, (156-160)*k, (116-111)*k + (shape==="pumpkin" ? 6*k : shape==="heart" ? -3*k : 0));
+  x.restore();
+  return H;
+}
+/* Texte manuscrit (Caveat) sur une ou deux lignes équilibrées ; renvoie la hauteur */
+function handText(x, txt, cx, y, maxW, px, color, centre=false, maxL=2){ // centre : y est le milieu du bloc, sinon la première ligne
+  x.fillStyle=color; x.textAlign="center"; x.textBaseline="middle";
+  let lines; // prénom long : le texte rapetisse jusqu'à tenir sur maxL lignes
+  for(;;){ x.font=`700 ${px}px "Caveat", "Comic Sans MS", cursive`; lines=wrapText(x, txt, maxW); if(lines.length<=maxL || px<=36) break; px=Math.round(px*.9); }
+  const lh=px*1.02, y0=centre ? y-(lines.length-1)*lh/2 : y;
+  lines.forEach((l, i)=>x.fillText(l, cx, y0+i*lh)); return lines.length*lh;
+}
+/* Banderole à l'accent, bouts découpés, ombre décalée à l'encre */
+function banner(x, bx, by, bw, bh, col){
+  const cut=bh*.35, path=(dx, dy)=>{ x.beginPath(); x.moveTo(bx+dx, by+dy); x.lineTo(bx+bw+dx, by+dy); x.lineTo(bx+bw-cut+dx, by+bh/2+dy); x.lineTo(bx+bw+dx, by+bh+dy);
+    x.lineTo(bx+dx, by+bh+dy); x.lineTo(bx+cut+dx, by+bh/2+dy); x.closePath(); };
+  x.fillStyle=col.ink; path(12, 12); x.fill(); x.fillStyle=col.btn; path(0, 0); x.fill(); x.lineWidth=6; x.strokeStyle=col.ink; x.stroke();
+  return cut;
+}
+/* Le billet : carte en papier, talon (« Scanne-moi », manuscrit), perforation en pointillés et deux encoches */
+function ticket(x, X, Y, W, H, stub, col){
+  x.save(); x.translate(X+W/2, Y+H/2); x.rotate(.05); x.fillStyle=col.accent; rrect(x, -W/2-18, -H/2-14, W+36, H+28, 40); x.fill(); x.restore(); // carte penchée derrière
+  paperCard(x, X, Y, W, H, 40, col);
+  const py=Y+stub;
+  x.fillStyle=col.ink; x.font=`700 ${Math.round(stub*.52)}px "Caveat", "Comic Sans MS", cursive`; x.textAlign="center"; x.textBaseline="middle"; x.fillText("Scanne-moi", X+W/2, Y+stub/2+4);
+  x.strokeStyle=col.line; x.lineWidth=6; x.setLineDash([18, 16]); x.beginPath(); x.moveTo(X+56, py); x.lineTo(X+W-56, py); x.stroke(); x.setLineDash([]);
+  for(const ex of [X, X+W]){ // encoches (couleur du fond, cernées d'encre côté billet)
+    x.fillStyle=col.bg; x.beginPath(); x.arc(ex, py, 30, 0, 6.29); x.fill();
+    x.strokeStyle=col.ink; x.lineWidth=6; x.beginPath(); x.arc(ex, py, 30, ex===X ? -1.57 : 1.57, ex===X ? 1.57 : 4.71); x.stroke();
+  }
+  return py;
+}
 async function drawInviteImage(fmt, o, canvas=document.createElement("canvas")){
-  const {w, h}=IMG_FORMATS[fmt], story=fmt==="story", col=imageColors(o.th, o.ac);
+  const {w, h}=IMG_FORMATS[fmt], story=fmt==="story", col=imageTheme(o.th, o.ac);
   canvas.width=w; canvas.height=h;
   const x=canvas.getContext("2d"), font=(weight, px)=>`${weight} ${px}px "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif`;
-  try{ await Promise.all([font(800, 64), font(600, 34)].map(f=>document.fonts.load(f))); }catch(e){}
-  // Code dense (lien complet, en repli seulement) : enveloppe plus petite, QR code plus grand, pour des modules lisibles
-  const q=qrEncode(o.link, o.link.includes("#s=") ? "Q" : "M"), dense=q.size>61;
-  const L = story ? (dense ? {env:360, envY:230, text:64, textY:560, card:900, cardY:700, foot:1730} : {env:600, envY:230, text:72, textY:780, card:620, cardY:1000, foot:1730})
-                  : (dense ? {env:0, envY:0, text:44, textY:70, card:820, cardY:150, foot:1036} : {env:340, envY:50, text:52, textY:335, card:500, cardY:450, foot:1028});
+  try{ await Promise.all([font(800, 64), font(600, 34), `700 90px "Caveat"`].map(f=>document.fonts.load(f))); }catch(e){}
+  const court=o.link.includes("#s="), q=qrEncode(o.link, court ? "Q" : "M"), dense=q.size>61, logo=court && !dense;
+  const texte=`${o.to}, j'ai une question pour toi\u00A0💌`, seed=[...o.to].reduce((a, c)=>a*31+c.charCodeAt(0), 7);
+  // Disposition. Code dense (lien complet, en repli seulement) : enveloppe et banderole plus petites, code plus grand
+  const L = story
+    ? (dense ? {env:300, envX:w/2-150, envY:40, ban:[60, 270, w-120, 190], tk:[70, 540, w-140, 1330], stub:150, qr:900}
+             : {env:460, envX:w/2-230, envY:70, ban:[60, 470, w-120, 240], tk:[120, 820, w-240, 1000], stub:190, qr:600})
+    : (dense ? {env:0, ban:[40, 24, w-80, 120], tk:[150, 180, w-300, 880], stub:110, qr:740}
+             : {env:300, envX:50, envY:330, ban:[40, 40, w-80, 170], tk:[430, 260, w-470, 790], stub:130, qr:470});
+  // Fond : couleur et scène du thème, puis les décors (hors des zones de lecture)
   x.fillStyle=col.bg; x.fillRect(0, 0, w, h);
-  // L'enveloppe de l'occasion et son cachet (emoji, initiale, ou 💌 pour les occasions Surprise)
-  const shape=(ENV_DECO[o.occ]||{}).seal, ew=L.env, eh=ew*222/320, ex=(w-ew)/2, k=ew/320;
-  x.textAlign="center"; x.textBaseline="middle";
-  if(ew){
-    try{ x.drawImage(await svgImage(envelopeSVG(col, o.occ, shape)), ex, L.envY, ew, eh); }catch(e){}
-    const seal = ENV_NEUTRAL.includes(o.occ) ? "💌" : o.em || o.initial, sx=ex+(150+6)*k, sy=L.envY+(110+6)*k;
-    x.fillStyle = shape==="pumpkin" ? "#3B1F0A" : shape==="heart" ? "#FFFFFF" : shape==="gold" ? "#4A2C10" : col.seal;
-    x.font=font(800, Math.round((o.em || seal==="💌" ? 25 : 21)*k*1.15));
-    x.fillText(seal, sx, sy + (shape==="pumpkin" ? 6*k : shape==="heart" ? -3*k : 0));
-  }
-  // Le texte
-  x.fillStyle=col.ink; x.font=font(800, L.text);
-  wrapText(x, `${o.to}, j'ai une question pour toi 💌`, w-170).forEach((l, i)=>x.fillText(l, w/2, L.textY+i*L.text*1.12));
-  // Le QR code, sur une carte blanche (contour et ombre décalée), marge de 4 modules
-  const cx=(w-L.card)/2;
-  x.fillStyle=col.ink; x.fillRect(cx+14, L.cardY+14, L.card, L.card);
-  x.fillStyle="#FFFFFF"; x.fillRect(cx, L.cardY, L.card, L.card);
-  x.lineWidth=6; x.strokeStyle=col.ink; x.strokeRect(cx+3, L.cardY+3, L.card-6, L.card-6);
-  const m=Math.floor((L.card-24)/(q.size+8)), side=m*q.size, qx=Math.round(cx+(L.card-side)/2), qy=Math.round(L.cardY+(L.card-side)/2);
-  x.fillStyle=col.qr;
-  for(let yy=0; yy<q.size; yy++) for(let xx=0; xx<q.size; xx++) if(q.dark(xx, yy)) x.fillRect(qx+xx*m, qy+yy*m, m, m);
-  // Le pied
-  x.fillStyle=col.ink; x.font=font(600, story ? 40 : 30);
-  if(story) x.fillText("Scanne pour ouvrir l'invitation", w/2, L.foot);
-  x.globalAlpha=.75; x.font=font(600, story ? 34 : 28); x.fillText("osedemander.fr", w/2, story ? L.foot+64 : L.foot); x.globalAlpha=1;
-  return {canvas, qr:{x:qx, y:qy, module:m, size:q.size, color:col.qr}};
+  try{ x.drawImage(await svgImage(sceneImageSVG(o.th, w, h, col)), 0, 0, w, h); }catch(e){}
+  const [tx, ty, tw, th]=L.tk, [bx, by, bw, bh]=L.ban;
+  sprinkle(x, o.th, w, h, [[tx-30, ty-30, tw+60, th+60], [bx, by, bw, bh], ...(L.env ? [[L.envX, L.envY, L.env, L.env*.72]] : [])], story ? (dense ? 24 : 54) : (dense ? 14 : 30), seed, 1.2);
+  if(L.env) await drawEnvelope(x, o, col, L.envX, L.envY, L.env, -.07);
+  const cut=banner(x, bx, by, bw, bh, col);
+  handText(x, texte, w/2, by+bh/2, bw-2*cut-40, story ? (dense ? 84 : 104) : (dense ? 54 : 62), col.btnInk, true);
+  // Le billet et le QR code (droit, centré dans la partie principale)
+  const py=ticket(x, tx, ty, tw, th, L.stub, col), mainH=ty+th-py;
+  const qx=tx+tw/2-L.qr/2, qy=py+(mainH-L.qr)/2-(story && !dense ? 28 : 0);
+  const info=drawQR(x, q, qx, qy, L.qr, col, logo);
+  if(story && !dense){ x.fillStyle=col.ink; x.globalAlpha=.75; x.font=font(600, 34); x.textAlign="center"; x.textBaseline="middle"; x.fillText("osedemander.fr", tx+tw/2, qy+L.qr+48); x.globalAlpha=1; }
+  return {canvas, qr:info};
 }
 /* Panneau « Partager en image » : aperçu, format, « Pour qui est cette image ? » (story ou groupe par défaut), partager ou enregistrer.
    La question n'apparaît que si l'invitation contient des coordonnées ou une notification de réponse (sinon les deux choix sont identiques).
@@ -4851,6 +4945,7 @@ const Decor = (() => {
   document.addEventListener("visibilitychange",()=>{ document.hidden ? stop() : start(); });
 
   return {
+    paint: shape, // utilisée aussi pour les images « Partager en image »
     set(th, lv){
       // Même thème et même niveau : on garde les éléments, mais on s'assure que l'animation tourne
       if(!(th===theme && lv===level && (P.length || lv==="0"))){ theme=th; level=lv; shoot=null; gust=0; populate(); }
