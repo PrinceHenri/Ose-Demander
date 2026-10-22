@@ -3149,6 +3149,24 @@ await test("Téléphone et clavier : colonnes les unes sous les autres, cibles d
   assert.ok(PAGE.lire("installHelp").toString().includes("showIOSHelp(!isIOS())"), "aide à l'installation sur iPhone comme ailleurs");
 });
 
+await essaiWorker("L'image porte toujours un lien court : service muet, pas d'image (« Réessaie ») ; lien complet de l'invitation, un lien court est créé pour l'image", async () => {
+  const S = PAGE.lire("S"), image = PAGE.lire("imageLink"), avant = PAGE.lire("shortFetch");
+  try{
+    const d = INV({ c: "any" }), long = LOCAL + "/#i=" + await L.encodeData(d);
+    // Le lien de l'invitation est complet (service muet à la création), et le service ne répond toujours pas
+    PAGE.ecrire("shortFetch", async () => { throw new TypeError("Failed to fetch"); });
+    Object.assign(S, { link: long, longLink: long, imgLinks: {}, chId: "", nz: "", to: "Sam" });
+    assert.equal(await image(false), null, "pas d'image au lien complet"); assert.equal(await image(true), null);
+    assert.deepEqual(S.imgLinks, {}, "rien n'est gardé : un nouvel essai refait la demande");
+    // Le service répond de nouveau : un lien court est créé pour l'image, puis réutilisé
+    const r = reseau(); brancher(r);
+    const l = await image(false);
+    assert.ok(/#s=/.test(l), "lien court"); assert.equal((await relire(l)).f, "Alex", "la même invitation");
+    assert.equal(await image(false), l, "préparé une seule fois");
+  } finally { PAGE.ecrire("shortFetch", avant); Object.assign(S, { link: "", longLink: undefined, imgLinks: {}, chId: "", nz: "", to: "" }); }
+  assert.ok(!PAGE.lire("imageLink").toString().includes('"#i="+code'), "jamais de lien complet dans une image");
+});
+
 /* ---------- Bilan ---------- */
 console.log(`\n${ko ? "❌" : "✅"} ${ok} tests réussis, ${ko} en échec (graine ${GRAINE}${ko ? ` — pour rejouer : node tests/run.mjs --graine=${GRAINE}` : ""})`);
 if(ko){ console.log(echecs.map(e => "  - " + e).join("\n")); process.exitCode = 1; }

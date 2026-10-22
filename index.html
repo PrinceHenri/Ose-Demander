@@ -2649,7 +2649,6 @@ function bindCreator(){
 /* ---------- Partager en image : QR code et enveloppe de l'occasion, dessinés ici (rien n'est envoyé pour fabriquer l'image) ----------
    L'image ne contient que le prénom de la personne invitée, les couleurs du thème, l'enveloppe de l'occasion, le cachet et le lien.
    Jamais la question, le message, le lieu, la date, les surprises, ni le numéro ou le nom d'utilisateur de qui a créé l'invitation. */
-const QR_LONG_MAX = 1200; // au-delà, le QR code serait trop serré pour une story (repli sur le lien complet seulement)
 const IMG_FORMATS = {story:{w:1080, h:1920, label:"Story"}, carre:{w:1080, h:1080, label:"Carré"}};
 const IMG_UNAVAILABLE = "L'image n'est pas disponible pour le moment. Réessaie dans quelques minutes.";
 /* Version de l'invitation pour l'image quand on retire ses coordonnées : sans canal ni identifiant (réponse par le partage du téléphone) */
@@ -2663,16 +2662,17 @@ async function imageLink(strip){
   const key = strip ? "strip" : "main", long = S.longLink || (S.link.includes("#i=") ? S.link : "");
   S.imgLinks ||= {};
   if(S.imgLinks[key]) return S.imgLinks[key];
-  let link = S.link, sh = null;
-  let d0 = null; if(long){ try{ d0 = await decodeData(linkData(long)); }catch(e){} }
-  if(strip && (!d0 || d0.ci || d0.nz)){ // lien séparé, seulement s'il y a quelque chose à retirer
+  // L'image porte toujours un lien court (code peu dense, avec le logo au centre) : si le service des liens courts ne répond pas,
+  // pas d'image pour l'instant (« Réessaie dans quelques minutes »), jamais de code géant au lien complet
+  let link = S.link, d0 = null; if(long){ try{ d0 = await decodeData(linkData(long)); }catch(e){} }
+  const base = location.origin+location.pathname, separe = strip && (!d0 || d0.ci || d0.nz); // lien séparé seulement s'il y a quelque chose à retirer
+  if(separe || !link.includes("#s=")){
     if(!d0) return null;
-    const code = await encodeData(imageData(d0));
-    sh = await createShort(code, location.origin+location.pathname);
-    link = sh ? sh.link : location.origin+location.pathname+"#i="+code;
-    if(sh) noteImageLink(sh); // gardé dans « Mes invitations », pour pouvoir le supprimer en ligne
+    const sh = await createShort(separe ? await encodeData(imageData(d0)) : linkData(long), base);
+    if(!sh) return null; // rien n'est gardé : un nouvel essai refera la demande
+    link = sh.link; noteImageLink(sh); // gardé dans « Mes invitations », pour pouvoir le supprimer en ligne
   }
-  return S.imgLinks[key] = link.length<=QR_LONG_MAX ? link : null;
+  return S.imgLinks[key] = link;
 }
 function noteImageLink(sh){
   const list=loadHistory(), it=list.find(x=>x.link===S.link);
