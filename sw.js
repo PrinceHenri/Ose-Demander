@@ -1,7 +1,7 @@
 /* Ose Demander — service worker
    Rend le site installable et utilisable hors connexion.
    Pour publier une mise à jour importante, change simplement la version ci-dessous. */
-const VERSION = "ose-v32";
+const VERSION = "ose-v33";
 const CORE = [
   "./",
   "./index.html",
@@ -65,8 +65,9 @@ const NOTIF_DB = "ose-notifs";
 const b64d = s => Uint8Array.from(atob(s.replace(/-/g, "+").replace(/_/g, "/") + "=".repeat((4 - s.length % 4) % 4)), c => c.charCodeAt(0));
 function notifDb() {
   return new Promise((res, rej) => {
-    const r = indexedDB.open(NOTIF_DB, 1);
-    r.onupgradeneeded = () => { r.result.createObjectStore("cles", { keyPath: "nid" }); r.result.createObjectStore("reponses", { keyPath: "nid" }); };
+    const r = indexedDB.open(NOTIF_DB, 2); // 2 : notifications de révélation (magasin « revelations »)
+    r.onupgradeneeded = () => { const db = r.result, mk = (n, k) => { if (!db.objectStoreNames.contains(n)) db.createObjectStore(n, { keyPath: k }); };
+      mk("cles", "nid"); mk("reponses", "nid"); mk("revelations", "id"); };
     r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error);
   });
 }
@@ -88,8 +89,22 @@ const frWhen = w => {
   const [y, m, d] = w[0].split("-").map(Number), [h, mi] = w[1].split(":");
   return new Date(y, m - 1, d).toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" }) + " à " + (+h) + " h" + (mi === "00" ? "" : " " + mi);
 };
+/* Notification de révélation : le message ne contient que l'identifiant ; le lien à rouvrir (le lien de rappel, qui joue la
+   mise en scène des surprises) a été rangé sur cet appareil. Le texte ne dévoile jamais la surprise. */
+async function onReveal(id) {
+  let url = "./";
+  try {
+    const x = /^[A-Za-z0-9_-]{22}$/.test(id) ? await notifStore("revelations", "readonly", st => st.get(id)) : null;
+    if (x && typeof x.lien === "string" && new URL(x.lien).origin === self.location.origin) url = x.lien;
+    // Les entrées passées depuis plus de 7 jours sont oubliées
+    const vieilles = (await notifStore("revelations", "readonly", st => st.getAll())).filter(e => e.heure < Date.now() - 7 * 864e5);
+    if (vieilles.length) await notifStore("revelations", "readwrite", st => { for (const e of vieilles) st.delete(e.id); });
+  } catch (e) {}
+  await self.registration.showNotification("🔓 Ta surprise est prête !", { body: "Touche pour la découvrir.", icon: "icons/icon-192.png", badge: "icons/favicon-64.png", tag: "rv-" + id, data: { url } });
+}
 async function onPush(event) {
   let m = null; try { m = event.data ? event.data.json() : null; } catch (e) {}
+  if (m && m.k === "rv") return onReveal(String(m.i || ""));
   let title = "Ose Demander", body = "Tu as reçu une réponse à une de tes invitations.";
   const nid = m && typeof m.i === "string" && /^[A-Za-z0-9_-]{22}$/.test(m.i) ? m.i : null;
   try {

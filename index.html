@@ -231,6 +231,9 @@ input.input[type=date],input.input[type=time]{min-width:0;max-width:100%}
 .notif-opt{margin:18px 0 0;padding:12px 16px;border:2px dashed var(--line);border-radius:14px}
 .notif-opt .check{margin:0}.notif-opt .check span{font-weight:700}.notif-opt .hint{margin:6px 0 0}
 .notif-box{display:grid;gap:6px;justify-items:center;margin-top:4px}
+.rev-notif{width:100%;padding:10px 14px;border:2px dashed var(--line);border-radius:14px;text-align:left}
+.rev-notif .check{margin:0}.rev-notif .check span{font-weight:700}.rev-notif .hint{margin:6px 0 0}
+.rev-agenda{margin:0;font-weight:700;text-align:center}
 .rep{margin:2px 0 4px;font-weight:800}.rep-o{color:var(--accent-text)}
 .check input:checked::after{content:"";width:6px;height:11px;margin-top:-3px;border:solid var(--accent-ink);border-width:0 3px 3px 0;transform:rotate(45deg)}
 /* La page se déclare « light dark » (sinon Chrome l'assombrit de force) : thème sombre du téléphone = icônes natives claires, on les remet foncées */
@@ -1280,21 +1283,24 @@ async function deleteShort(id, jeton){
    Ouvrir une invitation n'appelle jamais le Worker : aucun suivi des ouvertures. */
 const PUSH_PUB = "BO0i81U9evIx9nmwltbUyZLH_p_hXXYadDPHRzamX3YeVApCHX8hZ8BiaYNyzK3uDGoLBYx_ChWYaONznnoakTI";
 const NOTIF_DB = "ose-notifs";
-async function notifCall(path, opts={}){
+async function notifCall(path, opts={}, base="/v1/notifs"){
   const ac=new AbortController(), t=setTimeout(()=>ac.abort(), SHORT_TIMEOUT);
-  try{ return await shortFetch(SHORT_ORIGIN+"/v1/notifs"+path, {...opts, signal:ac.signal, cache:"no-store", credentials:"omit", referrerPolicy:"no-referrer"}); }
+  try{ return await shortFetch(SHORT_ORIGIN+base+path, {...opts, signal:ac.signal, cache:"no-store", credentials:"omit", referrerPolicy:"no-referrer"}); }
   finally{ clearTimeout(t); }
 }
 /* "ok" | "ios" (iPhone hors de l'appli installée) | "refuse" (bloquées pour ce site) | "non" (navigateur sans notifications) */
 function notifSupport(){
+  if(isInAppBrowser()) return "integre";
+  if(isIOS() && !isStandalone()) return "ios"; // Safari sur iPhone : notifications seulement dans l'appli installée sur l'écran d'accueil
   const ok = !!SHORT_ORIGIN && typeof navigator!=="undefined" && "serviceWorker" in navigator && typeof PushManager!=="undefined" && typeof Notification!=="undefined";
   if(!ok) return isIOS() && !isStandalone() ? "ios" : "non";
   return Notification.permission==="denied" ? "refuse" : "ok";
 }
 function notifDb(){
   return new Promise((res,rej)=>{
-    const r=indexedDB.open(NOTIF_DB,1);
-    r.onupgradeneeded=()=>{ r.result.createObjectStore("cles",{keyPath:"nid"}); r.result.createObjectStore("reponses",{keyPath:"nid"}); };
+    const r=indexedDB.open(NOTIF_DB,2); // 2 : notifications de révélation (magasin « revelations »)
+    r.onupgradeneeded=()=>{ const db=r.result, mk=(n,k)=>{ if(!db.objectStoreNames.contains(n)) db.createObjectStore(n,{keyPath:k}); };
+      mk("cles","nid"); mk("reponses","nid"); mk("revelations","id"); };
     r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error);
   });
 }
@@ -1303,17 +1309,22 @@ async function notifStore(store, mode, fn){
   try{ return await new Promise((res,rej)=>{ const tx=db.transaction(store,mode), q=fn(tx.objectStore(store)); tx.oncomplete=()=>res(q && q.result); tx.onerror=()=>rej(tx.error); }); }
   finally{ db.close(); }
 }
+/* Abonnement Web Push de cet appareil (l'autorisation doit déjà être accordée) : {endpoint, keys} ou null */
+async function pushAbo(){
+  const reg=await Promise.race([navigator.serviceWorker.ready, new Promise(r=>setTimeout(()=>r(null),SHORT_TIMEOUT))]);
+  if(!reg) return null;
+  const opts={userVisibleOnly:true, applicationServerKey:unb64url(PUSH_PUB)};
+  let sub;
+  try{ sub=await reg.pushManager.subscribe(opts); }
+  catch(e){ const old=await reg.pushManager.getSubscription(); if(!old) throw e; await old.unsubscribe(); sub=await reg.pushManager.subscribe(opts); } // ancienne clé
+  const j=sub.toJSON();
+  return {endpoint:j.endpoint, keys:{p256dh:j.keys.p256dh, auth:j.keys.auth}};
+}
 /* Abonne cet appareil (l'autorisation doit déjà être accordée) : {nz, nid, jeton} ou null. info : prénom et créneaux, pour le texte de la notification */
 async function subscribeNotif(expire, info){
   if(notifSupport()!=="ok" || Notification.permission!=="granted") return null;
   try{
-    const reg=await Promise.race([navigator.serviceWorker.ready, new Promise(r=>setTimeout(()=>r(null),SHORT_TIMEOUT))]);
-    if(!reg) return null;
-    const opts={userVisibleOnly:true, applicationServerKey:unb64url(PUSH_PUB)};
-    let sub;
-    try{ sub=await reg.pushManager.subscribe(opts); }
-    catch(e){ const old=await reg.pushManager.getSubscription(); if(!old) throw e; await old.unsubscribe(); sub=await reg.pushManager.subscribe(opts); } // ancienne clé
-    const j=sub.toJSON(), abo={endpoint:j.endpoint, keys:{p256dh:j.keys.p256dh, auth:j.keys.auth}};
+    const abo=await pushAbo(); if(!abo) return null;
     for(let essai=0; essai<2; essai++){ // identifiant déjà pris (409, improbable) : on retire au sort une fois
       const nid=b64url(rndBytes(16)), key=b64url(rndBytes(16)), jeton=b64url(rndBytes(32));
       const del=b64url(new Uint8Array(await crypto.subtle.digest("SHA-256", utf8(jeton))));
@@ -1345,6 +1356,43 @@ async function sendNotif(nz, r, s){
     if(res.status===410){ let x={}; try{ x=await res.json(); }catch(e){} return x && x.raison==="envoye" ? "deja" : "fini"; }
     return res.status===404 ? "fini" : "reseau";
   }catch(e){ return "reseau"; }
+}
+/* ---------- Notifications de révélation (facultatives, pour la personne invitée, sur son propre appareil) ----------
+   Le Worker ne reçoit que l'abonnement, un identifiant aléatoire par heure de révélation et cette heure. Le lien à rouvrir
+   (le lien de rappel, qui joue la mise en scène des surprises) reste ici, dans IndexedDB, associé à l'identifiant. */
+const RAPPEL_MAX = 6;
+// Navigateurs intégrés aux applis (Instagram, Facebook, Snapchat, TikTok…) : pas de notifications fiables
+const isInAppBrowser = () => typeof navigator!=="undefined" && /Instagram|FBAN|FBAV|FB_IAB|Snapchat|musical_ly|BytedanceWebview|TikTok|Line\/|LinkedInApp|Pinterest/i.test(navigator.userAgent);
+/* Heures de révélation encore à venir (au moins 70 s), sans doublon, 6 au plus */
+function revealTimes(d, now=Date.now()){
+  return [...new Set(revealKeys(d).map(([,at])=>new Date(at).getTime()).filter(t=>t>now+70e3))].sort((a,b)=>a-b).slice(0,RAPPEL_MAX);
+}
+/* Empreinte locale de l'invitation et du créneau (pour retrouver un abonnement déjà pris en rouvrant le même lien) ; jamais envoyée */
+async function revealInv(d, slot){
+  const x=JSON.stringify([d.f, d.t, d.q, revealKeys(d), slot]);
+  return b64url(new Uint8Array(await crypto.subtle.digest("SHA-256", utf8(x)))).slice(0,22);
+}
+/* Corps de la demande : l'abonnement, un identifiant aléatoire par heure, et l'empreinte du jeton d'annulation. Rien d'autre. */
+async function revealBody(abo, times){
+  const jeton=b64url(rndBytes(32)), del=b64url(new Uint8Array(await crypto.subtle.digest("SHA-256", utf8(jeton))));
+  const envois=times.map(heure=>({id:b64url(rndBytes(16)), heure}));
+  return {jeton, envois, corps:JSON.stringify({abo, envois, del})};
+}
+/* Programme les notifications : "ok", "reseau" ; les entrées locales sont gardées seulement si le Worker a accepté */
+async function scheduleReveal(abo, times, lien, inv){
+  if(!SHORT_ORIGIN || !times.length) return "reseau";
+  try{
+    const b=await revealBody(abo, times);
+    const r=await notifCall("", {method:"POST", headers:{"Content-Type":"application/json"}, body:b.corps}, "/v1/rappels");
+    if(r.status!==201) return "reseau";
+    await notifStore("revelations","readwrite",st=>{ for(const e of b.envois) st.put({id:e.id, heure:e.heure, lien, inv, jeton:b.jeton}); });
+    return "ok";
+  }catch(e){ return "reseau"; }
+}
+async function cancelReveal(inv){
+  let liste=[]; try{ liste=(await notifStore("revelations","readonly",st=>st.getAll())).filter(x=>x.inv===inv); }catch(e){}
+  for(const x of liste) try{ await notifCall(`/${x.id}/supprimer`, {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({jeton:x.jeton})}, "/v1/rappels"); }catch(e){}
+  try{ await notifStore("revelations","readwrite",st=>{ for(const x of liste) st.delete(x.id); }); }catch(e){}
 }
 /* Renoncer à une notification (invitation retirée de l'historique) */
 async function cancelNotif(nid, jeton){
@@ -4300,8 +4348,49 @@ function replyLabel(){
 /* Sous les détails : l'agenda (une fois le créneau choisi et le lien de rappel prêt) */
 function actionsHTML(){
   const ready = !D.sl || chosenSlot!==null;
-  return (ready && remState!=="wait" ? calButtonsHTML() : "") + (ready && shareState==="ok" ? shareHTML() : "");
+  return (ready ? revealNotifHTML() : "") + (ready && remState!=="wait" ? calButtonsHTML() : "") + (ready && shareState==="ok" ? shareHTML() : "");
 }
+/* « Me prévenir quand la surprise se révèle » : après le Oui seulement (ni dans le rappel d'agenda, qui a ses alertes, ni dans la version
+   partagée, qui n'a plus de révélation), s'il reste une révélation à venir et une fois le lien de rappel prêt (c'est lui qui sera rouvert).
+   iPhone hors de l'appli installée, navigateur intégré, navigateur sans notifications : pas de case, le rappel d'agenda à la place. */
+let revNotif={etat:"", inv:""}; // etat : "" (pas encore vérifié) | "off" | "actif" | "attente" | "refuse" | "reseau"
+const revealNotifOk = () => afterMode==="yes" && !EXAMPLE && !D.vu && !D.rv && revealTimes(D).length>0;
+const revealAgendaOnly = () => revealNotifOk() && ["ios","integre","non"].includes(notifSupport());
+function revealNotifHTML(){
+  if(!revealNotifOk() || !remLink || revealAgendaOnly() || !revNotif.etat) return "";
+  const many=revealTimes(D).length>1, bloque=notifSupport()==="refuse", on=revNotif.etat==="actif"||revNotif.etat==="attente";
+  const note = bloque ? "Les notifications sont bloquées pour ce site. Autorise-les dans les réglages de ton navigateur, ou ajoute un rappel à ton agenda."
+    : revNotif.etat==="actif" ? `🔔 C'est noté : une notification à l'heure ${many?"de chaque révélation":"de la révélation"}, sans rien dévoiler.`
+    : revNotif.etat==="refuse" ? "Notifications non autorisées : ajoute plutôt un rappel à ton agenda."
+    : revNotif.etat==="reseau" ? "La notification n'a pas pu être programmée. Réessaie, ou ajoute un rappel à ton agenda."
+    : `Une notification à l'heure ${many?"de chaque révélation":"de la révélation"}, sans rien dévoiler.`;
+  return `<div class="rev-notif"><label class="check"><input type="checkbox" id="revNotif" ${on?"checked":""} ${bloque||revNotif.etat==="attente"?"disabled":""}>
+      <span>🔔 Me prévenir quand ${many?"les surprises se révèlent":"la surprise se révèle"}</span></label>
+    <p class="hint" id="revNotifNote" ${revNotif.etat==="reseau"?'role="alert"':'role="status"'}>${note}</p></div>`;
+}
+/* Une fois le lien de rappel prêt : abonnement déjà pris sur cet appareil ? Sinon, case cochée d'office (et abonnement) seulement si
+   l'autorisation a déjà été accordée. */
+async function syncRevealNotif(){
+  if(!revealNotifOk() || revealAgendaOnly() || !remLink){ revNotif={etat:"", inv:""}; return; }
+  const slot=chosenSlot, inv=await revealInv(D, slot);
+  let mine=[]; try{ mine=(await notifStore("revelations","readonly",st=>st.getAll())).filter(x=>x.inv===inv && x.heure>Date.now()); }catch(e){}
+  if(slot!==chosenSlot) return;
+  revNotif={etat: mine.length ? "actif" : "off", inv};
+  if(!mine.length && notifSupport()==="ok" && Notification.permission==="granted") await setRevealNotif(true, false);
+  refreshActions();
+}
+/* Cocher ou décocher. ask : demander l'autorisation (pendant le toucher, comme l'exige Safari) */
+async function setRevealNotif(on, ask=true){
+  const inv=revNotif.inv;
+  if(!on){ revNotif={etat:"off", inv}; refreshActions(); await cancelReveal(inv); return; }
+  const perm = Notification.permission==="granted" ? "granted" : ask ? await Promise.resolve(Notification.requestPermission()).catch(()=>"denied") : "default";
+  if(perm!=="granted"){ revNotif={etat: perm==="denied" ? "refuse" : "off", inv}; refreshActions(); return; }
+  revNotif={etat:"attente", inv}; refreshActions();
+  let r="reseau"; try{ const abo=await pushAbo(); if(abo) r=await scheduleReveal(abo, revealTimes(D), remLink, inv); }catch(e){}
+  revNotif={etat: r==="ok" ? "actif" : "reseau", inv}; refreshActions();
+  if(r==="ok") buzz(15);
+}
+function refreshActions(){ const a=$("#actions"); if(a){ a.innerHTML=actionsHTML(); bindActions(); } }
 /* « Partager la surprise » : bouton secondaire, si le créateur l'autorise (D.pa) et une fois le lien allégé prêt */
 const shareHTML = () => `<button type="button" class="btn" id="shareSur">Partager la surprise</button>
   <p class="cal-note">Une version sans le lieu ni les surprises, pour la montrer à tes proches. On ne peut pas y répondre.</p>`;
@@ -4331,6 +4420,7 @@ function bindSend(){
   $("#copyR").addEventListener("click",async()=>toast(await copyText(replyText())?"Réponse copiée":"Copie impossible"));
 }
 function bindActions(){
+  $("#revNotif")?.addEventListener("change",e=>{ setRevealNotif(e.target.checked); });
   $("#cal")?.addEventListener("click",downloadICS);
   $("#calRev")?.addEventListener("click",downloadRevealICS);
   $("#shareSur")?.addEventListener("click",shareSurprise);
@@ -4341,7 +4431,7 @@ function refreshAfter(){ $("#send").innerHTML=sendHTML(); $("#details").innerHTM
 let remLink="", remState="wait";
 let shareLink="", shareState="wait"; // lien « Partager la surprise » (voir shareData) : "wait" | "ok" | "none" (non autorisé ou échec)
 function prepReminder(){
-  const slot=chosenSlot; remLink=""; remState="wait"; shareLink=""; shareState="wait";
+  const slot=chosenSlot; remLink=""; remState="wait"; shareLink=""; shareState="wait"; revNotif={etat:"", inv:""};
   if(D.sl && slot===null) return;
   const base=location.origin+location.pathname;
   // Lien court chiffré (son propre contenu allégé, sa propre clé), sinon le lien complet ; jamais en mode exemple
@@ -4349,7 +4439,7 @@ function prepReminder(){
   const refresh=()=>{ const a=$("#actions"); if(a){ a.innerHTML=actionsHTML(); bindActions(); } };
   if(D.pa===0 || D.vu) shareState="none";
   else encodeData(shareData(D, slot)).then(publish).then(l=>{ if(slot!==chosenSlot) return; shareLink=l; shareState="ok"; refresh(); }).catch(()=>{ shareState="none"; });
-  const done=(link,state)=>{ if(slot!==chosenSlot) return; remLink=link; remState=state; refresh(); };
+  const done=(link,state)=>{ if(slot!==chosenSlot) return; remLink=link; remState=state; refresh(); syncRevealNotif(); };
   // Déjà ouverte depuis un lien de rappel court : c'est ce lien-là qui va dans l'agenda (rien de nouveau n'est déposé)
   if(D.rv && SHORT_HASH.test(location.hash)){ done(base+location.hash, "ok"); return; }
   encodeData(reminderData(D, slot)).then(publish).then(l=>done(l,"ok")).catch(()=>done("","none"));
@@ -4423,14 +4513,15 @@ function calButtonsHTML(){
 /* « Me rappeler la révélation » : seulement s'il reste des révélations à venir. Google : un lien par révélation. */
 function revealButtonsHTML(){
   const evs=upcomingReveals(); if(!evs.length) return "";
+  const hint = revealAgendaOnly() ? `<p class="rev-agenda">Ajoute un rappel à ton agenda pour ne pas manquer la surprise.</p>` : "";
   const when=ev=>`${frDate(calFmt(ev.start).replace(/^(\d{4})(\d{2})(\d{2}).*/,"$1-$2-$3"))} à ${frTime(ev.start.toTimeString().slice(0,5))}`;
   const glink=(ev,cls,label)=>`<a class="${cls}" href="${esc(googleCalUrl(ev))}" target="_blank" rel="noopener noreferrer">${esc(label)}</a>`;
   const many=evs.length>1;
-  return isIOS()
+  return hint + (isIOS()
     ? `<button type="button" class="btn" id="calRev">Me rappeler ${many?"les révélations":"la révélation"} 🔓</button>
        ${evs.map(ev=>glink(ev,"cal-alt",`Google Agenda${many?` : ${when(ev)}`:""}`)).join("")}`
     : `${evs.map(ev=>glink(ev,"btn",`Me rappeler la révélation${many?` du ${when(ev)}`:""} 🔓`)).join("")}
-       <button type="button" class="cal-alt" id="calRev">${many?"Rappels":"Rappel"} dans un autre agenda (fichier .ics)</button>`;
+       <button type="button" class="cal-alt" id="calRev">${many?"Rappels":"Rappel"} dans un autre agenda (fichier .ics)</button>`);
 }
 /* Comptes à rebours + révélations : première vérification après « delay » (le temps que la carte apparaisse) */
 function startCountdowns(delay=0){

@@ -21,8 +21,8 @@ export const P256 = /^[A-Za-z0-9_-]{87}$/, AUTH = /^[A-Za-z0-9_-]{22}$/;
 
 /* Notifications de révélation (la personne invitée s'abonne pour elle-même, à l'heure des surprises « Révélé plus tard ») */
 export const RAPPEL_MAX = 6;                          // heures de révélation par abonnement (un programme a 6 étapes au plus)
-export const RAPPEL_LOT = 6;                          // envois par passage de la tâche planifiée : ~0,7 ms de calcul chacun (signature VAPID
-                                                       // gardée en mémoire), pour rester loin des 10 ms de l'offre gratuite ; le reste part à la minute suivante
+export const RAPPEL_LOT = 4;                          // envois par passage de la tâche planifiée : ~0,9 ms de calcul chacun (mesuré par le banc ; signature
+                                                       // VAPID gardée en mémoire) : ~4 ms, loin des 10 ms de l'offre gratuite ; le reste part à la minute suivante
 export const RAPPEL_MIN = 60 * 1000;                  // au moins une minute dans le futur
 export const RAPPEL_GARDE = 7 * 24 * 3600 * 1000;     // pas encore parti 7 jours après l'heure prévue : effacé
 export const RAPPEL_REESSAI = 15 * 60 * 1000;         // erreur passagère du service de notification : nouvel essai 15 minutes plus tard

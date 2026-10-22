@@ -2853,9 +2853,19 @@ await essaiWorker("Temps de calcul d'un passage complet (chiffrement et signatur
       assert.equal(envois.length - avant, WORKER.RAPPEL_LOT, "le passage a bien envoyé le lot");
     }
     mesures.sort((a, b) => a - b);
-    const med = mesures[3];
-    console.log(`    (passage de ${WORKER.RAPPEL_LOT} envois : ${med.toFixed(1)} ms au plus, médiane de 7, base SQLite comprise)`);
-    assert.ok(med <= 8, `${med.toFixed(1)} ms : trop près de la limite de 10 ms, réduire RAPPEL_LOT`);
+    // Ce que Cloudflare compte (la base D1 tourne ailleurs) : par envoi, ouvrir l'abonnement et chiffrer le message ;
+    // la signature VAPID, une fois par passage. Meilleur temps sur 50 essais (le moins perturbé par la machine).
+    const abo = env.DB.db.prepare("SELECT abo, id FROM rappels LIMIT 1").get();
+    const scelle = await PUSH.scellerAbo({ endpoint: ENDPOINT_EX, keys: app.keys }, RID(999), env), msg = new TextEncoder().encode(JSON.stringify({ v: 1, k: "rv", i: RID(999) }));
+    let parEnvoi = Infinity, signature = Infinity;
+    for(let i = 0; i < 50; i++){
+      let t = performance.now(); await PUSH.chiffrerPush(await PUSH.ouvrirAbo(scelle, RID(999), env), msg); parEnvoi = Math.min(parEnvoi, performance.now() - t);
+      t = performance.now(); await PUSH.enteteVapid(ENDPOINT_EX, VAPID_TEST.pub, VAPID_TEST.d); signature = Math.min(signature, performance.now() - t);
+    }
+    const estime = WORKER.RAPPEL_LOT * parEnvoi + signature;
+    console.log(`    (calcul d'un passage de ${WORKER.RAPPEL_LOT} envois : ${estime.toFixed(1)} ms ; ${parEnvoi.toFixed(2)} ms par envoi + ${signature.toFixed(2)} ms de signature ; passage complet avec la base simulée : ${mesures[3].toFixed(1)} ms)`);
+    assert.ok(abo, "lot en base");
+    assert.ok(estime <= 6, `${estime.toFixed(1)} ms de calcul : trop près de la limite de 10 ms, réduire RAPPEL_LOT`);
     assert.ok(WORKER.RAPPEL_LOT >= 3 && WORKER.RAPPEL_LOT <= 10);
   });
 });
@@ -2927,6 +2937,117 @@ await test("Tâche planifiée : une seule, chaque minute (offre gratuite) ; sign
   assert.equal((toml.match(/^crons = /gm) || []).length, 1);
   const push = readFileSync(RACINE + "worker/src/push.js", "utf8");
   assert.ok(push.includes("Authorization: await vapid(abo.endpoint, env)") && push.includes("const vapidMemo = new Map();"));
+});
+
+/* =========================================================
+   38. Notifications de révélation : le site (heures, corps envoyé, case, iPhone et navigateurs intégrés, sw.js)
+   ========================================================= */
+titre("38. Révélation : le site");
+const atLocal = ms => { const x = new Date(ms), p = n => String(n).padStart(2, "0"); return `${x.getFullYear()}-${p(x.getMonth() + 1)}-${p(x.getDate())}T${p(x.getHours())}:${p(x.getMinutes())}`; };
+const INV_REV = (decalages = [3 * 3600e3]) => {
+  const sc = PAGE.lire("scramble");
+  if(decalages.length === 1) return INV({ a: { v: "r", h: "Indice de l'Exemple", at: atLocal(Date.now() + decalages[0]), e: sc("Dîner au Café de l'Exemple") } });
+  return INV({ p: decalages.map((d, i) => ({ h: `${10 + i}:00`, v: "r", i: "", at: atLocal(Date.now() + d), e: sc(JSON.stringify({ a: "Étape de l'Exemple", l: "Salle de l'Exemple" })) })), a: undefined });
+};
+await test("Heures envoyées : seulement les révélations à venir (70 s au moins), sans doublon, 6 au plus, dans l'ordre", () => {
+  const T = PAGE.lire("revealTimes"), h = 3600e3;
+  assert.equal(T(INV_REV([3 * h])).length, 1);
+  assert.deepEqual(T(INV_REV([-h, 2 * h])).length, 1, "révélation passée : ignorée");
+  assert.equal(T(INV_REV([30 * 1000])).length, 0, "moins de 70 s : ignorée");
+  assert.equal(T(INV_REV([2 * h, 2 * h, 5 * h])).length, 2, "même minute : une seule notification");
+  const six = T(INV_REV([1, 2, 3, 4, 5, 6].map(k => k * h)));
+  assert.equal(six.length, 6); assert.deepEqual([...six].sort((a, b) => a - b), six);
+  assert.equal(T(INV()).length, 0, "sans « Révélé plus tard » : rien");
+});
+await essaiWorker("Ce qui part au serveur : l'abonnement, un identifiant aléatoire par heure, l'empreinte du jeton ; jamais le lien, les prénoms ni la surprise", async () => {
+  await avecPush(async () => {
+    const r = reseau(ENV_N({ ORIGINES: LOCAL })); brancher(r);
+    const app = WP.appareil(), abo = { endpoint: ENDPOINT_EX, keys: app.keys }, d = INV_REV([2 * 3600e3, 4 * 3600e3]);
+    const lien = LOCAL + "/#s=" + "L".repeat(22) + "." + "K".repeat(22), local = new Map(), avant = PAGE.lire("notifStore");
+    // IndexedDB simulé : ce qui reste sur l'appareil
+    PAGE.ecrire("notifStore", async (store, mode, fn) => { const st = { put: x => local.set(x.id, x), getAll: () => ({ result: [...local.values()] }), delete: id => local.delete(id) }; const q = fn(st); return q && q.result; });
+    try{
+      const etat = await PAGE.lire("scheduleReveal")(abo, PAGE.lire("revealTimes")(d), lien, "INV");
+      assert.equal(etat, "ok");
+      const q = r.journal.find(x => x.url.endsWith("/v1/rappels"));
+      assert.ok(q, "une seule demande, vers /v1/rappels");
+      const corps = JSON.parse(q.body);
+      assert.deepEqual(Object.keys(corps).sort(), ["abo", "del", "envois"]);
+      for(const e of corps.envois) assert.deepEqual(Object.keys(e).sort(), ["heure", "id"]);
+      for(const secret of ["#s=", "L".repeat(22), "K".repeat(22), "Alex", "Sam", "Exemple", "Indice", lien]) assert.ok(!q.body.includes(secret), `envoyé au serveur : ${secret}`);
+      assert.equal(local.size, 2, "le lien reste sur l'appareil, une entrée par heure");
+      for(const x of local.values()){ assert.equal(x.lien, lien); assert.ok(corps.envois.some(e => e.id === x.id && e.heure === x.heure)); }
+      // À l'heure, le message ne contient que l'identifiant rangé sur l'appareil
+      r.env.DB.db.prepare("UPDATE rappels SET heure = ?, prochain = ?").run(Date.now() - 1000, Date.now() - 1000);
+      await WORKER.default.scheduled({ scheduledTime: Date.now() }, r.env);
+      assert.equal(envois.length, 2);
+      for(const e of envois){ const m = JSON.parse(WP.dechiffrer(app, e.corps)); assert.equal(m.k, "rv"); assert.ok(local.has(m.i)); assert.deepEqual(Object.keys(m).sort(), ["i", "k", "v"]); }
+      // Décocher : chaque abonnement est annulé avec le jeton, et oublié sur l'appareil
+      const env2 = ENV_N({ ORIGINES: LOCAL }), r2 = reseau(env2); brancher(r2); local.clear();
+      await PAGE.lire("scheduleReveal")(abo, PAGE.lire("revealTimes")(d), lien, "INV2");
+      await PAGE.lire("cancelReveal")("INV2");
+      assert.equal(local.size, 0);
+      assert.equal(env2.DB.db.prepare("SELECT COUNT(*) AS n FROM rappels WHERE etat = 'supprime'").get().n, 2);
+    } finally { PAGE.ecrire("notifStore", avant); }
+  });
+});
+await essaiWorker("Ouvrir une invitation avec des révélations n'appelle jamais le service des notifications", async () => {
+  const r = reseau(); brancher(r);
+  await ouvrirLien(LOCAL + "/#i=" + await L.encodeData(INV_REV()));
+  assert.ok(!r.journal.some(q => q.url.includes("/v1/rappels")), "aucune demande à l'ouverture");
+});
+await test("Carte après le Oui : la case (décochée, cochée, bloquée), jamais dans le rappel, la version partagée ni sans révélation à venir ; une seule action principale", () => {
+  const ch = ["D", "afterMode", "remLink", "revNotif", "notifSupport", "chosenSlot"], avant = Object.fromEntries(ch.map(k => [k, PAGE.lire(k)]));
+  const html = PAGE.lire("revealNotifHTML"), actions = PAGE.lire("actionsHTML");
+  const regle = (d, mode, support, etat, permission = "default") => {
+    globalThis.Notification = { permission };
+    PAGE.ecrire("D", d); PAGE.ecrire("afterMode", mode); PAGE.ecrire("remLink", LOCAL + "/#s=" + "A".repeat(22) + "." + "B".repeat(22));
+    PAGE.ecrire("revNotif", { etat, inv: "X" }); PAGE.ecrire("notifSupport", () => support); PAGE.ecrire("chosenSlot", null);
+  };
+  try{
+    regle(INV_REV(), "yes", "ok", "off");
+    let h = html();
+    assert.ok(h.includes("🔔 Me prévenir quand la surprise se révèle") && !/id="revNotif" checked/.test(h), "décochée par défaut");
+    assert.ok(h.includes("Une notification à l'heure de la révélation, sans rien dévoiler."));
+    assert.deepEqual(principales(h), []);
+    regle(INV_REV([2 * 3600e3, 5 * 3600e3]), "yes", "ok", "actif", "granted");
+    h = html(); assert.ok(/id="revNotif" checked/.test(h) && h.includes("quand les surprises se révèlent") && h.includes("🔔 C'est noté : une notification à l'heure de chaque révélation, sans rien dévoiler."));
+    regle(INV_REV(), "yes", "refuse", "off", "denied");
+    h = html(); assert.ok(/disabled/.test(h) && h.includes("Les notifications sont bloquées pour ce site."));
+    regle(INV_REV(), "yes", "ok", "reseau"); assert.ok(html().includes("La notification n'a pas pu être programmée.") && html().includes('role="alert"'));
+    regle(INV_REV(), "reminder", "ok", "off"); assert.equal(html(), "", "rappel d'agenda : il a déjà ses alertes");
+    regle({ ...INV_REV(), vu: 1 }, "yes", "ok", "off"); assert.equal(html(), "", "version partagée");
+    regle(INV_REV([-3600e3]), "yes", "ok", "off"); assert.equal(html(), "", "heure passée : pas de case");
+    regle(INV(), "yes", "ok", "off"); assert.equal(html(), "", "sans révélation");
+    regle(INV_REV(), "yes", "ok", "off"); assert.equal(principales(actions()).length, 0, "aucune action principale ajoutée sous les détails");
+  } finally { delete globalThis.Notification; for(const k of ch) PAGE.ecrire(k, avant[k]); }
+});
+await test("iPhone hors de l'appli, navigateurs intégrés : pas de case désactivée, mais le rappel d'agenda bien visible, avec une phrase", () => {
+  const ch = ["D", "afterMode", "remLink", "revNotif", "notifSupport"], avant = Object.fromEntries(ch.map(k => [k, PAGE.lire(k)]));
+  try{
+    for(const support of ["ios", "integre", "non"]){
+      PAGE.ecrire("D", INV_REV()); PAGE.ecrire("afterMode", "yes"); PAGE.ecrire("remLink", LOCAL + "/#s=" + "A".repeat(22) + "." + "B".repeat(22));
+      PAGE.ecrire("revNotif", { etat: "off", inv: "X" }); PAGE.ecrire("notifSupport", () => support);
+      assert.equal(PAGE.lire("revealNotifHTML")(), "", `${support} : pas de case`);
+      const b = PAGE.lire("revealButtonsHTML")();
+      assert.ok(b.startsWith('<p class="rev-agenda">Ajoute un rappel à ton agenda pour ne pas manquer la surprise.</p>'), `${support} : la phrase`);
+      assert.ok(/class="btn"[^>]*>Me rappeler la révélation/.test(b) || b.includes('class="btn" id="calRev">Me rappeler la révélation'), `${support} : le bouton d'agenda, bien visible`);
+    }
+  } finally { for(const k of ch) PAGE.ecrire(k, avant[k]); }
+  const P = chargerPage(), ua = ua => { P.navigator.userAgent = ua; return P.lire("isInAppBrowser")(); };
+  for(const u of ["Mozilla/5.0 (iPhone) Instagram 300.0", "Mozilla/5.0 [FBAN/FBIOS;FBAV/400.0]", "Snapchat/12.0", "Mozilla/5.0 musical_ly_33.0 BytedanceWebview"]) assert.ok(ua(u), u);
+  for(const u of ["Mozilla/5.0 (Linux; Android 14) Chrome/130.0 Mobile Safari/537.36", "Mozilla/5.0 (iPhone) Version/18.0 Mobile Safari/604.1"]) assert.ok(!ua(u), u);
+  assert.equal((P.navigator.userAgent = "Instagram", P.lire("notifSupport")()), "integre");
+});
+await test("sw.js : « 🔓 Ta surprise est prête ! », rien de la surprise, aucune requête, le lien rangé sur l'appareil (même site) ; IndexedDB version 2 des deux côtés", () => {
+  const sw = readFileSync(RACINE + "sw.js", "utf8"), rv = sw.slice(sw.indexOf("async function onReveal"), sw.indexOf("async function onPush"));
+  assert.ok(rv.includes('showNotification("🔓 Ta surprise est prête !", { body: "Touche pour la découvrir."'));
+  assert.ok(!/\bfetch\(/.test(rv), "aucune requête");
+  assert.ok(rv.includes("new URL(x.lien).origin === self.location.origin"), "n'ouvre qu'une page du site");
+  assert.ok(sw.includes('if (m && m.k === "rv") return onReveal(String(m.i || ""));'));
+  const idx = readFileSync(RACINE + "index.html", "utf8");
+  assert.ok(idx.includes("indexedDB.open(NOTIF_DB,2)") && sw.includes("indexedDB.open(NOTIF_DB, 2)"), "même version de la base");
+  assert.ok(idx.includes('mk("revelations","id")') && sw.includes('mk("revelations", "id")'));
 });
 
 /* ---------- Bilan ---------- */
