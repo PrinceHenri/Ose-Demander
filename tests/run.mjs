@@ -1623,7 +1623,8 @@ const baseD1 = () => {
   let panne = false;
   return { db, panne: v => { panne = v; }, prepare: sql => ({ bind: (...a) => ({
     run: async () => { if(panne) throw new Error("D1_ERROR: quota"); db.prepare(sql.replace(/\?(\d)/g, "?")).run(...a); return { success: true }; },
-    first: async () => { if(panne) throw new Error("D1_ERROR: quota"); return db.prepare(sql.replace(/\?(\d)/g, "?")).get(...a) || null; }
+    first: async () => { if(panne) throw new Error("D1_ERROR: quota"); return db.prepare(sql.replace(/\?(\d)/g, "?")).get(...a) || null; },
+    all: async () => { if(panne) throw new Error("D1_ERROR: quota"); return { results: db.prepare(sql.replace(/\?(\d)/g, "?")).all(...a) }; }
   }) }) };
 };
 const ENV = (extra = {}) => ({ DB: baseD1(), ORIGINES: SITE, ...extra });
@@ -2788,6 +2789,144 @@ await test("Page /supprimer-mes-donnees/ : nom de l'appli, suppression soi-même
   assert.ok(pagesDuPlan().includes(`${SITE_URL}supprimer-mes-donnees/`), "dans le plan du site");
   assert.ok(lireFichier("mentions-legales.html").includes('<a href="/supprimer-mes-donnees/">Supprimer mes données</a>'), "lien depuis les mentions légales");
   assert.ok(!/\b(prévenu|averti|informé)\b/.test(txt), "textes neutres");
+});
+
+/* =========================================================
+   37. Notifications de révélation : le Worker (tâche planifiée à la minute, rien que l'identifiant, effacement, limites, temps de calcul)
+   ========================================================= */
+titre("37. Révélation : le Worker");
+const RID = i => String(i).padStart(22, "R");
+const minute = 60 * 1000;
+const abonnerRappels = async (env, app, envois, extra = {}) => appel(env, "POST", "/v1/rappels", { abo: { endpoint: ENDPOINT_EX, keys: app.keys }, envois, del: await empreinteDe(JETON_EX), ...extra });
+const passage = (env, quand = Date.now()) => WORKER.default.scheduled({ scheduledTime: quand }, env);
+// Une ligne arrivée à échéance (heure dans le passé) : on recule l'heure prévue dans la base
+const echeance = (env, id, avant = 0) => env.DB.db.prepare("UPDATE rappels SET heure = ?, prochain = ? WHERE id = ?").run(Date.now() - avant, Date.now() - avant, id);
+
+await essaiWorker("S'abonner : une ligne par heure, abonnement chiffré, ni lien ni contenu ; rien n'est envoyé avant l'heure", async () => {
+  await avecPush(async () => {
+    const env = ENV_N(), app = WP.appareil();
+    const r = await abonnerRappels(env, app, [{ id: RID(1), heure: Date.now() + 30 * minute }, { id: RID(2), heure: Date.now() + 90 * minute }]);
+    assert.equal(r.status, 201); assert.deepEqual(await r.json(), { n: 2 });
+    const lignes = env.DB.db.prepare("SELECT * FROM rappels ORDER BY id").all();
+    assert.equal(lignes.length, 2);
+    for(const l of lignes){
+      assert.deepEqual(Object.keys(l).sort(), ["abo", "del", "etat", "heure", "id", "prochain"], "aucune colonne pour le lien, la clé ou la surprise");
+      for(const clair of ["fcm.googleapis.com", app.keys.auth]) assert.ok(!l.abo.includes(clair), "abonnement chiffré");
+    }
+    await passage(env);
+    assert.equal(envois.length, 0, "rien avant l'heure prévue");
+  });
+});
+await essaiWorker("À l'heure : la notification part chiffrée et signée, avec seulement l'identifiant ; l'abonnement est effacé, jamais renvoyé", async () => {
+  await avecPush(async () => {
+    const env = ENV_N(), app = WP.appareil();
+    await abonnerRappels(env, app, [{ id: RID(1), heure: Date.now() + 30 * minute }, { id: RID(2), heure: Date.now() + 90 * minute }]);
+    echeance(env, RID(1));
+    await passage(env);
+    assert.equal(envois.length, 1, "seulement celle arrivée à échéance");
+    WP.verifierVapid(envois[0].headers.Authorization, ENDPOINT_EX, VAPID_TEST.pub);
+    assert.equal(envois[0].headers.Urgency, "high");
+    assert.deepEqual(JSON.parse(WP.dechiffrer(app, envois[0].corps)), { v: 1, k: "rv", i: RID(1) }, "rien d'autre que l'identifiant");
+    assert.deepEqual({ ...env.DB.db.prepare("SELECT abo, etat FROM rappels WHERE id = ?").get(RID(1)) }, { abo: null, etat: "envoye" });
+    await passage(env); await passage(env);
+    assert.equal(envois.length, 1, "jamais renvoyée");
+  });
+});
+await essaiWorker(`Par passage : ${WORKER.RAPPEL_LOT} envois au plus, le reste part au passage suivant`, async () => {
+  await avecPush(async () => {
+    const env = ENV_N(), app = WP.appareil(), n = WORKER.RAPPEL_LOT + 3;
+    for(let k = 0; k < n; k += 6) await abonnerRappels(env, app, Array.from({ length: Math.min(6, n - k) }, (_, j) => ({ id: RID(100 + k + j), heure: Date.now() + 30 * minute })));
+    env.DB.db.prepare("UPDATE rappels SET heure = ?, prochain = ?").run(Date.now() - 1000, Date.now() - 1000);
+    await passage(env); assert.equal(envois.length, WORKER.RAPPEL_LOT);
+    await passage(env); assert.equal(envois.length, n);
+  });
+});
+await essaiWorker("Temps de calcul d'un passage complet (chiffrement et signature) : loin de la limite de 10 ms de l'offre gratuite", async () => {
+  await avecPush(async () => {
+    const env = ENV_N(), app = WP.appareil(), mesures = [];
+    for(let essai = 0; essai < 7; essai++){
+      env.DB.db.exec("DELETE FROM rappels");
+      await abonnerRappels(env, app, Array.from({ length: WORKER.RAPPEL_LOT }, (_, j) => ({ id: RID(200 + essai * 10 + j), heure: Date.now() + 30 * minute })));
+      env.DB.db.prepare("UPDATE rappels SET heure = ?, prochain = ?").run(Date.now() - 1000, Date.now() - 1000);
+      // Temps écoulé (majore le temps de calcul : ici rien n'attend le réseau) ; le compteur de calcul de Windows est trop grossier
+      const avant = envois.length, t0 = performance.now(); await passage(env); mesures.push(performance.now() - t0);
+      assert.equal(envois.length - avant, WORKER.RAPPEL_LOT, "le passage a bien envoyé le lot");
+    }
+    mesures.sort((a, b) => a - b);
+    const med = mesures[3];
+    console.log(`    (passage de ${WORKER.RAPPEL_LOT} envois : ${med.toFixed(1)} ms au plus, médiane de 7, base SQLite comprise)`);
+    assert.ok(med <= 8, `${med.toFixed(1)} ms : trop près de la limite de 10 ms, réduire RAPPEL_LOT`);
+    assert.ok(WORKER.RAPPEL_LOT >= 3 && WORKER.RAPPEL_LOT <= 10);
+  });
+});
+await essaiWorker("Erreur passagère : nouvel essai 15 minutes plus tard ; appareil désabonné : effacé ; 7 jours après l'heure : effacé sans envoi", async () => {
+  await avecPush(async () => {
+    const env = ENV_N(), app = WP.appareil();
+    await abonnerRappels(env, app, [{ id: RID(1), heure: Date.now() + 30 * minute }, { id: RID(2), heure: Date.now() + 30 * minute }, { id: RID(3), heure: Date.now() + 30 * minute }]);
+    echeance(env, RID(1)); codePush = 503;
+    await passage(env);
+    const l = env.DB.db.prepare("SELECT etat, prochain, abo FROM rappels WHERE id = ?").get(RID(1));
+    assert.equal(l.etat, null); assert.ok(l.abo); assert.ok(l.prochain > Date.now() + 14 * minute, "nouvel essai dans 15 minutes");
+    await passage(env); assert.equal(envois.length, 1, "pas de nouvel essai avant 15 minutes");
+    echeance(env, RID(2)); codePush = 410;
+    await passage(env);
+    assert.deepEqual({ ...env.DB.db.prepare("SELECT abo, etat FROM rappels WHERE id = ?").get(RID(2)) }, { abo: null, etat: "expire" });
+    echeance(env, RID(3), WORKER.RAPPEL_GARDE + minute); const avant = envois.length;
+    await passage(env);
+    assert.equal(envois.length, avant, "trop tard : rien n'est envoyé");
+    assert.deepEqual({ ...env.DB.db.prepare("SELECT abo, etat FROM rappels WHERE id = ?").get(RID(3)) }, { abo: null, etat: "expire" });
+  });
+});
+await essaiWorker("Renoncer (case décochée) : jeton faux refusé, bon jeton accepté, rien n'est envoyé ensuite ; identifiants oubliés par le nettoyage quotidien", async () => {
+  await avecPush(async () => {
+    const env = ENV_N();
+    await abonnerRappels(env, WP.appareil(), [{ id: RID(1), heure: Date.now() + 30 * minute }]);
+    assert.equal((await appel(env, "POST", `/v1/rappels/${RID(1)}/supprimer`, { jeton: "C".repeat(43) })).status, 403);
+    assert.equal((await appel(env, "POST", `/v1/rappels/${RID(1)}/supprimer`, { jeton: JETON_EX })).status, 200);
+    assert.equal((await appel(env, "POST", `/v1/rappels/${RID(1)}/supprimer`, { jeton: JETON_EX })).status, 410);
+    echeance(env, RID(1)); await passage(env);
+    assert.equal(envois.length, 0);
+    env.DB.db.prepare("UPDATE rappels SET heure = ?").run(Date.now() - WORKER.RAPPEL_GARDE - WORKER.NOTIF_GARDE - minute);
+    await passage(env, Date.UTC(2026, 9, 21, 12, 0)); assert.equal(env.DB.db.prepare("SELECT COUNT(*) AS n FROM rappels").get().n, 1, "pas de nettoyage à midi");
+    await passage(env, Date.UTC(2026, 9, 21, 3, 17)); assert.equal(env.DB.db.prepare("SELECT COUNT(*) AS n FROM rappels").get().n, 0, "nettoyage quotidien à 3 h 17 UTC");
+  });
+});
+await essaiWorker("Validation stricte : 6 heures au plus, heure passée ou trop lointaine, doublons, champs en trop, service inconnu, taille ; aucune lecture", async () => {
+  await avecPush(async () => {
+    const app = WP.appareil(), h = Date.now() + 30 * minute, essai = (envois, extra) => abonnerRappels(ENV_N(), app, envois, extra);
+    assert.equal((await essai(Array.from({ length: 7 }, (_, j) => ({ id: RID(j), heure: h })))).status, 400, "7 heures");
+    assert.equal((await essai([])).status, 400);
+    assert.equal((await essai([{ id: RID(1), heure: Date.now() - minute }])).status, 400, "heure passée");
+    assert.equal((await essai([{ id: RID(1), heure: Date.now() + 10 * 1000 }])).status, 400, "moins d'une minute");
+    assert.equal((await essai([{ id: RID(1), heure: Date.now() + 400 * 864e5 }])).status, 400, "plus d'un an");
+    assert.equal((await essai([{ id: RID(1), heure: h }, { id: RID(1), heure: h + minute }])).status, 400, "identifiant en double");
+    assert.equal((await essai([{ id: RID(1), heure: h, lien: "x" }])).status, 400, "champ en trop dans un envoi");
+    assert.equal((await essai([{ id: RID(1), heure: h }], { lien: "https://osedemander.fr/#s=x" })).status, 400, "jamais de lien");
+    assert.equal((await appel(ENV_N(), "POST", "/v1/rappels", { abo: { endpoint: "https://exemple.com/x", keys: app.keys }, envois: [{ id: RID(1), heure: h }], del: await empreinteDe(JETON_EX) })).status, 400);
+    assert.equal((await appel(ENV_N(), "POST", "/v1/rappels", "x".repeat(WORKER.NOTIF_CORPS_MAX + 1))).status, 413);
+    const env = ENV_N(); await abonnerRappels(env, app, [{ id: RID(1), heure: h }]);
+    assert.equal((await abonnerRappels(env, app, [{ id: RID(1), heure: h }])).status, 409);
+    assert.equal((await appel(env, "GET", "/v1/rappels")).status, 405, "aucune lecture");
+    assert.equal((await appel(env, "GET", `/v1/rappels/${RID(1)}`)).status, 404);
+    assert.equal(envois.length, 0);
+  });
+});
+await essaiWorker("Limite par adresse IP (429), CORS limité et no-store, clés absentes (503)", async () => {
+  const comptes = new Map(), limiteur = { limit: async ({ key }) => { const n = (comptes.get(key) || 0) + 1; comptes.set(key, n); return { success: n <= 2 }; } };
+  const env = ENV_N({ LIMITE_ABO: limiteur }), app = WP.appareil(), h = Date.now() + 30 * minute;
+  const st = [];
+  for(let i = 0; i < 3; i++) st.push((await abonnerRappels(env, app, [{ id: RID(i), heure: h }])).status);
+  assert.deepEqual(st, [201, 201, 429]);
+  const autre = await appel(ENV_N(), "POST", "/v1/rappels", {}, "https://pirate.example"); assert.equal(autre.status, 403);
+  const r = await abonnerRappels(ENV_N(), app, [{ id: RID(9), heure: h }]); assert.equal(r.headers.get("Cache-Control"), "no-store");
+  assert.equal((await abonnerRappels(ENV_N({ VAPID_PRIVEE: undefined }), app, [{ id: RID(9), heure: h }])).status, 503);
+});
+await test("Tâche planifiée : une seule, chaque minute (offre gratuite) ; signature VAPID gardée en mémoire", () => {
+  const toml = readFileSync(RACINE + "worker/wrangler.toml", "utf8");
+  assert.ok(/^crons = \["\* \* \* \* \*"\]/m.test(toml), "chaque minute");
+  assert.equal((toml.match(/^crons = /gm) || []).length, 1);
+  const push = readFileSync(RACINE + "worker/src/push.js", "utf8");
+  assert.ok(push.includes("Authorization: await vapid(abo.endpoint, env)") && push.includes("const vapidMemo = new Map();"));
 });
 
 /* ---------- Bilan ---------- */

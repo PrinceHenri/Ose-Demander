@@ -20,13 +20,20 @@
    abo : {endpoint, keys: {p256dh, auth}}, endpoint chez un service de notification connu (HOTES_PUSH) ; chiffré au repos
    c   : réponse chiffrée dans le navigateur de la personne invitée (clé du lien) : oui ou non et le créneau, rien d'autre
    Aucune route de lecture : ouvrir une invitation n'appelle jamais le Worker (aucun suivi des ouvertures).
+
+   Notifications de révélation (facultatives, la personne invitée s'abonne pour son propre appareil) :
+     POST /v1/rappels              {abo, envois: [{id, heure}], del} -> 201 {n}   une ligne par heure de révélation (6 au plus)
+     POST /v1/rappels/:id/supprimer {jeton}                         -> 200 {ok}  la personne y renonce (case décochée)
+   La tâche planifiée (chaque minute) envoie {v:1, k:"rv", i:id} à l'heure prévue, puis efface l'abonnement.
+   Ni le lien, ni sa clé, ni les prénoms, ni la surprise : l'appareil retrouve l'invitation grâce à l'identifiant.
    Clés (secrets Cloudflare, jamais dans le dépôt) : VAPID_PRIVEE, CLE_STOCKAGE ; VAPID_PUBLIQUE est publique (wrangler.toml).
 
    Aucun journal : le Worker n'écrit jamais rien dans la console, et les journaux Cloudflare sont coupés (wrangler.toml).
    Aucun secret : rien ici ni dans wrangler.toml ne doit rester caché. */
 
 import { CT_MAX, CORPS_MAX, DUREE, GARDE, ID, B64, EMPREINTE, SQL,
-  NOTIF_MAX, NOTIF_GARDE, NOTIF_CORPS_MAX, REPONSE_MAX, HOTES_PUSH, P256, AUTH } from "./regles.js";
+  NOTIF_MAX, NOTIF_GARDE, NOTIF_CORPS_MAX, REPONSE_MAX, HOTES_PUSH, P256, AUTH,
+  RAPPEL_MAX, RAPPEL_LOT, RAPPEL_MIN, RAPPEL_GARDE, RAPPEL_REESSAI } from "./regles.js";
 import { envoyerPush, scellerAbo, ouvrirAbo, deB64 } from "./push.js";
 
 const origines = env => String(env.ORIGINES || "https://osedemander.fr").split(",").map(s => s.trim()).filter(Boolean);
@@ -118,6 +125,51 @@ async function notifs(requete, env, permise, id, action){
   return reponse(200, { ok: true }, permise);
 }
 
+// Notifications de révélation : s'abonner (une ligne par heure) ou y renoncer
+async function rappels(requete, env, permise, id){
+  if(requete.method !== "POST") return reponse(405, { erreur: "methode" }, permise);
+  if(!await limite(env.LIMITE_ABO, requete)) return reponse(429, { erreur: "limite" }, permise);
+  const { x, trop } = await lireCorps(requete, NOTIF_CORPS_MAX);
+  if(trop) return reponse(413, { erreur: "taille" }, permise);
+  if(id){ // renoncer, avec le jeton gardé sur l'appareil
+    if(!ID.test(id) || !x || typeof x.jeton !== "string" || !/^[A-Za-z0-9_-]{43}$/.test(x.jeton) || Object.keys(x).length !== 1) return reponse(400, { erreur: "contenu" }, permise);
+    const l = await env.DB.prepare(SQL.rappelLire).bind(id).first();
+    if(!l) return reponse(404, { erreur: "introuvable" }, permise);
+    if(!egal(await empreinte(x.jeton), l.del)) return reponse(403, { erreur: "jeton" }, permise);
+    if(l.etat) return reponse(410, { raison: l.etat }, permise);
+    await env.DB.prepare(SQL.rappelFin).bind("supprime", id).run();
+    return reponse(200, { ok: true }, permise);
+  }
+  const maintenant = Date.now(), e = x && x.envois;
+  const envoiOk = v => v && typeof v === "object" && !Array.isArray(v) && Object.keys(v).sort().join() === "heure,id"
+    && typeof v.id === "string" && ID.test(v.id) && Number.isSafeInteger(v.heure) && v.heure >= maintenant + RAPPEL_MIN && v.heure <= maintenant + NOTIF_MAX;
+  if(!x || Object.keys(x).sort().join() !== "abo,del,envois" || !aboValide(x.abo) || typeof x.del !== "string" || !EMPREINTE.test(x.del)
+    || !Array.isArray(e) || e.length < 1 || e.length > RAPPEL_MAX || !e.every(envoiOk) || new Set(e.map(v => v.id)).size !== e.length)
+    return reponse(400, { erreur: "contenu" }, permise);
+  if(!env.VAPID_PRIVEE || !env.VAPID_PUBLIQUE || !env.CLE_STOCKAGE) return reponse(503, { erreur: "indisponible" }, permise);
+  for(const v of e) if(await env.DB.prepare(SQL.rappelLire).bind(v.id).first()) return reponse(409, { erreur: "existe" }, permise);
+  for(const v of e) await env.DB.prepare(SQL.rappelCreer).bind(v.id, await scellerAbo(x.abo, v.id, env), x.del, v.heure, v.heure).run();
+  return reponse(201, { n: e.length }, permise);
+}
+/* Tâche planifiée : envoie les notifications de révélation arrivées à échéance, RAPPEL_LOT au plus par passage
+   (le reste part au passage suivant). Le message ne contient que l'identifiant. */
+async function envoyerRappels(env, maintenant){
+  if(!env.VAPID_PRIVEE || !env.VAPID_PUBLIQUE || !env.CLE_STOCKAGE) return 0;
+  const { results = [] } = await env.DB.prepare(SQL.rappelsDus).bind(maintenant, RAPPEL_LOT).all();
+  let n = 0;
+  for(const r of results){
+    const fin = etat => env.DB.prepare(SQL.rappelFin).bind(etat, r.id).run();
+    try{
+      if(!r.abo || r.heure + RAPPEL_GARDE < maintenant){ await fin("expire"); continue; } // trop tard : effacé sans envoi
+      const statut = await envoyerPush(await ouvrirAbo(r.abo, r.id, env), new TextEncoder().encode(JSON.stringify({ v: 1, k: "rv", i: r.id })), env);
+      if(statut >= 200 && statut < 300){ await fin("envoye"); n++; }
+      else if(statut === 404 || statut === 410) await fin("expire"); // l'appareil s'est désabonné
+      else await env.DB.prepare(SQL.rappelReessai).bind(maintenant + RAPPEL_REESSAI, r.id).run();
+    }catch{ try{ await env.DB.prepare(SQL.rappelReessai).bind(maintenant + RAPPEL_REESSAI, r.id).run(); }catch{} }
+  }
+  return n;
+}
+
 // Limite par adresse IP (compteur du limiteur de Cloudflare, en mémoire : aucune adresse n'est enregistrée)
 async function limite(limiteur, requete){
   if(!limiteur) return true;
@@ -130,6 +182,8 @@ export default {
     const permise = o && origines(env).includes(o) ? o : null;
     if(o && !permise) return reponse(403, { erreur: "origine" }, null); // une page d'un autre site ne peut rien faire
     if(requete.method === "OPTIONS") return reponse(204, null, permise);
+    const rp = url.pathname.match(/^\/v1\/rappels(?:\/([^/]+)\/supprimer)?$/);
+    if(rp){ try{ return await rappels(requete, env, permise, rp[1]); }catch{ return reponse(503, { erreur: "indisponible" }, permise); } }
     const n = url.pathname.match(/^\/v1\/notifs(?:\/([^/]+)(\/reponse|\/supprimer)?)?$/);
     if(n){ try{ return await notifs(requete, env, permise, n[1], n[2]); }catch{ return reponse(503, { erreur: "indisponible" }, permise); } }
     const m = url.pathname.match(/^\/v1\/liens(?:\/([^/]+)(\/supprimer)?)?$/);
@@ -179,13 +233,17 @@ export default {
     }
   },
 
-  // Tâche quotidienne : efface le contenu des liens expirés, puis oublie les identifiants après un an de plus ;
-  // efface les abonnements expirés jamais utilisés, puis oublie leurs identifiants 30 jours plus tard
-  async scheduled(_evenement, env){
-    const maintenant = Date.now();
+  // Tâche planifiée, chaque minute : envoie les notifications de révélation arrivées à échéance.
+  // Une fois par jour (3 h 17 UTC, ou appel sans heure prévue) : efface le contenu des liens expirés, puis oublie les identifiants
+  // après un an de plus ; efface les abonnements expirés jamais utilisés, puis oublie leurs identifiants 30 jours plus tard.
+  async scheduled(evenement, env){
+    const maintenant = Date.now(), h = evenement && evenement.scheduledTime ? new Date(evenement.scheduledTime) : null;
+    await envoyerRappels(env, maintenant);
+    if(h && !(h.getUTCHours() === 3 && h.getUTCMinutes() === 17)) return;
     await env.DB.prepare(SQL.expirer).bind(maintenant).run();
     await env.DB.prepare(SQL.oublier).bind(maintenant - GARDE).run();
     await env.DB.prepare(SQL.notifExpirer).bind(maintenant).run();
     await env.DB.prepare(SQL.notifOublier).bind(maintenant - NOTIF_GARDE).run();
+    await env.DB.prepare(SQL.rappelOublier).bind(maintenant - RAPPEL_GARDE - NOTIF_GARDE).run();
   }
 };

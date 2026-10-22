@@ -24,3 +24,17 @@ CREATE TABLE IF NOT EXISTS notifs (
   etat   TEXT
 );
 CREATE INDEX IF NOT EXISTS notifs_expire ON notifs (expire);
+
+-- Notifications de révélation (facultatives, demandées par la personne invitée, pour son propre appareil)
+-- Une ligne par heure de révélation. abo : abonnement Web Push, chiffré au repos (NULL après l'envoi) ;
+-- heure : heure prévue (ms) ; prochain : prochain essai d'envoi ; etat : NULL, 'envoye', 'expire' ou 'supprime'.
+-- Ni le lien de l'invitation, ni sa clé, ni les prénoms, ni le contenu de la surprise : le lien reste sur l'appareil.
+CREATE TABLE IF NOT EXISTS rappels (
+  id       TEXT PRIMARY KEY,
+  abo      TEXT,
+  del      TEXT NOT NULL,
+  heure    INTEGER NOT NULL,
+  prochain INTEGER NOT NULL,
+  etat     TEXT
+);
+CREATE INDEX IF NOT EXISTS rappels_prochain ON rappels (prochain) WHERE etat IS NULL;

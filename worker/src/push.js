@@ -42,11 +42,23 @@ export async function enteteVapid(endpoint, publique, privee, maintenant = Date.
   return `vapid t=${jeton}.${b64(sig)}, k=${publique}`;
 }
 
+/* En-tête VAPID gardé en mémoire par service de notification (valable 12 h, renouvelé 1 h avant la fin) :
+   une seule signature par passage de la tâche planifiée, au lieu d'une par envoi */
+const vapidMemo = new Map();
+async function vapid(endpoint, env, maintenant = Date.now()){
+  const cle = new URL(endpoint).origin + " " + env.VAPID_PUBLIQUE, m = vapidMemo.get(cle);
+  if(m && m.fin - maintenant > 3600 * 1000) return m.entete;
+  if(vapidMemo.size > 50) vapidMemo.clear();
+  const entete = await enteteVapid(endpoint, env.VAPID_PUBLIQUE, env.VAPID_PRIVEE, maintenant);
+  vapidMemo.set(cle, { entete, fin: maintenant + 12 * 3600 * 1000 });
+  return entete;
+}
+
 /* Envoie le message ; renvoie le code HTTP du service de notification */
 export async function envoyerPush(abo, message, env){
   const r = await fetch(abo.endpoint, { method: "POST", body: await chiffrerPush(abo, message), headers: {
     "Content-Encoding": "aes128gcm", "Content-Type": "application/octet-stream", TTL: String(TTL_PUSH), Urgency: "high",
-    Authorization: await enteteVapid(abo.endpoint, env.VAPID_PUBLIQUE, env.VAPID_PRIVEE)
+    Authorization: await vapid(abo.endpoint, env)
   } });
   return r.status;
 }

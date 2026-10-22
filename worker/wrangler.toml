@@ -23,7 +23,7 @@ database_id = "80b6666a-abf9-4c89-bf1f-74e0c8c91ce4"
 
 # Nettoyage quotidien des liens expirés (3 h 17 UTC)
 [triggers]
-crons = ["17 3 * * *"]
+crons = ["* * * * *"] # chaque minute : notifications de révélation ; nettoyage quotidien au passage de 3 h 17 UTC
 
 # Limites par adresse IP, comptées en mémoire par Cloudflare (aucune adresse enregistrée)
 [[ratelimits]]
