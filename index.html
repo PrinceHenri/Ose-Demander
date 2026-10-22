@@ -2278,6 +2278,7 @@ function visBlock(key, label, ph, it, reveal=true){
         ${reveal ? `<button type="button" data-v="r" aria-pressed="${it.v==="r"}">Révélé plus tard</button>` : ""}
       </div>
       <p class="vis-note">${it.v==="v" ? "Affiché dès le Oui." : it.v==="s" ? "Jamais affiché ni inclus dans le lien. Tu peux donner un indice." : "Caché, puis révélé automatiquement à l'heure que tu choisis."}</p>
+      ${it.v==="r" ? `<p class="vis-note">Le contenu est dans le lien, caché pour qu'on ne le voie pas par accident. Pour un secret absolu, choisis « Surprise » : rien n'est alors dans le lien.</p>` : ""}
     </div>
     ${it.v!=="s" ? `<label class="field"><span class="sr">${label}</span><input class="input" data-k="x" maxlength="120" placeholder="${ph}" value="${esc(it.x)}"></label>` : ""}
     ${it.v!=="v" ? `<label class="field"><span>Indice <em>(facultatif)</em></span><input class="input" data-k="h" maxlength="100" placeholder="Ex. Prévois des baskets" value="${esc(it.h)}"></label>` : ""}
@@ -2309,7 +2310,8 @@ function secPlan(){
         ${st.v!=="s" ? `<label class="field"><span>Activité</span><input class="input" data-s="a" maxlength="80" placeholder="Ex. Brunch" value="${esc(st.a)}"></label>
         <label class="field"><span>Lieu <em>(facultatif)</em></span><input class="input" data-s="l" maxlength="120" placeholder="Ex. Café Oberkampf, Paris" value="${esc(st.l)}"></label>` : ""}
         ${st.v!=="v" ? `<label class="field"><span>Indice <em>(facultatif)</em></span><input class="input" data-s="hint" maxlength="100" placeholder="Ex. Prépare ton cerveau" value="${esc(st.hint)}"></label>` : ""}
-        ${st.v==="r" ? `<label class="field"><span>Révéler le</span><input class="input" type="datetime-local" data-s="at" value="${esc(st.at)}"></label>` : ""}
+        ${st.v==="r" ? `<label class="field"><span>Révéler le</span><input class="input" type="datetime-local" data-s="at" value="${esc(st.at)}"></label>
+        <p class="vis-note">Le contenu est dans le lien, caché pour qu'on ne le voie pas par accident. Pour un secret absolu, choisis « Surprise » : rien n'est alors dans le lien.</p>` : ""}
       </div>`).join("")}
       ${S.steps.length<6 ? `<button type="button" class="btn" id="addStep" style="width:100%;margin-bottom:18px">Ajouter une étape</button>` : `<p class="hint">6 étapes maximum, pour que le lien reste partageable.</p>`}
       <p class="group-title">Infos pour la journée <em style="font-weight:400;color:var(--muted)">(facultatif)</em></p>

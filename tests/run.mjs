@@ -3050,6 +3050,13 @@ await test("sw.js : « 🔓 Ta surprise est prête ! », rien de la surprise, au
   assert.ok(idx.includes('mk("revelations","id")') && sw.includes('mk("revelations", "id")'));
 });
 
+await test("Création : phrase d'honnêteté sous « Révélé plus tard » (activité, lieu et chaque étape d'un programme)", () => {
+  const H = "Le contenu est dans le lien, caché pour qu'on ne le voie pas par accident. Pour un secret absolu, choisis « Surprise » : rien n'est alors dans le lien.";
+  const idx = readFileSync(RACINE + "index.html", "utf8");
+  assert.equal(idx.split(H).length - 1, 2, "élément simple et étape de programme");
+  assert.ok(idx.includes('${it.v==="r" ? `<p class="vis-note">' + H), "seulement quand « Révélé plus tard » est choisi");
+});
+
 /* ---------- Bilan ---------- */
 console.log(`\n${ko ? "❌" : "✅"} ${ok} tests réussis, ${ko} en échec (graine ${GRAINE}${ko ? ` — pour rejouer : node tests/run.mjs --graine=${GRAINE}` : ""})`);
 if(ko){ console.log(echecs.map(e => "  - " + e).join("\n")); process.exitCode = 1; }
