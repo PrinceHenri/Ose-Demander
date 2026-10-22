@@ -200,7 +200,7 @@ ${pied}
 
 /* Page « Supprimer mes données » (lien demandé par la Play Console) : ce que chacun peut supprimer soi-même,
    la demande par e-mail, et ce qui est supprimé ou conservé, avec les durées. Doit rester fidèle aux mentions légales. */
-export const SUPPRESSION = { path: "supprimer-mes-donnees", maj: "2026-10-21",
+export const SUPPRESSION = { path: "supprimer-mes-donnees", maj: "2026-10-22",
   title: "Supprimer mes données | Ose Demander",
   description: "Comment supprimer tes données d'Ose Demander, sur l'appli Android comme sur le site : liens courts, notifications de réponse, historique, ou demande par e-mail." };
 function pageSuppression(){
@@ -230,6 +230,8 @@ function pageSuppression(){
 <p>${t("Ce bouton ne fonctionne que sur l'appareil qui a créé l'invitation : c'est lui qui garde le jeton de suppression. Sinon, demande la suppression par e-mail.")}</p>
 <h3>Un abonnement aux notifications de réponse</h3>
 <p>${t("Il est effacé automatiquement dès que la notification est partie. Pour l'effacer avant, retire l'invitation de « Mes invitations » (bouton « Retirer de l'historique ») : l'abonnement est effacé en même temps. Tu peux aussi retirer l'autorisation des notifications dans les réglages de ton téléphone ou de ton navigateur.")}</p>
+<h3>Une notification de révélation</h3>
+<p>${t("Si tu as coché « Me prévenir quand la surprise se révèle » : elle est effacée automatiquement dès qu'elle est partie. Pour l'annuler avant, rouvre l'invitation et décoche la case. Le lien de l'invitation, rangé sur ton appareil pour la rouvrir, s'efface avec les données de l'appli ou du site.")}</p>
 <h3>L'historique « Mes invitations »</h3>
 <p>${t("Il reste uniquement sur ton appareil : Ose Demander n'en a aucune copie. Pour l'effacer :")}</p>
 <ul class="list">
@@ -241,7 +243,7 @@ function pageSuppression(){
 <p>${t("Écris à")} <a href="${mail}">contact@osedemander.fr</a> ${t("en indiquant :")}</p>
 <ul class="list">
 <li>${t("le lien de l'invitation concernée, tel que tu l'as envoyé, ou celui de l'image ;")}</li>
-<li>${t("ce que tu veux supprimer : le lien court, l'abonnement aux notifications, ou les deux.")}</li>
+<li>${t("ce que tu veux supprimer : le lien court, l'abonnement aux notifications, ou les deux. Une notification de révélation, elle, s'annule depuis ton appareil : rien ne permet de la retrouver sans lui.")}</li>
 </ul>
 <p>${t("Sans le lien, impossible de retrouver une invitation : rien n'est rattaché à un nom, à une adresse e-mail ou à un appareil. Tu reçois une réponse dans un délai d'un mois au plus, comme le prévoit le RGPD.")}</p>
 <p class="cta"><a class="btn" href="${mail}">Écrire à contact@osedemander.fr</a></p>
@@ -251,6 +253,7 @@ function pageSuppression(){
 <li>${t("Lien court : le contenu chiffré est effacé tout de suite à ta demande, sinon automatiquement un an au plus après la création du lien. L'identifiant du lien, sans aucun contenu, est gardé un an de plus, seulement pour afficher « Cette invitation a expiré » ou « a été supprimée ».")}</li>
 <li>${t("Abonnement aux notifications : effacé dès l'envoi de la notification, sinon automatiquement 7 jours après le dernier créneau proposé, et au plus tard un an après la création. Son identifiant, sans l'abonnement, est gardé 30 jours de plus.")}</li>
 <li>${t("Réponse envoyée en notification : jamais conservée. Elle est chiffrée de bout en bout et seulement transmise.")}</li>
+<li>${t("Notification de révélation : le service ne reçoit que l'abonnement, l'heure et un identifiant tiré au hasard, jamais le lien ni la surprise. Effacée dès l'envoi, sinon 7 jours après l'heure prévue au plus tard ; son identifiant, sans l'abonnement, est gardé 30 jours de plus.")}</li>
 <li>${t("Journaux : aucun. L'adresse IP sert seulement, sur le moment, à limiter le nombre de demandes ; elle n'est jamais enregistrée.")}</li>
 <li>${t("Lien complet, le lien long utilisé quand le service des liens courts ne répond pas : toute l'invitation est dans le lien, rien n'est conservé en ligne. Pour la faire disparaître, supprime les messages qui le contiennent.")}</li>
 <li>${t("Google Play peut traiter des données liées au téléchargement de l'appli, selon sa propre politique de confidentialité.")}</li>

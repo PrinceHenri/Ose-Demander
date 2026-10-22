@@ -250,6 +250,15 @@ Facultatives, demandées par la personne qui crée l'invitation (Web Push, servi
 - **Mes invitations** : ligne `.rep` en gras sous « Pour {prénom} » : « Répondu : Oui 🎉, samedi 13 mars à 19 h 30 » (en `--accent-text`) ou « Répondu : Non » ; sinon « 🔔 Notification activée sur cet appareil ».
 - **Textes neutres** : jamais « prévenu », « tu seras averti » ; on tourne la phrase (« Notification envoyée à {prénom} »).
 
+## 2 terdecies. Notification de révélation (personne invitée)
+
+Pour les surprises « Révélé plus tard » : la personne invitée peut être prévenue, sur son propre appareil, à l'heure de la révélation (`revealNotifHTML`, `syncRevealNotif`, `setRevealNotif`, `scheduleReveal`, Worker `/v1/rappels`, tâche planifiée à la minute, `sw.js` `onReveal`).
+- **Carte après le Oui**, en tête de `#actions` (juste sous les détails et le compte à rebours) : encadré en pointillés `.rev-notif`, case `.check` « 🔔 Me prévenir quand la surprise se révèle » (« quand les surprises se révèlent » s'il y en a plusieurs), texte en gras ; dessous, `.hint` : « Une notification à l'heure de la révélation, sans rien dévoiler. ». **Décochée par défaut**, cochée (et programmée) d'office seulement si l'autorisation est déjà accordée ; autorisation demandée au toucher. États : « 🔔 C'est noté : … » (`role="status"`), « Notifications non autorisées : ajoute plutôt un rappel à ton agenda. », « La notification n'a pas pu être programmée. Réessaie, ou ajoute un rappel à ton agenda. » (`role="alert"`), bloquées (case désactivée, la raison). C'est une case : la réponse reste la seule action principale.
+- **Jamais** dans le rappel d'agenda (il a ses alertes), la version partagée (plus de révélation) ni quand toutes les heures sont passées. Gardée sur l'image de groupe (elle ne prévient que la personne qui s'abonne).
+- **iPhone hors de l'appli installée, navigateurs intégrés (Instagram, Facebook, Snapchat, TikTok…), navigateur sans notifications** : pas de case désactivée ; à la place, au-dessus de « Me rappeler la révélation 🔓 » (bouton `.btn`, bien visible), la phrase `.rev-agenda` en gras : « Ajoute un rappel à ton agenda pour ne pas manquer la surprise. »
+- **Notification** : « 🔓 Ta surprise est prête ! » / « Touche pour la découvrir. » Jamais le prénom, l'activité, le lieu ni l'indice. Le toucher rouvre le lien de rappel rangé sur l'appareil (mise en scène des surprises).
+- **Création** : sous « Révélé plus tard » (et sous la date de chaque étape d'un programme), `.vis-note` : « Le contenu est dans le lien, caché pour qu'on ne le voie pas par accident. Pour un secret absolu, choisis « Surprise » : rien n'est alors dans le lien. »
+
 ## 3. Typographie : deux polices, pas une de plus
 
 Polices **hébergées dans `fonts/`** (licence SIL OFL, aucun appel à Google Fonts — RGPD).

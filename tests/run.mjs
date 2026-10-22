@@ -3057,6 +3057,16 @@ await test("Création : phrase d'honnêteté sous « Révélé plus tard » (act
   assert.ok(idx.includes('${it.v==="r" ? `<p class="vis-note">' + H), "seulement quand « Révélé plus tard » est choisi");
 });
 
+await test("Mentions légales et page de suppression : la notification de révélation (rien que l'abonnement, l'heure, un identifiant ; durées ; iPhone)", () => {
+  const ml = readFileSync(RACINE + "mentions-legales.html", "utf8").replace(/\s+/g, " ");
+  for(const t of ['<h3 id="revelation">Notification de révélation</h3>', "Il ne reçoit jamais le lien de l'invitation, sa clé, les prénoms, ni le contenu de la surprise",
+    "Le lien qui rouvre l'invitation reste uniquement sur votre appareil", "« 🔓 Ta surprise est prête ! »", "au plus tard sept jours après l'heure prévue",
+    "Décocher la case l'efface tout de suite", "Notification de révélation, seulement si vous la demandez.", "« Me prévenir quand la surprise se révèle »"])
+    assert.ok(ml.includes(t), `« ${t} » absent des mentions légales`);
+  const sup = FAB["supprimer-mes-donnees/index.html"].replace(/&nbsp;/g, " ").replace(/&#39;/g, "'");
+  for(const t of ["<h3>Une notification de révélation</h3>", "rouvre l'invitation et décoche la case", "jamais le lien ni la surprise"]) assert.ok(sup.includes(t), `« ${t} » absent de la page de suppression`);
+});
+
 /* ---------- Bilan ---------- */
 console.log(`\n${ko ? "❌" : "✅"} ${ok} tests réussis, ${ko} en échec (graine ${GRAINE}${ko ? ` — pour rejouer : node tests/run.mjs --graine=${GRAINE}` : ""})`);
 if(ko){ console.log(echecs.map(e => "  - " + e).join("\n")); process.exitCode = 1; }
