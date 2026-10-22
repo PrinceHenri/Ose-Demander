@@ -11,6 +11,7 @@ import { PAGES, FAQ_COMMUNE, MISE_A_JOUR } from "./pages-data.mjs";
 const RACINE = fileURLToPath(new URL("..", import.meta.url)), SITE = "https://osedemander.fr/";
 const P = chargerPage();
 const esc = P.lire("esc"), SCENES = P.lire("SCENES"), TEMPLATES = P.lire("TEMPLATES"), THEMES = P.lire("THEMES"), OCC = P.lire("OCC"), HOME_SCENE = P.lire("HOME_SCENE");
+const footerHTML = P.lire("footerHTML"), readable = P.lire("readable"), FOOT_BG = P.lire("FOOT_BG");
 /* Texte visible : échappé, puis typographie française (espaces insécables devant ? ! : ; et dans les guillemets),
    mots composés jamais coupés en fin de ligne */
 const INSECABLES = ["Saint-Valentin", "Nouvel An", "jour J"];
@@ -35,6 +36,7 @@ function cssPage(theme){
   const polices = B.filter(b => sel(b) === "@font-face").map(b => b.replace(/url\("fonts\//g, 'url("/fonts/'));
   const couleurs = B.filter(b => sel(b) === ":root,[data-theme]" || sel(b) === `[data-theme="${theme}"]`);
   const scene = B.filter(b => !b.startsWith("@") && /#scene|\.scene-sign|\.sg-|\.sc-|\.hs-/.test(sel(b)) && !/\.mini|\.pv-|\.thumb|\.dim|\.tinted|scene-home \.sc|:hover/.test(sel(b)));
+  const pied = cssPied();
   const utilisees = new Set(scene.flatMap(b => [...b.matchAll(/animation:([a-z0-9-]+)/g)].map(m => m[1])));
   const images = B.filter(b => b.startsWith("@keyframes") && utilisees.has(b.match(/@keyframes\s+([a-z0-9-]+)/)[1]));
   const mise = `*{box-sizing:border-box}
@@ -87,18 +89,18 @@ details{border-top:2px dashed var(--line)}
 details:last-of-type{border-bottom:2px dashed var(--line)}
 summary{cursor:pointer;font-weight:700;min-height:48px;display:flex;align-items:center;padding:8px 0}
 details p{margin:0 0 14px}
-.ideas{text-align:center;margin:0 0 8px}
-.ideas h2{font-size:17px;display:inline-block;background:var(--surface);border-radius:10px;padding:2px 10px}
-.ideas ul{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;justify-content:center;gap:8px}
-.ideas a{display:inline-flex;align-items:center;min-height:44px;padding:8px 14px;border:2px solid var(--line);border-radius:999px;background:var(--surface);color:var(--ink);font-size:15px;font-weight:600;text-decoration:none}
-.ideas a:hover{border-color:var(--ink)}
-.foot{text-align:center;color:var(--muted);font-size:14px;margin:22px auto 0;max-width:46ch}
-.foot span{display:inline-block;background:var(--surface);border-radius:10px;padding:6px 12px}
 .nw{white-space:nowrap}
 h2,.handnote,.question,.lead{text-wrap:balance}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}`;
-  return [...polices, ...couleurs, ...scene, ...images, mise].join("\n");
+  return [...polices, ...couleurs, ...scene, ...images, mise, ...pied].join("\n");
 }
+/* CSS du pied de page, repris tel quel du site (règles .site-foot / .sf-, et leurs @media) */
+const cssPied = () => B.filter(b => /^\.site-foot|^\.sf-/.test(sel(b)) || (b.startsWith("@media") && b.includes(".sf-")));
+/* Pied de page des pages statiques : logo habituel (sans script, pas de décor de saison figé), titres à l'accent du thème lisible sur le fond sombre */
+const piedDePage = theme => {
+  const t = THEMES.find(x => x.id === theme) || THEMES[0];
+  return footerHTML({ logo: `<a class="logo" href="/">Ose Demander<span class="q" aria-hidden="true">?</span></a>`, acc: readable(t.a, [FOOT_BG], 4.5) });
+};
 
 const tete = ({ titre, description, canonique, theme, robots, jsonld, css = "" }) => {
   const t = THEMES.find(x => x.id === theme) || THEMES[0];
@@ -130,9 +132,6 @@ ${cssPage(theme)}${css ? "\n" + css : ""}
 </style>
 </head>`;
 };
-const pied = `<p class="foot"><span>Ose Demander est gratuit et sans compte. Rien n'est stocké en clair en ligne. <a href="/mentions-legales.html#confidentialite">Confidentialité</a> <a href="/mentions-legales.html">Mentions légales</a></span></p>`;
-const autres = courante => `<nav class="ideas" aria-labelledby="autres"><h2 id="autres">${courante ? "Autres idées d'invitations" : "Idées d'invitations"}</h2>
-<ul>${PAGES.filter(p => p.path !== courante).map(p => `<li><a href="/${p.path}/">${t(p.label)}</a></li>`).join("")}<li><a href="/">Toutes les occasions</a></li></ul></nav>`;
 
 function pageOccasion(p){
   const tpl = TEMPLATES.find(t => t.id === p.tpl), theme = tpl.theme, url = `${SITE}${p.path}/`, faq = [...p.faq, ...FAQ_COMMUNE];
@@ -167,10 +166,9 @@ ${(p.autresModeles || []).length ? `<p class="alt">${t(p.autresIntro)} ${p.autre
 <section class="panel"><h2>Questions fréquentes</h2>
 ${faq.map(([q, a]) => `<details><summary>${t(q)}</summary><p>${t(a)}</p></details>`).join("\n")}</section>
 <section class="panel hero"><h2>${t(p.fin)}</h2><p class="cta"><a class="btn" href="${lien}">Créer mon invitation</a></p></section>
-${autres(p.path)}
 </main>
-${pied}
 </div>
+${piedDePage(theme)}
 </body>
 </html>
 `;
@@ -189,10 +187,9 @@ function page404(){
 <p class="lead">${t("L'adresse est peut-être incomplète ou mal copiée. Si tu as reçu une invitation, demande à la personne qui te l'a envoyée de te renvoyer le lien en entier.")}</p>
 <p class="cta"><a class="btn primary" href="/">Créer ma propre invitation</a></p>
 </section>
-${autres("")}
 </main>
-${pied}
 </div>
+${piedDePage("base")}
 </body>
 </html>
 `;
@@ -261,8 +258,8 @@ function pageSuppression(){
 <p>${t("Le détail est dans les")} <a href="/mentions-legales.html#confidentialite">${t("mentions légales, section « Confidentialité »")}</a>.</p>
 </section>
 </main>
-${pied}
 </div>
+${piedDePage("base")}
 </body>
 </html>
 `;
@@ -277,6 +274,14 @@ ${adresses.map(([a, d]) => `  <url><loc>${a}</loc><lastmod>${d}</lastmod></url>`
 `;
 }
 
+const DEBUT_PIED = "<!-- Pied de page : fabriqué par outils/pages.mjs, ne pas modifier ici -->", FIN_PIED = "<!-- /Pied de page -->";
+export function piedMentions(html){
+  const polices = B.filter(b => sel(b) === "@font-face").map(b => b.replace(/url\("fonts\//g, 'url("/fonts/'));
+  const bloc = `${DEBUT_PIED}\n<style>\n${[...polices, ...cssPied()].join("\n")}\n</style>\n${piedDePage("base")}\n${FIN_PIED}`;
+  const i = html.indexOf(DEBUT_PIED), j = html.indexOf(FIN_PIED);
+  if(i >= 0 && j > i) return html.slice(0, i) + bloc + html.slice(j + FIN_PIED.length);
+  return html.replace("</main>\n", "</main>\n" + bloc + "\n");
+}
 export function fichiers(){
   const f = { "404.html": page404(), "sitemap.xml": plan() };
   for(const p of PAGES) f[`${p.path}/index.html`] = pageOccasion(p);
@@ -286,6 +291,8 @@ export function fichiers(){
 
 if(process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]){
   const f = fichiers(), verifier = process.argv.includes("--verifier"), ecarts = [];
+  const ml = readFileSync(RACINE + "mentions-legales.html", "utf8").replace(/\r\n/g, "\n");
+  f["mentions-legales.html"] = piedMentions(ml);
   for(const [nom, contenu] of Object.entries(f)){
     const chemin = RACINE + nom, actuel = existsSync(chemin) ? readFileSync(chemin, "utf8").replace(/\r\n/g, "\n") : null;
     if(actuel === contenu) continue;

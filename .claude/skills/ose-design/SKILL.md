@@ -259,6 +259,14 @@ Pour les surprises « Révélé plus tard » : la personne invitée peut être p
 - **Notification** : « 🔓 Ta surprise est prête ! » / « Touche pour la découvrir. » Jamais le prénom, l'activité, le lieu ni l'indice. Le toucher rouvre le lien de rappel rangé sur l'appareil (mise en scène des surprises).
 - **Création** : sous « Révélé plus tard » (et sous la date de chaque étape d'un programme), `.vis-note` : « Le contenu est dans le lien, caché pour qu'on ne le voie pas par accident. Pour un secret absolu, choisis « Surprise » : rien n'est alors dans le lien. »
 
+## 2 quaterdecies. Pied de page
+
+Un seul pied de page (`footerHTML`, `index.html`), repris par `outils/pages.mjs` sur les pages d'occasion, la page « Supprimer mes données », la 404 et les mentions légales (entre deux repères, avec ses styles). Sur l'accueil seulement côté appli (pas sur les étapes de création, ni côté personne invitée).
+- **Bandeau sombre** `.site-foot`, toute la largeur, à l'encre Lilas `#1F1546` (`FOOT_BG`) sur toutes les pages, quel que soit le thème : **exception assumée** aux variables de thème (comme le logo de saison). Variables propres : `--f-ink` #ECE6FF (13,8:1), `--f-mut` #CFC6F2 (10,4:1), `--f-line`, `--f-acc` = accent du thème rendu lisible sur ce fond (`readable(accent, [FOOT_BG], 4.5)`, en `style` sur chaque page statique ; #EC4389 pour Lilas). Le banc vérifie ≥ 4,5:1 pour chaque thème.
+- **Contenu** : logo (de saison sur l'accueil ; habituel sur les pages statiques, sans script) et « Des invitations animées à envoyer par message. Gratuit, sans compte, sans pub. » ; trois `nav` nommées (`aria-labelledby`, titres `h2` à l'accent) : « Ose Demander » (Créer une invitation `/#choisir`, Voir un exemple, Mes invitations, Installer l'appli `/#installer`, masqué dans l'appli installée), « Idées » (les pages d'occasion, `OCC_PAGES` : remplace l'ancienne rubrique « Idées d'invitations »), « Informations » (Mentions légales, Confidentialité, Supprimer mes données, Contact avec l'adresse en dessous) ; ligne fine puis « © 2026 Ose Demander — Rien n'est stocké en clair en ligne. »
+- **Routes** : `#choisir` (accueil, défilé jusqu'aux catégories `#choisir`, focus sur la première), `#installer` (fenêtre d'installation du navigateur si prête, sinon les étapes iPhone ou Chrome/Edge, `installHelp`).
+- **Mise en page** : 4 colonnes, 2 sous 760 px (logo sur toute la largeur), 1 sous 520 px ; liens de 44 px ; focus `3px solid var(--f-acc)` ; aucune action principale.
+
 ## 3. Typographie : deux polices, pas une de plus
 
 Polices **hébergées dans `fonts/`** (licence SIL OFL, aucun appel à Google Fonts — RGPD).

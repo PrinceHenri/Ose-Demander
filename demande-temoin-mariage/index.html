@@ -240,16 +240,23 @@ details{border-top:2px dashed var(--line)}
 details:last-of-type{border-bottom:2px dashed var(--line)}
 summary{cursor:pointer;font-weight:700;min-height:48px;display:flex;align-items:center;padding:8px 0}
 details p{margin:0 0 14px}
-.ideas{text-align:center;margin:0 0 8px}
-.ideas h2{font-size:17px;display:inline-block;background:var(--surface);border-radius:10px;padding:2px 10px}
-.ideas ul{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;justify-content:center;gap:8px}
-.ideas a{display:inline-flex;align-items:center;min-height:44px;padding:8px 14px;border:2px solid var(--line);border-radius:999px;background:var(--surface);color:var(--ink);font-size:15px;font-weight:600;text-decoration:none}
-.ideas a:hover{border-color:var(--ink)}
-.foot{text-align:center;color:var(--muted);font-size:14px;margin:22px auto 0;max-width:46ch}
-.foot span{display:inline-block;background:var(--surface);border-radius:10px;padding:6px 12px}
 .nw{white-space:nowrap}
 h2,.handnote,.question,.lead{text-wrap:balance}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+.site-foot{--f-bg:#1F1546;--f-ink:#ECE6FF;--f-mut:#CFC6F2;--f-line:#463C70;--f-acc:#EC4389;position:relative;z-index:1;background:var(--f-bg);color:var(--f-ink);margin:44px 0 0;padding:34px 20px calc(22px + env(safe-area-inset-bottom,0px));font-family:var(--display,"Bricolage Grotesque",system-ui,sans-serif);line-height:1.5}
+.sf-in{max-width:980px;margin:0 auto;display:grid;grid-template-columns:1.5fr 1fr 1fr 1fr;gap:20px 28px}
+.sf-brand p{margin:10px 0 0;color:var(--f-mut);font-size:15px;max-width:30ch}
+.site-foot .logo{display:inline-flex;align-items:baseline;gap:2px;color:var(--f-ink);font-weight:800;font-size:22px;letter-spacing:-.02em;text-decoration:none}
+.site-foot .q{color:var(--f-acc)}
+.site-foot h2{margin:0 0 4px;font-size:16px;font-weight:800;letter-spacing:-.01em;color:var(--f-acc)}
+.site-foot ul{list-style:none;margin:0;padding:0}
+.site-foot li a{display:flex;flex-direction:column;justify-content:center;min-height:44px;color:var(--f-ink);font-size:15px;text-decoration:none}
+.site-foot li a:hover{text-decoration:underline;text-underline-offset:3px}
+.site-foot a:focus-visible{outline:3px solid var(--f-acc);outline-offset:2px;border-radius:4px}
+.sf-mail{color:var(--f-mut);font-size:13px}
+.sf-bas{max-width:980px;margin:22px auto 0;padding-top:14px;border-top:1px solid var(--f-line);color:var(--f-mut);font-size:13px}
+@media (max-width:760px){.sf-in{grid-template-columns:1fr 1fr}.sf-brand{grid-column:1/-1}}
+@media (max-width:520px){.sf-in{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -289,10 +296,16 @@ h2,.handnote,.question,.lead{text-wrap:balance}
 <details><summary>Comment je reçois la réponse&nbsp;?</summary><p>Par l&#39;appli que tu choisis en créant l&#39;invitation&nbsp;: WhatsApp, SMS, Snapchat, Instagram ou Messenger. La réponse part déjà écrite, il suffit de l&#39;envoyer.</p></details>
 <details><summary>Mes informations sont-elles stockées&nbsp;?</summary><p>Rien n&#39;est stocké en clair en ligne. L&#39;invitation tient dans son lien&nbsp;; avec un lien court, elle est chiffrée sur ton appareil et seul ce lien permet de la lire.</p></details></section>
 <section class="panel hero"><h2>Ta demande de témoin commence ici</h2><p class="cta"><a class="btn" href="/#modele=temoin">Créer mon invitation</a></p></section>
-<nav class="ideas" aria-labelledby="autres"><h2 id="autres">Autres idées d'invitations</h2>
-<ul><li><a href="/invitation-repas-de-noel/">Repas de Noël</a></li><li><a href="/invitation-reveillon-nouvel-an/">Réveillon du Nouvel&nbsp;An</a></li><li><a href="/invitation-saint-valentin/"><span class="nw">Saint-Valentin</span></a></li><li><a href="/demande-parrain-marraine/">Parrain ou marraine</a></li><li><a href="/invitation-anniversaire/">Anniversaire</a></li><li><a href="/">Toutes les occasions</a></li></ul></nav>
 </main>
-<p class="foot"><span>Ose Demander est gratuit et sans compte. Rien n'est stocké en clair en ligne. <a href="/mentions-legales.html#confidentialite">Confidentialité</a> <a href="/mentions-legales.html">Mentions légales</a></span></p>
 </div>
+<footer class="site-foot" style="--f-acc:#C9A227">
+  <div class="sf-in">
+    <div class="sf-brand"><a class="logo" href="/">Ose Demander<span class="q" aria-hidden="true">?</span></a><p>Des invitations animées à envoyer par message. Gratuit, sans compte, sans pub.</p></div>
+    <nav class="sf-col" aria-labelledby="sfSite"><h2 id="sfSite">Ose Demander</h2><ul><li><a href="/#choisir">Créer une invitation</a></li><li><a href="/#exemple">Voir un exemple</a></li><li><a href="/#mes-invitations">Mes invitations</a></li><li><a href="/#installer">Installer l'appli</a></li></ul></nav>
+    <nav class="sf-col" aria-labelledby="sfIdees"><h2 id="sfIdees">Idées</h2><ul><li><a href="/invitation-repas-de-noel/">Repas de Noël</a></li><li><a href="/invitation-reveillon-nouvel-an/">Réveillon du Nouvel An</a></li><li><a href="/invitation-saint-valentin/">Saint-Valentin</a></li><li><a href="/demande-temoin-mariage/">Demande de témoin</a></li><li><a href="/demande-parrain-marraine/">Parrain ou marraine</a></li><li><a href="/invitation-anniversaire/">Anniversaire</a></li></ul></nav>
+    <nav class="sf-col" aria-labelledby="sfInfos"><h2 id="sfInfos">Informations</h2><ul><li><a href="/mentions-legales.html">Mentions légales</a></li><li><a href="/mentions-legales.html#confidentialite">Confidentialité</a></li><li><a href="/supprimer-mes-donnees/">Supprimer mes données</a></li><li><a href="mailto:contact@osedemander.fr">Contact<span class="sf-mail">contact@osedemander.fr</span></a></li></ul></nav>
+  </div>
+  <p class="sf-bas">© 2026 Ose Demander — Rien n'est stocké en clair en ligne.</p>
+</footer>
 </body>
 </html>

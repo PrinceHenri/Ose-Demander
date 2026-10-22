@@ -234,6 +234,20 @@ input.input[type=date],input.input[type=time]{min-width:0;max-width:100%}
 .rev-notif{width:100%;padding:10px 14px;border:2px dashed var(--line);border-radius:14px;text-align:left}
 .rev-notif .check{margin:0}.rev-notif .check span{font-weight:700}.rev-notif .hint{margin:6px 0 0}
 .rev-agenda{margin:0;font-weight:700;text-align:center}
+.site-foot{--f-bg:#1F1546;--f-ink:#ECE6FF;--f-mut:#CFC6F2;--f-line:#463C70;--f-acc:#EC4389;position:relative;z-index:1;background:var(--f-bg);color:var(--f-ink);margin:44px 0 0;padding:34px 20px calc(22px + env(safe-area-inset-bottom,0px));font-family:var(--display,"Bricolage Grotesque",system-ui,sans-serif);line-height:1.5}
+.sf-in{max-width:980px;margin:0 auto;display:grid;grid-template-columns:1.5fr 1fr 1fr 1fr;gap:20px 28px}
+.sf-brand p{margin:10px 0 0;color:var(--f-mut);font-size:15px;max-width:30ch}
+.site-foot .logo{display:inline-flex;align-items:baseline;gap:2px;color:var(--f-ink);font-weight:800;font-size:22px;letter-spacing:-.02em;text-decoration:none}
+.site-foot .q{color:var(--f-acc)}
+.site-foot h2{margin:0 0 4px;font-size:16px;font-weight:800;letter-spacing:-.01em;color:var(--f-acc)}
+.site-foot ul{list-style:none;margin:0;padding:0}
+.site-foot li a{display:flex;flex-direction:column;justify-content:center;min-height:44px;color:var(--f-ink);font-size:15px;text-decoration:none}
+.site-foot li a:hover{text-decoration:underline;text-underline-offset:3px}
+.site-foot a:focus-visible{outline:3px solid var(--f-acc);outline-offset:2px;border-radius:4px}
+.sf-mail{color:var(--f-mut);font-size:13px}
+.sf-bas{max-width:980px;margin:22px auto 0;padding-top:14px;border-top:1px solid var(--f-line);color:var(--f-mut);font-size:13px}
+@media (max-width:760px){.sf-in{grid-template-columns:1fr 1fr}.sf-brand{grid-column:1/-1}}
+@media (max-width:520px){.sf-in{grid-template-columns:1fr}}
 .rep{margin:2px 0 4px;font-weight:800}.rep-o{color:var(--accent-text)}
 .check input:checked::after{content:"";width:6px;height:11px;margin-top:-3px;border:solid var(--accent-ink);border-width:0 3px 3px 0;transform:rotate(45deg)}
 /* La page se déclare « light dark » (sinon Chrome l'assombrit de force) : thème sombre du téléphone = icônes natives claires, on les remet foncées */
@@ -707,11 +721,6 @@ textarea.refuse-input{font-family:var(--hand);font-size:23px;line-height:1.2;min
 .intro-skip{min-height:44px;padding:8px 22px;border-color:var(--line);color:var(--muted);font-weight:600}
 .intro-screen .safety{margin-top:4px}
 /* ---------- Idées d'invitations (accueil) : liens vers les pages d'occasion ---------- */
-.ideas{margin:30px 0 0;text-align:center}
-.ideas h2{margin:0 0 10px;font-size:15px;font-weight:700;color:var(--muted)}
-.ideas ul{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;justify-content:center;gap:8px}
-.ideas a{display:inline-flex;align-items:center;min-height:44px;padding:8px 14px;border:2px solid var(--line);border-radius:999px;background:var(--surface);color:var(--ink);font-size:14px;font-weight:600;text-decoration:none;transition:border-color .15s}
-.ideas a:hover{border-color:var(--ink)}
 /* ---------- Partager en image (QR code) ---------- */
 .img-sheet .sheet-card{max-height:calc(100dvh - 32px);overflow:auto}
 .img-sheet .seg{margin:0 0 12px}
@@ -1990,8 +1999,23 @@ const OCC_PAGES = [
   {path:"demande-parrain-marraine", label:"Parrain ou marraine", tpl:"parrain"},
   {path:"invitation-anniversaire", label:"Anniversaire", tpl:"monanniv"}
 ];
-const ideasHTML = () => `<nav class="ideas" aria-labelledby="ideasTitle"><h2 id="ideasTitle">Idées d'invitations</h2>
-  <ul>${OCC_PAGES.map(p=>`<li><a href="/${p.path}/">${esc(p.label)}</a></li>`).join("")}</ul></nav>`;
+/* ---------- Pied de page : accueil, et pages statiques (outils/pages.mjs le reprend tel quel) ----------
+   Bandeau sombre à l'encre Lilas sur toutes les pages, quel que soit le thème (exception assumée, comme le logo de saison) :
+   textes clairs (≥ 4,5:1, vérifié par le banc), titres de colonnes à l'accent du thème rendu lisible sur ce fond (acc).
+   logo : celui de l'accueil (de saison) ou le logo habituel ; installer : lien « Installer l'appli » (masqué dans l'appli installée). */
+const FOOT_BG = "#1F1546";
+function footerHTML({logo, acc="", installer=true}={}){
+  const lien=(href, txt)=>`<li><a href="${href}">${txt}</a></li>`;
+  return `<footer class="site-foot"${acc ? ` style="--f-acc:${acc}"` : ""}>
+  <div class="sf-in">
+    <div class="sf-brand">${logo}<p>Des invitations animées à envoyer par message. Gratuit, sans compte, sans pub.</p></div>
+    <nav class="sf-col" aria-labelledby="sfSite"><h2 id="sfSite">Ose Demander</h2><ul>${lien("/#choisir","Créer une invitation")}${lien("/#exemple","Voir un exemple")}${lien("/#mes-invitations","Mes invitations")}${installer ? lien("/#installer","Installer l'appli") : ""}</ul></nav>
+    <nav class="sf-col" aria-labelledby="sfIdees"><h2 id="sfIdees">Idées</h2><ul>${OCC_PAGES.map(p=>lien(`/${p.path}/`, esc(p.label))).join("")}</ul></nav>
+    <nav class="sf-col" aria-labelledby="sfInfos"><h2 id="sfInfos">Informations</h2><ul>${lien("/mentions-legales.html","Mentions légales")}${lien("/mentions-legales.html#confidentialite","Confidentialité")}${lien("/supprimer-mes-donnees/","Supprimer mes données")}<li><a href="mailto:contact@osedemander.fr">Contact<span class="sf-mail">contact@osedemander.fr</span></a></li></ul></nav>
+  </div>
+  <p class="sf-bas">© 2026 Ose Demander — Rien n'est stocké en clair en ligne.</p>
+</footer>`;
+}
 function applyTemplate(id){
   const t=TEMPLATES.find(x=>x.id===id);
   const p=(t&&t.plan)||{}, pr=S.preset||{};
@@ -2040,9 +2064,9 @@ function renderCreator(){
         ${n===2||n===3 ? `<button type="submit" class="btn primary">${n===3 ? "Voir l'aperçu" : "Continuer"}</button>` : ""}
       </div>`}
     </form>`}
-    ${n==="home" ? ideasHTML() : ""}
-    <p class="foot">Rien n'est stocké en clair en ligne : l'invitation tient dans son lien, chiffrée si le lien est court. <a href="mentions-legales.html#confidentialite">Confidentialité</a><br><a href="mentions-legales.html">Mentions légales</a></p>
-  </div>`;
+    ${n==="home" ? "" : `<p class="foot">Rien n'est stocké en clair en ligne : l'invitation tient dans son lien, chiffrée si le lien est court. <a href="mentions-legales.html#confidentialite">Confidentialité</a><br><a href="mentions-legales.html">Mentions légales</a></p>`}
+  </div>
+  ${n==="home" ? footerHTML({logo:logoHTML(seasonToday(), false), installer:!isStandalone()}) : ""}`;
   S.err=""; S.errSec="";
   bindCreator();
   bindSound(true);
@@ -2068,7 +2092,7 @@ function homeHTML(){
       </div>
     </div>
     ${seasonBannerHTML()}
-    <div class="home-cards">${HOME_CATS.map(c=>`<button type="button" class="home-card" data-home="${c.cat}">${sceneMini(c.theme)}
+    <div class="home-cards" id="choisir">${HOME_CATS.map(c=>`<button type="button" class="home-card" data-home="${c.cat}">${sceneMini(c.theme)}
       <span class="hc-txt"><b><span class="ico" aria-hidden="true">${c.ico}</span>${c.cat}</b><span>${esc(catDesc(c.cat))}</span></span></button>`).join("")}</div>
     <div class="home-actions">
       <a class="btn" href="#exemple">Voir un exemple</a>
@@ -4917,15 +4941,25 @@ function refreshInstall(){
     showIOSHelp();
   });
 }
-function showIOSHelp(){
+/* « Installer l'appli » du pied de page : la fenêtre du navigateur si elle est prête, sinon les étapes à suivre */
+async function installHelp(){
+  if(isStandalone()){ toast("Ose Demander est déjà installée sur cet appareil"); return; }
+  if(installEvt){ try{ installEvt.prompt(); await installEvt.userChoice.catch(()=>null); installEvt=null; refreshInstall(); return; }catch(e){} }
+  showIOSHelp(!isIOS());
+}
+function showIOSHelp(autre=false){
   const d=document.createElement("div"); d.className="sheet"; d.setAttribute("role","dialog"); d.setAttribute("aria-modal","true"); d.setAttribute("aria-label","Installer l'appli");
   d.innerHTML=`<div class="sheet-card">
     <h3>Installer Ose Demander</h3>
-    <ol>
+    ${autre ? `<ol>
+      <li>Ouvre ce site dans <b>Chrome</b> ou <b>Edge</b>.</li>
+      <li>Ouvre le menu (les trois points).</li>
+      <li>Choisis <b>Installer l'application</b> ou <b>Ajouter à l'écran d'accueil</b>.</li>
+    </ol>` : `<ol>
       <li>Ouvre ce site dans <b>Safari</b>.</li>
       <li>Touche le bouton <b>Partager</b> (le carré avec une flèche vers le haut).</li>
       <li>Choisis <b>Sur l'écran d'accueil</b>, puis <b>Ajouter</b>.</li>
-    </ol>
+    </ol>`}
     <button type="button" class="btn primary" style="width:100%">Compris</button></div>`;
   d.addEventListener("click",e=>{ if(e.target===d || e.target.tagName==="BUTTON") d.remove(); });
   document.body.appendChild(d); $("button",d).focus();
@@ -5004,6 +5038,14 @@ async function route(){
   setNoindex(!!(m || ms || EXAMPLE));
   if(!m && !ms && !EXAMPLE) Sound.on=Sound.pref(); // côté créateur : le choix gardé sur cet appareil
   if(location.hash==="#mes-invitations"){ renderHistory(); focusScreen(".panel h2"); return; }
+  // Liens du pied de page : l'accueil, défilé jusqu'aux catégories, ou l'aide à l'installation ; l'adresse redevient celle de l'accueil
+  if(location.hash==="#choisir" || location.hash==="#installer"){
+    const quoi=location.hash; history.replaceState(null, "", location.pathname);
+    S.step="home"; S.link=""; renderCreator();
+    if(quoi==="#choisir"){ $("#choisir")?.scrollIntoView({block:"start"}); $(".home-card")?.focus({preventScroll:true}); }
+    else installHelp();
+    return;
+  }
   // Lien d'une page d'occasion : ouvre directement ce modèle (de saison compris, toute l'année), comme un choix sur l'accueil.
   // L'identifiant est validé contre la liste des modèles ; on le retire ensuite de l'adresse (un rechargement ne réinitialise rien).
   const mod=location.hash.match(/^#modele=([a-z]{2,20})$/), tpl=mod && TEMPLATES.find(t=>t.id===mod[1]);
