@@ -3203,7 +3203,8 @@ await test("CSP de l'accueil : balise en tête, empreinte du script à jour (sin
   assert.ok(csp.startsWith("default-src 'none'"));
   for(const d of ["frame-ancestors", "report-uri", "sandbox"]) assert.ok(!csp.includes(d), `${d} est ignorée dans une balise meta`);
   const connect = csp.split("; ").find(d => d.startsWith("connect-src ")).split(" ");
-  assert.ok(connect.includes(PAGE.lire("SHORT_ORIGIN")), "le service des liens courts est autorisé");
+  assert.ok(connect.includes("https://ose-liens.osedemander.workers.dev"), "le service des liens courts est autorisé");
+  assert.ok(!/http:\/\//.test(csp), "aucune adresse en http:// (Observatory : csp-implemented-with-insecure-scheme)");
   assert.equal((html.match(/<script>/g) || []).length, 1, "un seul script exécuté (celui de l'empreinte)");
 });
 await test("Rien que la CSP bloquerait : ni gestionnaire on…= dans le HTML, ni javascript:, ni eval, ni appel à un autre domaine", () => {

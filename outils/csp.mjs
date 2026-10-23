@@ -11,8 +11,11 @@ import { fileURLToPath } from "node:url";
 
 const RACINE = fileURLToPath(new URL("..", import.meta.url));
 
-// Le service des liens courts et des notifications (SHORT_ORIGIN), et sa copie locale (wrangler dev)
-export const CONNEXIONS = ["https://ose-liens.osedemander.workers.dev", "http://localhost:8787"];
+// Le service des liens courts et des notifications (SHORT_ORIGIN). Jamais d'adresse en http:// (Observatory : −20).
+// Tests en local avec wrangler dev : le serveur local doit ajouter http://localhost:8787 à connect-src de la page servie
+// (sinon la CSP bloque l'appel et l'appli se replie sur le lien long).
+export const CONNEXIONS = ["https://ose-liens.osedemander.workers.dev"];
+export const CONNEXION_LOCALE = "http://localhost:8787";
 
 /* Le navigateur lit le script après avoir changé les fins de ligne Windows en \n : l'empreinte se calcule pareil. */
 export function scriptPage(html){
