@@ -3226,6 +3226,137 @@ await test("Pages statiques (occasions, 404, suppression, mentions légales) : C
   }
 });
 
+/* =========================================================
+   41. Motifs de l'enveloppe : selon le thème, rien dans le lien, hors du cachet, cachés aux lecteurs d'écran
+   ========================================================= */
+titre("41. Motifs de l'enveloppe");
+const MOTIFS = PAGE.lire("ENVELOPE_MOTIFS"), motifHTML = PAGE.lire("envMotifHTML");
+const PERMANENTS = ["base", "amour", "maman", "papa", "amis", "fete", "mystere"];
+// Points d'ancrage d'un dessin (fins de segments, centres, coins), transformations des groupes comprises : de quoi vérifier les zones interdites
+function pointsSVG(svg){
+  const mul = (a, b) => [a[0]*b[0]+a[2]*b[1], a[1]*b[0]+a[3]*b[1], a[0]*b[2]+a[2]*b[3], a[1]*b[2]+a[3]*b[3], a[0]*b[4]+a[2]*b[5]+a[4], a[1]*b[4]+a[3]*b[5]+a[5]];
+  const tf = s => { let m = [1,0,0,1,0,0];
+    for(const [, f, a] of (s || "").matchAll(/(\w+)\(([^)]*)\)/g)){ const v = a.split(/[\s,]+/).filter(Boolean).map(Number);
+      if(f === "translate") m = mul(m, [1,0,0,1,v[0],v[1]||0]);
+      else if(f === "scale") m = mul(m, [v[0],0,0,v[1]??v[0],0,0]);
+      else if(f === "rotate"){ const r = v[0]*Math.PI/180, c = Math.cos(r), s2 = Math.sin(r), [cx, cy] = [v[1]||0, v[2]||0];
+        m = mul(mul(mul(m, [1,0,0,1,cx,cy]), [c,s2,-s2,c,0,0]), [1,0,0,1,-cx,-cy]); } }
+    return m; };
+  const pts = [], pile = [[1,0,0,1,0,0]], app = (m, x, y) => pts.push([m[0]*x+m[2]*y+m[4], m[1]*x+m[3]*y+m[5]]);
+  for(const [, fin, nom, attrs, auto] of svg.matchAll(/<(\/?)(\w+)([^>]*?)(\/?)>/g)){
+    if(fin){ pile.pop(); continue; }
+    const at = n => (attrs.match(new RegExp(`\\s${n}="([^"]*)"`)) || [])[1], m = mul(pile.at(-1), tf(at("transform")));
+    if(nom === "circle" || nom === "ellipse") app(m, +at("cx") || 0, +at("cy") || 0);
+    if(nom === "rect"){ const x = +at("x"), y = +at("y"), w = +at("width"), h = +at("height"); for(const [a, b] of [[x,y],[x+w,y],[x,y+h],[x+w,y+h]]) app(m, a, b); }
+    if(nom === "path"){ let cx = 0, cy = 0, sx = 0, sy = 0;
+      const tok = at("d").match(/[a-zA-Z]|-?(?:\d+\.?\d*|\.\d+)(?:e-?\d+)?/g); let cmd = "", i = 0; const n = () => +tok[i++];
+      const NB = { m:2, l:2, h:1, v:1, c:6, s:4, q:4, t:2, a:7, z:0 };
+      while(i < tok.length){ if(/[a-zA-Z]/.test(tok[i])) cmd = tok[i++]; const k = cmd.toLowerCase(), rel = cmd !== cmd.toUpperCase();
+        if(k === "z"){ cx = sx; cy = sy; app(m, cx, cy); continue; }
+        const v = Array.from({ length: NB[k] }, n), dx = rel ? cx : 0, dy = rel ? cy : 0;
+        if(k === "h") cx = v[0] + dx; else if(k === "v") cy = v[0] + dy; else { cx = v.at(-2) + dx; cy = v.at(-1) + dy; }
+        if(k === "m"){ sx = cx; sy = cy; cmd = rel ? "l" : "L"; }
+        app(m, cx, cy); } }
+    if(!auto && !["circle", "ellipse", "rect", "path"].includes(nom)) pile.push(m);
+  }
+  return pts;
+}
+await test("Les 7 thèmes permanents ont leur motif (style cadre ou trait, rabat et corps)", () => {
+  for(const th of PERMANENTS){
+    const m = MOTIFS[th]; assert.ok(m, th);
+    assert.ok(["C", "T"].includes(m.style), `${th} : style`);
+    assert.ok(m.flap && m.body, `${th} : rabat et corps`);
+  }
+  for(const th of Object.keys(MOTIFS)) assert.ok(PAGE.lire("THEMES").some(t => t.id === th), `${th} : thème connu`);
+});
+await test("SVG valide : balises équilibrées, attributs bien formés, aucun identifiant", () => {
+  for(const [th, m] of Object.entries(MOTIFS)) for(const part of ["flap", "body"]){
+    const s = motifHTML(part, th, "juste", "n"), pile = [];
+    for(const [, fin, nom, , auto] of s.matchAll(/<(\/?)(\w+)((?:\s+[\w:-]+="[^"<>]*")*)\s*(\/?)>/g)){
+      if(fin) assert.equal(pile.pop(), nom, `${th}.${part} : </${nom}>`); else if(!auto) pile.push(nom); }
+    assert.equal(pile.length, 0, `${th}.${part} : balise non fermée`);
+    assert.equal(s.replace(/<\/?\w+((?:\s+[\w:-]+="[^"<>]*")*)\s*\/?>/g, "").trim(), "", `${th}.${part} : texte ou balise mal formée`);
+    assert.ok(!/\sid="|NaN|undefined/.test(s), `${th}.${part}`);
+  }
+});
+await test("Chaque classe de motif a sa règle CSS (sinon la forme serait noire)", () => {
+  const classes = new Set(Object.values(MOTIFS).flatMap(m => [m.flap, m.body]).join(" ").match(/em-[a-z0-9]+/g));
+  assert.ok(classes.size > 8);
+  for(const c of classes) assert.ok(new RegExp("[.]" + c + "(?![a-z0-9-])").test(CSS), `.${c} sans règle CSS`);
+});
+await test("Aucune couleur écrite en dur : classes du thème seulement", () => {
+  for(const [th, m] of Object.entries(MOTIFS)) for(const part of ["flap", "body"])
+    assert.ok(!/#[0-9a-f]{3,6}\b|rgba?\(|\s(fill|stroke)="(?!none")|(fill|stroke|color):/i.test(m[part]), `${th}.${part}`);
+});
+await test("Cachés aux lecteurs d'écran : aria-hidden, aucun texte lisible", () => {
+  for(const th of Object.keys(MOTIFS)) for(const part of ["flap", "body"]){
+    const s = motifHTML(part, th, "juste", "n");
+    assert.ok(s.startsWith(`<g class="em em-${part} em-n" aria-hidden="true">`), `${th}.${part}`);
+    assert.ok(!/<(text|title|desc|foreignObject|a)\b|aria-label|role=|tabindex/.test(s), `${th}.${part} : rien à lire`);
+  }
+  const h = enveloppe({ th: "amour" });
+  for(const cl of ["env-front", "env-flap"]){ const i = h.indexOf(cl); assert.ok(i > 0 && /^[^>]*aria-hidden="true"/.test(h.slice(h.indexOf("<svg", i))), `${cl} : svg aria-hidden`); }
+});
+await test("Poids : moins de 2 Ko de code par motif en moyenne (2,5 Ko au plus), dessin produit compact", () => {
+  // Code de chaque entrée dans index.html (ce que la page pèse) ; les formes semées par emSpray sont produites au chargement
+  const src = lireFichier("index.html"), deb = src.indexOf("const ENVELOPE_MOTIFS = {"), fin = src.indexOf("\n};", deb), bloc = src.slice(deb, fin);
+  const ths = Object.keys(MOTIFS), pos = ths.map(th => bloc.indexOf(`\n  ${th}: {`));
+  assert.ok(pos.every(p => p > 0), "entrées trouvées");
+  const poids = ths.map((th, i) => [th, (i + 1 < ths.length ? pos[i + 1] : bloc.length) - pos[i], MOTIFS[th].flap.length + MOTIFS[th].body.length]);
+  const moy = poids.reduce((a, [, p]) => a + p, 0) / poids.length;
+  console.log(`      code : ${poids.map(([th, p]) => `${th} ${(p / 1000).toFixed(2)}`).join(", ")} ; moyenne ${(moy / 1000).toFixed(2)} Ko`);
+  console.log(`      dessin produit : ${poids.map(([th, , d]) => `${th} ${(d / 1000).toFixed(1)}`).join(", ")} Ko`);
+  assert.ok(moy < 2000, `moyenne ${moy}`);
+  for(const [th, p, d] of poids){ assert.ok(p < 2500, `${th} : ${p}`); assert.ok(d < 16000, `${th} : dessin de ${d} caractères`); }
+});
+await test("Zone dégagée : rien à moins de 45 du cachet, rien au-dessus du bord haut, débord léger ailleurs", () => {
+  for(const [th, m] of Object.entries(MOTIFS)) for(const part of ["flap", "body"]){
+    const pts = pointsSVG(m[part]); assert.ok(pts.length > 3, `${th}.${part} : points lus`);
+    for(const [x, y] of pts){
+      assert.ok(Math.hypot(x - 150, y - 110) >= 45, `${th}.${part} : (${x.toFixed(0)}, ${y.toFixed(0)}) trop près du cachet`);
+      assert.ok(y >= 3, `${th}.${part} : (${x.toFixed(0)}, ${y.toFixed(0)}) au-dessus du bord haut`);
+      assert.ok(x > -15 && x < 315 && y < 215, `${th}.${part} : (${x.toFixed(0)}, ${y.toFixed(0)}) déborde trop`);
+      if(part === "body") assert.ok(y >= 2 + 116 * Math.min(x - 2, 298 - x) / 148 - 2, `${th}.body : (${x.toFixed(0)}, ${y.toFixed(0)}) au-dessus des plis (passerait sur le papier)`);
+      if(part === "flap") assert.ok(y <= 2 + 112 * Math.min(x - 2, 298 - x) / 148 + 4, `${th}.flap : (${x.toFixed(0)}, ${y.toFixed(0)}) hors du rabat`);
+    }
+  }
+});
+await test("Teinte des motifs (--env-mark) : au moins 3:1 sur l'enveloppe, pour chaque thème et chaque accent", () => {
+  const envMark = PAGE.lire("envMark"), contraste = PAGE.lire("contrast");
+  for(const t of PAGE.lire("THEMES")) for(const a of [t.a, ...PAGE.lire("ACCENTS").filter(x => PAGE.lire("accentOk")(t.id, x.id)).map(x => x.c)])
+    assert.ok(contraste(envMark(a), a) >= 3, `${t.id} / ${a}`);
+  // setTheme la calcule depuis l'accent choisi (s'il est accepté), sinon depuis l'accent du thème
+  const st = PAGE.lire("setTheme").toString();
+  assert.ok(st.includes("const ea = v ? v.accent : (THEMES.find(t=>t.id===id)||THEMES[0]).a;") && st.includes('setProperty("--env-mark", envMark(ea))') && st.includes('setProperty("--env-hi", envHi(ea))'));
+});
+await test("Sur l'enveloppe : motif du thème au rabat et au corps ; une occasion décorée (ENV_DECO) garde son décor seul", () => {
+  for(const th of PERMANENTS){
+    const h = enveloppe({ th, o: "juste" });
+    assert.ok(h.includes(`<g class="em em-body em-n"`) && h.includes(`<g class="em em-flap em-n"`), th);
+    assert.ok(h.indexOf("em-flap") > h.indexOf("env-flap"), `${th} : motif du rabat dans le rabat`);
+  }
+  for(const o of Object.keys(DECO)){ const h = enveloppe({ th: "base", o }); assert.ok(!/class="em /.test(h) && h.includes("env-deco"), o); }
+});
+await test("Ancien lien figé : décodé, son enveloppe porte le motif de son thème", async () => {
+  const r = REFERENCES[0]; assert.equal(r.attendu.th, "amour");
+  const h = await ouvrirLien("https://osedemander.fr/#i=" + r.lien);
+  assert.ok(h.includes('class="envelope') && h.includes(MOTIFS.amour.body.slice(0, 60)), "motif Amour");
+});
+await test("Mouvements : trois niveaux, balancement lent sans rotation continue, transform et opacity seulement", () => {
+  for(const an of ["n", "d", "0"]) assert.ok(enveloppe({ th: "fete", o: "juste", an }).includes(`class="em em-flap em-${an}"`), an);
+  const regles = CSS.match(/[^}]*\{[^{}]*animation:em-[^}]*\}/g) || [];
+  assert.ok(regles.length >= 3);
+  for(const r of regles) assert.ok(/\.em-n\b|\.em-d\b[^{]*\.em-1\b/.test(r), `seulement en n (ou l'élément .em-1 en d) : ${r.trim().slice(0, 70)}`);
+  for(const [, nom, corps] of CSS.matchAll(/@keyframes (em-\w+)\{((?:[^{}]*\{[^}]*\})*)\}/g)){
+    assert.ok(!/(transform|opacity)/.test(corps) || !/(?:^|[;{])(?!transform|opacity)[a-z-]+:/.test(corps.replace(/\{|\}/g, ";").replace(/[\d%,\s]+;/g, ";")), `${nom} : transform et opacity seulement`);
+    for(const [, deg] of corps.matchAll(/rotate\((-?\d+)deg\)/g)) assert.ok(Math.abs(+deg) <= 10, `${nom} : pas de rotation continue (${deg}°)`);
+  }
+  assert.ok(regleCSS(".envelope.open .em-flap").includes("opacity:0"), "motif du rabat effacé à l'ouverture (jamais vu à l'envers)");
+});
+await test("Rien ne change dans les liens : le décodage ignore les motifs", () => {
+  for(const nom of ["sanitize", "unpackLink", "packLink", "decodeData", "encodeData"]) assert.ok(!/ENVELOPE_MOTIFS|envMotif|envMark/.test(PAGE.lire(nom).toString()), nom);
+});
+
 /* ---------- Bilan ---------- */
 console.log(`\n${ko ? "❌" : "✅"} ${ok} tests réussis, ${ko} en échec (graine ${GRAINE}${ko ? ` — pour rejouer : node tests/run.mjs --graine=${GRAINE}` : ""})`);
 if(ko){ console.log(echecs.map(e => "  - " + e).join("\n")); process.exitCode = 1; }

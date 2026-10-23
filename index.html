@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-iinZ2IV4CkezyB6ITRCRioVZgU/pJfTjCAn+DunVzes='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' https://ose-liens.osedemander.workers.dev; manifest-src 'self'; worker-src 'self'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-us9VFiy3ydoNa1EjbhAlyuUjsuLB4jXPn0q9aPzoI7c='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' https://ose-liens.osedemander.workers.dev; manifest-src 'self'; worker-src 'self'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
 <title>Ose Demander — crée une invitation à laquelle on ne dit pas non</title>
@@ -695,6 +695,27 @@ textarea.refuse-input{font-family:var(--hand);font-size:23px;line-height:1.2;min
 .pv-env .seal.seal-crown{width:40px;height:40px;margin-top:14px}
 @keyframes ed-beat{0%,40%,100%{transform:none}15%{transform:scale(1.12)}28%{transform:scale(1.04)}}
 .envelope.open .env-paper{transform:translateY(-52%)}
+/* Motifs de l'enveloppe selon le thème (ENVELOPE_MOTIFS) : couleurs du thème, et --env-mark (l'accent rendu lisible sur l'enveloppe, ≥ 3:1) */
+.em-o{stroke:var(--ink);stroke-width:2;stroke-linejoin:round;stroke-linecap:round}
+.em-s{fill:var(--surface)}.em-b{fill:var(--bg)}.em-h{fill:var(--env-hi,var(--surface))}.em-m{fill:var(--env-mark,var(--ink))}
+.em-l,.em-k,.em-ks,.em-kb,.em-kh{fill:none;stroke-linecap:round;stroke-linejoin:round}
+.em-l{stroke:var(--env-mark,var(--ink));stroke-width:2.6}
+.em-l2{stroke-width:1.3;opacity:.55}
+.em-k{stroke:var(--ink);stroke-width:8}.em-ks{stroke:var(--surface);stroke-width:4.4}.em-kb{stroke:var(--bg);stroke-width:4.4}.em-kh{stroke:var(--env-hi,var(--surface));stroke-width:4.4}
+.em-dot{stroke-width:3;stroke-dasharray:.1 7}
+.em-flap{transition:opacity .15s}
+.envelope.open .em-flap{opacity:0}
+.em-sw,.em-swt,.em-br,.em-tw{transform-box:fill-box}
+.em-sw{transform-origin:50% 100%}.em-swt{transform-origin:50% 0}.em-br,.em-tw{transform-origin:50% 50%}
+.em-n :is(.em-sw,.em-swt){animation:em-sw 3.2s ease-in-out infinite}
+.em-d :is(.em-sw,.em-swt).em-1{animation:em-sw 6.4s ease-in-out infinite}
+@keyframes em-sw{0%,100%{transform:rotate(-5deg)}50%{transform:rotate(5deg)}}
+.em-n .em-br{animation:em-br 2.4s ease-in-out infinite}
+.em-d .em-br.em-1{animation:em-br 4.8s ease-in-out infinite}
+@keyframes em-br{0%,100%{transform:none}50%{transform:scale(1.06)}}
+.em-n .em-tw{animation:em-tw 1.8s ease-in-out infinite}
+.em-d .em-tw.em-1{animation:em-tw 3.6s ease-in-out infinite}
+@keyframes em-tw{0%,100%{transform:scale(.6);opacity:.6}50%{transform:none;opacity:1}}
 /* ---------- Introduction scénarisée : cartes de papier tirées de l'enveloppe ---------- */
 .intro-screen{position:relative;z-index:1;min-height:100vh;min-height:100dvh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:60px 16px 28px;text-align:center}
 .intro-screen .scene-sign{margin:0}
@@ -1084,6 +1105,10 @@ function accentVars(themeId, acId){
   return {accent:c, ink, text:readable(c,[t.c,t.s||"#FFFFFF",t.so],4.5), btn:readable(c,[ink],4.5), seal:readable(c,[t.i],3)};
 }
 const ACCENT_PROPS = {accent:"--accent", ink:"--accent-ink", text:"--accent-text", btn:"--accent-btn", seal:"--accent-seal"};
+/* Teinte des motifs de l'enveloppe : l'accent assombri (ou éclairci s'il est foncé) jusqu'à 3:1 sur l'enveloppe elle-même */
+const envMark = a => readable(a, [a], 3);
+/* Accent éclairci (mélangé de blanc) : remplissage des formes en papier découpé, entre la surface et la teinte des motifs */
+const envHi = a => "#"+[1,3,5].map(i=>Math.round(parseInt(a.slice(i,i+2),16)*.5+127.5).toString(16).padStart(2,"0")).join("").toUpperCase();
 const MSG_SUGG = {
   Amour:["J'ai envie de passer ce moment avec toi, rien qu'avec toi.","Prépare ton plus beau sourire, je m'occupe du reste.","Tu n'as rien à prévoir, juste à dire oui."],
   Famille:["Merci pour tout. Ce moment, c'est pour toi.","Tu t'occupes toujours de nous, cette fois c'est mon tour.","Un petit moment rien que pour toi, tu l'as bien mérité."],
@@ -1145,6 +1170,8 @@ function setTheme(id, lv="n", ac="", scene=false){
   root.dataset.theme = id === "base" ? "" : id;
   const v = accentVars(id||"base", ac);
   for(const [k,prop] of Object.entries(ACCENT_PROPS)){ if(v) root.style.setProperty(prop,v[k]); else root.style.removeProperty(prop); }
+  const ea = v ? v.accent : (THEMES.find(t=>t.id===id)||THEMES[0]).a;
+  root.style.setProperty("--env-mark", envMark(ea)); root.style.setProperty("--env-hi", envHi(ea));
   setScene(scene ? (id||"base") : null, scene);
   Decor.set(id||"base", lv);
 }
@@ -4002,6 +4029,102 @@ function sealHTML(occ, em, initial){
 /* Calque des décors de l'enveloppe, ou "" (occasion sans décor) ; lv : niveau d'animation de l'invitation */
 const envDecoHTML = (occ, lv) => ENV_DECO[occ] ? `<svg class="env-deco ed-${lv}" viewBox="0 0 300 200" aria-hidden="true" focusable="false">${ENV_DECO[occ].svg()}</svg>` : "";
 
+/* ---------- Motifs de l'enveloppe ----------
+   Selon le THÈME de l'invitation (D.th) : rien dans le lien, les anciens liens les reçoivent. Une occasion décorée (ENV_DECO) garde son décor seul.
+   style "C" : cadre illustré (coins garnis de formes en papier découpé, semées par emSpray) ; "T" : grand dessin au trait qui déborde un peu d'un bord (jamais du haut).
+   flap : dans le rabat, effacé au début de l'ouverture (jamais vu à l'envers) ; body : sur le corps, sous les plis (jamais par-dessus le papier
+   de l'enveloppe ouverte), reste visible. Repère de l'enveloppe (300 × 200, le rabat a le même) ; rien à moins de 45 du cachet (150, 110).
+   Classes seulement : .em-o contour encre, .em-s surface, .em-b fond, .em-h accent éclairci, .em-m / .em-l (trait) --env-mark ;
+   .em-k + .em-ks / .em-kb : trait épais cerné d'encre. Mouvement : .em-sw / .em-swt balancement (pied / haut), .em-br respiration,
+   .em-tw scintillement ; .em-1 : le seul qui bouge en « Discrètes ». */
+const emHeart = (x, y, k, c) => `<path class="${c}" transform="translate(${x} ${y}) scale(${k})" d="M0 7s-9-5.5-9-11a4.5 4.5 0 0 1 9-1.2a4.5 4.5 0 0 1 9 1.2c0 5.5-9 11-9 11z"/>`;
+// Trait façon croquis : le tracé, puis un second plus fin, légèrement décalé
+const emSketch = (d, tf="") => `<g${tf ? ` transform="${tf}"` : ""}><path class="em-l" d="${d}"/><path class="em-l em-l2" transform="translate(1.6 -1.4)" d="${d}"/></g>`;
+const EM_Q = "M-7-8a7.5 7.5 0 1 1 10 7c-2.6 1.3-3 3-3 6";
+// « ? » en papier découpé : trait épais cerné d'encre ; c = "s" (surface), "b" (fond) ou "h" (accent éclairci)
+const emQ = (tf, c) => `<g transform="${tf}"><path class="em-k" d="${EM_Q}"/><path class="em-k${c}" d="${EM_Q}"/><circle class="em-o em-${c}" cx="0" cy="13" r="3.4"/></g>`;
+const emFlower = (x, y, r, c="em-s") => `<g class="em-o">${[0,72,144,216,288].map(a=>`<circle class="${c}" cx="${(x+r*Math.sin(a*Math.PI/180)).toFixed(1)}" cy="${(y-r*Math.cos(a*Math.PI/180)).toFixed(1)}" r="${r}"/>`).join("")}<circle class="em-h" cx="${x}" cy="${y}" r="${(r*.7).toFixed(1)}"/></g>`;
+const emBurst = (x, y, R, r, n, c) => `<path class="${c}" d="M${[...Array(2*n)].map((_, i)=>{ const a=Math.PI*i/n, k=i%2 ? r : R; return `${(x+k*Math.sin(a)).toFixed(1)} ${(y-k*Math.cos(a)).toFixed(1)}`; }).join("L")}Z"/>`;
+// Petites formes (rayon ~10 à l'échelle 1, centrées sur l'origine) ; c : classe de remplissage, ou "em-l" pour un dessin au trait
+const EM_SH = {
+  leaf: c => `<path class="em-o ${c}" d="M-10 0C-4-7 6-7 10 0 6 7-4 7-10 0z"/><path class="em-o" fill="none" d="M-8 0H6"/>`,
+  petal: c => `<path class="em-o ${c}" d="M0-10C6-5 6 5 0 10-6 5-6-5 0-10z"/>`,
+  heart: c => `<path class="${c==="em-l" ? c : "em-o "+c}" transform="scale(1.1)" d="M0 7s-9-5.5-9-11a4.5 4.5 0 0 1 9-1.2a4.5 4.5 0 0 1 9 1.2c0 5.5-9 11-9 11z"/>`,
+  star: c => `<path class="${c==="em-l" ? c : "em-o "+c}" d="${edStar(0, 0, 10)}"/>`,
+  spark: c => `<path class="${c==="em-l" ? "em-m" : "em-o "+c}" d="${edSpark(0, 0, 10)}"/>`,
+  dot: c => `<circle class="em-o ${c}" r="4.5"/>`,
+  conf: c => `<rect class="em-o ${c}" x="-7" y="-3.5" width="14" height="7"/>`,
+  flower: c => emFlower(0, 0, 5, c),
+  q: c => emQ("scale(.85)", c.slice(3))
+};
+// Zones permises (r : rayon de la forme) : corps = sous les plis, hors du cachet, débord léger ; rabat = dans le triangle, hors du cachet
+const emFold = x => 2+116*Math.min(x-2, 298-x)/148, emFlapY = x => 2+112*Math.min(x-2, 298-x)/148;
+const emNoSeal = (x, y, r) => Math.hypot(x-150, y-110) > 47+r;
+const EM_IN = {
+  body: (x, y, r) => y-r > Math.max(emFold(x-r), emFold(x+r))+3 && emNoSeal(x, y, r) && x-r > -8 && x+r < 308 && y+r < 207,
+  flap: (x, y, r) => y-r > 4 && y+r*1.2 < Math.min(emFlapY(x-r), emFlapY(x+r)) && emNoSeal(x, y, r)
+};
+/* Bouquet partant d'un coin, comme un cadre illustré : n formes tirées avec une graine fixe (même dessin à chaque ouverture), dans l'angle
+   a0..a1 (degrés) depuis le coin (cx, cy), grandes près du coin et plus petites vers l'intérieur, tournées vers l'extérieur, sans trop se
+   recouvrir, gardées dans la zone permise ; shapes : noms de EM_SH ; cls : classes de remplissage, tour à tour */
+function emSpray(seed, n, cx, cy, a0, a1, R, part, shapes, cls=["em-s","em-h","em-b"], k=part==="body" ? 1.3 : 1){
+  const rnd=imgRand(seed), mis=[]; let out="";
+  for(let i=0, essai=0; i<n && essai<n*60; essai++){
+    const a=(a0+(a1-a0)*rnd())*Math.PI/180, d=R*(.12+.88*rnd()), x=cx+d*Math.cos(a), y=cy+d*Math.sin(a), s=k*(1.9-1.05*d/R), r=10*s;
+    if(!EM_IN[part](x, y, r) || mis.some(([u, v, q])=>Math.hypot(u-x, v-y) < 1.1*(q+r))) continue;
+    const sh=shapes[i%shapes.length], rot=/leaf|petal/.test(sh) ? a*180/Math.PI+(rnd()-.5)*50 : (rnd()-.5)*40;
+    out+=`<g transform="translate(${x.toFixed(1)} ${y.toFixed(1)}) rotate(${rot|0}) scale(${s.toFixed(2)})">${EM_SH[sh](cls[i%cls.length])}</g>`; mis.push([x, y, r]); i++;
+  }
+  return out;
+}
+const EM_HEART_BIG = "M0 24C-10 14-32 2-32-14-32-26-22-32-14-32-6-32-1-26 0-20 1-26 6-32 14-32 22-32 32-26 32-14 32 2 10 14 0 24z";
+const ENVELOPE_MOTIFS = {
+  base: {style:"C",
+    flap:`<path class="em-l em-dot" d="M58 41L18 9H282L242 41"/>${emSpray(11, 3, 4, 4, 0, 40, 80, "flap", ["heart","spark","star"])}${emSpray(12, 3, 296, 4, 140, 180, 80, "flap", ["spark","heart","star"])}`,
+    body:`${emSpray(13, 4, 0, 200, -90, 0, 100, "body", ["heart","spark","heart","star"])}${emSpray(14, 4, 300, 200, 180, 270, 100, "body", ["heart","star","heart","spark"])}
+      <g class="em-sw em-1">${emQ("translate(38 150) rotate(-14) scale(2.3)", "s")}</g>${emQ("translate(264 156) rotate(14) scale(1.8)", "b")}
+      <path class="em-l em-l2" d="M66 144h16M68 156h20"/>`},
+  amour: {style:"T",
+    flap:`${emSpray(15, 3, 4, 4, 0, 40, 80, "flap", ["heart"], ["em-l"])}${emSpray(16, 3, 296, 4, 140, 180, 80, "flap", ["heart","spark"], ["em-l"])}`,
+    body:`<g class="em-br em-1">${emSketch(EM_HEART_BIG, "translate(250 158) rotate(-8) scale(1.5)")}<path class="em-l em-l2" d="M256 181l14-12M250 175l22-19M262 184l9-8"/>
+      ${emSketch("M176 198L219 174M297.5 130.8L310 124L302.4 135.1L296.6 124.5L310 124M176 198l-3.6 10M176 198l-10.4-2.2M181.3 195.1l-3.6 10M181.3 195.1l-10.4-2.2M186.5 192.2l-3.6 10M186.5 192.2l-10.4-2.2")}</g>
+      ${emSketch(EM_HEART_BIG, "translate(48 168) rotate(-12) scale(.75)")}${emSpray(17, 3, 0, 200, -90, 0, 110, "body", ["heart","spark","heart","star"], ["em-l"])}`},
+  maman: {style:"C",
+    flap:`${emSpray(21, 4, 4, 4, 0, 40, 86, "flap", ["leaf","petal","flower","leaf","dot"])}${emSpray(22, 4, 296, 4, 140, 180, 86, "flap", ["petal","leaf","leaf","flower"])}`,
+    body:`${emSpray(23, 6, 0, 200, -90, 0, 110, "body", ["leaf","petal","leaf","flower","dot"])}${emSpray(24, 6, 300, 200, 180, 270, 110, "body", ["leaf","leaf","petal","flower"])}
+      <g class="em-sw em-1">${emFlower(34, 166, 12)}</g>${emFlower(80, 186, 9, "em-b")}${emFlower(268, 166, 11)}`},
+  papa: {style:"T",
+    flap:`<path class="em-l em-l2" d="${[...Array(13)].map((_, i)=>`M${30+i*20} 5l5 5-5 5-5-5z`).join("")}"/>`,
+    body:`<g class="em-swt em-1">${emSketch("M-9 0H9L6 13H-6ZM-6 13L-12 56L0 70L12 56L6 13M-9 0L-20-5L-15 9M9 0L20-5L15 9M-10 29L9 20M-11 41L11 31M-12 53L12 42M-6 64L12 54", "translate(56 92) rotate(-10) scale(1.7)")}</g>
+      ${emSketch("M0 0L-15-9V9ZM0 0L15-9V9ZM-3-4H3V4H-3Z", "translate(256 172) rotate(-8) scale(1.6)")}`},
+  amis: {style:"C",
+    flap:`<g class="em-m">${[0,1,2,3,4].flatMap(i=>[0,1,2,3].map(j=>{ const r=3-.45*(i+j), x=14+i*9, y=8+j*8; return r>.6 && y<(x-2)*.76-3 ? `<circle cx="${x}" cy="${y}" r="${r.toFixed(1)}"/><circle cx="${300-x}" cy="${y}" r="${r.toFixed(1)}"/>` : ""; })).join("")}</g>
+      ${emSpray(26, 2, 150, 4, 20, 160, 110, "flap", ["star","spark"])}`,
+    body:`${emSpray(27, 3, 0, 200, -90, 0, 110, "body", ["star","dot","spark"])}${emSpray(28, 3, 300, 200, 180, 270, 110, "body", ["dot","star","spark"])}
+      <g class="em-br em-1">${emBurst(44, 158, 36, 23, 12, "em-o em-s")}</g>${emBurst(44, 158, 17, 11, 8, "em-o em-b")}<path class="em-l" d="M86 140l18-6M90 154h20M86 168l18 6"/>
+      <ellipse class="em-o em-b" cx="254" cy="160" rx="33" ry="21"/><path class="em-o em-b" d="M236 177L224 196L250 180"/><g class="em-m"><circle cx="241" cy="160" r="3.4"/><circle cx="254" cy="160" r="3.4"/><circle cx="267" cy="160" r="3.4"/></g>`},
+  fete: {style:"C",
+    flap:`<path class="em-o" fill="none" d="M10 5Q150 50 290 5"/>${[1,2,3,4,5,6,7,8,9,10,11].map(k=>{ const t=k/12, x=10*(1-t)**2+300*t*(1-t)+290*t*t, y=5+90*t*(1-t);
+      return `<g class="em-swt${k===1?" em-1":""}" style="animation-delay:${-k*.35}s"><path class="em-o em-${"sbhm"[k%4]}" d="M${(x-8).toFixed(1)} ${y.toFixed(1)}h16l-8 16z"/></g>`; }).join("")}`,
+    body:`${emSpray(31, 5, 0, 200, -90, 0, 110, "body", ["conf","dot","conf","star"])}${emSpray(32, 5, 300, 200, 180, 270, 110, "body", ["conf","conf","dot","star"])}
+      <path class="em-o" fill="none" d="M30 150q-6 20 6 32t2 22M54 154q6 18-4 30t4 18M44 128q-2 24 8 34"/>
+      <g class="em-sw em-1"><ellipse class="em-o em-h" cx="30" cy="134" rx="14" ry="17"/></g><ellipse class="em-o em-s" cx="56" cy="138" rx="12" ry="15"/><ellipse class="em-o em-b" cx="42" cy="110" rx="12" ry="15"/>
+      <path class="em-k" d="M290 132c-13 9 0 19-13 27s0 17-13 25"/><path class="em-ks" d="M290 132c-13 9 0 19-13 27s0 17-13 25"/>`},
+  mystere: {style:"T",
+    flap:`<g class="em-m">${emSpray(33, 2, 4, 4, 0, 40, 80, "flap", ["spark"])}${emSpray(34, 2, 296, 4, 140, 180, 80, "flap", ["spark"])}</g>${emSpray(35, 2, 150, 4, 20, 160, 90, "flap", ["star"], ["em-l"])}`,
+    body:`${emSketch("M246 114a38 38 0 1 1 0 76a38 38 0 1 1 0-76z")}<path class="em-l em-l2" d="M224 140a26 26 0 0 1 16-15M226 152a20 20 0 0 1 4-8"/>
+      ${emSketch("M-7 0H7V40a7 7 0 0 1-14 0zM-7 12H7M-7 20H7", "translate(273 179) rotate(-45)")}
+      <path class="em-l" transform="translate(246 146) scale(1.5)" d="${EM_Q}"/><circle class="em-m" cx="246" cy="166" r="3.4"/>
+      <path class="em-l em-dot" d="M14 190Q70 150 120 186T204 178"/>
+      <g class="em-m">${[[38,160,11,.4],[70,178,7,1.1],[22,128,6,0]].map(([x,y,r,k], i)=>`<g class="em-tw${i?"":" em-1"}" style="animation-delay:${-k}s"><path d="${edSpark(x, y, r)}"/></g>`).join("")}</g>
+      ${emSpray(36, 2, 0, 200, -90, 0, 90, "body", ["star"], ["em-l"])}`}
+};
+/* Motif du rabat ou du corps ("flap" / "body"), ou "" (occasion décorée, thème sans motif) ; lv : niveau d'animation de l'invitation */
+function envMotifHTML(part, th, occ, lv){
+  const m = !ENV_DECO[occ] && ENVELOPE_MOTIFS[th||"base"];
+  return m ? `<g class="em em-${part} em-${lv}" aria-hidden="true">${m[part]}</g>` : "";
+}
+
 function renderEnvelope(){
   setTheme(D.th||"base", invAnim(), D.ac, true);
   document.title = `${D.f} a une question pour toi`;
@@ -4017,10 +4140,12 @@ function renderEnvelope(){
         <path d="M2 2 L150 118 L298 2 L298 188 Q298 198 288 198 L12 198 Q2 198 2 188 Z" style="fill:var(--accent)" />
         <path d="M2 2 L150 118 L298 2 L298 188 Q298 198 288 198 L12 198 Q2 198 2 188 Z" fill="rgba(0,0,0,.08)" style="stroke:var(--ink)" stroke-width="2.5" stroke-linejoin="round"/>
         <path d="M4 196 L122 96 M296 196 L178 96" style="stroke:var(--ink)" stroke-width="1.5" opacity=".3"/>
+        ${envMotifHTML("body", D.th, D.o, invAnim())}
       </svg>
       <span class="env-flap"><svg viewBox="0 0 300 116" preserveAspectRatio="none" aria-hidden="true">
         <path d="M2 2 L298 2 L150 114 Z" style="fill:var(--accent);stroke:var(--ink)" stroke-width="2.5" stroke-linejoin="round"/>
         <path d="M2 2 L298 2 L150 114 Z" fill="rgba(255,255,255,.14)"/>
+        ${envMotifHTML("flap", D.th, D.o, invAnim())}
       </svg>${sealHTML(D.o, D.em, initial)}</span>
       ${envDecoHTML(D.o, invAnim())}
     </button>
