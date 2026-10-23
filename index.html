@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-us9VFiy3ydoNa1EjbhAlyuUjsuLB4jXPn0q9aPzoI7c='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' https://ose-liens.osedemander.workers.dev; manifest-src 'self'; worker-src 'self'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-QQ1AOuK96MqsgWb5zxWfLeQ48Fq/SXWLLBz4aml0m+Q='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' https://ose-liens.osedemander.workers.dev; manifest-src 'self'; worker-src 'self'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
 <title>Ose Demander — crée une invitation à laquelle on ne dit pas non</title>
@@ -705,10 +705,13 @@ textarea.refuse-input{font-family:var(--hand);font-size:23px;line-height:1.2;min
 .em-dot{stroke-width:3;stroke-dasharray:.1 7}
 .em-flap{transition:opacity .15s}
 .envelope.open .em-flap{opacity:0}
-.em-sw,.em-swt,.em-br,.em-tw{transform-box:fill-box}
-.em-sw{transform-origin:50% 100%}.em-swt{transform-origin:50% 0}.em-br,.em-tw{transform-origin:50% 50%}
-.em-n :is(.em-sw,.em-swt){animation:em-sw 3.2s ease-in-out infinite}
-.em-d :is(.em-sw,.em-swt).em-1{animation:em-sw 6.4s ease-in-out infinite}
+.em-sw,.em-swt,.em-swc,.em-br,.em-tw,.em-fl{transform-box:fill-box}
+.em-sw,.em-fl{transform-origin:50% 100%}.em-swt{transform-origin:50% 0}.em-swc,.em-br,.em-tw{transform-origin:50% 50%}
+.em-n :is(.em-sw,.em-swt,.em-swc){animation:em-sw 3.2s ease-in-out infinite}
+.em-d :is(.em-sw,.em-swt,.em-swc).em-1{animation:em-sw 6.4s ease-in-out infinite}
+.em-n .em-fl{animation:em-fl 1.1s ease-in-out infinite}
+.em-d .em-fl.em-1{animation:em-fl 2.2s ease-in-out infinite}
+@keyframes em-fl{0%,100%{transform:none}50%{transform:scale(.88,1.1)}}
 @keyframes em-sw{0%,100%{transform:rotate(-5deg)}50%{transform:rotate(5deg)}}
 .em-n .em-br{animation:em-br 2.4s ease-in-out infinite}
 .em-d .em-br.em-1{animation:em-br 4.8s ease-in-out infinite}
@@ -4117,7 +4120,33 @@ const ENVELOPE_MOTIFS = {
       <path class="em-l" transform="translate(246 146) scale(1.5)" d="${EM_Q}"/><circle class="em-m" cx="246" cy="166" r="3.4"/>
       <path class="em-l em-dot" d="M14 190Q70 150 120 186T204 178"/>
       <g class="em-m">${[[38,160,11,.4],[70,178,7,1.1],[22,128,6,0]].map(([x,y,r,k], i)=>`<g class="em-tw${i?"":" em-1"}" style="animation-delay:${-k}s"><path d="${edSpark(x, y, r)}"/></g>`).join("")}</g>
-      ${emSpray(36, 2, 0, 200, -90, 0, 90, "body", ["star"], ["em-l"])}`}
+      ${emSpray(36, 2, 0, 200, -90, 0, 90, "body", ["star"], ["em-l"])}`},
+  // Ambiances des occasions permanentes
+  date: {style:"T",
+    flap:`${emSpray(41, 2, 4, 4, 0, 40, 80, "flap", ["heart","spark"], ["em-l"])}${emSpray(42, 2, 296, 4, 140, 180, 80, "flap", ["spark","heart"], ["em-l"])}`,
+    body:`${[["translate(51 158) rotate(14) scale(-1.25 1.25)"], ["translate(87 158) rotate(-14) scale(1.25)"]].map(([tf])=>emSketch("M-15 0H15C15 17 9 27 0 27-9 27-15 17-15 0ZM14 5c9-1 10 13-1 14M-21 30Q0 36 21 30", tf)).join("")}
+      ${emSketch("M38 128c-4-6 4-10 0-16M52 126c-4-6 4-10 0-16M86 126c4-6-4-10 0-16M98 130c4-6-4-10 0-14")}<path class="em-l" d="M69 140v-8M61 142l-5-6M77 142l5-6"/>
+      <g class="em-br em-1">${emSketch(EM_HEART_BIG, "translate(68 106) scale(.42)")}</g>${emSpray(43, 3, 300, 200, 180, 270, 100, "body", ["spark","heart"], ["em-l"])}`},
+  annivamour: {style:"C",
+    flap:`${emSpray(44, 3, 4, 4, 0, 40, 80, "flap", ["heart","dot"])}${emSpray(45, 3, 296, 4, 140, 180, 80, "flap", ["heart","dot"])}`,
+    body:`<path class="em-o em-s" d="M206 200L300 116V136L230 200Z"/><path class="em-l em-l2" d="M218 200L300 126"/>
+      <g class="em-sw em-1"><g class="em-o"><path class="em-h" d="M262 160C246 140 236 162 258 164ZM264 160C280 140 290 162 268 164Z"/><path class="em-h" d="M260 164l-12 22 6-2 2 6 8-24M266 164l10 22-6-2-2 6-6-24"/><circle class="em-s" cx="263" cy="162" r="5"/></g></g>
+      ${emSpray(46, 4, 0, 200, -90, 0, 110, "body", ["heart","dot","heart"])}`},
+  couple: {style:"T",
+    flap:`<path class="em-o" fill="none" d="M24 8Q150 44 276 8"/>${[.2,.4,.6,.8].map((t, i)=>{ const x=24*(1-t)**2+300*t*(1-t)+276*t*t, y=8+72*t*(1-t), r=[-8,5,-4,9][i];
+      return `<g class="em-swt${i?"":" em-1"}" style="animation-delay:${-i*.8}s"><g class="em-o" transform="translate(${x.toFixed(1)} ${y.toFixed(1)}) rotate(${r})"><rect class="em-s" x="-8" y="0" width="16" height="18"/><rect class="em-b" x="-5.5" y="2.5" width="11" height="10"/></g></g>`; }).join("")}`,
+    body:`<g class="em-br em-1">${emSketch(EM_HEART_BIG, "translate(232 166) rotate(-12)")}${emSketch(EM_HEART_BIG, "translate(270 158) rotate(12)")}</g>
+      ${emSpray(47, 3, 0, 200, -90, 0, 100, "body", ["spark","heart"], ["em-l"])}`},
+  weekend: {style:"C",
+    flap:`<g class="em-swc em-1"><g class="em-o"><circle class="em-h" cx="48" cy="17" r="8"/><path fill="none" d="${[0,1,2,3,4,5,6,7].map(i=>{ const a=i*Math.PI/4, c=Math.cos(a), n=Math.sin(a); return `M${(48+11*c).toFixed(1)} ${(17+11*n).toFixed(1)}L${(48+14*c).toFixed(1)} ${(17+14*n).toFixed(1)}`; }).join("")}"/></g></g>
+      <path class="em-l em-l2" d="M196 18q4-4 8 0q4-4 8 0M218 28q3-3 6 0q3-3 6 0"/>`,
+    body:`${[1,-1].map(m=>`<g transform="translate(${m>0?0:300} 0) scale(${m} 1)"><g class="em-o"><path class="em-b" d="M-4 200L40 140L90 200Z"/><path class="em-s" d="M31 152L40 140L50 154L44 150L38 156Z"/><path class="em-b" d="M54 200L82 164L114 200Z"/>
+      <path class="em-h" d="M14 200L22 178H18L26 162H22L30 146L38 162H34L42 178H38L46 200Z"/><path class="em-h" d="M100 200L106 186H103L109 174H106L112 164L118 174H115L121 186H118L124 200Z"/></g></g>`).join("")}`},
+  dinerspecial: {style:"T",
+    flap:`<g class="em-m">${emSpray(48, 2, 4, 4, 0, 40, 80, "flap", ["spark"])}${emSpray(49, 2, 296, 4, 140, 180, 80, "flap", ["spark"])}</g>`,
+    body:`${emSketch("M-16 0H16C16 20 8 30 0 30-8 30-16 20-16 0ZM0 30V56M-14 58H14M-15 9H15M-10 15l8-6M-6 22l10-9", "translate(274 116) rotate(10) scale(1.5)")}
+      ${emSketch("M-7 0H7V40H-7ZM0 0V-5M-13 40H13", "translate(218 162) scale(1.1)")}<g class="em-fl em-1"><path class="em-o em-h" transform="translate(218 162) scale(1.1)" d="M0-6C-5-12-3-18 0-24 3-18 5-12 0-6Z"/></g>
+      <g class="em-m">${[[30,170,9,0],[60,188,6,.8],[20,136,6,.4]].map(([x,y,r,k])=>`<g class="em-tw" style="animation-delay:${-k}s"><path d="${edSpark(x, y, r)}"/></g>`).join("")}</g>`}
 };
 /* Motif du rabat ou du corps ("flap" / "body"), ou "" (occasion décorée, thème sans motif) ; lv : niveau d'animation de l'invitation */
 function envMotifHTML(part, th, occ, lv){
