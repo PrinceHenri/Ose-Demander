@@ -7,6 +7,7 @@ import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { chargerPage } from "../tests/page.mjs";
 import { PAGES, FAQ_COMMUNE, MISE_A_JOUR } from "./pages-data.mjs";
+import { CSP_STATIQUE, balise } from "./csp.mjs";
 
 const RACINE = fileURLToPath(new URL("..", import.meta.url)), SITE = "https://osedemander.fr/";
 const P = chargerPage();
@@ -108,6 +109,7 @@ const tete = ({ titre, description, canonique, theme, robots, jsonld, css = "" }
 <html lang="fr" data-theme="${theme === "base" ? "" : theme}">
 <head>
 <meta charset="utf-8">
+${balise(CSP_STATIQUE)}
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
 <title>${esc(titre)}</title>

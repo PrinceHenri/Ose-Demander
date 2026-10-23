@@ -325,6 +325,7 @@ Règles pour toute nouvelle animation (intro, partage…) :
 - Les animations qui ignorent `invAnim()` ou « moins de mouvement », qui bloquent la lecture, qui bouclent sans fin (hors frétillement léger de l'enveloppe), ou qui retardent la réponse.
 - Les sons sans geste, la musique, le son qui ignore 🔇.
 - Les bibliothèques d'interface, frameworks CSS, icônes externes, scripts tiers : le site est un seul `index.html` autonome, hors connexion, sans appel externe.
+- Ce que la **politique de sécurité du contenu** bloquerait (balise CSP de chaque page, `outils/csp.mjs`) : attributs `onclick=` et autres `on…=` dans le HTML (utiliser `addEventListener`), liens `javascript:`, `eval`, second `<script>`, image, police ou connexion vers un autre domaine. Après toute modification du script de `index.html`, lancer `node outils/csp.mjs` (empreinte SHA-256 du script) : sinon le navigateur bloque tout le site. Le banc le vérifie (section 40).
 - Les textes genrés, culpabilisants (« Tu ne peux pas dire non ») ou qui forcent le Oui.
 - Plusieurs actions principales sur un même écran ; une action essentielle sous 44 px ; les flèches décoratives et les séparateurs « · ».
 

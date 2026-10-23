@@ -3167,6 +3167,64 @@ await essaiWorker("L'image porte toujours un lien court : service muet, pas d'im
   assert.ok(!PAGE.lire("imageLink").toString().includes('"#i="+code'), "jamais de lien complet dans une image");
 });
 
+/* =========================================================
+   40. Confiance : security.txt (RFC 9116), « Signaler une faille », politique de sécurité du contenu (CSP)
+   ========================================================= */
+titre("40. Confiance et sécurité");
+const CSP = await import(new URL("../outils/csp.mjs", import.meta.url).href);
+await test("security.txt : contact, expiration dans moins d'un an (et pas dans moins de 30 jours), langues, adresse canonique, politique", () => {
+  const txt = lireFichier(".well-known/security.txt"), champs = {};
+  for(const l of txt.trim().split("\n")){ const m = l.match(/^([A-Za-z-]+): (.+)$/); assert.ok(m, `ligne mal formée : ${l}`); (champs[m[1]] ||= []).push(m[2]); }
+  assert.deepEqual(Object.keys(champs).sort(), ["Canonical", "Contact", "Expires", "Policy", "Preferred-Languages"]);
+  assert.deepEqual(champs.Contact, ["mailto:contact" + "@osedemander.fr"]);
+  assert.equal(champs.Expires.length, 1, "une seule date d'expiration (RFC 9116)");
+  assert.match(champs.Expires[0], /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(\.\d+)?Z$/);
+  const jours = (Date.parse(champs.Expires[0]) - Date.now()) / 864e5;
+  assert.ok(jours >= 30, `security.txt expire dans ${Math.floor(jours)} jours : repousser « Expires » (moins d'un an) et publier`);
+  assert.ok(jours <= 366, "Expires : moins d'un an (RFC 9116)");
+  assert.equal(champs["Preferred-Languages"][0].split(",")[0].trim(), "fr");
+  assert.deepEqual(champs.Canonical, ["https://osedemander.fr/.well-known/security.txt"]);
+  assert.deepEqual(champs.Policy, ["https://osedemander.fr/mentions-legales.html#faille"]);
+  assert.ok(/include:\s*\n\s*- \.well-known/.test(lireFichier("_config.yml")), "_config.yml publie .well-known");
+});
+await test("Mentions légales : section « Signaler une faille de sécurité », adresse de contact et lien vers security.txt", () => {
+  const ml = lireFichier("mentions-legales.html"), i = ml.indexOf('<h2 id="faille">'), sec = ml.slice(i, ml.indexOf("<h2", i + 1));
+  assert.ok(i > 0);
+  assert.ok(sec.includes('href="mailto:contact' + '@osedemander.fr?subject=') && sec.includes('href="/.well-known/security.txt"'));
+  assert.ok(!/[←→]| · /.test(sec.replace(/<[^>]+>/g, "")), "ni flèche ni « · »");
+});
+await test("CSP de l'accueil : balise en tête, empreinte du script à jour (sinon : node outils/csp.mjs), ni 'unsafe-inline' ni 'unsafe-eval' pour les scripts", () => {
+  const html = lireFichier("index.html"), csp = CSP.cspDe(html);
+  assert.ok(csp, "balise CSP absente");
+  assert.ok(html.indexOf("Content-Security-Policy") < html.search(/<script|<style|<link/), "avant tout script, style ou lien");
+  assert.equal(csp, CSP.cspAccueil(CSP.empreinte(html)), "empreinte du script pas à jour : lancer « node outils/csp.mjs » (sinon le navigateur bloque tout le site)");
+  const script = csp.split("; ").find(d => d.startsWith("script-src "));
+  assert.ok(!/unsafe-inline|unsafe-eval|https?:|\*/.test(script), script);
+  assert.ok(csp.startsWith("default-src 'none'"));
+  for(const d of ["frame-ancestors", "report-uri", "sandbox"]) assert.ok(!csp.includes(d), `${d} est ignorée dans une balise meta`);
+  const connect = csp.split("; ").find(d => d.startsWith("connect-src ")).split(" ");
+  assert.ok(connect.includes(PAGE.lire("SHORT_ORIGIN")), "le service des liens courts est autorisé");
+  assert.equal((html.match(/<script>/g) || []).length, 1, "un seul script exécuté (celui de l'empreinte)");
+});
+await test("Rien que la CSP bloquerait : ni gestionnaire on…= dans le HTML, ni javascript:, ni eval, ni appel à un autre domaine", () => {
+  const html = lireFichier("index.html"), code = CSP.scriptPage(html);
+  assert.ok(!/<[a-z][^>]*\son[a-z]+\s*=\s*["'{]/i.test(html), "attribut on…= (bloqué par la CSP) : utiliser addEventListener");
+  assert.ok(!/javascript:/i.test(html));
+  assert.ok(!/\beval\(|new Function\(|set(Timeout|Interval)\(\s*["'`]/.test(code));
+  assert.ok(!/<script[^>]+src=|<iframe|<object|<embed/i.test(html));
+  const appels = [...code.matchAll(/fetch\(\s*["'`](https?:\/\/[^/"'`]+)/g)].map(m => m[1]);
+  for(const o of appels) assert.ok(CSP.CONNEXIONS.includes(o), `connexion à ${o} non autorisée par la CSP`);
+});
+await test("Pages statiques (occasions, 404, suppression, mentions légales) : CSP stricte, aucun script exécuté", () => {
+  const pages = { ...Object.fromEntries(Object.entries(FAB).filter(([n]) => n.endsWith(".html"))), "mentions-legales.html": lireFichier("mentions-legales.html") };
+  assert.ok(Object.keys(pages).length >= 9);
+  for(const [nom, h] of Object.entries(pages)){
+    assert.equal(CSP.cspDe(h), CSP.CSP_STATIQUE, nom);
+    assert.ok(h.indexOf("Content-Security-Policy") < h.search(/<script|<style|<link/), `${nom} : balise en tête`);
+    assert.ok(!/<script(?![^>]*type="application\/ld\+json")/.test(h), `${nom} : script exécuté`);
+  }
+});
+
 /* ---------- Bilan ---------- */
 console.log(`\n${ko ? "❌" : "✅"} ${ok} tests réussis, ${ko} en échec (graine ${GRAINE}${ko ? ` — pour rejouer : node tests/run.mjs --graine=${GRAINE}` : ""})`);
 if(ko){ console.log(echecs.map(e => "  - " + e).join("\n")); process.exitCode = 1; }
