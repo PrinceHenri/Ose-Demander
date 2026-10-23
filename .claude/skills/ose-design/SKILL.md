@@ -267,6 +267,18 @@ Un seul pied de page (`footerHTML`, `index.html`), repris par `outils/pages.mjs`
 - **Routes** : `#choisir` (accueil, défilé jusqu'aux catégories `#choisir`, focus sur la première), `#installer` (fenêtre d'installation du navigateur si prête, sinon les étapes iPhone ou Chrome/Edge, `installHelp`).
 - **Mise en page** : 4 colonnes, 2 sous 760 px (logo sur toute la largeur), 1 sous 520 px ; liens de 44 px ; focus `3px solid var(--f-acc)` ; aucune action principale.
 
+## 2 quindecies. Motifs de l'enveloppe
+
+L'enveloppe ressemble à une carte illustrée : chaque thème a son motif (`ENVELOPE_MOTIFS[thème] = {style, flap, body}`, `envMotifHTML`), choisi par le **thème** de l'invitation (`D.th`), donc rien dans le lien et les anciens liens le reçoivent. Une occasion décorée (`ENV_DECO`, § 2 septies) garde son décor seul ; un **thème de saison** sur une occasion ordinaire prend le décor de l'occasion du même nom (`envDecoOcc`).
+- **Deux styles** : « cadre » (`C`) = bouquets de formes en papier découpé partant des coins (`emSpray` : graine fixe, grandes près du coin, tournées vers l'extérieur, sans trop se recouvrir) et quelques objets vedettes ; « trait » (`T`) = un grand dessin façon croquis (`emSketch` : trait, puis un second plus fin et décalé) qui déborde un peu d'un bord, **jamais du haut** (le papier « Pour {prénom} » sort par là).
+- **Sobriété** (retour de l'utilisateur, 2026-10-23) : peu de formes, de l'espace entre elles, remplissages ton sur ton (`--surface`, `--bg`, `--env-hi`), teinte foncée `--env-mark` réservée aux petits détails. Jamais touffu ni saturé.
+- **Couleurs** : classes seulement (`.em-o` contour encre, `.em-s`, `.em-b`, `.em-h`, `.em-m`, `.em-l` trait, `.em-k` + `.em-ks` / `.em-kb` / `.em-kh` trait épais cerné). `--env-mark` = `readable(accent, [accent], 3)` (≥ 3:1 sur l'enveloppe), `--env-hi` = accent mêlé de blanc, posées par `setTheme` depuis l'accent choisi : les motifs suivent la couleur d'accent (accent « Nuit » compris). L'image QR reprend les mêmes classes aux couleurs résolues (`envelopeSVG`, `imageColors`).
+- **Places** : `flap` dans le rabat (effacé en 0,15 s au début de l'ouverture : jamais vu à l'envers) ; `body` sur le corps, **sous les plis** (sinon il passerait sur le papier de l'enveloppe ouverte), visible enveloppe ouverte. Rien à moins de 45 du cachet (150, 110). Le banc lit les points de chaque dessin et vérifie ces zones.
+- **Mouvement** : un seul objet bouge (`.em-1`) : balancement lent (`.em-sw` pied, `.em-swt` haut, `.em-swc` centre), respiration `.em-br`, scintillement `.em-tw`, flamme `.em-fl`, note qui sautille `.em-hp`. `n` : ces objets ; `d` : l'objet `.em-1` seul, deux fois plus lent ; `0` et « moins de mouvement » : rien. **Jamais de rotation continue** (balancement de ±5° au plus).
+- **Accessibilité** : tout en `aria-hidden="true"`, aucun texte, titre ou libellé (un « ? » ou un « ! » est un tracé).
+- **Poids** : moins de 2 Ko de code par motif en moyenne (0,7 Ko mesuré) ; `index.html` compressé sous 145 Ko pour ce chantier (au-delà : en reparler, fichier séparé gardé en cache par `sw.js`).
+- **Contrôle visuel** : captures à 360 px, enveloppe fermée, en cours d'ouverture (animations figées par `document.getAnimations()`), ouverte ; accent par défaut et « Nuit ».
+
 ## 3. Typographie : deux polices, pas une de plus
 
 Polices **hébergées dans `fonts/`** (licence SIL OFL, aucun appel à Google Fonts — RGPD).

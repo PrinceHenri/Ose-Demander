@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-FXulani1oG54AtYU0Irnpby8l9tkiQKBuEgicaq929w='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' https://ose-liens.osedemander.workers.dev; manifest-src 'self'; worker-src 'self'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-EeHgfl+6ZVFTiUA76665nM31HAKQmJ0f85pnNLvL8yw='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' https://ose-liens.osedemander.workers.dev; manifest-src 'self'; worker-src 'self'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
 <title>Ose Demander — crée une invitation à laquelle on ne dit pas non</title>
@@ -2715,23 +2715,29 @@ function noteImageLink(sh){
 /* Couleurs du thème (et de l'accent choisi) pour le dessin ; le QR code est toujours foncé sur blanc */
 function imageColors(th, ac){
   const t=THEMES.find(x=>x.id===th)||THEMES[0], v=ac ? accentVars(th, ac) : null, a=v ? v.accent : t.a;
-  return {bg:t.c, surface:t.s||"#FFFFFF", ink:t.i, accent:a, seal:readable(a, [t.i], 3), qr:contrast(t.i, "#FFFFFF")>=7 ? t.i : "#1F1546"};
+  return {bg:t.c, surface:t.s||"#FFFFFF", ink:t.i, accent:a, seal:readable(a, [t.i], 3), mark:envMark(a), hi:envHi(a), qr:contrast(t.i, "#FFFFFF")>=7 ? t.i : "#1F1546"};
 }
-/* L'enveloppe de l'invitation (mêmes formes que renderEnvelope, décor de l'occasion compris), en SVG autonome aux couleurs résolues */
-function envelopeSVG(col, occ, shape){
+/* L'enveloppe de l'invitation (mêmes formes que renderEnvelope, décor de l'occasion ou motifs du thème compris), en SVG autonome aux couleurs résolues */
+function envelopeSVG(col, occ, shape, th){
+  const deco=envDecoOcc(occ, th);
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-6 -6 320 222" width="640" height="444">
     <style>.o{stroke:${col.ink};stroke-width:2;stroke-linejoin:round;stroke-linecap:round}.ed-ink{fill:none;stroke:${col.ink};stroke-linecap:round}
-    .ed-web{fill:none;stroke:#FFF;stroke-opacity:.85;stroke-width:1.6;stroke-linejoin:round}.ed-staff{fill:none;stroke:${col.ink};stroke-width:1.3;opacity:.45}</style>
+    .ed-web{fill:none;stroke:#FFF;stroke-opacity:.85;stroke-width:1.6;stroke-linejoin:round}.ed-staff{fill:none;stroke:${col.ink};stroke-width:1.3;opacity:.45}
+    .em-o{stroke:${col.ink};stroke-width:2;stroke-linejoin:round;stroke-linecap:round}.em-s{fill:${col.surface}}.em-b{fill:${col.bg}}.em-h{fill:${col.hi}}.em-m{fill:${col.mark}}
+    .em-l,.em-k,.em-ks,.em-kb,.em-kh{fill:none;stroke-linecap:round;stroke-linejoin:round}.em-l{stroke:${col.mark};stroke-width:2.6}.em-l2{stroke-width:1.3;opacity:.55}
+    .em-k{stroke:${col.ink};stroke-width:8}.em-ks{stroke:${col.surface};stroke-width:4.4}.em-kb{stroke:${col.bg};stroke-width:4.4}.em-kh{stroke:${col.hi};stroke-width:4.4}.em-dot{stroke-width:3;stroke-dasharray:.1 7}</style>
     <rect x="8" y="8" width="300" height="200" rx="12" fill="${col.ink}"/>
     <rect x="0" y="0" width="300" height="200" rx="12" fill="${col.accent}" stroke="${col.ink}" stroke-width="2.5"/>
     <path d="M2 2 L150 118 L298 2 L298 188 Q298 198 288 198 L12 198 Q2 198 2 188 Z" fill="${col.accent}"/>
     <path d="M2 2 L150 118 L298 2 L298 188 Q298 198 288 198 L12 198 Q2 198 2 188 Z" fill="rgba(0,0,0,.08)" stroke="${col.ink}" stroke-width="2.5" stroke-linejoin="round"/>
     <path d="M4 196 L122 96 M296 196 L178 96" stroke="${col.ink}" stroke-width="1.5" opacity=".3"/>
+    ${envMotifHTML("body", th, deco, "0")}
     <path d="M2 2 L298 2 L150 114 Z" fill="${col.accent}" stroke="${col.ink}" stroke-width="2.5" stroke-linejoin="round"/>
     <path d="M2 2 L298 2 L150 114 Z" fill="rgba(255,255,255,.14)"/>
+    ${envMotifHTML("flap", th, deco, "0")}
     ${shape ? `<svg x="124" y="84" width="52" height="52" viewBox="0 0 56 56" overflow="visible">${SEAL_SHAPES[shape]}</svg>`
       : `<circle cx="150" cy="110" r="22" fill="${col.ink}" stroke="${col.surface}" stroke-width="3"/>`}
-    ${ENV_DECO[occ] ? ENV_DECO[occ].svg() : ""}
+    ${ENV_DECO[deco] ? ENV_DECO[deco].svg() : ""}
   </svg>`;
 }
 const svgImage = svg => new Promise((ok, ko)=>{ const i=new Image(); i.onload=()=>ok(i); i.onerror=ko; i.src="data:image/svg+xml;charset=utf-8,"+encodeURIComponent(svg); });
@@ -2815,7 +2821,7 @@ function drawQR(x, q, X, Y, side, col, logo){
 async function drawEnvelope(x, o, col, X, Y, W, rot=0){
   const shape=(ENV_DECO[o.occ]||{}).seal, H=W*222/320, k=W/320;
   x.save(); x.translate(X+W/2, Y+H/2); x.rotate(rot);
-  try{ x.drawImage(await svgImage(envelopeSVG(col, o.occ, shape)), -W/2, -H/2, W, H); }catch(e){}
+  try{ x.drawImage(await svgImage(envelopeSVG(col, o.occ, shape, o.th)), -W/2, -H/2, W, H); }catch(e){}
   const seal = ENV_NEUTRAL.includes(o.occ) ? "💌" : o.em || o.initial;
   x.fillStyle = shape==="pumpkin" ? "#3B1F0A" : shape==="heart" ? "#FFFFFF" : shape==="gold" ? "#4A2C10" : col.seal;
   x.font=`800 ${Math.round((o.em || seal==="💌" ? 25 : 21)*k*1.15)}px "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif`; x.textAlign="center"; x.textBaseline="middle";
@@ -4033,6 +4039,8 @@ function sealHTML(occ, em, initial){
   return `<span class="seal shaped seal-${shape} ${txt!==initial?"emoji":""}" aria-hidden="true"><svg class="seal-shape" viewBox="0 0 56 56" aria-hidden="true">${SEAL_SHAPES[shape]}</svg><span class="seal-t">${esc(txt)}</span></span>`;
 }
 /* Calque des décors de l'enveloppe, ou "" (occasion sans décor) ; lv : niveau d'animation de l'invitation */
+/* Occasion dont l'enveloppe prend le décor : la sienne si elle en a un, sinon celle du thème de saison (thème Halloween, Noël…) */
+const envDecoOcc = (occ, th) => ENV_DECO[occ] ? occ : ENV_DECO[th] ? th : occ;
 const envDecoHTML = (occ, lv) => ENV_DECO[occ] ? `<svg class="env-deco ed-${lv}" viewBox="0 0 300 200" aria-hidden="true" focusable="false">${ENV_DECO[occ].svg()}</svg>` : "";
 
 /* ---------- Motifs de l'enveloppe ----------
@@ -4209,6 +4217,10 @@ const ENVELOPE_MOTIFS = {
     flap:`<g class="em-o"><circle class="em-s" cx="48" cy="17" r="10"/><path class="em-h" d="M48 9L51 17 48 25 45 17Z"/></g>${emSpray(69, 2, 296, 4, 140, 180, 80, "flap", ["star"])}`,
     body:`<g class="em-o"><circle class="em-s" cx="258" cy="172" r="22"/><circle class="em-b" cx="284" cy="146" r="14"/></g><path class="em-l em-dot" d="M258 154a18 18 0 1 1 0 36a18 18 0 1 1 0-36z"/><path class="em-o" fill="none" d="M244 172q7-6 14 0t14 0M276 146q4-4 8 0t8 0"/>
       <path class="em-l em-dot" d="M18 196Q30 168 70 162"/><g class="em-swc em-1"><path class="em-o em-s" transform="translate(92 156) rotate(-20) scale(1.8)" d="M-12 0L12-2Q16 0 12 2ZM-2-1L-8-10H-4L4-1ZM-2 1L-8 10H-4L4 1ZM-12 0L-15-5H-12L-9 0Z"/></g>`},
+  fetesurprise: {style:"C",
+    flap:`${emSpray(74, 3, 4, 4, 0, 40, 80, "flap", ["conf","dot"])}${emSpray(75, 3, 296, 4, 140, 180, 80, "flap", ["dot","conf"])}`,
+    body:`<path class="em-k" d="M14 140c12 8 0 18 12 26s0 16 12 24"/><path class="em-kb" d="M14 140c12 8 0 18 12 26s0 16 12 24"/>${emQ("translate(62 172) rotate(-12) scale(1.4)", "b")}
+      <g class="em-sw em-1">${emQ("translate(262 158) rotate(12) scale(2)", "s")}</g>${emSpray(76, 3, 0, 200, -90, 0, 110, "body", ["conf","dot"])}${emSpray(77, 3, 300, 200, 180, 270, 110, "body", ["dot","conf"])}`},
   journeesurprise: {style:"C",
     flap:`${emSun(48, 17)}${emSpray(70, 2, 296, 4, 140, 180, 80, "flap", ["star"])}`,
     body:`<g class="em-sw em-1"><g transform="translate(40 168) rotate(-16) scale(1.4)"><path class="em-o em-s" d="M-18-13H18V-4A4 4 0 0 0 18 4V13H-18V4A4 4 0 0 0-18-4Z"/>${emQl("translate(0 -2) scale(.72)")}</g></g>
@@ -4241,14 +4253,14 @@ function renderEnvelope(){
         <path d="M2 2 L150 118 L298 2 L298 188 Q298 198 288 198 L12 198 Q2 198 2 188 Z" style="fill:var(--accent)" />
         <path d="M2 2 L150 118 L298 2 L298 188 Q298 198 288 198 L12 198 Q2 198 2 188 Z" fill="rgba(0,0,0,.08)" style="stroke:var(--ink)" stroke-width="2.5" stroke-linejoin="round"/>
         <path d="M4 196 L122 96 M296 196 L178 96" style="stroke:var(--ink)" stroke-width="1.5" opacity=".3"/>
-        ${envMotifHTML("body", D.th, D.o, invAnim())}
+        ${envMotifHTML("body", D.th, envDecoOcc(D.o, D.th), invAnim())}
       </svg>
       <span class="env-flap"><svg viewBox="0 0 300 116" preserveAspectRatio="none" aria-hidden="true">
         <path d="M2 2 L298 2 L150 114 Z" style="fill:var(--accent);stroke:var(--ink)" stroke-width="2.5" stroke-linejoin="round"/>
         <path d="M2 2 L298 2 L150 114 Z" fill="rgba(255,255,255,.14)"/>
-        ${envMotifHTML("flap", D.th, D.o, invAnim())}
+        ${envMotifHTML("flap", D.th, envDecoOcc(D.o, D.th), invAnim())}
       </svg>${sealHTML(D.o, D.em, initial)}</span>
-      ${envDecoHTML(D.o, invAnim())}
+      ${envDecoHTML(envDecoOcc(D.o, D.th), invAnim())}
     </button>
     <p class="env-hint">Touche l'enveloppe pour l'ouvrir</p>
     <p class="safety">${SAFETY}</p>

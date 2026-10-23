@@ -3353,6 +3353,33 @@ await test("Mouvements : trois niveaux, balancement lent sans rotation continue,
   }
   assert.ok(regleCSS(".envelope.open .em-flap").includes("opacity:0"), "motif du rabat effacé à l'ouverture (jamais vu à l'envers)");
 });
+await test("Les 35 thèmes ont un décor : leur motif, ou pour un thème de saison le décor de son occasion (ENV_DECO)", () => {
+  const TH = PAGE.lire("THEMES");
+  assert.equal(TH.length, 35);
+  for(const t of TH){
+    if(t.season) assert.ok(DECO[t.id] && !MOTIFS[t.id], `${t.id} : décor de saison repris`);
+    else assert.ok(MOTIFS[t.id], `${t.id} : motif`);
+  }
+  for(const t of TH.filter(x => x.season)){
+    const h = enveloppe({ th: t.id, o: "juste" });
+    assert.ok(h.includes('class="env-deco') && !/class="em /.test(h), `${t.id} : décor de saison sur une occasion ordinaire`);
+  }
+  assert.ok(enveloppe({ th: "halloween", o: "juste" }).includes('class="ed-web"'), "toiles d'Halloween");
+  assert.ok(enveloppe({ th: "noel", o: "valentin" }).includes("seal-heart"), "l'occasion décorée garde son décor et son cachet");
+});
+await test("Image QR : l'enveloppe porte les motifs du thème, aux couleurs résolues", () => {
+  const svg = PAGE.lire("envelopeSVG"), couleurs = PAGE.lire("imageColors");
+  for(const th of Object.keys(MOTIFS)){
+    const s = svg(couleurs(th, ""), "juste", null, th);
+    assert.ok(s.includes('<g class="em em-body em-0"') && s.includes('<g class="em em-flap em-0"'), th);
+    assert.ok(!s.includes("var("), `${th} : aucune variable CSS dans l'image`);
+    const style = s.slice(s.indexOf("<style>"), s.indexOf("</style>"));
+    for(const c of new Set(s.slice(s.indexOf("</style>")).match(/em-[a-z0-9]+/g)))
+      if(!/^em-(body|flap|0|1|sw|swt|swc|br|tw|fl|hp)$/.test(c)) assert.ok(new RegExp("[.]" + c + "(?![a-z0-9-])").test(style), `${th} : .${c} sans couleur dans l'image`);
+  }
+  assert.ok(svg(couleurs("halloween", ""), "juste", "pumpkin", "halloween").includes('class="ed-web"'), "thème de saison : son décor");
+  assert.ok(!svg(couleurs("amour", ""), "halloween", "pumpkin", "amour").includes('class="em '), "occasion décorée : pas de motif");
+});
 await test("Rien ne change dans les liens : le décodage ignore les motifs", () => {
   for(const nom of ["sanitize", "unpackLink", "packLink", "decodeData", "encodeData"]) assert.ok(!/ENVELOPE_MOTIFS|envMotif|envMark/.test(PAGE.lire(nom).toString()), nom);
 });
