@@ -358,10 +358,10 @@ await test("Chaque code correspond à une valeur existante, et chaque valeur a u
 await test("Questions des occasions et textes des modèles présents dans LINK_PHRASES (liens courts)", () => {
   const ph = Object.values(L.LINK_PHRASES);
   for(const o of Object.values(L.OCC)) assert.ok(ph.includes(o.q), `question de l'occasion ${o.id} sans code`);
-  const html = readFileSync(RACINE + "index.html", "utf8");
+  const html = readFileSync(RACINE + "app/creer.js", "utf8"); // les modèles sont dans le code de la création
   const bloc = html.slice(html.indexOf("const TEMPLATES = ["), html.indexOf("];", html.indexOf("const TEMPLATES = [")));
   const textes = [...bloc.matchAll(/\b(?:q|msg):"([^"]*)"/g)].map(m => m[1]);
-  assert.ok(textes.length >= 10, "modèles introuvables dans index.html");
+  assert.ok(textes.length >= 10, "modèles introuvables dans app/creer.js");
   for(const t of textes) assert.ok(ph.includes(t), `texte de modèle sans code : ${t}`);
 });
 
@@ -532,7 +532,8 @@ await test("Fichier .ics : caractères spéciaux échappés, événement du rend
    ========================================================= */
 titre("7. Contrastes des thèmes");
 // Variables CSS de chaque thème, lues dans index.html (:root = base, puis [data-theme="…"])
-const CSS = (() => { const h = readFileSync(RACINE + "index.html", "utf8"); return h.slice(h.indexOf("<style>"), h.indexOf("</style>")); })();
+// Styles de la page et de la création (app/creer.css, chargée avec app/creer.js)
+const CSS = (() => { const h = readFileSync(RACINE + "index.html", "utf8"); return h.slice(h.indexOf("<style>"), h.indexOf("</style>")) + "\n" + readFileSync(RACINE + "app/creer.css", "utf8").replace(/\r\n/g, "\n"); })();
 const varsDe = bloc => Object.fromEntries([...bloc.matchAll(/--([a-z-]+)\s*:\s*(#[0-9A-Fa-f]{6})/g)].map(m => [m[1], m[2].toUpperCase()]));
 const RACINE_CSS = varsDe(CSS.match(/:root(?:,\[data-theme\])?\{([^}]*--bg:[^}]*)\}/)[1]);
 const THEME_CSS = Object.fromEntries(L.THEMES.map(t => {
@@ -3075,7 +3076,7 @@ await test("sw.js : « 🔓 Ta surprise est prête ! », rien de la surprise, au
 
 await test("Création : phrase d'honnêteté sous « Révélé plus tard » (activité, lieu et chaque étape d'un programme)", () => {
   const H = "Le contenu est dans le lien, caché pour qu'on ne le voie pas par accident. Pour un secret absolu, choisis « Surprise » : rien n'est alors dans le lien.";
-  const idx = readFileSync(RACINE + "index.html", "utf8");
+  const idx = readFileSync(RACINE + "app/creer.js", "utf8");
   assert.equal(idx.split(H).length - 1, 2, "élément simple et étape de programme");
   assert.ok(idx.includes('${it.v==="r" ? `<p class="vis-note">' + H), "seulement quand « Révélé plus tard » est choisi");
 });
@@ -3142,8 +3143,7 @@ await test("Partout : accueil, pages d'occasion, suppression des données, 404, 
 await test("Téléphone et clavier : colonnes les unes sous les autres, cibles de 44 px, focus visible ; routes #choisir et #installer", () => {
   assert.ok(+(regleCSS(".site-foot li a").match(/min-height:(\d+)px/) || [])[1] >= 44);
   assert.ok(regleCSS(".site-foot a:focus-visible").includes("outline:3px solid var(--f-acc)"));
-  const idx = lireFichier("index.html");
-  assert.ok(idx.includes("@media (max-width:520px){.sf-in{grid-template-columns:1fr}}"));
+  assert.ok(CSS.includes("@media (max-width:520px){.sf-in{grid-template-columns:1fr}}"));
   const route = PAGE.lire("route").toString();
   assert.ok(route.includes('location.hash==="#choisir" || location.hash==="#installer"') && route.includes("installHelp()"));
   assert.ok(PAGE.lire("installHelp").toString().includes("showIOSHelp(!isIOS())"), "aide à l'installation sur iPhone comme ailleurs");
@@ -3197,7 +3197,7 @@ await test("CSP de l'accueil : balise en tête, empreinte du script à jour (sin
   const html = lireFichier("index.html"), csp = CSP.cspDe(html);
   assert.ok(csp, "balise CSP absente");
   assert.ok(html.indexOf("Content-Security-Policy") < html.search(/<script|<style|<link/), "avant tout script, style ou lien");
-  assert.equal(csp, CSP.cspAccueil(CSP.empreinte(html)), "empreinte du script pas à jour : lancer « node outils/csp.mjs » (sinon le navigateur bloque tout le site)");
+  assert.equal(csp, CSP.cspAccueil(...CSP.empreintes(html)), "empreinte du script pas à jour : lancer « node outils/csp.mjs » (sinon le navigateur bloque tout le site)");
   const script = csp.split("; ").find(d => d.startsWith("script-src "));
   assert.ok(!/unsafe-inline|unsafe-eval|https?:|\*/.test(script), script);
   assert.ok(csp.startsWith("default-src 'none'"));
@@ -3205,7 +3205,10 @@ await test("CSP de l'accueil : balise en tête, empreinte du script à jour (sin
   const connect = csp.split("; ").find(d => d.startsWith("connect-src ")).split(" ");
   assert.ok(connect.includes("https://ose-liens.osedemander.workers.dev"), "le service des liens courts est autorisé");
   assert.ok(!/http:\/\//.test(csp), "aucune adresse en http:// (Observatory : csp-implemented-with-insecure-scheme)");
-  assert.equal((html.match(/<script>/g) || []).length, 1, "un seul script exécuté (celui de l'empreinte)");
+  assert.equal((html.match(/<script>/g) || []).length, 1, "un seul script de page (celui de l'empreinte)");
+  assert.equal((html.match(/<script data-tete>/g) || []).length, 1, "un seul petit script de tête (préchargement)");
+  assert.equal((html.match(/<script(?!>| data-tete>| type="application\/ld\+json">)/g) || []).length, 0, "aucun autre script intégré");
+  assert.ok(script.split(" ").slice(1).every(x => x === "'self'" || /^'sha256-[A-Za-z0-9+/=]+'$/.test(x)), "script-src : 'self' et les empreintes seulement");
 });
 await test("Rien que la CSP bloquerait : ni gestionnaire on…= dans le HTML, ni javascript:, ni eval, ni appel à un autre domaine", () => {
   const html = lireFichier("index.html"), code = CSP.scriptPage(html);

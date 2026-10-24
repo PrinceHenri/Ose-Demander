@@ -6,13 +6,21 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 const INDEX = fileURLToPath(new URL("../index.html", import.meta.url));
+const lireApp = f => readFileSync(fileURLToPath(new URL(`../app/${f}`, import.meta.url)), "utf8").replace(/\r\n/g, "\n");
 
-export function chargerPage({ share = false, ios = false } = {}){
-  const html = readFileSync(INDEX, "utf8");
+/* Après le script de la page, les fichiers chargés à part (app/), comme si le navigateur les avait chargés :
+   fichiers : [] = la page seule (réseau coupé à la première visite) ; ["scenes"] = une invitation sans la création.
+   versions : versions déclarées par les fichiers (pour simuler un fichier d'une autre version que celle attendue). */
+export function chargerPage({ share = false, ios = false, fichiers = ["scenes", "creer"], versions = {} } = {}){
+  const html = readFileSync(INDEX, "utf8").replace(/\r\n/g, "\n");
   let src = html.slice(html.indexOf("<script>") + "<script>".length, html.lastIndexOf("</script>"));
   const fin = src.lastIndexOf("\nroute();");
   if(fin < 0) throw new Error("index.html : appel final route(); introuvable");
   src = src.slice(0, fin) + src.slice(fin + "\nroute();".length); // on ne lance pas la page : les tests appellent les écrans eux-mêmes
+  const declare = (txt, nom) => versions[nom] === undefined ? txt : txt.replace(new RegExp(`oseLoaded\\("${nom}", "[0-9a-f]*"\\)`), `oseLoaded("${nom}", "${versions[nom]}")`);
+  for(const f of fichiers) src += "\n" + declare(lireApp(`${f}.js`), f);
+  // Feuille de la création : sa version, lue par getComputedStyle comme dans le navigateur
+  const cssV = !fichiers.includes("creer") ? "" : versions.creerCss ?? (lireApp("creer.css").match(/--ose-creer-css:"([0-9a-f]*)"/) || [])[1];
 
   const rien = () => {};
   // Objet « attrape-tout » : toute propriété ou tout appel renvoie un autre attrape-tout
@@ -38,7 +46,9 @@ export function chargerPage({ share = false, ios = false } = {}){
     localStorage: { getItem: () => null, setItem: rien, removeItem: rien },
     requestAnimationFrame: rien, cancelAnimationFrame: rien, addEventListener: rien,
     setTimeout: () => 0, clearTimeout: rien, setInterval: () => 0, clearInterval: rien,
-    innerWidth: 400, innerHeight: 800, CompressionStream, DecompressionStream, alert: rien
+    innerWidth: 400, innerHeight: 800, CompressionStream, DecompressionStream, alert: rien,
+    getComputedStyle: () => ({ getPropertyValue: p => p === "--ose-creer-css" ? `"${cssV}"` : "" }),
+    sessionStorage: { getItem: () => null, setItem: rien }
   };
   const f = new Function(...Object.keys(globaux),
     src + `\nreturn { lire: nom => eval(nom), ecrire: (nom, v) => eval(nom + " = v") };`);

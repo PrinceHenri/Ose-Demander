@@ -19,7 +19,8 @@ const INSECABLES = ["Saint-Valentin", "Nouvel An", "jour J"];
 // Espace insécable plutôt qu'un <span> quand c'est possible : dans un lien en flex, l'espace avant le <span> disparaissait (« duNouvel An »)
 const t = s => INSECABLES.reduce((x, m) => x.split(esc(m)).join(m.includes(" ") ? esc(m).replace(/ /g, "&nbsp;") : `<span class="nw">${esc(m)}</span>`),
   esc(s).replace(/ ([?!:;»])/g, "&nbsp;$1").replace(/« /g, "«&nbsp;"));
-const html = readFileSync(RACINE + "index.html", "utf8").replace(/\r\n/g, "\n"), CSS = html.slice(html.indexOf("<style>") + 7, html.indexOf("</style>"));
+// Styles de la page et de la création (le pied de page est dans app/creer.css)
+const html = readFileSync(RACINE + "index.html", "utf8").replace(/\r\n/g, "\n"), CSS = html.slice(html.indexOf("<style>") + 7, html.indexOf("</style>")) + "\n" + readFileSync(RACINE + "app/creer.css", "utf8").replace(/\r\n/g, "\n");
 
 /* Découpe le CSS en blocs de premier niveau (règles, @media, @keyframes, @font-face) */
 function blocs(css){
