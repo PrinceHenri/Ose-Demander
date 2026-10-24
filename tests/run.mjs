@@ -3387,6 +3387,140 @@ await test("Rien ne change dans les liens : le décodage ignore les motifs", () 
   for(const nom of ["sanitize", "unpackLink", "packLink", "decodeData", "encodeData"]) assert.ok(!/ENVELOPE_MOTIFS|envMotif|envMark/.test(PAGE.lire(nom).toString()), nom);
 });
 
+/* =========================================================
+   42. Fichiers à part : création (app/creer.js, app/creer.css) et scènes (app/scenes.js)
+   ========================================================= */
+titre("42. Fichiers à part");
+const INV42 = { f: "Alex", t: "Sam", o: "date", th: "date", q: "Ça te dit un rendez-vous avec moi ?", n: "fuit", c: "any", d: "2027-11-14", h: "20:00" };
+await test("Chaque fichier à part existe, porte la version attendue par index.html, et sw.js le garde dès l'installation", () => {
+  const html = lireFichier("index.html"), sw = lireFichier("sw.js"), { out, versions } = CSP.miseAJour(lireFichier);
+  assert.deepEqual(Object.keys(out), [], "versions pas à jour : lancer « node outils/csp.mjs »");
+  const core = sw.slice(sw.indexOf("const CORE = ["), sw.indexOf("];", sw.indexOf("const CORE = [")));
+  assert.ok(sw.includes("c.addAll(CORE)"), "la liste CORE est gardée à l'installation");
+  for(const f of CSP.FICHIERS){
+    const t = lireFichier(f.chemin), v = versions[f.nom];
+    assert.ok(t.length > 1000 && f.marque.test(t) && t.includes(f.pose(v)), `${f.chemin} : version déclarée`);
+    assert.ok(html.includes(`${f.nom}:"${v}"`), `index.html attend ${f.chemin} en ${v}`);
+    assert.ok(core.includes(`"./${f.chemin}?v=${v}"`), `sw.js : ${f.chemin}?v=${v} dans CORE`);
+  }
+  assert.ok(html.includes(`<link rel="preload" href="app/scenes.js?v=${versions.scenes}" as="script">`), "scènes préchargées");
+  const tete = CSP.scriptTete(html);
+  assert.ok(tete.includes(`app/creer.js?v=${versions.creer}`) && tete.includes(`app/creer.css?v=${versions.creerCss}`), "création préchargée hors invitation");
+  assert.ok(tete.includes("^#(i|s)=|^#exemple$"), "jamais pour une invitation");
+});
+await test("Aucun nom déclaré deux fois entre index.html et les fichiers à part ; l'ensemble se lit d'un seul tenant", async () => {
+  const vm = await import("node:vm"), noms = new Map();
+  const src = [["index.html", CSP.scriptPage(lireFichier("index.html"))], ["app/scenes.js", lireFichier("app/scenes.js")], ["app/creer.js", lireFichier("app/creer.js")]];
+  for(const [f, t] of src) for(const m of t.matchAll(/^(?:async\s+)?(?:const|let|var|function|class)\s+([\w$]+)/gm)){
+    assert.ok(!noms.has(m[1]), `${m[1]} déclaré dans ${noms.get(m[1])} et dans ${f}`); noms.set(m[1], f);
+  }
+  new vm.Script(src.map(x => x[1]).join("\n")); // une erreur de syntaxe ici = site cassé
+  assert.ok(!/\bfunction renderCreator\b|\bconst TEMPLATES\b|\bfunction qrEncode\b/.test(src[0][1]), "la création n'est plus dans index.html");
+  assert.ok(src[1][1].startsWith("/*") && src[1][1].includes("Object.assign(SCENES, {"), "scènes : remplissent la table vide de index.html");
+});
+await test("Styles : une règle n'est dans app/creer.css que si ses sélecteurs visent la création seulement", () => {
+  const html = lireFichier("index.html"), s0 = html.indexOf("<style>"), s1 = html.indexOf("</style>");
+  const ailleurs = new Set((html.slice(0, s0) + html.slice(s1) + lireFichier("app/scenes.js")).match(/[A-Za-z_][\w-]*/g));
+  const creation = new Set(lireFichier("app/creer.js").match(/[A-Za-z_][\w-]*/g));
+  const css = lireFichier("app/creer.css").replace(/\/\*[\s\S]*?\*\//g, "").replace(/@media[^{]*\{/g, "");
+  let n = 0;
+  for(const [, sel] of css.matchAll(/([^{}]+)\{[^{}]*\}/g)){
+    if(sel.trim().startsWith(":root")) continue;
+    for(const s of sel.split(",")){
+      const toks = [...s.matchAll(/[.#]([A-Za-z_][\w-]*)/g)].map(m => m[1]);
+      assert.ok(toks.some(t => creation.has(t) && !ailleurs.has(t)), `« ${s.trim()} » sert aussi hors de la création : sa place est dans index.html`);
+    }
+    n++;
+  }
+  assert.ok(n > 100, `${n} règles`);
+});
+await test("Une invitation s'affiche sans le code de la création : enveloppe, introduction, question, après le Oui, refus, rappel, partage", async () => {
+  const P = chargerPage({ fichiers: ["scenes"] }), san = P.lire("sanitize");
+  assert.equal(P.lire("typeof renderCreator"), "undefined", "app/creer.js absent");
+  P.location.hash = "#i=" + await L.encodeData({ ...INV42, ix: 1 });
+  await P.lire("route")();
+  const h = P.zones["#app"].innerHTML;
+  assert.ok(h.includes('class="envelope') && h.includes('class="em em-body') && h.includes('class="scene-sign'), "enveloppe, motifs et élément vedette");
+  assert.ok(P.zones["#scene"].innerHTML.length > 500, "décor de la scène");
+  P.lire("renderIntro")(); assert.ok(P.zones["#app"].innerHTML.includes("intro-card"), "introduction");
+  P.lire("renderInvite")(); assert.ok(P.zones["#app"].innerHTML.includes('class="yes'), "question");
+  assert.ok(P.lire("afterHTML")("C'est un oui !", "").includes("Dernière étape"), "après le Oui");
+  P.lire("openRefuse")(); assert.ok(P.zones["#main"].innerHTML.includes("Répondre non"), "vrai refus");
+  P.ecrire("D", san({ ...INV42, rv: 1 })); P.lire("renderReminder")(); assert.ok(P.zones["#app"].innerHTML.includes("ticket"), "rappel");
+  P.ecrire("D", san({ ...INV42, vu: 1 })); P.lire("renderShared")(); assert.ok(P.zones["#app"].innerHTML.includes("Créer ma propre invitation"), "version partagée");
+  assert.deepEqual(P.demandes, [], "rien d'autre n'est demandé au réseau");
+});
+await test("Réseau coupé après une première visite : sw.js sert la page et les scènes depuis son cache, l'invitation s'affiche", async () => {
+  const caches = new Map(), poignees = {}, norm = r => new URL(typeof r === "string" ? r : r.url, "https://osedemander.fr/").href;
+  let enLigne = true;
+  const reseau = async r => { if(!enLigne) throw new TypeError("Failed to fetch");
+    let p = new URL(norm(r)).pathname.slice(1); if(!p || p.endsWith("/")) p += "index.html";
+    return new Response(lireFichier(p), { status: 200 }); };
+  const boite = n => { if(!caches.has(n)) caches.set(n, new Map()); const c = caches.get(n);
+    return { addAll: async l => { for(const u of l) c.set(norm(u), await reseau(u)); }, put: async (q, r) => { c.set(norm(q), r); }, match: async q => c.get(norm(q))?.clone() }; };
+  const api = { open: async n => boite(n), keys: async () => [...caches.keys()], delete: async n => caches.delete(n),
+    match: async q => { for(const c of caches.values()){ const r = c.get(norm(q)); if(r) return r.clone(); } } };
+  const self = { location: new URL("https://osedemander.fr/sw.js"), addEventListener: (t, f) => { poignees[t] = f; }, skipWaiting: () => {}, clients: { claim: () => {} } };
+  new Function("self", "caches", "fetch", lireFichier("sw.js"))(self, api, reseau);
+  let attente; poignees.install({ waitUntil: p => { attente = p; } }); await attente;
+  enLigne = false; // réseau coupé
+  const demande = async (url, mode = "no-cors") => { let r; poignees.fetch({ request: { method: "GET", url, mode }, respondWith: p => { r = p; } }); return r && (await r).text(); };
+  const { versions } = CSP.miseAJour(lireFichier);
+  assert.equal(await demande("https://osedemander.fr/", "navigate"), lireFichier("index.html"), "la page, depuis le cache");
+  for(const f of CSP.FICHIERS) assert.equal(await demande(`https://osedemander.fr/${f.chemin}?v=${versions[f.nom]}`), lireFichier(f.chemin), `${f.chemin}, depuis le cache`);
+  // Ce que le cache a servi suffit à afficher l'invitation (page et scènes ; la création n'est pas demandée)
+  const P = chargerPage({ fichiers: ["scenes"] });
+  P.location.hash = "#i=" + await L.encodeData(INV42); await P.lire("route")();
+  assert.ok(P.zones["#app"].innerHTML.includes('class="envelope') && P.zones["#scene"].innerHTML.length > 500);
+});
+await test("Échec de chargement : la création affiche « Réessayer » (jamais de page blanche) ; une invitation garde le fond du thème, sans erreur", async () => {
+  const P = chargerPage({ fichiers: [] });
+  await P.lire("route")();
+  const h = P.zones["#app"].innerHTML;
+  assert.ok(h.includes("La page ne s'est pas chargée") && h.includes('id="retry"'), "écran de repli");
+  assert.deepEqual(principales(h), ["Réessayer"]);
+  const n = P.demandes.length; await P.lire("route")();
+  assert.ok(n >= 2 && P.demandes.length > n && P.demandes.at(-1).startsWith("app/"), "Réessayer redemande les fichiers");
+  const Q = chargerPage({ fichiers: [] });
+  Q.location.hash = "#i=" + await L.encodeData(INV42); await Q.lire("route")();
+  const g = Q.zones["#app"].innerHTML;
+  assert.ok(g.includes('class="envelope') && g.includes("scene-sign-slot") && !g.includes("ne s'est pas chargée"), "invitation sans scène");
+  assert.equal(Q.zones["#scene"].innerHTML, "", "fond du thème seul");
+});
+await test("Fichier d'une autre version (page ancienne, fichier neuf) : un seul rechargement complet, puis un message clair", async () => {
+  const session = new Map(), autre = { creer: "0000000000" };
+  const P1 = chargerPage({ versions: autre, charge: () => "ok", session });
+  await P1.lire("route")();
+  assert.equal(P1.location.rechargements, 1, "rechargement automatique");
+  // La page rechargée reçoit encore l'autre version : pas de deuxième rechargement (pas de boucle), un message
+  const P2 = chargerPage({ versions: autre, charge: () => "ok", session });
+  await P2.lire("route")();
+  assert.equal(P2.location.rechargements, 0, "pas de boucle");
+  const h = P2.zones["#app"].innerHTML;
+  assert.ok(h.includes("Ose Demander vient d'être mis à jour") && h.includes("Recharge-la pour passer à la nouvelle version."));
+  assert.deepEqual(principales(h), ["Recharger la page"]);
+  // Plus d'une minute après, un nouveau rechargement automatique est permis
+  session.set("ose-maj", String(Date.now() - 61000));
+  const P3 = chargerPage({ versions: autre, charge: () => "ok", session }); await P3.lire("route")();
+  assert.equal(P3.location.rechargements, 1);
+  // Feuille de style d'une autre version : même règle
+  const P4 = chargerPage({ versions: { creerCss: "0000000000" }, charge: () => "ok", session: new Map() }); await P4.lire("route")();
+  assert.equal(P4.location.rechargements, 1, "creer.css");
+  // Scènes d'une autre version sur une invitation : un rechargement, puis le fond du thème, jamais de message qui bloque
+  const s2 = new Map(), Q1 = chargerPage({ versions: { scenes: "0000000000" }, charge: () => "ok", session: s2 });
+  Q1.location.hash = "#i=" + await L.encodeData(INV42); await Q1.lire("route")();
+  assert.equal(Q1.location.rechargements, 1);
+  const Q2 = chargerPage({ versions: { scenes: "0000000000" }, charge: () => "ok", session: s2 });
+  Q2.location.hash = Q1.location.hash; await Q2.lire("route")();
+  assert.equal(Q2.location.rechargements, 0);
+  assert.ok(Q2.zones["#app"].innerHTML.includes('class="envelope') && Q2.zones["#scene"].innerHTML === "", "invitation au fond du thème");
+});
+await test("Poids : index.html sous 108 Ko compressés en local (objectif en ligne : sous 110)", () => {
+  const n = gzipSync(readFileSync(RACINE + "index.html"), { level: 6 }).length;
+  console.log(`      index.html ${(n / 1000).toFixed(1)} Ko ; ${CSP.FICHIERS.map(f => `${f.chemin} ${(gzipSync(readFileSync(RACINE + f.chemin), { level: 6 }).length / 1000).toFixed(1)} Ko`).join(", ")} (compressés)`);
+  assert.ok(n < 108000, `${n} octets`);
+});
+
 /* ---------- Bilan ---------- */
 console.log(`\n${ko ? "❌" : "✅"} ${ok} tests réussis, ${ko} en échec (graine ${GRAINE}${ko ? ` — pour rejouer : node tests/run.mjs --graine=${GRAINE}` : ""})`);
 if(ko){ console.log(echecs.map(e => "  - " + e).join("\n")); process.exitCode = 1; }

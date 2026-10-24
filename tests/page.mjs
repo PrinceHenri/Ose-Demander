@@ -10,8 +10,10 @@ const lireApp = f => readFileSync(fileURLToPath(new URL(`../app/${f}`, import.me
 
 /* Après le script de la page, les fichiers chargés à part (app/), comme si le navigateur les avait chargés :
    fichiers : [] = la page seule (réseau coupé à la première visite) ; ["scenes"] = une invitation sans la création.
-   versions : versions déclarées par les fichiers (pour simuler un fichier d'une autre version que celle attendue). */
-export function chargerPage({ share = false, ios = false, fichiers = ["scenes", "creer"], versions = {} } = {}){
+   versions : versions déclarées par les fichiers (pour simuler un fichier d'une autre version que celle attendue).
+   charge : réponse du « réseau » quand la page charge un fichier qui n'est pas là (url -> "ok" | "erreur", par défaut "erreur",
+   comme réseau coupé) ; session : sessionStorage partagé entre deux chargements (rechargement simulé). */
+export function chargerPage({ share = false, ios = false, fichiers = ["scenes", "creer"], versions = {}, charge = () => "erreur", session = new Map() } = {}){
   const html = readFileSync(INDEX, "utf8").replace(/\r\n/g, "\n");
   let src = html.slice(html.indexOf("<script>") + "<script>".length, html.lastIndexOf("</script>"));
   const fin = src.lastIndexOf("\nroute();");
@@ -31,13 +33,17 @@ export function chargerPage({ share = false, ios = false, fichiers = ["scenes", 
   const zone = () => ({ innerHTML: "", querySelector: () => neutre(), querySelectorAll: () => [] });
   const zones = { "#app": zone(), "#main": zone(), "#scene": { ...zone(), className: "" } };
   const vus = []; // sélecteurs demandés à la page, dans l'ordre (pour vérifier où va le focus)
+  const demandes = []; // fichiers que la page a demandés (balises script ou link ajoutées à la tête)
   const document = {
     title: "Ose Demander", hidden: false,
     querySelector: sel => { vus.push(sel); return zones[sel] || neutre(); }, querySelectorAll: () => [],
-    getElementById: id => zones["#" + id] || neutre(), createElement: () => neutre(), body: neutre(), documentElement: neutre(),
+    getElementById: id => zones["#" + id] || neutre(), body: neutre(), documentElement: neutre(),
+    createElement: tag => tag === "script" || tag === "link" ? { tag, dataset: {}, remove: rien } : neutre(),
+    head: { appendChild: el => { const u = el.src || el.href; demandes.push(u); queueMicrotask(() => charge(u) === "ok" ? el.onload?.() : el.onerror?.()); return el; } },
     addEventListener: rien
   };
-  const location = { origin: "http://localhost:8000", pathname: "/", hash: "", hostname: "localhost", protocol: "http:", href: "http://localhost:8000/" };
+  const location = { origin: "http://localhost:8000", pathname: "/", hash: "", hostname: "localhost", protocol: "http:", href: "http://localhost:8000/",
+    rechargements: 0, reload(){ this.rechargements++; } };
   const window = { CompressionStream, addEventListener: rien, devicePixelRatio: 1, location, scrollTo: rien };
   const navigator = { userAgent: ios ? "iPhone" : "Android", platform: "", maxTouchPoints: 0, ...(share ? { share: async () => {} } : {}) };
   const globaux = {
@@ -48,12 +54,12 @@ export function chargerPage({ share = false, ios = false, fichiers = ["scenes", 
     setTimeout: () => 0, clearTimeout: rien, setInterval: () => 0, clearInterval: rien,
     innerWidth: 400, innerHeight: 800, CompressionStream, DecompressionStream, alert: rien,
     getComputedStyle: () => ({ getPropertyValue: p => p === "--ose-creer-css" ? `"${cssV}"` : "" }),
-    sessionStorage: { getItem: () => null, setItem: rien }
+    sessionStorage: { getItem: k => session.has(k) ? session.get(k) : null, setItem: (k, v) => session.set(k, String(v)) }
   };
   const f = new Function(...Object.keys(globaux),
     src + `\nreturn { lire: nom => eval(nom), ecrire: (nom, v) => eval(nom + " = v") };`);
   const P = f(...Object.values(globaux));
-  return { ...P, zones, vus, navigator };
+  return { ...P, zones, vus, navigator, demandes, location };
 }
 
 /* Boutons « action principale » visibles d'un morceau de HTML : bouton principal, Oui, installation.
