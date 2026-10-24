@@ -2878,18 +2878,33 @@ await essaiWorker("Temps de calcul d'un passage complet (chiffrement et signatur
     // la signature VAPID, une fois par passage. Meilleur temps sur 50 essais (le moins perturbé par la machine).
     const abo = env.DB.db.prepare("SELECT abo, id FROM rappels LIMIT 1").get();
     const scelle = await PUSH.scellerAbo({ endpoint: ENDPOINT_EX, keys: app.keys }, RID(999), env), msg = new TextEncoder().encode(JSON.stringify({ v: 1, k: "rv", i: RID(999) }));
-    // Plusieurs séries de 50 essais : on garde le meilleur temps (une machine chargée ne doit pas faire échouer le banc)
-    let parEnvoi = Infinity, signature = Infinity;
-    for(let i = 0; i < 250 && !(i >= 50 && WORKER.RAPPEL_LOT * parEnvoi + signature <= 6); i++){
-      let t = performance.now(); await PUSH.chiffrerPush(await PUSH.ouvrirAbo(scelle, RID(999), env), msg); parEnvoi = Math.min(parEnvoi, performance.now() - t);
-      t = performance.now(); await PUSH.enteteVapid(ENDPOINT_EX, VAPID_TEST.pub, VAPID_TEST.d); signature = Math.min(signature, performance.now() - t);
-    }
-    const estime = WORKER.RAPPEL_LOT * parEnvoi + signature;
-    console.log(`    (calcul d'un passage de ${WORKER.RAPPEL_LOT} envois : ${estime.toFixed(1)} ms ; ${parEnvoi.toFixed(2)} ms par envoi + ${signature.toFixed(2)} ms de signature ; passage complet avec la base simulée : ${mesures[3].toFixed(1)} ms)`);
+    // Mesure RELATIVE, fiable sur une machine chargée : chaque passage simulé (envois + signature) est chronométré juste à côté
+    // d'un étalon de même nature (par envoi : un échange ECDH P-256 et un chiffrement AES-GCM ; une signature ECDSA P-256),
+    // avec des clés fixes, sans le code du Worker. Une charge ralentit les deux pareil : le rapport passage / étalon ne bouge
+    // presque pas. On garde la médiane de 60 rapports, ramenée en millisecondes de la machine de référence (ETALON_REF, mesuré
+    // au calme). Un temps absolu, lui, échouait au hasard dès que la machine était occupée.
+    const ETALON_REF = 1.0, sub = crypto.subtle;
+    const ecdh = await sub.generateKey({ name: "ECDH", namedCurve: "P-256" }, false, ["deriveBits"]), autre = await sub.generateKey({ name: "ECDH", namedCurve: "P-256" }, true, ["deriveBits"]);
+    const ecdsa = await sub.generateKey({ name: "ECDSA", namedCurve: "P-256" }, false, ["sign"]), aes = await sub.generateKey({ name: "AES-GCM", length: 128 }, false, ["encrypt"]);
+    const charge = new Uint8Array(4096), iv = new Uint8Array(12);
+    const etalon = async () => { const t = performance.now();
+      for(let k = 0; k < WORKER.RAPPEL_LOT; k++){ await sub.deriveBits({ name: "ECDH", public: autre.publicKey }, ecdh.privateKey, 256); await sub.encrypt({ name: "AES-GCM", iv }, aes, charge); }
+      await sub.sign({ name: "ECDSA", hash: "SHA-256" }, ecdsa.privateKey, charge.subarray(0, 200));
+      return performance.now() - t; };
+    const passageSeul = async () => {
+      const t = performance.now();
+      for(let k = 0; k < WORKER.RAPPEL_LOT; k++) await PUSH.chiffrerPush(await PUSH.ouvrirAbo(scelle, RID(999), env), msg);
+      await PUSH.enteteVapid(ENDPOINT_EX, VAPID_TEST.pub, VAPID_TEST.d);
+      return performance.now() - t;
+    };
+    const mediane = l => [...l].sort((a, b) => a - b)[l.length >> 1];
+    await passageSeul(); await etalon(); // échauffement (compilation, clés)
+    const rapports = [], bruts = [], etalons = [];
+    for(let i = 0; i < 60; i++){ const p = await passageSeul(), e = await etalon(); rapports.push(p / e); bruts.push(p); etalons.push(e); }
+    const estime = mediane(rapports) * ETALON_REF;
+    console.log(`    (passage de ${WORKER.RAPPEL_LOT} envois : ${estime.toFixed(1)} ms ramenés à la machine de référence ; mesuré ici ${mediane(bruts).toFixed(1)} ms pour un étalon de ${mediane(etalons).toFixed(1)} ms ; passage complet avec la base simulée : ${mesures[3].toFixed(1)} ms)`);
     assert.ok(abo, "lot en base");
-    // Machine de test chargée : simple avertissement au-delà de 6 ms ; échec seulement au-delà de 9 ms (la limite gratuite est de 10 ms)
-    if(estime > 6) console.log(`    (attention : ${estime.toFixed(1)} ms, la machine de test semble chargée ; à revérifier au calme)`);
-    assert.ok(estime <= 9, `${estime.toFixed(1)} ms de calcul : trop près de la limite de 10 ms, réduire RAPPEL_LOT`);
+    assert.ok(estime <= 7, `${estime.toFixed(1)} ms de calcul (machine de référence) : trop près de la limite de 10 ms, réduire RAPPEL_LOT`);
     assert.ok(WORKER.RAPPEL_LOT >= 3 && WORKER.RAPPEL_LOT <= 6, "6 envois par passage au plus (~0,9 ms chacun)");
   });
 });
