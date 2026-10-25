@@ -37,6 +37,12 @@ html,body{background:transparent;font-family:"Bricolage Grotesque",sans-serif;co
 .pastille{background:var(--accent-btn);color:var(--accent-ink);font-weight:800;font-size:var(--pfs);letter-spacing:-.02em;
   border:6px solid var(--ink);border-radius:999px;box-shadow:9px 9px 0 var(--ink);padding:14px 40px}
 .pastille.cachee{visibility:hidden}
+/* ---------- Titre de chapitre (vidéo complète) ---------- */
+.chap{position:absolute;left:var(--cx);top:var(--cy);display:flex;flex-direction:column;gap:10px;align-items:flex-start}
+.chap .num{background:var(--accent-btn);color:var(--accent-ink);font-weight:800;font-size:var(--cn);border:5px solid var(--ink);border-radius:999px;
+  box-shadow:6px 6px 0 var(--ink);padding:6px 24px;letter-spacing:-.01em}
+.chap .titre{background:var(--surface);font-weight:800;font-size:var(--ct);letter-spacing:-.03em;line-height:1.05;border:6px solid var(--ink);
+  border-radius:24px;box-shadow:10px 10px 0 var(--ink);padding:16px 32px;max-width:var(--cw)}
 </style>
 </head>
 <body>
@@ -61,11 +67,19 @@ if(P.type === "fin"){
 } else if(P.type === "sous-titre"){
   // Zone sûre TikTok, Reels, Shorts (charte.md) : x de 64 à 900, y de 260 à 1400
   r.setProperty("--x", "64px"); r.setProperty("--sw", "836px");
-  r.setProperty("--y", (P.y || 1240) + "px"); r.setProperty("--fs", (P.taille || 66) + "px");
+  // En haut de la zone sûre : sur le décor (enseigne), jamais sur la question ni les boutons
+  r.setProperty("--y", (P.y || 430) + "px"); r.setProperty("--fs", (P.taille || 66) + "px");
   c.innerHTML = `<div class="st">${esc(P.texte)}</div>`;
 } else if(P.type === "pastilles"){
   r.setProperty("--px", "150px"); r.setProperty("--py", "330px"); r.setProperty("--pfs", "58px");
   c.innerHTML = `<div class="pastilles">${P.mots.map((m, i) => `<span class="pastille${i < P.n ? "" : " cachee"}">${esc(m)}</span>`).join("")}</div>`;
+}
+if(P.type === "chapitre"){
+  // Horizontal : en haut à gauche ; vertical : en haut de la zone sûre (y ≥ 260, x 64-900)
+  const v = P.format === "9x16";
+  r.setProperty("--cx", (v ? 64 : 64) + "px"); r.setProperty("--cy", (v ? 270 : 56) + "px");
+  r.setProperty("--cn", (v ? 38 : 34) + "px"); r.setProperty("--ct", (v ? 62 : 56) + "px"); r.setProperty("--cw", (v ? 836 : 1100) + "px");
+  c.innerHTML = `<div class="chap"><span class="num">Chapitre ${esc(P.numero)}</span><span class="titre">${esc(P.titre)}</span></div>`;
 }
 document.fonts.ready.then(() => { document.title = "pret"; });
 </script>
