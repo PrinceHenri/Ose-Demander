@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Calque vidéo</title>
+<!-- Calques de la vidéo, rendus en PNG transparent par video/compositions.mjs (Edge sans fenêtre).
+     Paramètres dans l'adresse : #{"type":"fin"|"sous-titre"|"pastilles","format":"16x9"|"9x16",...}
+     Style du site (skill ose-design) : contours d'encre, ombres dures décalées, Bricolage Grotesque. -->
+<style>
+@font-face{font-family:"Bricolage Grotesque";font-weight:200 800;font-stretch:75% 100%;src:url("../../fonts/bricolage-grotesque.woff2") format("woff2")}
+:root{--bg:#ECE6FF;--surface:#FFFFFF;--ink:#1F1546;--muted:#5B4E8C;--accent:#E83F86;--accent-btn:#D82D79;--accent-ink:#FFFFFF;--line:#CFC3F5}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:transparent;font-family:"Bricolage Grotesque",sans-serif;color:var(--ink);overflow:hidden}
+.cadre{position:relative;width:var(--w);height:var(--h)}
+/* ---------- Carte de fin ---------- */
+.fin{background:var(--bg);display:flex;align-items:center;justify-content:center}
+.fin .motif{position:absolute;inset:0;opacity:.5;
+  background-image:radial-gradient(circle at 20px 20px, var(--line) 3px, transparent 3.5px);background-size:56px 56px}
+.billet{position:relative;background:var(--surface);border:calc(var(--u)*0.5) solid var(--ink);border-radius:calc(var(--u)*2.6);
+  box-shadow:calc(var(--u)*1.1) calc(var(--u)*1.1) 0 var(--ink);padding:calc(var(--u)*4.2) calc(var(--u)*5);text-align:center;width:var(--bw)}
+.logo{font-weight:800;font-size:calc(var(--u)*6.4);letter-spacing:-.03em;line-height:1;display:inline-flex;align-items:baseline;gap:.04em}
+.logo .q{display:inline-block;color:var(--accent);font-size:1.27em;transform:rotate(12deg)}
+.perf{border-top:calc(var(--u)*0.32) dashed var(--line);margin:calc(var(--u)*3) calc(var(--u)*-5) calc(var(--u)*3);position:relative}
+.perf::before,.perf::after{content:"";position:absolute;top:calc(var(--u)*-1.9);width:calc(var(--u)*3.4);height:calc(var(--u)*3.4);border-radius:50%;
+  background:var(--bg);border:calc(var(--u)*0.5) solid var(--ink)}
+.perf::before{left:calc(var(--u)*-1.9)}.perf::after{right:calc(var(--u)*-1.9)}
+.adresse{display:inline-block;background:var(--accent-btn);color:var(--accent-ink);font-weight:800;font-size:calc(var(--u)*5.2);letter-spacing:-.02em;
+  border:calc(var(--u)*0.5) solid var(--ink);border-radius:calc(var(--u)*2);box-shadow:calc(var(--u)*0.6) calc(var(--u)*0.6) 0 var(--ink);
+  padding:calc(var(--u)*1.2) calc(var(--u)*3)}
+.promesse{margin-top:calc(var(--u)*2.6);font-size:calc(var(--u)*2.6);color:var(--muted);font-weight:600}
+/* ---------- Sous-titre (version verticale, zone sûre) ---------- */
+.st{position:absolute;left:var(--x);width:var(--sw);top:var(--y);transform:translateY(-50%);
+  background:var(--surface);border:6px solid var(--ink);border-radius:26px;box-shadow:12px 12px 0 var(--ink);
+  padding:26px 34px;font-weight:800;font-size:var(--fs);line-height:1.12;letter-spacing:-.02em;text-align:center;text-wrap:balance}
+/* ---------- Pastilles (version longue, scène 8) ---------- */
+.pastilles{position:absolute;left:var(--px);top:var(--py);display:flex;flex-direction:column;gap:30px;align-items:flex-start}
+.pastille{background:var(--accent-btn);color:var(--accent-ink);font-weight:800;font-size:var(--pfs);letter-spacing:-.02em;
+  border:6px solid var(--ink);border-radius:999px;box-shadow:9px 9px 0 var(--ink);padding:14px 40px}
+.pastille.cachee{visibility:hidden}
+</style>
+</head>
+<body>
+<div class="cadre" id="cadre"></div>
+<script>
+const P = JSON.parse(decodeURIComponent(location.hash.slice(1)) || "{}");
+const V = P.format === "9x16" ? {w:1080, h:1920} : {w:1920, h:1080};
+const c = document.getElementById("cadre"), r = document.documentElement.style;
+r.setProperty("--w", V.w + "px"); r.setProperty("--h", V.h + "px");
+const esc = s => String(s).replace(/[&<>"]/g, x => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[x]));
+if(P.type === "fin"){
+  c.classList.add("fin");
+  // Vertical : carte centrée dans la zone sûre (x 64-900, y 260-1400), hors des boutons de droite et de la légende du bas
+  r.setProperty("--u", (P.format === "9x16" ? 13 : 13) + "px");
+  r.setProperty("--bw", P.format === "9x16" ? "800px" : "1120px");
+  if(P.format === "9x16"){ c.style.alignItems = "flex-start"; c.style.justifyContent = "flex-start"; c.style.paddingLeft = (482 - 400) + "px"; c.style.paddingTop = "560px"; }
+  c.innerHTML = `<div class="motif"></div><div class="billet">
+    <div class="logo">Ose Demander<span class="q">?</span></div>
+    <div class="perf"></div>
+    <div class="adresse">osedemander.fr</div>
+    <p class="promesse">Gratuit, sans compte, sans pub.</p></div>`;
+} else if(P.type === "sous-titre"){
+  // Zone sûre TikTok, Reels, Shorts (charte.md) : x de 64 à 900, y de 260 à 1400
+  r.setProperty("--x", "64px"); r.setProperty("--sw", "836px");
+  r.setProperty("--y", (P.y || 1240) + "px"); r.setProperty("--fs", (P.taille || 66) + "px");
+  c.innerHTML = `<div class="st">${esc(P.texte)}</div>`;
+} else if(P.type === "pastilles"){
+  r.setProperty("--px", "150px"); r.setProperty("--py", "330px"); r.setProperty("--pfs", "58px");
+  c.innerHTML = `<div class="pastilles">${P.mots.map((m, i) => `<span class="pastille${i < P.n ? "" : " cachee"}">${esc(m)}</span>`).join("")}</div>`;
+}
+document.fonts.ready.then(() => { document.title = "pret"; });
+</script>
+</body>
+</html>

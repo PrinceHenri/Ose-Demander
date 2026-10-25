@@ -37,6 +37,10 @@ Ouvre directement sur le Non qui s'échappe, sans logo. Sous-titres incrustés d
 - **A** : voix, effets et sous-titres ;
 - **B** : effets et sous-titres, **sans voix**, pour poser un son depuis l'appli sans qu'il couvre la voix.
 
+## Voix
+
+**Alex** (ElevenLabs, `aiFobLbZNvpjmWZD7HBh`) : voix masculine, jeune, chaleureuse, faite pour les vidéos explicatives. Modèle `eleven_v4`. Choisie le 2026-10-25.
+
 ## Effets sonores (ElevenLabs, sans musique)
 
 1. Ouverture d'enveloppe (papier, carte qui glisse).
