@@ -3,7 +3,8 @@
 //   --apercu : demi-résolution, encodage rapide, dans rendus/apercu/ (pour validation avant le rendu final)
 // Entrées (sources-media/, hors Git) : captures, enregistrements, audio/voix-*.mp3, audio/sfx-*.mp3 (facultatifs).
 // Sorties : rendus/*.mp4 et, pour la version longue, sous-titres/ose-demander-16x9.srt (versionné).
-import { readFileSync, writeFileSync, mkdirSync, existsSync, rmSync, readdirSync } from "node:fs";
+import { readFileSync, writeFileSync, mkdirSync, existsSync, rmSync, readdirSync, statSync } from "node:fs";
+import { execFileSync } from "node:child_process";
 import { join } from "node:path";
 import { ff, duree, silences, MEDIA, RENDUS, RACINE } from "./outils.mjs";
 import { rendreCalques } from "./compositions.mjs";
@@ -71,40 +72,107 @@ const texteDit = m => typeof m === "string" ? m : m.dit;
 const texteEcrit = m => typeof m === "string" ? m : (m.ecrit || m.dit);
 
 /* ---------------- Calage des morceaux sur la voix (silences détectés, sans transcription) ----------------
-   Chaque frontière est placée à la proportion de caractères prononcés, puis accrochée au silence le plus proche. */
-function caler(fichier, morceaux){
-  const D = duree(fichier), sil = silences(fichier).filter(s => s.fin - s.debut >= 0.2);
-  const parle = []; let t = 0;
-  for(const s of sil){ if(s.debut > t) parle.push([t, s.debut]); t = s.fin; }
-  if(t < D) parle.push([t, D]);
-  const debutVoix = parle[0][0], finVoix = parle.at(-1)[1];
+   Ancres d’abord : les phrases repérées par la reconnaissance vocale de Windows (reperer). Entre deux ancres,
+   programmation dynamique : chaque frontière se place près de la proportion de caractères prononcés, sur un silence,
+   avec un bonus pour les pauses longues (fort en fin de phrase . ? ! … :, moyen après une virgule) et une pénalité
+   pour les morceaux trop courts ou trop longs par rapport au débit de la voix.
+   En deux niveaux quand les morceaux sont groupés par scène : d'abord les coupures entre scènes (pauses longues
+   seulement), puis les morceaux à l'intérieur de chaque scène ; une erreur ne se propage plus d'une scène à l'autre. */
+function decouper(sil, debutVoix, finVoix, textes){
+  const n = textes.length - 1;
+  if(n <= 0) return [];
+  const dedans = sil.filter(s => s.debut > debutVoix + 0.15 && s.fin < finVoix - 0.15); // jamais une frontière collée à un bord
+  const parle = []; let t = debutVoix;
+  for(const s of dedans){ if(s.debut > t) parle.push([t, s.debut]); t = s.fin; }
+  if(t < finVoix) parle.push([t, finVoix]);
   const total = parle.reduce((a, [x, y]) => a + y - x, 0);
   const versReel = p => { let reste = p * total; for(const [x, y] of parle){ if(reste <= y - x) return x + reste; reste -= y - x; } return finVoix; };
-  const car = morceaux.map(m => texteDit(m).length), C = car.reduce((a, b) => a + b, 0);
-  // Choix global (programmation dynamique) : écart à la cible, moins un bonus pour les pauses longues,
-  // fort en fin de phrase (. ? ! … :), moyen après une virgule. Évite de couper une phrase à sa virgule.
-  const n = morceaux.length - 1, m = sil.length;
+  const car = textes.map(x => x.length), C = car.reduce((a, b) => a + b, 0);
+  const m = dedans.length;
+  if(m < n){ // pas assez de pauses : découpe en proportion du texte
+    const out = []; let c = 0; const C0 = textes.reduce((a, x) => a + x.length, 0);
+    for(let k = 0; k < n; k++){ c += textes[k].length; const t = debutVoix + (finVoix - debutVoix) * c / C0; out.push({ debut: t, fin: t }); }
+    return out;
+  }
   const cibles = [], poids = []; let cumul = 0;
   for(let k = 0; k < n; k++){
     cumul += car[k]; cibles.push(versReel(cumul / C));
-    const fin = texteDit(morceaux[k]).trim().slice(-1);
+    const fin = textes[k].trim().slice(-1);
     poids.push(/[.?!…:]/.test(fin) ? 2.2 : fin === "," ? 0.8 : 0.3);
   }
-  const cout = (k, i) => Math.abs((sil[i].debut + sil[i].fin) / 2 - cibles[k]) - poids[k] * (sil[i].fin - sil[i].debut);
-  // Durée attendue d'un morceau (débit moyen de la voix) : un morceau beaucoup trop court ou trop long est pénalisé
-  const debit = (finVoix - debutVoix) / C, ecartDuree = (k, debut, fin) => 0.8 * Math.abs((fin - debut) - car[k] * debit);
+  const cout = (k, i) => Math.abs((dedans[i].debut + dedans[i].fin) / 2 - cibles[k]) - poids[k] * (dedans[i].fin - dedans[i].debut);
+  const debit = (finVoix - debutVoix) / C, ecartDuree = (k, debut, fin) => 2 * Math.abs((fin - debut) - car[k] * debit);
   const meilleur = Array.from({ length: n }, () => new Array(m).fill(Infinity)), venu = Array.from({ length: n }, () => new Array(m).fill(-1));
-  for(let i = 0; i < m; i++) meilleur[0][i] = cout(0, i) + ecartDuree(0, debutVoix, sil[i].debut);
+  for(let i = 0; i < m; i++) meilleur[0][i] = cout(0, i) + ecartDuree(0, debutVoix, dedans[i].debut);
   for(let k = 1; k < n; k++) for(let i = k; i < m; i++){
     let b = Infinity, j0 = -1;
-    for(let j = k - 1; j < i; j++){ const c = meilleur[k - 1][j] + ecartDuree(k, sil[j].fin, sil[i].debut); if(c < b){ b = c; j0 = j; } }
+    for(let j = k - 1; j < i; j++){ const c = meilleur[k - 1][j] + ecartDuree(k, dedans[j].fin, dedans[i].debut); if(c < b){ b = c; j0 = j; } }
     meilleur[k][i] = b + cout(k, i); venu[k][i] = j0;
   }
-  const fini = meilleur[n - 1].map((c, i) => c + ecartDuree(n, sil[i].fin, finVoix));
+  const fini = meilleur[n - 1].map((c, i) => c + ecartDuree(n, dedans[i].fin, finVoix));
   const choix = []; let i = fini.indexOf(Math.min(...fini));
   for(let k = n - 1; k >= 0; k--){ choix.unshift(i); i = venu[k][i]; }
-  const bornes = choix.map(i => sil[i]);
-  return morceaux.map((m, k) => ({ texte: texteEcrit(m), debut: k ? bornes[k - 1].fin : debutVoix, fin: k < bornes.length ? bornes[k].debut : finVoix }));
+  return choix.map(i => dedans[i]);
+}
+/* Repérage des phrases par la reconnaissance vocale française de Windows (reperer-phrases.ps1, hors ligne, gratuite).
+   Résultat gardé à côté de la voix (<voix>.reperes.json) tant que la voix et le texte ne changent pas. */
+function reperer(fichier, textes){
+  const cache = fichier.replace(/\.mp3$/, ".reperes.json"), cle = JSON.stringify({ taille: statSync(fichier).size, textes });
+  if(existsSync(cache)){ try{ const c = JSON.parse(readFileSync(cache, "utf8")); if(c.cle === cle) return c.reperes; }catch{} }
+  const wav = join(TMP, "reperage.wav"), phrases = join(TMP, "reperage.json"), sortie = join(TMP, "reperage-sortie.json");
+  ff(["-i", fichier, "-ac", "1", "-ar", "16000", "-sample_fmt", "s16", wav]);
+  writeFileSync(phrases, JSON.stringify(textes));
+  execFileSync("powershell", ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", join(RACINE, "reperer-phrases.ps1"), "-Wav", wav, "-Phrases", phrases, "-Sortie", sortie], { stdio: "ignore" });
+  const reperes = [].concat(JSON.parse(readFileSync(sortie, "utf8").replace(/^﻿/, "")));
+  writeFileSync(cache, JSON.stringify({ cle, reperes }));
+  return reperes;
+}
+function caler(fichier, morceaux, groupes = null){
+  // Pauses dès 0,1 s : dans une énumération (« WhatsApp, SMS, Snapchat… »), la voix ne s’arrête qu’un dixième de seconde
+  const D = duree(fichier), sil = silences(fichier, "-38dB", 0.1);
+  let debutVoix = 0, finVoix = D;
+  if(sil.length && sil[0].debut <= 0.05) debutVoix = sil[0].fin;
+  if(sil.length && sil.at(-1).fin >= D - 0.05) finVoix = sil.at(-1).debut;
+  const textes = morceaux.map(texteDit);
+  // 1. Ancres : phrases repérées avec assurance (confiance ≥ 0,7), dans l'ordre du script et du temps
+  //    Chaîne la plus longue d’ancres compatibles : l’écart entre deux ancres doit correspondre au texte prononcé
+  //    entre elles, au débit moyen de la voix (une phrase reconnue au mauvais endroit est ainsi écartée)
+  let ancres = [];
+  try{
+    const debitMoyen = (finVoix - debutVoix) / textes.reduce((a, x) => a + x.length, 0);
+    const entre = (i, j) => textes.slice(i + 1, j).reduce((a, x) => a + x.length, 0) * debitMoyen; // durée attendue entre i et j
+    const ok = (p, q) => q.index > p.index && q.debut >= p.fin - 0.1
+      && q.debut - p.fin >= entre(p.index, q.index) * 0.45 - 0.6 && q.debut - p.fin <= entre(p.index, q.index) * 2 + 1.2;
+    const debutOk = q => q.debut - debutVoix <= entre(-1, q.index) * 2 + 1.2 && q.debut - debutVoix >= entre(-1, q.index) * 0.45 - 0.6;
+    const c = reperer(fichier, textes).filter(r => r.confiance >= 0.7 && r.index >= 0).sort((a, b) => a.debut - b.debut);
+    const lg = c.map(q => debutOk(q) ? 1 : -Infinity), prec = c.map(() => -1);
+    for(let q = 0; q < c.length; q++) for(let p = 0; p < q; p++) if(lg[p] + 1 > lg[q] && ok(c[p], c[q])){ lg[q] = lg[p] + 1; prec[q] = p; }
+    let q = lg.indexOf(Math.max(...lg));
+    while(q >= 0 && lg[q] > 0){ ancres[c[q].index] = { debut: c[q].debut, fin: c[q].fin }; q = prec[q]; }
+  }catch(e){ console.log("  (reconnaissance vocale indisponible : calage sur les pauses seulement)"); ancres = []; }
+  // Une ancre commence et finit sur de la voix : on retire le silence éventuellement compris à ses bords
+  const rogner = (a, b) => {
+    for(let encore = true; encore;){ encore = false; // jusqu’à ne plus toucher de silence (deux pauses peuvent se suivre)
+      for(const s of sil){
+        if(s.debut <= a + 0.05 && s.fin > a && s.fin < b){ a = s.fin; encore = true; }
+        if(s.fin >= b - 0.05 && s.debut < b && s.debut > a){ b = s.debut; encore = true; }
+      }
+    }
+    return [a, b];
+  };
+  // 2. Entre deux ancres, les phrases manquantes sont calées sur les pauses (programmation dynamique, decouper)
+  const res = new Array(morceaux.length);
+  let i = 0;
+  while(i < morceaux.length){
+    if(ancres[i]){ const [a, b] = rogner(ancres[i].debut, ancres[i].fin); res[i] = { texte: texteEcrit(morceaux[i]), debut: a, fin: b }; i++; continue; }
+    let j = i; while(j < morceaux.length && !ancres[j]) j++;
+    const avant = i ? res[i - 1].fin : debutVoix, apres = j < morceaux.length ? ancres[j].debut : finVoix;
+    const [a, b] = rogner(avant, apres);
+    const bornes = decouper(sil, a, b, textes.slice(i, j));
+    for(let k = i; k < j; k++) res[k] = { texte: texteEcrit(morceaux[k]), debut: k > i ? bornes[k - i - 1].fin : a, fin: k < j - 1 ? bornes[k - i].debut : b };
+    i = j;
+  }
+  return res;
 }
 
 /* ---------------- Clips (filmés image par image par captures.mjs, 30 images/s, double résolution) ---------------- */
@@ -127,7 +195,7 @@ async function rendre(def, nomSortie, { avecVoix }){
 
   // 1. Calage de tous les morceaux, puis découpe en scènes
   const tous = def.scenes.flatMap(s => s.morceaux);
-  const cales = caler(fichierVoix, tous);
+  const cales = caler(fichierVoix, tous, def.scenes.map(s => s.morceaux.length));
   let k = 0, T = 0;
   const scenes = def.scenes.map((s, i) => {
     const m = cales.slice(k, k += s.morceaux.length);
@@ -259,7 +327,7 @@ const CHAPITRES = [
 const complete = format => ({ format, voix: "audio/voix-complete.mp3", fin: 4, sousTitres: format === "9x16", stTaille: 56,
   scenes: CHAPITRES.map(c => ({ ...c, plans: c.plans.map(p => p.calque === "FIN" ? { calque: "fin-" + format } : p) })) });
 
-export { caler, LONGUE, COURTE };
+export { caler, LONGUE, COURTE, complete };
 const VERSIONS = {
   longue: () => rendre(LONGUE, "ose-demander-16x9", { avecVoix: true }),
   courte: () => rendre(COURTE, "ose-demander-9x16-voix", { avecVoix: true }),
