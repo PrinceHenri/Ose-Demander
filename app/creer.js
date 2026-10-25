@@ -244,7 +244,9 @@ function topHTML(onHistory){
 }
 
 function renderCreator(){
-  setTheme(S.theme, S.anim, S.ac, S.step==="home" ? "home" : S.step===4 ? true : "dim"); // accueil : sa scène ; aperçu : la scène entière ; saisie : atténuée
+  // Accueil et choix du modèle : toujours le thème de base (un modèle choisi puis quitté par « Retour » n'y laisse pas ses couleurs)
+  const neutre = S.step==="home" || S.step===1;
+  setTheme(neutre ? "base" : S.theme, S.anim, neutre ? "" : S.ac, S.step==="home" ? "home" : S.step===4 ? true : "dim"); // accueil : sa scène ; aperçu : la scène entière ; saisie : atténuée
   document.title = SITE_TITLE;
   const n=S.step;
   $("#app").innerHTML = `
@@ -1439,4 +1441,4 @@ async function importHistory(file){
   toast(msg);
 }
 
-oseLoaded("creer", "7a4d73e995");
+oseLoaded("creer", "6069d263d5");

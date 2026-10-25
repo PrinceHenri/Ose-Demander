@@ -833,7 +833,9 @@ await test("Création : scène atténuée pendant la saisie, entière sur l'aper
     PAGE.lire("renderCreator")();
     assert.equal(sceneZone.className, "scene-home", `${t.name}, accueil : sa propre scène`);
     assert.equal(sceneZone.innerHTML, PAGE.lire("HOME_SCENE"));
-    for(const step of [1, 2, 3]){
+    S.step = 1; PAGE.lire("renderCreator")();
+    assert.equal(sceneZone.className, "scene-base dim", `${t.name}, étape 1 (choix du modèle) : thème de base, même après un retour`);
+    for(const step of [2, 3]){
       S.step = step; PAGE.lire("renderCreator")();
       assert.equal(sceneZone.className, `scene-${t.id} dim`, `${t.name}, étape ${step} : scène atténuée`);
       assert.equal(sceneZone.innerHTML, SCENES[t.id].wall);
