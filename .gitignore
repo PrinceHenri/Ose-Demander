@@ -23,6 +23,11 @@ signing.properties
 !/android/README.md
 !/android/fiche/
 
+# Vidéo de présentation : seuls les compositions, le script, faits.md, charte.md et les sous-titres sont suivis.
+# Rendus MP4, enregistrements, captures et audio restent sur l'ordinateur.
+/video/rendus/
+/video/sources-media/
+
 # Divers
 .env
 .env.*

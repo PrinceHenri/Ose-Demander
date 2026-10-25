@@ -6,3 +6,5 @@ include:
 # Le projet Android local n'a rien à faire sur le site
 exclude:
   - android
+# Vidéo de présentation (compositions, script, sous-titres) : jamais publiée sur le site
+  - video

@@ -2405,6 +2405,13 @@ await test("Site : .well-known publié par GitHub Pages (_config.yml), projet An
   assert.ok(/^include:\n  - \.well-known$/m.test(c), "include: .well-known");
   assert.ok(/^exclude:\n  - android$/m.test(c));
 });
+await test("Vidéo : dossier video/ jamais publié, médias lourds jamais suivis par Git", () => {
+  assert.ok(/^exclude:(\n(#.*|  - .*))*\n  - video$/m.test(lireFichier("_config.yml")), "_config.yml exclut video");
+  const gi = lireFichier(".gitignore").split(/\r?\n/);
+  for(const r of ["/video/rendus/", "/video/sources-media/"]) assert.ok(gi.includes(r), `.gitignore : ${r}`);
+  const suivis = execFileSync("git", ["ls-files", "video"], { cwd: RACINE, encoding: "utf8" }).split("\n").filter(Boolean);
+  assert.ok(!suivis.some(f => /\.(mp4|mov|webm|mkv|mp3|wav|m4a|ogg|flac|png|jpe?g|webp|gif)$/i.test(f) || /^video\/(rendus|sources-media)\//.test(f)), `aucun média lourd suivi : ${suivis.join(", ")}`);
+});
 await test("Liaison (.well-known/assetlinks.json) : relie fr.osedemander.app à des empreintes SHA-256 valides", () => {
   let txt; try{ txt = lireFichier(".well-known/assetlinks.json"); }catch{ console.log("    (assetlinks.json pas encore créé : en attente de l'empreinte de la clé)"); return; }
   const j = JSON.parse(txt);
