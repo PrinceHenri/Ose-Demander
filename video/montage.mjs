@@ -188,7 +188,7 @@ async function rendre(def, nomSortie, { avecVoix }){
   const [w, h] = APERCU ? [W / 2, H / 2] : [W, H];
   // Un seul encodage de qualité, à la fin ; les étapes intermédiaires sont presque sans perte
   const enc = APERCU ? ["-c:v", "libx264", "-preset", "veryfast", "-crf", "24", "-pix_fmt", "yuv420p"]
-    : ["-c:v", "libx264", "-preset", "slow", "-crf", "15", "-tune", "animation", "-profile:v", "high", "-pix_fmt", "yuv420p"];
+    : ["-c:v", "libx264", "-preset", "medium", "-crf", "15", "-tune", "animation", "-profile:v", "high", "-pix_fmt", "yuv420p"];
   const inter = ["-c:v", "libx264", "-preset", "veryfast", "-crf", APERCU ? "16" : "6", "-pix_fmt", "yuv420p"];
   const fichierVoix = join(MEDIA, def.voix);
   if(!existsSync(fichierVoix)) throw new Error("Voix absente : " + fichierVoix);
@@ -223,6 +223,8 @@ async function rendre(def, nomSortie, { avecVoix }){
     s.plans.forEach((p, j) => {
       const d = p.d || Math.max(0.8, (s.longueur - fixes) / Math.max(1, libres));
       const f = join(TMP, `${nomSortie}-${i}-${j}.mp4`), cadre = Math.round(d * FPS);
+      const cle = JSON.stringify({ p, d, w, h, APERCU }); // plan déjà fabriqué à l’identique : réutilisé
+      if(existsSync(f) && existsSync(f + ".cle") && readFileSync(f + ".cle", "utf8") === cle){ morceauxVideo.push(f); return; }
       if(p.clip){
         const src = clip(def.format, p.clip);
         ff(["-ss", String(p.depuis || 0), "-i", src, "-vf", `tpad=stop_mode=clone:stop_duration=${d.toFixed(3)},fps=${FPS},scale=${w}:${h}:flags=lanczos,setsar=1,format=yuv420p`, "-frames:v", String(cadre), "-an", ...inter, f]);
@@ -232,6 +234,7 @@ async function rendre(def, nomSortie, { avecVoix }){
         const z = p.calque ? "1" : `1+0.04*on/${cadre}`;
         ff(["-loop", "1", "-i", img, "-vf", `scale=${w * 2}:${h * 2}:flags=lanczos,zoompan=z='${z}':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=1:s=${w}x${h}:fps=${FPS},setsar=1,format=yuv420p`, "-frames:v", String(cadre), "-an", ...inter, f]);
       }
+      writeFileSync(f + ".cle", JSON.stringify({ p, d, w, h, APERCU }));
       morceauxVideo.push(f);
     });
   });
@@ -257,14 +260,22 @@ async function rendre(def, nomSortie, { avecVoix }){
   });
   const video = join(TMP, `${nomSortie}-video.mp4`);
   if(sur.length){
-    const entrees = sur.flatMap(o => ["-loop", "1", "-t", reel.toFixed(3), "-i", o.png]);
-    let g = "", prec = "0:v";
-    sur.forEach((o, n) => {
-      g += `[${n + 1}:v]scale=${w}:${h}:flags=lanczos,format=rgba,fade=in:st=${o.a.toFixed(3)}:d=0.2:alpha=1,fade=out:st=${(o.b - 0.2).toFixed(3)}:d=0.2:alpha=1[c${n}];`;
-      g += `[${prec}][c${n}]overlay=0:0:enable='between(t,${o.a.toFixed(3)},${o.b.toFixed(3)})'${n === sur.length - 1 ? ",format=yuv420p[v]" : `[v${n}]`};`;
-      prec = `v${n}`;
-    });
-    ff(["-i", base, ...entrees, "-filter_complex", g.replace(/;$/, ""), "-map", "[v]", "-t", reel.toFixed(3), ...enc, video]);
+    // Par lots de 8 calques (sinon trop lent avec 67 sous-titres) ; chaque lot repart de la vidéo du lot précédent.
+    // Calques en boucle sur toute la durée, affichés seulement entre a et b (une version décalée dans le temps bloquait ffmpeg).
+    const LOT = 8; let entree = base;
+    for(let l = 0; l < sur.length; l += LOT){
+      const lot = sur.slice(l, l + LOT), dernier = l + LOT >= sur.length;
+      const sortieLot = dernier ? video : join(TMP, `${nomSortie}-calques-${l / LOT}.mp4`);
+      const entrees = lot.flatMap(o => ["-loop", "1", "-framerate", String(FPS), "-t", reel.toFixed(3), "-i", o.png]);
+      let g = "", prec = "0:v";
+      lot.forEach((o, n) => {
+        g += `[${n + 1}:v]scale=${w}:${h}:flags=lanczos,format=rgba,fade=in:st=${o.a.toFixed(3)}:d=0.2:alpha=1,fade=out:st=${(o.b - 0.2).toFixed(3)}:d=0.2:alpha=1[c${n}];`;
+        g += `[${prec}][c${n}]overlay=0:0:enable='between(t,${o.a.toFixed(3)},${o.b.toFixed(3)})'${n === lot.length - 1 ? ",format=yuv420p[v]" : `[v${n}]`};`;
+        prec = `v${n}`;
+      });
+      ff(["-i", entree, ...entrees, "-filter_complex", g.replace(/;$/, ""), "-map", "[v]", "-t", reel.toFixed(3), ...(dernier ? enc : inter), sortieLot]);
+      entree = sortieLot;
+    }
   } else ff(["-i", base, ...enc, video]);
 
   // 5. Son : voix posée scène par scène, effets sonores (s'ils existent), aucune musique
