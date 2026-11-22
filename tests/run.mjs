@@ -3748,6 +3748,64 @@ await test("Import : une Reçue acceptée garde son statut et son agenda", async
   assert.equal(r.rep, "o"); assert.deepEqual(r.ag, rec.ag);
 });
 
+/* =========================================================
+   45. « Mes invitations » : compte à rebours des rendez-vous acceptés
+   ========================================================= */
+titre("45. Mes invitations : compte à rebours");
+await test("Calcul : avant le jour J, le jour J jusqu'à l'heure, « C'est l'heure ! » jusqu'à minuit, puis « Passé » ; sans heure, toute la journée", () => {
+  const P = chargerPage(), rb = P.lire("rebours"), le = (j, h, m = 0, s = 0, ms = 0) => new Date(2027, 2, j, h, m, s, ms);
+  assert.deepEqual(rb("2027-03-12", "20:00", le(10, 18)), { etat: "avant", j: 2, h: 2, m: 0, s: 0 });
+  assert.deepEqual(rb("2027-03-12", "20:00", le(11, 23, 59, 59)), { etat: "avant", j: 0, h: 20, m: 0, s: 1 }, "la veille : pas encore le jour J");
+  assert.deepEqual(rb("2027-03-12", "20:00", le(12, 8, 30)), { etat: "jour", j: 0, h: 11, m: 30, s: 0 });
+  assert.deepEqual(rb("2027-03-12", "20:00", le(12, 19, 59, 59, 500)), { etat: "jour", j: 0, h: 0, m: 0, s: 1 }, "seconde entamée : arrondie au-dessus");
+  assert.equal(rb("2027-03-12", "20:00", le(12, 20)).etat, "heure");
+  assert.equal(rb("2027-03-12", "20:00", le(12, 23, 59, 59)).etat, "heure");
+  assert.equal(rb("2027-03-12", "20:00", le(13, 0)).etat, "passe", "le lendemain");
+  assert.equal(rb("2027-03-12", "", le(11, 12)).etat, "avant");
+  assert.deepEqual(rb("2027-03-12", "", le(12, 23)), { etat: "jour" }, "sans heure : « C'est aujourd'hui ! » toute la journée");
+  assert.equal(rb("2027-03-12", "", le(13, 0, 0, 1)).etat, "passe");
+});
+await test("Affichage : chiffres cachés aux lecteurs d'écran, texte équivalent pour eux, « Passé » en souvenir", () => {
+  const P = chargerPage(), html = P.lire("reboursHTML"), parle = P.lire("reboursParle");
+  const it = { when: [["2027-03-12", "20:00"]] }, le = (j, h, m = 0) => new Date(2027, 2, j, h, m);
+  let h = html(it, 0, le(10, 18));
+  assert.ok(h.includes(">Dans</p>") && h.includes('class="rb-chiffres" aria-hidden="true"') && h.includes("<b>2</b> j") && h.includes("<b>02</b> h"));
+  assert.ok(h.includes('<p class="sr rb-sr">Dans 2 jours et 2 heures</p>') && h.includes('data-etat="avant"'));
+  h = html(it, 0, le(12, 18, 55));
+  assert.ok(h.includes("C'est aujourd'hui !") && !h.includes("<b>0</b> j") && h.includes("<b>01</b> h") && h.includes("<b>05</b> min"), "le jour J : les heures jusqu'au rendez-vous");
+  h = html(it, 0, le(12, 21)); assert.ok(h.includes("C'est l'heure !") && !h.includes("rb-chiffres"));
+  h = html(it, 0, le(14, 9)); assert.ok(h.includes(">Passé</p>") && h.includes("Souvenir du vendredi 12 mars") && !h.includes("rb-chiffres"));
+  assert.ok(html({ when: [["2027-03-12", ""]] }, 0, le(12, 9)).includes("C'est aujourd'hui !") && !html({ when: [["2027-03-12", ""]] }, 0, le(12, 9)).includes("rb-chiffres"), "sans heure : pas de chiffres le jour J");
+  assert.equal(parle({ j: 1, h: 1, m: 1, s: 0 }), "Dans 1 jour, 1 heure et 1 minute");
+  assert.equal(parle({ j: 0, h: 0, m: 5, s: 9 }), "Dans 5 minutes");
+  assert.equal(parle({ j: 0, h: 0, m: 0, s: 42 }), "Dans moins d'une minute");
+});
+await test("Cartes : seulement une invitation acceptée dont le créneau est connu (jamais une Refusée ni un Non)", async () => {
+  const P = chargerPage(), lien = LOCAL + "/#i=" + await L.encodeData(INV());
+  const env = { id: "abc123", from: "Alex", to: "Sam", occ: "date", when: [["2027-03-12", "20:00"]], created: "2026-10-17T10:00:00.000Z", link: lien };
+  const carte = P.lire("histCardEnv"), carteR = P.lire("histCardRecue");
+  assert.ok(!carte(env).includes("hist-rebours"), "pas encore acceptée");
+  assert.ok(carte({ ...env, ok: "2026-11-21T10:00:00.000Z" }).includes('class="hist-rebours"'));
+  assert.ok(!carte({ ...env, nid: "A".repeat(22), rep: "n", repAt: "2026-11-21T10:00:00.000Z" }).includes("hist-rebours"), "Non reçu");
+  assert.ok(!carte({ ...env, when: [["2027-03-12", "20:00"], ["2027-03-13", "19:30"]], ok: "2026-11-21T10:00:00.000Z" }).includes("hist-rebours"), "créneau inconnu");
+  const rec = { ...env, id: "abc124" };
+  assert.ok(carteR({ ...rec, rep: "o", repAt: "2026-11-21T10:00:00.000Z", repSlot: 0, ag: { t: "Dîner avec Alex", l: "", e: "" } }).includes("hist-rebours"));
+  assert.ok(!carteR({ ...rec, rep: "n", repAt: "2026-11-21T10:00:00.000Z" }).includes("hist-rebours"), "Refusée");
+  // Rendez-vous passé : « Passé » en souvenir, plus d'agenda à proposer
+  const passe = carte({ ...env, when: [["2020-03-12", "20:00"]], ok: "2020-03-01T10:00:00.000Z" });
+  assert.ok(passe.includes(">Passé</p>") && !passe.includes('data-act="cal"'), "passé : pas d'agenda");
+});
+await test("Mise à jour : un seul minuteur, cartes visibles seulement, rien quand l'onglet est caché, arrêt en quittant la page ; aucune animation", () => {
+  const src = PAGE.lire("startRebours").toString();
+  assert.ok(src.includes("clearInterval(reboursTimer)") && src.includes("IntersectionObserver") && src.includes("if(document.hidden) return;"));
+  assert.ok(src.includes('location.hash!=="#mes-invitations"') && src.includes("},1000);"), "une fois par seconde, arrêté hors de la page");
+  assert.ok(src.includes("if(r.etat!==c.dataset.etat)"), "changement d'étape : la carte est refaite");
+  assert.ok(PAGE.lire("renderHistory").toString().includes("startRebours();"));
+  const css = readFileSync(RACINE + "app/creer.css", "utf8").split(/\r?\n/).filter(l => /^\.(hist-rebours|rb-)/.test(l));
+  assert.ok(css.length >= 6 && css.every(l => !/animation|transition/.test(l)), "aucune animation");
+  assert.ok(css.some(l => l.includes("tabular-nums")), "chiffres de largeur fixe");
+});
+
 /* ---------- Bilan ---------- */
 console.log(`\n${ko ? "❌" : "✅"} ${ok} tests réussis, ${ko} en échec (graine ${GRAINE}${ko ? ` — pour rejouer : node tests/run.mjs --graine=${GRAINE}` : ""})`);
 if(ko){ console.log(echecs.map(e => "  - " + e).join("\n")); process.exitCode = 1; }

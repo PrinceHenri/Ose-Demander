@@ -81,6 +81,14 @@
 #histPanel>.hint{margin:0 0 14px}
 /* Statut Refusée (Reçues), fenêtre de choix du créneau accepté */
 .hist .rep-n{color:var(--muted)}
+/* Compte à rebours (« Mes invitations ») : pastilles en papier, chiffres de largeur fixe, aucune animation */
+.hist-rebours{margin:10px 0 2px;padding:10px 12px;border:2px dashed var(--line);border-radius:14px;background:var(--surface)}
+.rb-titre{margin:0;font-weight:800;font-size:17px;color:var(--accent-text)}
+.rb-passe{color:var(--muted)}
+.rb-sous{margin:2px 0 0;font-size:14px;color:var(--muted)}
+.rb-chiffres{display:flex;flex-wrap:wrap;gap:5px;margin:8px 0 0}
+.rb-u{display:inline-flex;align-items:baseline;gap:2px;border:2px solid var(--ink);border-radius:10px;background:var(--surface);box-shadow:2px 2px 0 var(--ink);padding:3px 6px;font-size:12px;color:var(--muted)}
+.rb-u b{font-size:18px;color:var(--ink);font-variant-numeric:tabular-nums}
 .choix-creneau{display:flex;flex-direction:column;gap:8px;margin:14px 0}
 .hist-tabs button{min-height:44px;display:inline-flex;align-items:center;justify-content:center;gap:8px;font-size:15px}
 .hist-tabs button[aria-selected="true"]{background:var(--surface);color:var(--ink);box-shadow:0 1px 0 var(--line),0 0 0 2px var(--ink)}
@@ -168,4 +176,4 @@
 .img-btns .btn{flex:1 1 160px}
 .img-btns a.btn{display:block;text-align:center;text-decoration:none}
 .img-close{display:block;min-height:44px;margin:4px auto 0}
-:root{--ose-creer-css:"ce3d665876"}
+:root{--ose-creer-css:"9256940306"}

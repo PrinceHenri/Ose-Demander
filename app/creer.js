@@ -1334,12 +1334,74 @@ function rdvSlot(it, recue){
   return s!==undefined ? s : it.when.length===1 ? 0 : null;
 }
 // Heure insécable : « 12 h 30 » ne se coupe jamais en fin de ligne
+// Rendez-vous passé (le lendemain du jour J) : plus d'agenda à proposer, il reste en souvenir
+const rdvPasse = (it, s) => rebours(it.when[s][0], it.when[s][1]).etat==="passe";
 const rdvQuand = (it, s) => `${frDate(it.when[s][0])} à ${frTime(it.when[s][1]).replace(/ /g, " ")}`;
 function statutRecue(it){
   if(it.rep==="n") return `<p class="rep rep-n">Refusée</p>`;
   if(it.rep!=="o") return "";
   const s=rdvSlot(it, true);
   return `<p class="rep rep-o">Acceptée 🎉, ${esc(s===null ? "créneau à choisir dans l'invitation" : rdvQuand(it, s))}</p>`;
+}
+/* Compte à rebours d'un rendez-vous accepté, en heure locale, calculé sur l'appareil.
+   Avant le jour J : jours, heures, minutes, secondes. Le jour J : « C'est aujourd'hui ! » et le temps jusqu'à l'heure du
+   rendez-vous, puis « C'est l'heure ! » jusqu'à minuit. Le lendemain : « Passé » (souvenir). Sans heure : « C'est aujourd'hui ! » toute la journée. */
+function rebours(day, time, now=new Date()){
+  const [Y,M,D]=day.split("-").map(Number), jour=new Date(Y,M-1,D), lendemain=new Date(Y,M-1,D+1);
+  if(now>=lendemain) return {etat:"passe"};
+  if(!time) return now>=jour ? {etat:"jour"} : {etat:"avant", ...decompte(jour-now)};
+  const [h,m]=time.split(":").map(Number), debut=new Date(Y,M-1,D,h,m);
+  if(now>=debut) return {etat:"heure"};
+  return {etat: now>=jour ? "jour" : "avant", ...decompte(debut-now)};
+}
+function decompte(ms){ const t=Math.ceil(ms/1000); return {j:Math.floor(t/86400), h:Math.floor(t%86400/3600), m:Math.floor(t%3600/60), s:t%60}; }
+const deux = n => String(n).padStart(2,"0");
+// Chiffres qui défilent (cachés aux lecteurs d'écran) ; un texte équivalent pour eux, à la minute près
+function reboursChiffres(r){
+  const u=(n,l)=>`<span class="rb-u"><b>${deux(n)}</b> ${l}</span>`;
+  return (r.j ? `<span class="rb-u"><b>${r.j}</b> j</span>` : "") + u(r.h,"h") + u(r.m,"min") + u(r.s,"s");
+}
+function reboursParle(r){
+  if(!r.j && !r.h && !r.m) return "Dans moins d'une minute";
+  const p=[], mot=(n,un,plus)=>`${n} ${n>1?plus:un}`;
+  if(r.j) p.push(mot(r.j,"jour","jours"));
+  if(r.h) p.push(mot(r.h,"heure","heures"));
+  if(r.m || !p.length) p.push(mot(r.m,"minute","minutes"));
+  return "Dans " + (p.length>1 ? p.slice(0,-1).join(", ")+" et "+p.at(-1) : p[0]);
+}
+function reboursHTML(it, s, now=new Date()){
+  const [day,time]=it.when[s], r=rebours(day, time, now);
+  const corps = r.etat==="passe" ? `<p class="rb-titre rb-passe">Passé</p><p class="rb-sous">Souvenir du ${esc(frDate(day))}</p>`
+    : r.etat==="heure" ? `<p class="rb-titre">C'est l'heure !</p>`
+    : `<p class="rb-titre">${r.etat==="jour" ? "C'est aujourd'hui !" : "Dans"}</p>${r.h===undefined ? "" : `<p class="rb-chiffres" aria-hidden="true">${reboursChiffres(r)}</p><p class="sr rb-sr">${reboursParle(r)}</p>`}`;
+  return `<div class="hist-rebours" data-rdv="${esc(day)}T${esc(time||"")}" data-etat="${r.etat}">${corps}</div>`;
+}
+/* Un seul minuteur pour la page, une fois par seconde : seules les cartes visibles sont mises à jour, rien quand l'onglet
+   est caché ; il s'arrête tout seul quand on quitte « Mes invitations ». Un changement d'étape (jour J, l'heure, passé) refait la carte. */
+let reboursTimer=0, reboursVus=null;
+function startRebours(){
+  clearInterval(reboursTimer); reboursVus?.disconnect(); reboursVus=null;
+  const visibles=new Set();
+  const suivre=c=>{ if(reboursVus) reboursVus.observe(c); else visibles.add(c); };
+  if(typeof IntersectionObserver!=="undefined")
+    reboursVus=new IntersectionObserver(es=>es.forEach(e=>{ if(e.isIntersecting) visibles.add(e.target); else visibles.delete(e.target); }));
+  $$(".hist-rebours").forEach(suivre);
+  if(!visibles.size && !reboursVus) return;
+  reboursTimer=setInterval(()=>{
+    if(location.hash!=="#mes-invitations"){ clearInterval(reboursTimer); reboursVus?.disconnect(); return; }
+    if(document.hidden) return;
+    const now=new Date();
+    for(const c of [...visibles]){
+      if(!c.isConnected){ visibles.delete(c); continue; }
+      const [day,time]=c.dataset.rdv.split("T"), r=rebours(day, time, now);
+      if(r.etat!==c.dataset.etat){
+        const box=document.createElement("div"); box.innerHTML=reboursHTML({when:[[day,time]]}, 0, now);
+        const n=box.firstElementChild; c.replaceWith(n); visibles.delete(c); reboursVus?.unobserve(c); suivre(n); continue;
+      }
+      const ch=$(".rb-chiffres",c); if(ch) ch.innerHTML=reboursChiffres(r);
+      const sr=$(".rb-sr",c); if(sr){ const t=reboursParle(r); if(sr.textContent!==t) sr.textContent=t; }
+    }
+  },1000);
 }
 // « Ajouter à mon agenda » : fichier .ics (alerte 3 h avant) ; sur Android, Google Agenda en plus (sans l'alerte, qu'un lien ne peut pas fixer)
 const agendaBtns = () => `<button type="button" class="btn sm" data-act="cal">Ajouter à mon agenda</button>${isAndroid() ? `<button type="button" class="linkbtn" data-act="gcal">Google Agenda</button>` : ""}`;
@@ -1350,6 +1412,7 @@ function histCardEnv(it){
           <p class="who">Pour ${esc(it.to)}</p>
           ${histReply(it)}
           ${!it.rep && it.ok ? `<p class="rep rep-o">Acceptée 🎉${s===null ? "" : esc(", " + rdvQuand(it, s))}</p>` : ""}
+          ${s!==null ? reboursHTML(it, s) : ""}
           <p class="meta">De ${esc(it.from)} · ${esc(histOcc(it))}</p>
           <p class="meta">${esc(histWhen(it))}</p>
           <p class="meta">Créée le ${esc(new Date(it.created).toLocaleDateString("fr-FR",{day:"numeric",month:"long",year:"numeric"}))}</p>
@@ -1362,7 +1425,7 @@ function histCardEnv(it){
             ${it.jeton && !it.gone ? `<button type="button" class="btn sm danger" data-act="unpub">Supprimer le lien en ligne</button>` : ""}
           </div>
           ${s!==null || !it.rep ? `<div class="acts">
-            ${s!==null ? agendaBtns() : ""}
+            ${s!==null && !rdvPasse(it, s) ? agendaBtns() : ""}
             ${!it.rep && !it.ok ? `<button type="button" class="btn sm" data-act="ok">Marquer comme acceptée</button>` : ""}
             ${!it.rep && it.ok ? `<button type="button" class="linkbtn" data-act="unok">Annuler « acceptée »</button>` : ""}
           </div>` : ""}
@@ -1373,13 +1436,14 @@ function histCardRecue(it){
         <li data-id="${esc(it.id)}">
           <p class="who">De ${esc(it.from)}</p>
           ${statutRecue(it)}
+          ${rdvSlot(it, true)!==null ? reboursHTML(it, rdvSlot(it, true)) : ""}
           <p class="meta">Pour ${esc(it.to)}</p>
           <p class="meta">${esc(histOcc(it))}</p>
           <p class="meta">${esc(histWhen(it))}</p>
           <p class="meta">Ouverte le ${esc(new Date(it.created).toLocaleDateString("fr-FR",{day:"numeric",month:"long",year:"numeric"}))}</p>
           <div class="acts">
             <button type="button" class="btn sm primary" data-act="open">Ouvrir</button>
-            ${rdvSlot(it, true)!==null ? agendaBtns() : ""}
+            ${rdvSlot(it, true)!==null && !rdvPasse(it, rdvSlot(it, true)) ? agendaBtns() : ""}
             <button type="button" class="btn sm ghost" data-act="del">Retirer de l'historique</button>
           </div>
         </li>`;
@@ -1419,6 +1483,7 @@ function renderHistory(){
   refreshInstall();
   bindSound(true);
   syncReplies().then(ch=>{ if(ch && location.hash==="#mes-invitations") renderHistory(); });
+  startRebours();
 
   const tabs=$$(".hist-tabs [role=tab]");
   const choisir=id=>{ if(id===histTab) return; histTab=id; renderHistory(); $(`#tab-${id}`)?.focus(); };
@@ -1636,4 +1701,4 @@ async function importHistory(file){
   toast(msg);
 }
 
-oseLoaded("creer", "cae8af06c0");
+oseLoaded("creer", "9576ee0565");
