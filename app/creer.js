@@ -232,7 +232,7 @@ function applyTemplate(id){
 
 const SITE_TITLE = document.title;
 function topHTML(onHistory){
-  const n = onHistory ? 0 : loadHistory().length;
+  const n = onHistory ? 0 : loadHistory().length + loadRecues().length;
   return `<header class="top">
       ${logoHTML(seasonToday(), S.anim!=="0")}
       <div class="top-actions">
@@ -800,6 +800,7 @@ function bindCreator(){
     const w=window.open("","_blank");
     try{
       const url=await buildLink();
+      noteTestee(url);
       if(w){ try{ w.opener=null; }catch(e){} w.location.href=url; }
       else toast("Ton navigateur a bloqué le nouvel onglet : autorise-le, ou crée ton lien et ouvre-le");
     }catch(e){ if(w) w.close(); }
@@ -1200,6 +1201,35 @@ function validEntry(x){
       : (x.rep==="o" || x.rep==="n") && typeof x.repAt==="string" && !isNaN(Date.parse(x.repAt)) && x.repAt.length<=30
         && (x.repSlot===undefined || (Number.isInteger(x.repSlot) && x.repSlot>=0 && x.repSlot<x.when.length)));
 }
+/* Onglet Reçues (clé RECUES_KEY, écrite à l'ouverture d'une invitation par noteRecue, dans index.html).
+   Mêmes exigences que les Envoyées : champs connus seulement, bons types, liens d'Ose Demander ; un lien court garde son lien complet. */
+const RECUE_FIELDS=["id","from","to","occ","occFree","when","link","long","created"];
+function validRecue(x){
+  if(!x || typeof x!=="object" || Array.isArray(x) || Object.keys(x).some(k=>!RECUE_FIELDS.includes(k))) return false;
+  const { long, ...reste } = x;
+  // Les champs communs se vérifient comme une Envoyée (lien long seul, ou lien court avec son lien complet)
+  return validEntry(shortId(x.link) ? { ...reste, long, gone:true } : reste) && (shortId(x.link) ? typeof long==="string" : long===undefined);
+}
+const loadRecuesBrutes = () => lireListe(RECUES_KEY).filter(validRecue);
+// Une invitation présente dans les Envoyées de cet appareil n'est jamais affichée en Reçues
+function loadRecues(){
+  const env=loadHistory();
+  return loadRecuesBrutes().filter(x=>!recueIgnoree(x.link, invLink(x), env, [])).sort(byNewest);
+}
+function storeRecues(list){
+  try{
+    if(list.length) localStorage.setItem(RECUES_KEY, JSON.stringify(list.slice(0,RECUES_MAX)));
+    else localStorage.removeItem(RECUES_KEY);
+    return true;
+  }catch(e){ return false; }
+}
+function noteTestee(long){
+  try{
+    const now=Date.now(), l=lireListe(TESTEES_KEY).filter(t=>typeof t.l==="string" && Number.isFinite(t.t) && now-t.t<TESTEE_DUREE && t.l!==long);
+    l.unshift({l:long, t:now});
+    localStorage.setItem(TESTEES_KEY, JSON.stringify(l.slice(0,20)));
+  }catch(e){}
+}
 /* L'entrée est toujours reconstruite à partir du lien décodé et validé : ce qui est affiché correspond au lien */
 function entryFrom(d, link, created=new Date().toISOString(), id=newId(), extra={}){
   const e={id, from:d.f, to:d.t, occ:d.o, when: d.sl ? d.sl.map(s=>[s[0],s[1]]) : [[d.d,d.h]], link, created};
@@ -1260,6 +1290,8 @@ async function addToHistory(link, sh=null, notif=null){
     const list=loadHistory().filter(x=>x.link!==link);
     list.unshift(e);
     if(!storeHistory(list)) return false;
+    const long=invLink(e), recues=loadRecuesBrutes();
+    if(recues.some(x=>x.link===e.link || x.long===long || x.link===long)) storeRecues(recues.filter(x=>!(x.link===e.link || x.long===long || x.link===long)));
     askPersist();
     return true;
   }catch(e){ return false; }
@@ -1271,19 +1303,11 @@ function histWhen(it){
   const short=iso=>{ const [y,m,d]=iso.split("-").map(Number); return new Date(y,m-1,d).toLocaleDateString("fr-FR",{weekday:"short",day:"numeric",month:"short"}); };
   return "Au choix : "+it.when.map(w=>`${short(w[0])} ${frTime(w[1])}`).join(", ");
 }
-function renderHistory(){
-  setTheme("base","n");
-  document.title = "Mes invitations — Ose Demander";
-  const list=loadHistory();
-  $("#app").innerHTML = `
-  <div class="wrap">
-    ${topHTML(true)}
-    <section class="panel">
-      <a class="back" href="#">← Retour</a>
-      <h2 tabindex="-1">Mes invitations</h2>
-      <p class="lead">Ton historique reste uniquement sur cet appareil.</p>
-      ${isStandalone() ? "" : `<p class="tip">💡 Installe l'appli pour mieux conserver ton historique.</p>`}
-      ${list.length ? `<ul class="hist" id="histList">${list.map(it=>`
+/* « Mes invitations » : deux onglets, Envoyées (créées sur cet appareil) et Reçues (ouvertes depuis leur lien).
+   Onglet par défaut : Envoyées, sauf s'il est vide et qu'il y a des Reçues. Flèches gauche et droite : changer d'onglet. */
+let histTab="";
+function histCardEnv(it){
+  return `
         <li data-id="${esc(it.id)}">
           <p class="who">Pour ${esc(it.to)}</p>
           ${histReply(it)}
@@ -1298,15 +1322,51 @@ function renderHistory(){
             <button type="button" class="btn sm ghost" data-act="del">Retirer de l'historique</button>
             ${it.jeton && !it.gone ? `<button type="button" class="btn sm danger" data-act="unpub">Supprimer le lien en ligne</button>` : ""}
           </div>
-        </li>`).join("")}</ul>`
-      : `<p class="empty">Aucune invitation pour l'instant.<br>Quand tu cliques sur « Créer mon lien », elle s'ajoute ici.</p>`}
+        </li>`;
+}
+function histCardRecue(it){
+  return `
+        <li data-id="${esc(it.id)}">
+          <p class="who">De ${esc(it.from)}</p>
+          <p class="meta">Pour ${esc(it.to)}</p>
+          <p class="meta">${esc(histOcc(it))}</p>
+          <p class="meta">${esc(histWhen(it))}</p>
+          <p class="meta">Ouverte le ${esc(new Date(it.created).toLocaleDateString("fr-FR",{day:"numeric",month:"long",year:"numeric"}))}</p>
+          <div class="acts">
+            <button type="button" class="btn sm primary" data-act="open">Ouvrir</button>
+            <button type="button" class="btn sm ghost" data-act="del">Retirer de l'historique</button>
+          </div>
+        </li>`;
+}
+function renderHistory(){
+  setTheme("base","n");
+  document.title = "Mes invitations — Ose Demander";
+  const env=loadHistory(), rec=loadRecues();
+  if(!histTab) histTab = !env.length && rec.length ? "recues" : "envoyees";
+  const recues = histTab==="recues", list = recues ? rec : env;
+  const tab=(id, label, n)=>`<button type="button" role="tab" id="tab-${id}" data-tab="${id}" aria-controls="histPanel" aria-selected="${histTab===id}" tabindex="${histTab===id?0:-1}">${label}<span class="tab-n">${n}</span></button>`;
+  $("#app").innerHTML = `
+  <div class="wrap">
+    ${topHTML(true)}
+    <section class="panel">
+      <a class="back" href="#">← Retour</a>
+      <h2 tabindex="-1">Mes invitations</h2>
+      <p class="lead">Ton historique reste uniquement sur cet appareil.</p>
+      ${isStandalone() ? "" : `<p class="tip">💡 Installe l'appli pour mieux conserver ton historique.</p>`}
+      <div class="seg hist-tabs" role="tablist" aria-label="Mes invitations">${tab("envoyees","Envoyées",env.length)}${tab("recues","Reçues",rec.length)}</div>
+      <div id="histPanel" role="tabpanel" aria-labelledby="tab-${histTab}">
+      ${recues ? `<p class="hint">Les invitations que tu ouvres sont gardées ici, sur cet appareil seulement. Personne n'en est averti.</p>` : ""}
+      ${list.length ? `<ul class="hist" id="histList">${list.map(recues ? histCardRecue : histCardEnv).join("")}</ul>`
+        : recues ? `<p class="empty">Aucune invitation reçue pour l'instant.<br>Quand tu ouvres une invitation, elle s'ajoute ici.</p>`
+        : `<p class="empty">Aucune invitation pour l'instant.<br>Quand tu cliques sur « Créer mon lien », elle s'ajoute ici.</p>`}
+      </div>
       <div class="hist-tools">
-        ${list.length ? `<button type="button" class="btn sm" id="histExport">Exporter mon historique</button>` : ""}
+        ${env.length || rec.length ? `<button type="button" class="btn sm" id="histExport">Exporter mon historique</button>` : ""}
         <button type="button" class="btn sm" id="histImport">Importer un historique</button>
         ${list.length ? `<button type="button" class="btn sm danger" id="histClear">Tout effacer</button>` : ""}
       </div>
       <input type="file" id="histFile" accept=".json,application/json" class="hidden">
-      <p class="hint">L'export crée un fichier .json à garder pour toi : il contient tes liens, donc tes invitations, et de quoi supprimer tes liens courts. Pratique pour changer de téléphone ou passer du navigateur à l'appli.</p>
+      <p class="hint">L'export crée un fichier .json à garder pour toi : il contient tes liens, donc tes invitations envoyées et reçues, et de quoi supprimer tes liens courts. Pratique pour changer de téléphone ou passer du navigateur à l'appli.</p>
     </section>
     <p class="foot">Rien n'est envoyé en ligne : l'historique est enregistré dans ce navigateur.<br><a href="mentions-legales.html#historique">En savoir plus</a></p>
   </div>`;
@@ -1314,9 +1374,29 @@ function renderHistory(){
   bindSound(true);
   syncReplies().then(ch=>{ if(ch && location.hash==="#mes-invitations") renderHistory(); });
 
+  const tabs=$$(".hist-tabs [role=tab]");
+  const choisir=id=>{ if(id===histTab) return; histTab=id; renderHistory(); $(`#tab-${id}`)?.focus(); };
+  tabs.forEach((b,i)=>{
+    b.addEventListener("click",()=>choisir(b.dataset.tab));
+    b.addEventListener("keydown",e=>{
+      if(e.key!=="ArrowRight" && e.key!=="ArrowLeft") return;
+      e.preventDefault(); choisir(tabs[(i+(e.key==="ArrowRight"?1:tabs.length-1))%tabs.length].dataset.tab);
+    });
+  });
   $("#histList")?.addEventListener("click", async e=>{
     const b=e.target.closest("[data-act]"); if(!b) return;
-    const id=b.closest("[data-id]").dataset.id, it=loadHistory().find(x=>x.id===id);
+    const id=b.closest("[data-id]").dataset.id;
+    if(recues){
+      const it=loadRecuesBrutes().find(x=>x.id===id);
+      if(!it){ renderHistory(); return; }
+      if(b.dataset.act==="open") window.open(invLink(it),"_blank","noopener");
+      if(b.dataset.act==="del"){
+        if(storeRecues(loadRecuesBrutes().filter(x=>x.id!==id))){ renderHistory(); toast("Invitation retirée de l'historique"); }
+        else toast("Impossible de modifier l'historique sur cet appareil");
+      }
+      return;
+    }
+    const it=loadHistory().find(x=>x.id===id);
     if(!it){ renderHistory(); return; }
     switch(b.dataset.act){
       case "copy": { const l=it.gone ? it.long : it.link; toast(await copyText(l) ? (it.gone ? "Lien complet copié (le lien court a été supprimé)" : "Lien copié") : "Copie impossible"); break; }
@@ -1334,13 +1414,18 @@ function renderHistory(){
   $("#histImport").addEventListener("click", ()=>$("#histFile").click());
   $("#histFile").addEventListener("change", e=>{ importHistory(e.target.files[0]); e.target.value=""; });
   $("#histClear")?.addEventListener("click", async()=>{
-    const n=loadHistory().length;
+    const n=list.length, quoi = recues ? "reçue" : "envoyée";
     const ok=await confirmSheet("Tout effacer ?",
-      `${n>1?`Les ${n} invitations`:"L'invitation"} de cet appareil ${n>1?"seront retirées":"sera retirée"} de l'historique. Les liens déjà envoyés continueront de fonctionner. Exporte ton historique avant si tu veux le garder.`,
+      `${n>1?`Les ${n} invitations ${quoi}s`:`L'invitation ${quoi}`} de cet appareil ${n>1?"seront retirées":"sera retirée"} de l'historique. Les liens continueront de fonctionner. Exporte ton historique avant si tu veux le garder.`,
       "Tout effacer");
     if(!ok) return;
+    if(recues){
+      if(storeRecues([])){ renderHistory(); toast("Invitations reçues effacées"); }
+      else toast("Impossible d'effacer l'historique sur cet appareil");
+      return;
+    }
     for(const it of loadHistory()) if(it.nid && it.njeton && !it.rep) cancelNotif(it.nid, it.njeton);
-    if(storeHistory([])){ renderHistory(); toast("Historique effacé"); }
+    if(storeHistory([])){ renderHistory(); toast("Invitations envoyées effacées"); }
     else toast("Impossible d'effacer l'historique sur cet appareil");
   });
 }
@@ -1404,9 +1489,9 @@ async function duplicateInvitation(it){
   toast("Invitation dupliquée : modifie ce que tu veux");
 }
 function exportHistory(){
-  const items=loadHistory();
-  if(!items.length){ toast("Ton historique est vide"); return; }
-  const json=JSON.stringify({app:"ose-demander", version:1, exported:new Date().toISOString(), items}, null, 2);
+  const items=loadHistory(), recues=loadRecues();
+  if(!items.length && !recues.length){ toast("Ton historique est vide"); return; }
+  const json=JSON.stringify({app:"ose-demander", version:2, exported:new Date().toISOString(), items, recues}, null, 2);
   saveFile(`ose-demander-historique-${todayISO()}.json`, json, "application/json");
   toast("Historique exporté");
 }
@@ -1415,11 +1500,13 @@ async function importHistory(file){
   const bad="Ce fichier n'est pas un historique Ose Demander";
   if(file.size>2e6){ toast(bad); return; }
   let data; try{ data=JSON.parse(await file.text()); }catch(e){ toast(bad); return; }
+  // Version 1 : Envoyées seulement ; version 2 : Envoyées (items) et Reçues (recues)
   const okTop = data && typeof data==="object" && !Array.isArray(data)
-    && Object.keys(data).every(k=>["app","version","exported","items"].includes(k))
-    && data.app==="ose-demander" && data.version===1
+    && Object.keys(data).every(k=>["app","version","exported","items","recues"].includes(k))
+    && data.app==="ose-demander" && (data.version===1 || data.version===2)
     && (data.exported===undefined || (typeof data.exported==="string" && data.exported.length<=40))
-    && Array.isArray(data.items) && data.items.length<=1000;
+    && Array.isArray(data.items) && data.items.length<=1000
+    && (data.recues===undefined ? true : data.version===2 && Array.isArray(data.recues) && data.recues.length<=1000);
   if(!okTop){ toast(bad); return; }
   const list=loadHistory(), links=new Set(list.map(x=>x.link)), ids=new Set(list.map(x=>x.id));
   let added=0, skipped=0;
@@ -1433,6 +1520,19 @@ async function importHistory(file){
   }
   list.sort(byNewest);
   if(added && !storeHistory(list)){ toast("Impossible d'enregistrer l'historique sur cet appareil"); return; }
+  // Reçues : reconstruites à partir de leur lien complet, jamais une invitation déjà rangée dans les Envoyées
+  const recues=loadRecuesBrutes(), rLinks=new Set(recues.map(x=>x.link)), rIds=new Set(recues.map(x=>x.id));
+  let addedR=0;
+  for(const x of data.recues||[]){
+    if(!validRecue(x)){ skipped++; continue; }
+    if(rLinks.has(x.link) || recueIgnoree(x.link, invLink(x), list, [])) continue;
+    let d; try{ d=await decodeData(linkData(invLink(x))); }catch(e){ skipped++; continue; }
+    const e=recueEntry(d, x.link, invLink(x), x.created, rIds.has(x.id) ? newId() : x.id);
+    if(!validRecue(e)){ skipped++; continue; }
+    recues.push(e); rLinks.add(e.link); rIds.add(e.id); addedR++;
+  }
+  if(addedR && !storeRecues(recues.sort(byNewest))){ toast("Impossible d'enregistrer l'historique sur cet appareil"); return; }
+  added += addedR;
   if(added) askPersist();
   renderHistory();
   let msg = added ? `${added} invitation${added>1?"s":""} importée${added>1?"s":""}` : "Aucune nouvelle invitation à importer";
@@ -1441,4 +1541,4 @@ async function importHistory(file){
   toast(msg);
 }
 
-oseLoaded("creer", "6069d263d5");
+oseLoaded("creer", "cdf5a77265");

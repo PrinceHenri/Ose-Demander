@@ -1839,7 +1839,7 @@ await test("« Mes invitations » : lien court, lien complet et jeton validés s
   assert.ok(!ok({ ...base, link: court, long, gone: "oui" }));
   assert.ok(!ok({ ...base, link: long, jeton: "C".repeat(43) }), "jeton sans lien court");
   assert.ok(!ok({ ...base, link: `${LOCAL}/#s=court.cle` }));
-  const rh = PAGE.lire("renderHistory").toString();
+  const rh = PAGE.lire("histCardEnv").toString(); // carte d'une invitation envoyée (onglet Envoyées)
   assert.ok(rh.includes('${it.jeton && !it.gone ? `<button type="button" class="btn sm danger" data-act="unpub">Supprimer le lien en ligne</button>` : ""}'));
   assert.ok(PAGE.lire("duplicateInvitation").toString().includes("linkData(invLink(it))"), "dupliquer relit le lien complet (sans le service)");
 });
@@ -3536,6 +3536,118 @@ await test("Poids : index.html sous 108 Ko compressés en local (objectif en lig
   const n = gzipSync(readFileSync(RACINE + "index.html"), { level: 6 }).length;
   console.log(`      index.html ${(n / 1000).toFixed(1)} Ko ; ${CSP.FICHIERS.map(f => `${f.chemin} ${(gzipSync(readFileSync(RACINE + f.chemin), { level: 6 }).length / 1000).toFixed(1)} Ko`).join(", ")} (compressés)`);
   assert.ok(n < 108000, `${n} octets`);
+});
+
+/* =========================================================
+   43. « Mes invitations » : onglets Envoyées et Reçues
+   Une invitation ouverte depuis son lien est gardée sur l'appareil (Reçues), jamais l'exemple, la version partagée,
+   le rappel, une invitation de ses propres Envoyées ou un lien qu'on vient de tester. Export et import en version 2.
+   ========================================================= */
+titre("43. Mes invitations : Envoyées et Reçues");
+const ouvrirRecue = async (stockage, extra = {}) => {
+  const P = chargerPage({ charge: () => "ok", stockage }), code = await L.encodeData(INV(extra));
+  P.location.hash = "#i=" + code; await P.lire("route")();
+  return { P, code, lien: LOCAL + "/#i=" + code };
+};
+const recuesDe = stockage => JSON.parse(stockage.get("ose-recues") || "[]");
+await test("Reçues : l'invitation ouverte est gardée sur l'appareil, une seule fois, et se valide strictement", async () => {
+  const stockage = new Map(), { P, lien } = await ouvrirRecue(stockage);
+  const r = recuesDe(stockage);
+  assert.equal(r.length, 1);
+  assert.deepEqual({ from: r[0].from, to: r[0].to, occ: r[0].occ, when: r[0].when, link: r[0].link, long: r[0].long },
+    { from: "Alex", to: "Sam", occ: "date", when: [["2026-11-14", "20:00"]], link: lien, long: undefined });
+  assert.ok(P.lire("validRecue")(r[0]), "entrée valide");
+  await P.lire("route")();
+  assert.equal(recuesDe(stockage).length, 1, "rouverte : pas de doublon");
+  // Créneaux au choix : tous gardés
+  const s2 = new Map(); await ouvrirRecue(s2, { d: undefined, h: undefined, sl: [["2027-03-12", "20:00"], ["2027-03-13", "19:30"]] });
+  assert.deepEqual(recuesDe(s2)[0].when, [["2027-03-12", "20:00"], ["2027-03-13", "19:30"]]);
+});
+await test("Reçues : jamais l'exemple, la version partagée, le rappel d'agenda, une Envoyée de l'appareil ni un lien testé", async () => {
+  const s1 = new Map(), P = chargerPage({ charge: () => "ok", stockage: s1 });
+  P.location.hash = "#exemple"; await P.lire("route")();
+  assert.ok(!s1.has("ose-recues"), "exemple");
+  const s2 = new Map(); await ouvrirRecue(s2, { vu: 1 }); assert.equal(recuesDe(s2).length, 0, "version partagée");
+  const s3 = new Map(); await ouvrirRecue(s3, { rv: 1 }); assert.equal(recuesDe(s3).length, 0, "rappel d'agenda");
+  const code = await L.encodeData(INV()), lien = LOCAL + "/#i=" + code;
+  const s4 = new Map([["ose-historique", JSON.stringify([{ link: lien }])]]); await ouvrirRecue(s4);
+  assert.equal(recuesDe(s4).length, 0, "déjà dans les Envoyées (lien complet)");
+  const court = `${LOCAL}/#s=${"A".repeat(22)}.${"B".repeat(22)}`;
+  const s5 = new Map([["ose-historique", JSON.stringify([{ link: court, long: lien }])]]); await ouvrirRecue(s5);
+  assert.equal(recuesDe(s5).length, 0, "déjà dans les Envoyées (lien court et son lien complet)");
+  const s6 = new Map([["ose-testees", JSON.stringify([{ l: lien, t: Date.now() - 3600e3 }])]]); await ouvrirRecue(s6);
+  assert.equal(recuesDe(s6).length, 0, "testé il y a une heure par sa créatrice ou son créateur");
+  const s7 = new Map([["ose-testees", JSON.stringify([{ l: lien, t: Date.now() - 25 * 3600e3 }])]]); await ouvrirRecue(s7);
+  assert.equal(recuesDe(s7).length, 1, "test de plus de 24 h : rangée normalement");
+  const s8 = new Map([["ose-recues", "pas du json"], ["ose-historique", "{}"]]); await ouvrirRecue(s8);
+  assert.equal(recuesDe(s8).length, 1, "stockage abîmé : remplacé sans erreur");
+});
+await test("Reçues : lien court gardé avec son lien complet ; champs inconnus ou liens étrangers refusés", async () => {
+  const P = chargerPage(), ok = P.lire("validRecue"), entree = P.lire("recueEntry");
+  const d = await L.decodeData(await L.encodeData(INV())), long = LOCAL + "/#i=" + await L.encodeData(INV());
+  const court = `${LOCAL}/#s=${"A".repeat(22)}.${"B".repeat(22)}`;
+  const e = entree(d, court, long, "2026-11-20T10:00:00.000Z", "abc123");
+  assert.equal(e.long, long, "le lien complet suit le lien court");
+  assert.ok(ok(e));
+  assert.ok(ok(entree(d, long, long, "2026-11-20T10:00:00.000Z", "abc123")), "lien complet seul");
+  for(const faux of [{ long: undefined }, { long: court }, { jeton: "C".repeat(43) }, { rep: "o" }, { link: "https://exemple.fr/#i=yAAAA" }, { occ: "inconnue" }, { from: "" }, { created: "hier" }])
+    assert.ok(!ok({ ...e, ...faux }), `refusé : ${JSON.stringify(faux)}`);
+  assert.ok(!ok({ ...entree(d, long, long, "2026-11-20T10:00:00.000Z", "abc123"), long }), "lien complet seul : pas de champ long");
+});
+await test("Envoyées : une invitation qu'on crée quitte les Reçues ; « Tester l'invitation » note le lien 24 h", async () => {
+  const stockage = new Map(), { P, lien } = await ouvrirRecue(stockage);
+  assert.equal(recuesDe(stockage).length, 1);
+  assert.ok(await P.lire("addToHistory")(lien), "ajoutée aux Envoyées");
+  assert.equal(recuesDe(stockage).length, 0, "plus dans les Reçues");
+  assert.equal(P.lire("loadHistory")().length, 1);
+  P.lire("noteTestee")(lien); P.lire("noteTestee")(lien);
+  const t = JSON.parse(stockage.get("ose-testees"));
+  assert.equal(t.length, 1, "un seul exemplaire"); assert.equal(t[0].l, lien);
+  assert.ok(P.lire("bindCreator").toString().includes("noteTestee(url);"), "noté au moment du test");
+});
+await test("Écran : deux onglets accessibles (Envoyées par défaut, Reçues si rien d'envoyé), mention de l'appareil, 44 px", async () => {
+  const stockage = new Map(), { P } = await ouvrirRecue(stockage);
+  P.lire("renderHistory")();
+  let h = P.zones["#app"].innerHTML;
+  assert.ok(h.includes('role="tablist"') && h.includes('role="tabpanel"'), "onglets");
+  assert.ok(/id="tab-recues"[^>]*aria-selected="true"[^>]*tabindex="0"/.test(h), "rien d'envoyé : Reçues d'emblée");
+  assert.ok(h.includes("Les invitations que tu ouvres sont gardées ici, sur cet appareil seulement. Personne n'en est averti."));
+  assert.ok(h.includes("<p class=\"who\">De Alex</p>") && h.includes('data-act="open"') && h.includes("Retirer de l'historique"));
+  assert.ok(!h.includes('data-act="copy"') && !h.includes('data-act="dup"'), "pas de copie ni de duplication d'une invitation reçue");
+  const P2 = chargerPage({ stockage: new Map() }); P2.lire("renderHistory")();
+  h = P2.zones["#app"].innerHTML;
+  assert.ok(/id="tab-envoyees"[^>]*aria-selected="true"/.test(h) && h.includes("Quand tu cliques sur « Créer mon lien », elle s'ajoute ici."), "Envoyées par défaut");
+  assert.ok(!h.includes(" · "), "pas de séparateur « · » ajouté par les onglets");
+  const css = readFileSync(RACINE + "app/creer.css", "utf8");
+  assert.ok(/\.hist-tabs button\{min-height:44px/.test(css) && css.includes('.hist-tabs button[aria-selected="true"]'));
+  const rh = P.lire("renderHistory").toString();
+  assert.ok(rh.includes('"ArrowRight"') && rh.includes('"ArrowLeft"'), "flèches du clavier");
+});
+await test("Export (version 2) et import : versions 1 et 2 acceptées, Reçues reconstruites et validées", async () => {
+  const src = PAGE.lire("exportHistory").toString();
+  assert.ok(src.includes("version:2") && src.includes("items, recues"), "export : Envoyées et Reçues");
+  const P = chargerPage({ stockage: new Map() }), d = await L.decodeData(await L.encodeData(INV()));
+  const long = LOCAL + "/#i=" + await L.encodeData(INV()), recue = P.lire("recueEntry")(d, long, long, "2026-11-20T10:00:00.000Z", "abc123");
+  const fichier = obj => ({ size: 1000, text: async () => JSON.stringify(obj) });
+  await P.lire("importHistory")(fichier({ app: "ose-demander", version: 2, items: [], recues: [recue, { ...recue, id: "pirate", rep: "o" }] }));
+  assert.equal(recuesDe(P.stockage).length, 1, "une Reçue importée, l'entrée invalide ignorée");
+  await P.lire("importHistory")(fichier({ app: "ose-demander", version: 2, items: [], recues: [recue] }));
+  assert.equal(recuesDe(P.stockage).length, 1, "réimport : pas de doublon");
+  const P2 = chargerPage({ stockage: new Map() });
+  await P2.lire("importHistory")(fichier({ app: "ose-demander", version: 1, items: [], recues: [recue] }));
+  assert.ok(!P2.stockage.has("ose-recues"), "version 1 : pas de Reçues (format refusé)");
+  await P2.lire("importHistory")(fichier({ app: "ose-demander", version: 1, items: [] }));
+  await P2.lire("importHistory")(fichier({ app: "ose-demander", version: 3, items: [] }));
+  assert.ok(!P2.stockage.has("ose-recues"));
+  // Ancien historique (Envoyées seules, sans clé ose-recues) : lu tel quel, en Envoyées
+  const ancien = { id: "abc123", from: "Alex", to: "Sam", occ: "date", when: [["2026-11-14", "20:00"]], created: "2026-10-17T10:00:00.000Z", link: long };
+  const P3 = chargerPage({ stockage: new Map([["ose-historique", JSON.stringify([ancien])]]) });
+  assert.equal(P3.lire("loadHistory")().length, 1); assert.equal(P3.lire("loadRecues")().length, 0);
+});
+await test("Mentions légales : l'onglet Reçues est décrit (appareil seulement, personne n'est averti, retrait possible)", () => {
+  const m = readFileSync(RACINE + "mentions-legales.html", "utf8");
+  const p = m.slice(m.indexOf('id="historique"'), m.indexOf("<h2>Contenu des invitations</h2>"));
+  assert.ok(p.includes("Reçues") && p.includes("sur votre appareil seulement") && p.includes("personne n'en est averti") && p.includes("Retirer de l'historique"));
 });
 
 /* ---------- Bilan ---------- */

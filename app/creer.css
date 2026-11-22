@@ -76,6 +76,13 @@
 .btn.sm{padding:8px 12px;font-size:14px;border-radius:12px}
 .btn.danger{color:#B3122E;border-color:#B3122E}
 .hist-tools{display:flex;flex-wrap:wrap;gap:10px;border-top:2px dashed var(--line);padding-top:16px}
+/* Onglets Envoyées / Reçues : le style des choix segmentés, onglet actif comme un choix pressé ; 44 px (navigation essentielle) */
+.hist-tabs{margin:4px 0 16px}
+#histPanel>.hint{margin:0 0 14px}
+.hist-tabs button{min-height:44px;display:inline-flex;align-items:center;justify-content:center;gap:8px;font-size:15px}
+.hist-tabs button[aria-selected="true"]{background:var(--surface);color:var(--ink);box-shadow:0 1px 0 var(--line),0 0 0 2px var(--ink)}
+.hist-tabs .tab-n{min-width:22px;padding:0 7px;border-radius:999px;background:var(--line);color:var(--ink);font-size:12px;line-height:20px;font-variant-numeric:tabular-nums}
+.hist-tabs button[aria-selected="true"] .tab-n{background:var(--accent-btn);color:var(--accent-ink)}
 .hero h1{font-size:clamp(36px,9.5vw,60px)}
 .demo-ticket{margin:0 0 24px}
 .demo-main{min-height:0;padding:20px 16px 16px}
@@ -158,4 +165,4 @@
 .img-btns .btn{flex:1 1 160px}
 .img-btns a.btn{display:block;text-align:center;text-decoration:none}
 .img-close{display:block;min-height:44px;margin:4px auto 0}
-:root{--ose-creer-css:"1876c11684"}
+:root{--ose-creer-css:"d7a82c3ac0"}

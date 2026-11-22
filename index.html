@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'sha256-/0a8pvTDe/IsDHb9WRe150XHOFuJj6PQvhCu584BIhY=' 'sha256-Oe6rQoGJK784m8Q9IobIWZCJWJXUi0Ip3ohku9oVxXY='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' https://ose-liens.osedemander.workers.dev; manifest-src 'self'; worker-src 'self'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'sha256-rS3xRX061n7cfsNxCohUnjjYLnZN3ZtD830XpOef5D8=' 'sha256-HpgoHjebYSiZhB5bgPGVw4u3VtLiqIpv5Y1jU7kCTWY='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' https://ose-liens.osedemander.workers.dev; manifest-src 'self'; worker-src 'self'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
 <title>Ose Demander — crée une invitation à laquelle on ne dit pas non</title>
@@ -35,7 +35,7 @@
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"WebApplication","name":"Ose Demander","url":"https://osedemander.fr/","description":"Crée gratuitement une invitation animée à envoyer par lien : rendez-vous, anniversaire, témoin, fêtes de l'année. Le bouton Non résiste, mais un vrai refus reste possible.","applicationCategory":"LifestyleApplication","operatingSystem":"Tous (navigateur web)","inLanguage":"fr","isAccessibleForFree":true,"offers":{"@type":"Offer","price":"0","priceCurrency":"EUR"}}</script>
 <link rel="preload" href="fonts/bricolage-grotesque.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="app/scenes.js?v=ad35c435a6" as="script">
-<script data-tete>if(!/^#(i|s)=|^#exemple$/.test(location.hash))for(const[h,a]of[["app/creer.js?v=6069d263d5","script"],["app/creer.css?v=1876c11684","style"]]){const l=document.createElement("link");l.rel="preload";l.as=a;l.href=h;document.head.appendChild(l)}</script>
+<script data-tete>if(!/^#(i|s)=|^#exemple$/.test(location.hash))for(const[h,a]of[["app/creer.js?v=cdf5a77265","script"],["app/creer.css?v=d7a82c3ac0","style"]]){const l=document.createElement("link");l.rel="preload";l.as=a;l.href=h;document.head.appendChild(l)}</script>
 <style>
 /* ---------- Polices (hébergées sur le site, aucun appel à Google) ---------- */
 @font-face{font-family:"Bricolage Grotesque";font-style:normal;font-display:swap;font-weight:200 800;font-stretch:75% 100%;
@@ -1179,7 +1179,7 @@ const STEP_TITLES = ["Le modèle","Les prénoms","Quand et où","L'aperçu"];
    liste de sw.js qui les garde dès l'installation). GitHub Pages ignore ?v= et sert toujours le fichier le plus récent : chaque
    fichier déclare donc sa version en dernière ligne (oseLoaded, ou --ose-creer-css) ; si ce n'est pas celle attendue (page
    ancienne, fichier neuf), un seul rechargement complet (oseReload), puis un message. */
-const OSE_FILES = {creer:"6069d263d5", scenes:"ad35c435a6", creerCss:"1876c11684"};
+const OSE_FILES = {creer:"cdf5a77265", scenes:"ad35c435a6", creerCss:"d7a82c3ac0"};
 const oseGot = {}, oseNeeds = {};
 const oseLoaded = (name, v) => { oseGot[name]=v; };
 const oseUrl = name => `app/${name==="creerCss" ? "creer.css" : name+".js"}?v=${OSE_FILES[name]}`;
@@ -1896,6 +1896,31 @@ function saveFile(name, text, type){
   const url=URL.createObjectURL(new Blob([text],{type}));
   const a=document.createElement("a"); a.href=url; a.download=name; document.body.appendChild(a); a.click(); a.remove();
   setTimeout(()=>URL.revokeObjectURL(url),2000);
+}
+/* « Mes invitations », onglet Reçues : une invitation ouverte depuis son lien (#i= ou #s=) est gardée sur cet appareil
+   seulement (clé ose-recues), pour la retrouver. Rien n'est envoyé. Jamais l'exemple, la version partagée ni le rappel
+   d'agenda, ni une invitation des Envoyées de cet appareil, ni un lien que sa créatrice ou son créateur vient de tester. */
+const RECUES_KEY="ose-recues", RECUES_MAX=200, TESTEES_KEY="ose-testees", TESTEE_DUREE=864e5;
+const lireListe = k => { try{ const a=JSON.parse(localStorage.getItem(k)||"[]"); return Array.isArray(a) ? a.filter(x=>x && typeof x==="object" && !Array.isArray(x)) : []; }catch(e){ return []; } };
+// Entrée tirée de l'invitation décodée (déjà validée par sanitize) ; long : le lien complet, gardé pour un lien court
+function recueEntry(d, link, long, created=new Date().toISOString(), id=Date.now().toString(36)+Math.random().toString(36).slice(2,8)){
+  const e={id, from:d.f, to:d.t, occ:d.o, when:d.sl ? d.sl.map(s=>[s[0],s[1]]) : [[d.d,d.h]], link, created};
+  if(d.o==="libre" && d.of) e.occFree=d.of;
+  if(long!==link) e.long=long;
+  return e;
+}
+const recueIgnoree = (link, long, envoyees, testees, now=Date.now()) =>
+  envoyees.some(x=>x.link===link || x.link===long || x.long===long) || testees.some(t=>t.l===long && now-t.t<TESTEE_DUREE);
+function noteRecue(d, code){
+  if(EXAMPLE || d.vu || d.rv) return;
+  try{
+    const base=location.origin+location.pathname, long=base+"#i="+code, link=SHORT_HASH.test(location.hash) ? base+location.hash : long;
+    if(recueIgnoree(link, long, lireListe("ose-historique"), lireListe(TESTEES_KEY))) return;
+    const list=lireListe(RECUES_KEY);
+    if(list.some(x=>x.link===link || x.long===long)) return;
+    list.unshift(recueEntry(d, link, long));
+    localStorage.setItem(RECUES_KEY, JSON.stringify(list.slice(0,RECUES_MAX)));
+  }catch(e){}
 }
 
 /* =========================================================
@@ -3497,6 +3522,7 @@ async function route(){
       // Les scènes arrivent d'ordinaire avec la page : on les attend au plus 0,4 s, sinon l'écran s'affiche sans elles (sceneRefresh)
       await Promise.race([scenesReady().catch(()=>{}), new Promise(r=>setTimeout(r, 400))]);
       D = EXAMPLE ? demoData() : await decodeData(code); chosenSlot=null; yesDone=false; notifSent=""; // decodeData : sanitize, comme pour un lien long
+      noteRecue(D, code); // onglet Reçues de « Mes invitations », sur cet appareil seulement
       Sound.on = D.so!==0; // côté destinataire : réglage de l'invitation, rien n'est lu ni enregistré
       noTries=0; refused=false; refuseOffered=false; refuseWhy="non"; refuseDrafts={}; clearTimeout(refuseTimer);
       clearInterval(countTimer); clearTimeout(revStart); revQueue=[]; remLink=""; remState="wait";

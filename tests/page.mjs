@@ -12,8 +12,9 @@ const lireApp = f => readFileSync(fileURLToPath(new URL(`../app/${f}`, import.me
    fichiers : [] = la page seule (réseau coupé à la première visite) ; ["scenes"] = une invitation sans la création.
    versions : versions déclarées par les fichiers (pour simuler un fichier d'une autre version que celle attendue).
    charge : réponse du « réseau » quand la page charge un fichier qui n'est pas là (url -> "ok" | "erreur", par défaut "erreur",
-   comme réseau coupé) ; session : sessionStorage partagé entre deux chargements (rechargement simulé). */
-export function chargerPage({ share = false, ios = false, fichiers = ["scenes", "creer"], versions = {}, charge = () => "erreur", session = new Map() } = {}){
+   comme réseau coupé) ; session : sessionStorage partagé entre deux chargements (rechargement simulé) ;
+   stockage : localStorage (vide par défaut), à préremplir ou à relire par le test. */
+export function chargerPage({ share = false, ios = false, fichiers = ["scenes", "creer"], versions = {}, charge = () => "erreur", session = new Map(), stockage = new Map() } = {}){
   const html = readFileSync(INDEX, "utf8").replace(/\r\n/g, "\n");
   let src = html.slice(html.indexOf("<script>") + "<script>".length, html.lastIndexOf("</script>"));
   const fin = src.lastIndexOf("\nroute();");
@@ -49,7 +50,7 @@ export function chargerPage({ share = false, ios = false, fichiers = ["scenes", 
   const globaux = {
     window, document, navigator, location, history: { replaceState: () => { location.hash = ""; } },
     matchMedia: () => ({ matches: false }),
-    localStorage: { getItem: () => null, setItem: rien, removeItem: rien },
+    localStorage: { getItem: k => stockage.has(k) ? stockage.get(k) : null, setItem: (k, v) => stockage.set(k, String(v)), removeItem: k => stockage.delete(k) },
     requestAnimationFrame: rien, cancelAnimationFrame: rien, addEventListener: rien,
     setTimeout: () => 0, clearTimeout: rien, setInterval: () => 0, clearInterval: rien,
     innerWidth: 400, innerHeight: 800, CompressionStream, DecompressionStream, alert: rien,
@@ -59,7 +60,7 @@ export function chargerPage({ share = false, ios = false, fichiers = ["scenes", 
   const f = new Function(...Object.keys(globaux),
     src + `\nreturn { lire: nom => eval(nom), ecrire: (nom, v) => eval(nom + " = v") };`);
   const P = f(...Object.values(globaux));
-  return { ...P, zones, vus, navigator, demandes, location };
+  return { ...P, zones, vus, navigator, demandes, location, stockage };
 }
 
 /* Boutons « action principale » visibles d'un morceau de HTML : bouton principal, Oui, installation.
