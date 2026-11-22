@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'sha256-xZqopEJ/7koeeH/Aw4F3yyBGQ9wy0SIjGZ6+IZiUuQA=' 'sha256-r7F67uujR844LbZmmhAgNMF8mGFjXJBJ/bxUwQqkCVc='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' https://ose-liens.osedemander.workers.dev; manifest-src 'self'; worker-src 'self'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'sha256-ntMdKh7zac+efS3l/YT3FRp/3W+J6vihvZZCv++hI8I=' 'sha256-1CH4xLnRJF7yfaXBnLleOu0SB7FJxTVAcDlcUqyJCYM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' https://ose-liens.osedemander.workers.dev; manifest-src 'self'; worker-src 'self'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
 <title>Ose Demander — crée une invitation à laquelle on ne dit pas non</title>
@@ -35,7 +35,7 @@
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"WebApplication","name":"Ose Demander","url":"https://osedemander.fr/","description":"Crée gratuitement une invitation animée à envoyer par lien : rendez-vous, anniversaire, témoin, fêtes de l'année. Le bouton Non résiste, mais un vrai refus reste possible.","applicationCategory":"LifestyleApplication","operatingSystem":"Tous (navigateur web)","inLanguage":"fr","isAccessibleForFree":true,"offers":{"@type":"Offer","price":"0","priceCurrency":"EUR"}}</script>
 <link rel="preload" href="fonts/bricolage-grotesque.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="app/scenes.js?v=ad35c435a6" as="script">
-<script data-tete>if(!/^#(i|s)=|^#exemple$/.test(location.hash))for(const[h,a]of[["app/creer.js?v=82fff0eba1","script"],["app/creer.css?v=1548b0ea7d","style"]]){const l=document.createElement("link");l.rel="preload";l.as=a;l.href=h;document.head.appendChild(l)}</script>
+<script data-tete>if(!/^#(i|s)=|^#exemple$/.test(location.hash))for(const[h,a]of[["app/creer.js?v=cd6d9cf7cd","script"],["app/creer.css?v=1548b0ea7d","style"]]){const l=document.createElement("link");l.rel="preload";l.as=a;l.href=h;document.head.appendChild(l)}</script>
 <style>
 /* ---------- Polices (hébergées sur le site, aucun appel à Google) ---------- */
 @font-face{font-family:"Bricolage Grotesque";font-style:normal;font-display:swap;font-weight:200 800;font-stretch:75% 100%;
@@ -237,6 +237,7 @@ input.input[type=date],input.input[type=time]{min-width:0;max-width:100%}
 .rev-notif{width:100%;padding:10px 14px;border:2px dashed var(--line);border-radius:14px;text-align:left}
 .rev-notif .check{margin:0}.rev-notif .check span{font-weight:700}.rev-notif .hint{margin:6px 0 0}
 .rev-agenda{margin:0;font-weight:700;text-align:center}
+.hist .rdv3{margin:10px 0 2px}
 
 
 
@@ -1180,7 +1181,7 @@ const STEP_TITLES = ["Le modèle","Les prénoms","Quand et où","L'aperçu"];
    fichier déclare donc sa version en dernière ligne (oseLoaded, ou --ose-creer-css) ; si ce n'est pas celle attendue (page
    ancienne, fichier neuf), un seul rechargement complet (oseReload), puis un message. */
 // demo : la démo du premier lancement (app/demo.js), chargée seulement quand elle sert (demoAVoir, exemple)
-const OSE_FILES = {creer:"82fff0eba1", scenes:"ad35c435a6", creerCss:"1548b0ea7d", demo:"def882fa95"};
+const OSE_FILES = {creer:"cd6d9cf7cd", scenes:"ad35c435a6", creerCss:"1548b0ea7d", demo:"def882fa95"};
 const oseGot = {}, oseNeeds = {};
 const oseLoaded = (name, v) => { oseGot[name]=v; };
 const oseUrl = name => `app/${name==="creerCss" ? "creer.css" : name+".js"}?v=${OSE_FILES[name]}`;
@@ -1396,9 +1397,9 @@ function notifSupport(){
 }
 function notifDb(){
   return new Promise((res,rej)=>{
-    const r=indexedDB.open(NOTIF_DB,2); // 2 : notifications de révélation (magasin « revelations »)
+    const r=indexedDB.open(NOTIF_DB,3); // 2 : notifications de révélation (« revelations ») ; 3 : rappels 3 h avant (« rdv »)
     r.onupgradeneeded=()=>{ const db=r.result, mk=(n,k)=>{ if(!db.objectStoreNames.contains(n)) db.createObjectStore(n,{keyPath:k}); };
-      mk("cles","nid"); mk("reponses","nid"); mk("revelations","id"); };
+      mk("cles","nid"); mk("reponses","nid"); mk("revelations","id"); mk("rdv","id"); };
     r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error);
   });
 }
@@ -1491,6 +1492,66 @@ async function cancelReveal(inv){
   let liste=[]; try{ liste=(await notifStore("revelations","readonly",st=>st.getAll())).filter(x=>x.inv===inv); }catch(e){}
   for(const x of liste) try{ await notifCall(`/${x.id}/supprimer`, {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({jeton:x.jeton})}, "/v1/rappels"); }catch(e){}
   try{ await notifStore("revelations","readwrite",st=>{ for(const x of liste) st.delete(x.id); }); }catch(e){}
+}
+/* ---------- Rappel « Me rappeler 3 h avant » (facultatif, pour son propre appareil, une fois l'invitation acceptée) ----------
+   Le Worker ne reçoit que l'abonnement, un identifiant aléatoire et l'heure d'envoi (rendez-vous moins 3 h). Le titre, l'heure
+   et le lieu restent ici (IndexedDB, magasin « rdv ») : sw.js compose la notification. cle : "r:"+id (Reçues), "e:"+id (Envoyées).
+   Proposé seulement si l'envoi est encore à venir (rendez-vous dans plus de 3 h) ; pas de case là où les notifications ne
+   fonctionnent pas (iPhone hors de l'appli installée, navigateurs intégrés) : « Ajouter à mon agenda » a déjà l'alerte 3 h avant. */
+const RDV_AVANT=3*3600e3;
+const rdvMs = (day, time) => { if(!/^\d{4}-\d\d-\d\d$/.test(day||"") || !/^\d\d:\d\d$/.test(time||"")) return NaN;
+  const [Y,M,J]=day.split("-").map(Number), [h,m]=time.split(":").map(Number); return new Date(Y,M-1,J,h,m).getTime(); };
+const rdv3Possible = (ms, now=Date.now()) => ms - RDV_AVANT > now + 70e3;
+const rdv3Montre = () => ["ok","refuse"].includes(notifSupport());
+let rdv3St={}; // cle -> "off" | "actif" | "attente" | "refuse" | "reseau" | "trop"
+async function rdv3Liste(cle){ try{ return (await notifStore("rdv","readonly",st=>st.getAll())).filter(x=>x.cle===cle && x.heure>Date.now()); }catch(e){ return []; } }
+/* Programme le rappel : "ok", "trop" (10 rappels déjà en attente sur cet appareil) ou "reseau" ; gardé ici seulement si le Worker l'a accepté */
+async function scheduleRdv3(abo, cle, ms, texte){
+  if(!SHORT_ORIGIN || !rdv3Possible(ms)) return "reseau";
+  try{
+    const id=b64url(rndBytes(16)), jeton=b64url(rndBytes(32)), heure=ms-RDV_AVANT;
+    const del=b64url(new Uint8Array(await crypto.subtle.digest("SHA-256", utf8(jeton))));
+    const r=await notifCall("", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({id, abo, heure, del})}, "/v1/rdv");
+    if(r.status===429){ let x={}; try{ x=await r.json(); }catch(e){} if(x && x.erreur==="trop") return "trop"; }
+    if(r.status!==201) return "reseau";
+    await notifStore("rdv","readwrite",st=>st.put({id, cle, heure, rdv:ms, titre:String(texte.titre||"").slice(0,140), lieu:String(texte.lieu||"").slice(0,160), jeton}));
+    return "ok";
+  }catch(e){ return "reseau"; }
+}
+async function cancelRdv3(cle){
+  let liste=[]; try{ liste=(await notifStore("rdv","readonly",st=>st.getAll())).filter(x=>x.cle===cle); }catch(e){}
+  if(!liste.length) return;
+  for(const x of liste) if(x.heure>Date.now()) try{ await notifCall(`/${x.id}/supprimer`, {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({jeton:x.jeton})}, "/v1/rdv"); }catch(e){}
+  try{ await notifStore("rdv","readwrite",st=>{ for(const x of liste) st.delete(x.id); }); }catch(e){}
+}
+/* État de la case : déjà programmé sur cet appareil (cochée), sinon proposée décochée si le rendez-vous est dans plus de 3 h */
+async function syncRdv3(cle, ms){
+  if(!rdv3Montre()){ delete rdv3St[cle]; return; }
+  if((await rdv3Liste(cle)).length){ rdv3St[cle]="actif"; return; }
+  if(rdv3Possible(ms)){ if(!["refuse","reseau","trop"].includes(rdv3St[cle])) rdv3St[cle]="off"; } else delete rdv3St[cle];
+}
+function rdv3HTML(cle){
+  const etat=rdv3St[cle]; if(!etat) return "";
+  const bloque=notifSupport()==="refuse", on=etat==="actif"||etat==="attente";
+  const note = bloque ? "Les notifications sont bloquées pour ce site. Autorise-les dans les réglages de ton navigateur, ou ajoute le rendez-vous à ton agenda."
+    : etat==="actif" ? "⏰ C'est noté : une notification sur cet appareil, 3 h avant le rendez-vous."
+    : etat==="refuse" ? "Notifications non autorisées : ajoute plutôt le rendez-vous à ton agenda."
+    : etat==="reseau" ? "Le rappel n'a pas pu être programmé. Réessaie, ou ajoute le rendez-vous à ton agenda."
+    : etat==="trop" ? "Il y a déjà 10 rappels en attente sur cet appareil. Décoches-en un, ou ajoute le rendez-vous à ton agenda."
+    : "Une notification sur cet appareil, 3 h avant le rendez-vous.";
+  return `<div class="rev-notif rdv3"><label class="check"><input type="checkbox" data-rdv3="${esc(cle)}" ${on?"checked":""} ${bloque||etat==="attente"?"disabled":""}>
+      <span>⏰ Me rappeler 3 h avant</span></label>
+    <p class="hint" ${etat==="reseau"||etat==="trop"?'role="alert"':'role="status"'}>${note}</p></div>`;
+}
+/* Cocher (autorisation demandée pendant le toucher, comme l'exige Safari) ou décocher. texte() : {titre, lieu}, lu après l'autorisation */
+async function setRdv3(cle, on, ms, texte, refresh){
+  if(!on){ rdv3St[cle]="off"; refresh(); await cancelRdv3(cle); return; }
+  const perm = Notification.permission==="granted" ? "granted" : await Promise.resolve(Notification.requestPermission()).catch(()=>"denied");
+  if(perm!=="granted"){ rdv3St[cle] = perm==="denied" ? "refuse" : "off"; refresh(); return; }
+  rdv3St[cle]="attente"; refresh();
+  let r="reseau"; try{ const t=await texte(), abo=await pushAbo(); if(abo) r=await scheduleRdv3(abo, cle, ms, t); }catch(e){}
+  rdv3St[cle] = r==="ok" ? "actif" : r; refresh();
+  if(r==="ok") buzz(15);
 }
 /* Renoncer à une notification (invitation retirée de l'historique) */
 async function cancelNotif(nid, jeton){
@@ -2847,7 +2908,7 @@ function replyLabel(){
 /* Sous les détails : l'agenda (une fois le créneau choisi et le lien de rappel prêt) */
 function actionsHTML(){
   const ready = !D.sl || chosenSlot!==null;
-  return (ready ? revealNotifHTML() : "") + (ready && remState!=="wait" ? calButtonsHTML() : "") + (ready && shareState==="ok" ? shareHTML() : "");
+  return (ready ? revealNotifHTML() + (rdv3Cle ? rdv3HTML(rdv3Cle) : "") : "") + (ready && remState!=="wait" ? calButtonsHTML() : "") + (ready && shareState==="ok" ? shareHTML() : "");
 }
 /* « Me prévenir quand la surprise se révèle » : après le Oui seulement (ni dans le rappel d'agenda, qui a ses alertes, ni dans la version
    partagée, qui n'a plus de révélation), s'il reste une révélation à venir et une fois le lien de rappel prêt (c'est lui qui sera rouvert).
@@ -2920,6 +2981,7 @@ function bindSend(){
 }
 function bindActions(){
   $("#revNotif")?.addEventListener("change",e=>{ setRevealNotif(e.target.checked); });
+  $("[data-rdv3]")?.addEventListener("change",e=>{ const c=calInfo(); setRdv3(rdv3Cle, e.target.checked, rdv3AfterMs(), async()=>({titre:c.title, lieu:c.loc}), refreshActions); });
   $("#cal")?.addEventListener("click",downloadICS);
   $("#calRev")?.addEventListener("click",downloadRevealICS);
   $("#shareSur")?.addEventListener("click",shareSurprise);
@@ -2929,9 +2991,21 @@ function refreshAfter(){ $("#send").innerHTML=sendHTML(); $("#details").innerHTM
    les boutons d'agenda n'apparaissent qu'une fois le lien prêt. "wait" | "ok" | "none" (échec : agenda sans lien) */
 let remLink="", remState="wait";
 let shareLink="", shareState="wait"; // lien « Partager la surprise » (voir shareData) : "wait" | "ok" | "none" (non autorisé ou échec)
+/* « Me rappeler 3 h avant » après le Oui : invitation rangée dans les Reçues (même case que sur sa carte), créneau connu */
+let rdv3Cle="";
+const rdv3AfterMs = () => { const [d,t] = D.sl ? (D.sl[chosenSlot]||[]) : [D.d, D.h]; return rdvMs(d, t); };
+async function syncRdv3After(){
+  const slot=chosenSlot, x = afterMode==="yes" && !EXAMPLE && !D.vu && !D.rv && recueLien ? lireListe(RECUES_KEY).find(e=>e.link===recueLien) : null;
+  if(!x || (D.sl && slot===null)) return;
+  const cle="r:"+x.id;
+  await syncRdv3(cle, rdv3AfterMs());
+  if(slot!==chosenSlot) return;
+  rdv3Cle = rdv3St[cle] ? cle : ""; refreshActions();
+}
 function prepReminder(){
-  const slot=chosenSlot; remLink=""; remState="wait"; shareLink=""; shareState="wait"; revNotif={etat:"", inv:""};
+  const slot=chosenSlot; remLink=""; remState="wait"; shareLink=""; shareState="wait"; revNotif={etat:"", inv:""}; rdv3Cle="";
   if(D.sl && slot===null) return;
+  syncRdv3After();
   const base=location.origin+location.pathname;
   // Lien court chiffré (son propre contenu allégé, sa propre clé), sinon le lien complet ; jamais en mode exemple
   const publish=async code=>{ if(!EXAMPLE){ const sh=await createShort(code, base); if(sh) return sh.link; } return base+"#i="+code; };
@@ -2990,6 +3064,7 @@ function noteReponse(rep){
   if(!recueLien) return;
   try{
     const list=lireListe(RECUES_KEY), x=list.find(e=>e.link===recueLien); if(!x) return;
+    if(x.rep && (x.rep!==rep || (D.sl ? chosenSlot : 0)!==x.repSlot)){ delete rdv3St["r:"+x.id]; cancelRdv3("r:"+x.id); }
     for(const k of ["rep","repAt","repSlot","ag"]) delete x[k];
     if(rep){
       x.rep=rep; x.repAt=new Date().toISOString();

@@ -16,7 +16,7 @@ const CORE = [
   // Fichiers chargés à part par index.html : l'empreinte de leur contenu (?v=) est écrite par node outils/csp.mjs.
   // Gardés dès l'installation : une invitation ouverte une fois s'affiche sans réseau, scènes comprises.
   "./app/scenes.js?v=ad35c435a6",
-  "./app/creer.js?v=82fff0eba1",
+  "./app/creer.js?v=cd6d9cf7cd",
   "./app/demo.js?v=def882fa95",
   "./app/creer.css?v=1548b0ea7d"
 ];
@@ -71,9 +71,9 @@ const NOTIF_DB = "ose-notifs";
 const b64d = s => Uint8Array.from(atob(s.replace(/-/g, "+").replace(/_/g, "/") + "=".repeat((4 - s.length % 4) % 4)), c => c.charCodeAt(0));
 function notifDb() {
   return new Promise((res, rej) => {
-    const r = indexedDB.open(NOTIF_DB, 2); // 2 : notifications de révélation (magasin « revelations »)
+    const r = indexedDB.open(NOTIF_DB, 3); // 2 : notifications de révélation (« revelations ») ; 3 : rappels 3 h avant (« rdv »)
     r.onupgradeneeded = () => { const db = r.result, mk = (n, k) => { if (!db.objectStoreNames.contains(n)) db.createObjectStore(n, { keyPath: k }); };
-      mk("cles", "nid"); mk("reponses", "nid"); mk("revelations", "id"); };
+      mk("cles", "nid"); mk("reponses", "nid"); mk("revelations", "id"); mk("rdv", "id"); };
     r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error);
   });
 }
@@ -108,9 +108,30 @@ async function onReveal(id) {
   } catch (e) {}
   await self.registration.showNotification("🔓 Ta surprise est prête !", { body: "Touche pour la découvrir.", icon: "icons/icon-192.png", badge: "icons/favicon-64.png", tag: "rv-" + id, data: { url } });
 }
+/* Rappel « 3 h avant » : le message ne contient que l'identifiant ; titre, heure et lieu ont été rangés sur cet appareil.
+   Sans eux (données effacées entre-temps), une notification générique. */
+const hFr = ms => { const x = new Date(ms); return x.getHours() + " h" + (x.getMinutes() ? " " + String(x.getMinutes()).padStart(2, "0") : ""); };
+const dansFr = min => { const m = Math.max(5, Math.round(min / 5) * 5), h = Math.floor(m / 60), r = m % 60; return h ? h + " h" + (r ? " " + String(r).padStart(2, "0") : "") : r + " min"; };
+function rdvTexte(x, now = Date.now()) {
+  if (!x || typeof x.titre !== "string" || !x.titre || !Number.isFinite(x.rdv)) return { title: "⏰ Ton rendez-vous approche", body: "Touche pour le retrouver dans « Mes invitations »." };
+  const min = (x.rdv - now) / 60000, lieu = typeof x.lieu === "string" ? x.lieu.slice(0, 80) : "";
+  return { title: `⏰ ${min >= 5 ? "Dans " + dansFr(min) : "C'est l'heure"} : ${x.titre.slice(0, 80)}`, body: `Rendez-vous à ${hFr(x.rdv)}${lieu ? ", " + lieu : ""}.` };
+}
+async function onRdv(id) {
+  let x = null;
+  try {
+    x = /^[A-Za-z0-9_-]{22}$/.test(id) ? await notifStore("rdv", "readonly", st => st.get(id)) : null;
+    // Parti : l'entrée est oubliée, avec celles dont le rendez-vous est passé depuis plus d'un jour
+    const vieilles = (await notifStore("rdv", "readonly", st => st.getAll())).filter(e => e.id === id || !(e.rdv > Date.now() - 864e5));
+    if (vieilles.length) await notifStore("rdv", "readwrite", st => { for (const e of vieilles) st.delete(e.id); });
+  } catch (e) {}
+  const t = rdvTexte(x);
+  await self.registration.showNotification(t.title, { body: t.body, icon: "icons/icon-192.png", badge: "icons/favicon-64.png", tag: "rdv-" + id, data: { url: "./#mes-invitations" } });
+}
 async function onPush(event) {
   let m = null; try { m = event.data ? event.data.json() : null; } catch (e) {}
   if (m && m.k === "rv") return onReveal(String(m.i || ""));
+  if (m && m.k === "rdv") return onRdv(String(m.i || ""));
   let title = "Ose Demander", body = "Tu as reçu une réponse à une de tes invitations.";
   const nid = m && typeof m.i === "string" && /^[A-Za-z0-9_-]{22}$/.test(m.i) ? m.i : null;
   try {

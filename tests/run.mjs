@@ -3080,15 +3080,16 @@ await test("iPhone hors de l'appli, navigateurs intégrés : pas de case désact
   for(const u of ["Mozilla/5.0 (Linux; Android 14) Chrome/130.0 Mobile Safari/537.36", "Mozilla/5.0 (iPhone) Version/18.0 Mobile Safari/604.1"]) assert.ok(!ua(u), u);
   assert.equal((P.navigator.userAgent = "Instagram", P.lire("notifSupport")()), "integre");
 });
-await test("sw.js : « 🔓 Ta surprise est prête ! », rien de la surprise, aucune requête, le lien rangé sur l'appareil (même site) ; IndexedDB version 2 des deux côtés", () => {
+await test("sw.js : « 🔓 Ta surprise est prête ! », rien de la surprise, aucune requête, le lien rangé sur l'appareil (même site) ; IndexedDB version 3 des deux côtés", () => {
   const sw = readFileSync(RACINE + "sw.js", "utf8"), rv = sw.slice(sw.indexOf("async function onReveal"), sw.indexOf("async function onPush"));
   assert.ok(rv.includes('showNotification("🔓 Ta surprise est prête !", { body: "Touche pour la découvrir."'));
   assert.ok(!/\bfetch\(/.test(rv), "aucune requête");
   assert.ok(rv.includes("new URL(x.lien).origin === self.location.origin"), "n'ouvre qu'une page du site");
   assert.ok(sw.includes('if (m && m.k === "rv") return onReveal(String(m.i || ""));'));
   const idx = readFileSync(RACINE + "index.html", "utf8");
-  assert.ok(idx.includes("indexedDB.open(NOTIF_DB,2)") && sw.includes("indexedDB.open(NOTIF_DB, 2)"), "même version de la base");
+  assert.ok(idx.includes("indexedDB.open(NOTIF_DB,3)") && sw.includes("indexedDB.open(NOTIF_DB, 3)"), "même version de la base");
   assert.ok(idx.includes('mk("revelations","id")') && sw.includes('mk("revelations", "id")'));
+  assert.ok(idx.includes('mk("rdv","id")') && sw.includes('mk("rdv", "id")'), "magasin des rappels 3 h avant");
 });
 
 await test("Création : phrase d'honnêteté sous « Révélé plus tard » (activité, lieu et chaque étape d'un programme)", () => {
@@ -4011,6 +4012,131 @@ await test("Schéma : table rdv sans colonne de contenu, index sur l'heure et l'
   const src = readFileSync(RACINE + "worker/src/index.js", "utf8");
   assert.ok(!/prepare\("/.test(src), "aucune requête écrite en dur dans index.js");
   assert.ok(src.includes("await envoyerRdv(env, maintenant, RAPPEL_LOT - faits);"), "budget partagé");
+});
+
+/* =========================================================
+   49. Rappel « 3 h avant » : le site (quand la case est proposée, ce qui part au serveur, états, sw.js, Mes invitations)
+   ========================================================= */
+titre("49. Rappel 3 h avant : le site");
+// IndexedDB simulé (magasin « rdv ») : ce qui reste sur l'appareil
+const avecMagasin = async f => {
+  const local = new Map(), avant = PAGE.lire("notifStore");
+  PAGE.ecrire("notifStore", async (store, mode, fn) => { const st = { put: x => local.set(x.id, x), getAll: () => ({ result: [...local.values()] }), get: id => ({ result: local.get(id) }), delete: id => local.delete(id) }; const q = fn(st); return q && q.result; });
+  try{ await f(local); } finally { PAGE.ecrire("notifStore", avant); }
+};
+await test("Proposé seulement si le rendez-vous a une heure et est dans plus de 3 h", () => {
+  const ms = PAGE.lire("rdvMs"), ok = PAGE.lire("rdv3Possible"), h = 3600e3;
+  const at = d => { const x = new Date(Date.now() + d), p = n => String(n).padStart(2, "0"); return [`${x.getFullYear()}-${p(x.getMonth() + 1)}-${p(x.getDate())}`, `${p(x.getHours())}:${p(x.getMinutes())}`]; };
+  assert.ok(ok(ms(...at(4 * h))), "dans 4 h : proposé");
+  assert.ok(!ok(ms(...at(3 * h - 5 * 60e3))), "dans moins de 3 h : pas proposé");
+  assert.ok(!ok(ms(...at(-h))), "passé");
+  assert.ok(Number.isNaN(ms("2026-12-24", "")) && !ok(ms("2026-12-24", "")), "sans heure : pas de rappel");
+  assert.ok(Number.isNaN(ms("x", "20:00")));
+});
+await essaiWorker("Ce qui part au serveur : l'abonnement, un identifiant, l'heure d'envoi et l'empreinte du jeton ; titre, lieu et prénoms restent sur l'appareil", async () => {
+  await avecPush(async () => {
+    await avecMagasin(async local => {
+      const r = reseau(ENV_N({ ORIGINES: LOCAL })); brancher(r);
+      const app = WP.appareil(), abo = { endpoint: ENDPOINT_EX, keys: app.keys }, rdv = Date.now() + 5 * 3600e3;
+      const texte = { titre: "Dîner avec Sam", lieu: "Café de l'Exemple" };
+      assert.equal(await PAGE.lire("scheduleRdv3")(abo, "r:abc", rdv, texte), "ok");
+      const q = r.journal.find(x => x.url.endsWith("/v1/rdv"));
+      assert.ok(q, "une demande, vers /v1/rdv");
+      const corps = JSON.parse(q.body);
+      assert.deepEqual(Object.keys(corps).sort(), ["abo", "del", "heure", "id"]);
+      assert.equal(corps.heure, rdv - 3 * 3600e3, "3 h avant");
+      for(const secret of ["Dîner", "Sam", "Exemple", "r:abc"]) assert.ok(!q.body.includes(secret), `envoyé au serveur : ${secret}`);
+      const x = [...local.values()][0];
+      assert.deepEqual({ cle: x.cle, rdv: x.rdv, titre: x.titre, lieu: x.lieu, id: x.id }, { cle: "r:abc", rdv, ...texte, id: corps.id }, "rangé sur l'appareil");
+      // À l'heure : rien que l'identifiant ; la ligne du serveur disparaît
+      r.env.DB.db.prepare("UPDATE rdv SET heure = ?, prochain = ?").run(Date.now() - 1000, Date.now() - 1000);
+      await WORKER.default.scheduled({ scheduledTime: Date.now() }, r.env);
+      assert.deepEqual(JSON.parse(WP.dechiffrer(app, envois[0].corps)), { v: 1, k: "rdv", i: corps.id });
+      assert.equal(r.env.DB.db.prepare("SELECT COUNT(*) AS n FROM rdv").get().n, 0);
+      // Décocher : annulé en ligne avec le jeton, oublié sur l'appareil
+      local.clear();
+      await PAGE.lire("scheduleRdv3")(abo, "e:xyz", rdv, texte);
+      await PAGE.lire("cancelRdv3")("e:xyz");
+      assert.equal(local.size, 0);
+      assert.equal(r.env.DB.db.prepare("SELECT COUNT(*) AS n FROM rdv").get().n, 0, "annulé en ligne");
+      // 10 en attente : le 11e est refusé (« trop »), rien n'est rangé
+      for(let i = 0; i < WORKER.RDV_PAR_ABO; i++) assert.equal(await PAGE.lire("scheduleRdv3")(abo, "e:" + i, rdv + i * 60e3, texte), "ok");
+      assert.equal(await PAGE.lire("scheduleRdv3")(abo, "e:11", rdv, texte), "trop");
+      assert.equal(local.size, WORKER.RDV_PAR_ABO);
+      assert.equal(await PAGE.lire("scheduleRdv3")(abo, "e:12", Date.now() + 2 * 3600e3, texte), "reseau", "moins de 3 h : rien n'est demandé");
+    });
+  });
+});
+await test("La case : décochée, cochée, bloquée, erreurs annoncées ; aucune action principale ; rien sans état", () => {
+  const html = PAGE.lire("rdv3HTML"), avant = { st: PAGE.lire("rdv3St"), sup: PAGE.lire("notifSupport") };
+  const regle = (etat, support = "ok") => { PAGE.ecrire("rdv3St", { "r:1": etat }); PAGE.ecrire("notifSupport", () => support); return html("r:1"); };
+  try{
+    let h = regle("off");
+    assert.ok(h.includes("⏰ Me rappeler 3 h avant") && !/checked/.test(h) && h.includes("Une notification sur cet appareil, 3 h avant le rendez-vous."));
+    assert.deepEqual(principales(h), []);
+    h = regle("actif"); assert.ok(/checked/.test(h) && h.includes("C'est noté") && h.includes('role="status"'));
+    h = regle("attente"); assert.ok(/checked/.test(h) && /disabled/.test(h));
+    h = regle("off", "refuse"); assert.ok(/disabled/.test(h) && h.includes("Les notifications sont bloquées pour ce site."));
+    h = regle("reseau"); assert.ok(h.includes("n'a pas pu être programmé") && h.includes('role="alert"'));
+    h = regle("trop"); assert.ok(h.includes("déjà 10 rappels en attente") && h.includes('role="alert"'));
+    PAGE.ecrire("rdv3St", {}); assert.equal(html("r:1"), "");
+  } finally { PAGE.ecrire("rdv3St", avant.st); PAGE.ecrire("notifSupport", avant.sup); }
+});
+await test("État de la case : iPhone hors appli et navigateurs intégrés sans case ; déjà programmé = cochée même à moins de 3 h ; sinon proposée au-delà de 3 h", async () => {
+  const sync = PAGE.lire("syncRdv3"), avant = PAGE.lire("notifSupport"), loin = Date.now() + 5 * 3600e3, proche = Date.now() + 3600e3;
+  try{
+    await avecMagasin(async local => {
+      for(const sup of ["ios", "integre", "non"]){ PAGE.ecrire("notifSupport", () => sup); await sync("r:a", loin); assert.equal(PAGE.lire("rdv3St")["r:a"], undefined, sup); }
+      PAGE.ecrire("notifSupport", () => "ok");
+      await sync("r:a", loin); assert.equal(PAGE.lire("rdv3St")["r:a"], "off");
+      await sync("r:b", proche); assert.equal(PAGE.lire("rdv3St")["r:b"], undefined, "moins de 3 h : pas proposée");
+      local.set("X", { id: "X", cle: "r:b", heure: Date.now() + 60e3, rdv: proche });
+      await sync("r:b", proche); assert.equal(PAGE.lire("rdv3St")["r:b"], "actif", "déjà programmé : cochée");
+    });
+  } finally { PAGE.ecrire("notifSupport", avant); }
+});
+await test("sw.js : texte composé sur l'appareil (« ⏰ Dans 3 h : … », heure, lieu), générique sans données ; aucune requête ; « Mes invitations »", () => {
+  const sw = readFileSync(RACINE + "sw.js", "utf8");
+  const bloc = sw.slice(sw.indexOf("const hFr"), sw.indexOf("async function onRdv"));
+  const texte = new Function(bloc + "\nreturn rdvTexte;")();
+  const rdv = new Date(2026, 11, 24, 20, 0).getTime();
+  assert.deepEqual(texte({ titre: "Dîner avec Sam", lieu: "Café de l'Exemple", rdv }, rdv - 3 * 3600e3), { title: "⏰ Dans 3 h : Dîner avec Sam", body: "Rendez-vous à 20 h, Café de l'Exemple." });
+  assert.deepEqual(texte({ titre: "Surprise avec Alex", lieu: "", rdv: rdv + 30 * 60e3 }, rdv - 2 * 3600e3 + 30 * 60e3 + 60e3), { title: "⏰ Dans 2 h : Surprise avec Alex", body: "Rendez-vous à 20 h 30." }, "envoi retardé : la durée suit");
+  assert.equal(texte({ titre: "Dîner avec Sam", lieu: "", rdv }, rdv - 60e3).title, "⏰ C'est l'heure : Dîner avec Sam");
+  assert.equal(texte({ titre: "Dîner avec Sam", lieu: "", rdv }, rdv - 45 * 60e3).title, "⏰ Dans 45 min : Dîner avec Sam");
+  assert.deepEqual(texte(null), { title: "⏰ Ton rendez-vous approche", body: "Touche pour le retrouver dans « Mes invitations »." });
+  const on = sw.slice(sw.indexOf("async function onRdv"), sw.indexOf("async function onPush"));
+  assert.ok(!/\bfetch\(/.test(bloc + on), "aucune requête");
+  assert.ok(on.includes('data: { url: "./#mes-invitations" }') && on.includes('tag: "rdv-" + id'));
+  assert.ok(sw.includes('if (m && m.k === "rdv") return onRdv(String(m.i || ""));'));
+});
+await test("Mes invitations : place de la case sur les cartes acceptées au créneau connu, jamais sur une Refusée ni sans réponse", () => {
+  const recue = PAGE.lire("histCardRecue"), env = PAGE.lire("histCardEnv"), j = new Date(Date.now() + 5 * 864e5).toISOString().slice(0, 10);
+  const base = { id: "c1", from: "Alex", to: "Sam", occ: "date", when: [[j, "20:00"]], link: LOCAL + "/#s=" + "A".repeat(22) + "." + "B".repeat(22), created: new Date().toISOString() };
+  const avant = PAGE.lire("rdv3St");
+  try{
+    PAGE.ecrire("rdv3St", { "r:c1": "off", "e:c1": "actif" });
+    assert.ok(recue({ ...base, rep: "o", repSlot: 0, ag: { t: "Dîner avec Alex", l: "", e: "" } }).includes('data-rdv3-slot="r:c1"'));
+    assert.ok(recue({ ...base, rep: "o", repSlot: 0, ag: { t: "x", l: "", e: "" } }).includes("⏰ Me rappeler 3 h avant"));
+    assert.ok(!recue({ ...base, rep: "n" }).includes("data-rdv3"), "Refusée");
+    assert.ok(!recue(base).includes("data-rdv3"), "sans réponse");
+    assert.ok(env({ ...base, ok: new Date().toISOString(), okSlot: 0 }).includes('data-rdv3-slot="e:c1"'), "Envoyée marquée acceptée");
+    assert.ok(!env(base).includes("data-rdv3"), "Envoyée sans réponse");
+  } finally { PAGE.ecrire("rdv3St", avant); }
+  const src = readFileSync(RACINE + "app/creer.js", "utf8");
+  for(const t of ['cancelRdv3("r:"+id);', 'cancelRdv3("e:"+id);', 'for(const it of list) cancelRdv3((recues ? "r:" : "e:")+it.id);'])
+    assert.ok(src.includes(t), `annulé quand l'invitation est retirée ou n'est plus acceptée : ${t}`);
+});
+await test("Après le Oui : même case que sur la carte des Reçues ; une réponse changée (créneau, retour en arrière, refus) annule l'ancien rappel", () => {
+  assert.ok(PAGE.lire("actionsHTML").toString().includes('(rdv3Cle ? rdv3HTML(rdv3Cle) : "")'));
+  const s = PAGE.lire("syncRdv3After").toString();
+  assert.ok(s.includes('afterMode==="yes" && !EXAMPLE && !D.vu && !D.rv && recueLien') && s.includes('const cle="r:"+x.id;'), "ni exemple, ni rappel d'agenda, ni version partagée");
+  assert.ok(PAGE.lire("noteReponse").toString().includes('cancelRdv3("r:"+x.id)'));
+});
+await essaiWorker("Ouvrir une invitation n'appelle jamais le service des rappels", async () => {
+  const r = reseau(); brancher(r);
+  await ouvrirLien(LOCAL + "/#i=" + await L.encodeData(INV()));
+  assert.ok(!r.journal.some(q => q.url.includes("/v1/rdv")), "aucune demande à l'ouverture");
 });
 
 /* ---------- Bilan ---------- */

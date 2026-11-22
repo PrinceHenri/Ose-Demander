@@ -1413,6 +1413,7 @@ function histCardEnv(it){
           ${histReply(it)}
           ${!it.rep && it.ok ? `<p class="rep rep-o">Acceptée 🎉${s===null ? "" : esc(", " + rdvQuand(it, s))}</p>` : ""}
           ${s!==null ? reboursHTML(it, s) : ""}
+          ${s!==null ? `<div data-rdv3-slot="e:${esc(it.id)}">${rdv3HTML("e:"+it.id)}</div>` : ""}
           <p class="meta">De ${esc(it.from)} · ${esc(histOcc(it))}</p>
           <p class="meta">${esc(histWhen(it))}</p>
           <p class="meta">Créée le ${esc(new Date(it.created).toLocaleDateString("fr-FR",{day:"numeric",month:"long",year:"numeric"}))}</p>
@@ -1436,7 +1437,7 @@ function histCardRecue(it){
         <li data-id="${esc(it.id)}">
           <p class="who">De ${esc(it.from)}</p>
           ${statutRecue(it)}
-          ${rdvSlot(it, true)!==null ? reboursHTML(it, rdvSlot(it, true)) : ""}
+          ${rdvSlot(it, true)!==null ? reboursHTML(it, rdvSlot(it, true)) + `<div data-rdv3-slot="r:${esc(it.id)}">${rdv3HTML("r:"+it.id)}</div>` : ""}
           <p class="meta">Pour ${esc(it.to)}</p>
           <p class="meta">${esc(histOcc(it))}</p>
           <p class="meta">${esc(histWhen(it))}</p>
@@ -1447,6 +1448,21 @@ function histCardRecue(it){
             <button type="button" class="btn sm ghost" data-act="del">Retirer de l'historique</button>
           </div>
         </li>`;
+}
+/* « Me rappeler 3 h avant » sur les cartes acceptées : état lu sur l'appareil, puis la case de chaque carte est refaite seule */
+function rdv3Carte(cle){
+  const z=document.querySelector(`[data-rdv3-slot="${cle}"]`); if(!z) return;
+  const f=document.activeElement && document.activeElement.dataset && document.activeElement.dataset.rdv3===cle;
+  z.innerHTML=rdv3HTML(cle); if(f) z.querySelector("[data-rdv3]")?.focus();
+}
+async function syncRdv3Hist(list, recues){
+  for(const it of list){
+    const s=rdvSlot(it, recues); if(s===null) continue;
+    const cle=(recues ? "r:" : "e:")+it.id;
+    await syncRdv3(cle, rdvMs(it.when[s][0], it.when[s][1]));
+    if(location.hash!=="#mes-invitations") return;
+    rdv3Carte(cle);
+  }
 }
 /* Plusieurs invitations : une à la fois, en glissant de gauche à droite (défilement natif du navigateur, cartes calées),
    la suivante dépasse un peu ; « Précédente » / « Suivante » (44 px) et « 2 sur 7 » dessous, pour le clavier et les
@@ -1519,6 +1535,7 @@ function renderHistory(){
   syncReplies().then(ch=>{ if(ch && location.hash==="#mes-invitations") renderHistory(); });
   startRebours();
   bindDefile(recues);
+  syncRdv3Hist(list, recues);
 
   const tabs=$$(".hist-tabs [role=tab]");
   const choisir=id=>{ if(id===histTab) return; histTab=id; renderHistory(); $(`#tab-${id}`)?.focus(); };
@@ -1529,6 +1546,14 @@ function renderHistory(){
       e.preventDefault(); choisir(tabs[(i+(e.key==="ArrowRight"?1:tabs.length-1))%tabs.length].dataset.tab);
     });
   });
+  // « Me rappeler 3 h avant » : le texte de la notification (titre, lieu) est lu au moment de cocher et reste sur l'appareil
+  $("#histList")?.addEventListener("change", e=>{
+    const c=e.target.closest("[data-rdv3]"); if(!c) return;
+    const cle=c.dataset.rdv3, id=cle.slice(2), rec=cle[0]==="r", it=(rec ? loadRecuesBrutes() : loadHistory()).find(x=>x.id===id);
+    const s = it ? rdvSlot(it, rec) : null; if(s===null){ renderHistory(); return; }
+    const texte=async()=>{ const ev = rec ? eventRecue(it) : await eventEnvoyee(it); return {titre:ev.title, lieu:ev.loc}; };
+    setRdv3(cle, c.checked, rdvMs(it.when[s][0], it.when[s][1]), texte, ()=>rdv3Carte(cle));
+  });
   $("#histList")?.addEventListener("click", async e=>{
     const b=e.target.closest("[data-act]"); if(!b) return;
     const id=b.closest("[data-id]").dataset.id;
@@ -1538,6 +1563,7 @@ function renderHistory(){
       if(b.dataset.act==="open") window.open(it.link,"_blank","noopener");
       if(b.dataset.act==="cal" || b.dataset.act==="gcal") agendaHist(eventRecue(it), b.dataset.act);
       if(b.dataset.act==="del"){
+        cancelRdv3("r:"+id);
         if(storeRecues(loadRecuesBrutes().filter(x=>x.id!==id))){ renderHistory(); toast("Invitation retirée de l'historique"); }
         else toast("Impossible de modifier l'historique sur cet appareil");
       }
@@ -1559,12 +1585,14 @@ function renderHistory(){
         break;
       }
       case "unok":
+        cancelRdv3("e:"+id); delete rdv3St["e:"+id];
         if(storeHistory(loadHistory().map(x=>{ if(x.id!==id) return x; const { ok, okSlot, ...reste }=x; return reste; }))){ renderHistory(); toast("Ce n'est plus marqué comme acceptée"); }
         else toast("Impossible de modifier l'historique sur cet appareil");
         break;
       case "unpub": unpublishShort(it); break;
       case "del":
         if(it.nid && it.njeton && !it.rep) cancelNotif(it.nid, it.njeton); // plus de statut à afficher : plus de notification
+        cancelRdv3("e:"+id);
         if(storeHistory(loadHistory().filter(x=>x.id!==id))){ renderHistory(); toast("Invitation retirée de l'historique"); }
         else toast("Impossible de modifier l'historique sur cet appareil");
         break;
@@ -1579,6 +1607,7 @@ function renderHistory(){
       `${n>1?`Les ${n} invitations ${quoi}s`:`L'invitation ${quoi}`} de cet appareil ${n>1?"seront retirées":"sera retirée"} de l'historique. Les liens continueront de fonctionner. Exporte ton historique avant si tu veux le garder.`,
       "Tout effacer");
     if(!ok) return;
+    for(const it of list) cancelRdv3((recues ? "r:" : "e:")+it.id);
     if(recues){
       if(storeRecues([])){ renderHistory(); toast("Invitations reçues effacées"); }
       else toast("Impossible d'effacer l'historique sur cet appareil");
@@ -1736,4 +1765,4 @@ async function importHistory(file){
   toast(msg);
 }
 
-oseLoaded("creer", "82fff0eba1");
+oseLoaded("creer", "cd6d9cf7cd");
