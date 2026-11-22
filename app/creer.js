@@ -1174,10 +1174,8 @@ function isOwnLink(link){
   return (prod||dev) && u.href===link && !u.username && !u.password && !u.search
     && (u.pathname==="/" || u.pathname==="/index.html") && (/^#i=[zpyx][A-Za-z0-9_-]+$/.test(u.hash) || SHORT_HASH.test(u.hash));
 }
-/* Validation stricte d'une entrée : champs connus seulement, bons types, bonnes longueurs */
-function validEntry(x){
-  if(!x || typeof x!=="object" || Array.isArray(x)) return false;
-  if(Object.keys(x).some(k=>!HIST_FIELDS.includes(k))) return false;
+/* Champs communs à une invitation envoyée ou reçue : identifiant, prénoms, occasion, dates, date d'ajout, lien d'Ose Demander */
+function validCommun(x){
   const txt=(v,max)=>typeof v==="string" && v.trim()!=="" && v.length<=max;
   const isDate=v=>typeof v==="string" && /^\d{4}-\d{2}-\d{2}$/.test(v);
   const isTime=v=>typeof v==="string" && /^\d{2}:\d{2}$/.test(v);
@@ -1188,7 +1186,14 @@ function validEntry(x){
     && Array.isArray(x.when) && x.when.length>=1 && x.when.length<=3
     && x.when.every(w=>Array.isArray(w) && w.length===2 && isDate(w[0]) && isTime(w[1]))
     && typeof x.created==="string" && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{3})?Z$/.test(x.created) && !isNaN(Date.parse(x.created))
-    && isOwnLink(x.link)
+    && isOwnLink(x.link);
+}
+/* Validation stricte d'une entrée : champs connus seulement, bons types, bonnes longueurs */
+function validEntry(x){
+  if(!x || typeof x!=="object" || Array.isArray(x)) return false;
+  if(Object.keys(x).some(k=>!HIST_FIELDS.includes(k))) return false;
+  if(!validCommun(x)) return false;
+  return true // puis les champs propres aux Envoyées : lien court et son lien complet, image, notification
     && (shortId(x.link)
       ? isOwnLink(x.long) && x.long.includes("#i=") && (x.jeton===undefined || (typeof x.jeton==="string" && /^[A-Za-z0-9_-]{43}$/.test(x.jeton))) && (x.gone===undefined || x.gone===true)
       : x.long===undefined && x.jeton===undefined && x.gone===undefined)
@@ -1203,18 +1208,17 @@ function validEntry(x){
 }
 /* Onglet Reçues (clé RECUES_KEY, écrite à l'ouverture d'une invitation par noteRecue, dans index.html).
    Mêmes exigences que les Envoyées : champs connus seulement, bons types, liens d'Ose Demander ; un lien court garde son lien complet. */
-const RECUE_FIELDS=["id","from","to","occ","occFree","when","link","long","created"];
+// Un lien court reçu est gardé seul, jamais recopié en lien complet : s'il expire ou est supprimé en ligne,
+// l'invitation ne s'ouvre plus, ici non plus (ce que la personne qui l'a créée attend)
+const RECUE_FIELDS=["id","from","to","occ","occFree","when","link","created"];
 function validRecue(x){
-  if(!x || typeof x!=="object" || Array.isArray(x) || Object.keys(x).some(k=>!RECUE_FIELDS.includes(k))) return false;
-  const { long, ...reste } = x;
-  // Les champs communs se vérifient comme une Envoyée (lien long seul, ou lien court avec son lien complet)
-  return validEntry(shortId(x.link) ? { ...reste, long, gone:true } : reste) && (shortId(x.link) ? typeof long==="string" : long===undefined);
+  return !!x && typeof x==="object" && !Array.isArray(x) && !Object.keys(x).some(k=>!RECUE_FIELDS.includes(k)) && validCommun(x);
 }
 const loadRecuesBrutes = () => lireListe(RECUES_KEY).filter(validRecue);
 // Une invitation présente dans les Envoyées de cet appareil n'est jamais affichée en Reçues
 function loadRecues(){
   const env=loadHistory();
-  return loadRecuesBrutes().filter(x=>!recueIgnoree(x.link, invLink(x), env, [])).sort(byNewest);
+  return loadRecuesBrutes().filter(x=>!recueIgnoree(x.link, x.link, env, [])).sort(byNewest);
 }
 function storeRecues(list){
   try{
@@ -1290,8 +1294,8 @@ async function addToHistory(link, sh=null, notif=null){
     const list=loadHistory().filter(x=>x.link!==link);
     list.unshift(e);
     if(!storeHistory(list)) return false;
-    const long=invLink(e), recues=loadRecuesBrutes();
-    if(recues.some(x=>x.link===e.link || x.long===long || x.link===long)) storeRecues(recues.filter(x=>!(x.link===e.link || x.long===long || x.link===long)));
+    const long=invLink(e), recues=loadRecuesBrutes(), meme=x=>x.link===e.link || x.link===long;
+    if(recues.some(meme)) storeRecues(recues.filter(x=>!meme(x)));
     askPersist();
     return true;
   }catch(e){ return false; }
@@ -1389,7 +1393,7 @@ function renderHistory(){
     if(recues){
       const it=loadRecuesBrutes().find(x=>x.id===id);
       if(!it){ renderHistory(); return; }
-      if(b.dataset.act==="open") window.open(invLink(it),"_blank","noopener");
+      if(b.dataset.act==="open") window.open(it.link,"_blank","noopener");
       if(b.dataset.act==="del"){
         if(storeRecues(loadRecuesBrutes().filter(x=>x.id!==id))){ renderHistory(); toast("Invitation retirée de l'historique"); }
         else toast("Impossible de modifier l'historique sur cet appareil");
@@ -1525,9 +1529,9 @@ async function importHistory(file){
   let addedR=0;
   for(const x of data.recues||[]){
     if(!validRecue(x)){ skipped++; continue; }
-    if(rLinks.has(x.link) || recueIgnoree(x.link, invLink(x), list, [])) continue;
-    let d; try{ d=await decodeData(linkData(invLink(x))); }catch(e){ skipped++; continue; }
-    const e=recueEntry(d, x.link, invLink(x), x.created, rIds.has(x.id) ? newId() : x.id);
+    if(rLinks.has(x.link) || recueIgnoree(x.link, x.link, list, [])) continue;
+    let e={ ...x, id: rIds.has(x.id) ? newId() : x.id };
+    if(!shortId(x.link)){ let d; try{ d=await decodeData(linkData(x.link)); }catch(err){ skipped++; continue; } e=recueEntry(d, x.link, x.created, e.id); }
     if(!validRecue(e)){ skipped++; continue; }
     recues.push(e); rLinks.add(e.link); rIds.add(e.id); addedR++;
   }
@@ -1541,4 +1545,4 @@ async function importHistory(file){
   toast(msg);
 }
 
-oseLoaded("creer", "cdf5a77265");
+oseLoaded("creer", "f6eed4b207");

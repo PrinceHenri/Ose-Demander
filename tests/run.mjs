@@ -3582,17 +3582,16 @@ await test("Reçues : jamais l'exemple, la version partagée, le rappel d'agenda
   const s8 = new Map([["ose-recues", "pas du json"], ["ose-historique", "{}"]]); await ouvrirRecue(s8);
   assert.equal(recuesDe(s8).length, 1, "stockage abîmé : remplacé sans erreur");
 });
-await test("Reçues : lien court gardé avec son lien complet ; champs inconnus ou liens étrangers refusés", async () => {
+await test("Reçues : un lien court est gardé seul (jamais recopié en lien complet) ; champs inconnus ou liens étrangers refusés", async () => {
   const P = chargerPage(), ok = P.lire("validRecue"), entree = P.lire("recueEntry");
   const d = await L.decodeData(await L.encodeData(INV())), long = LOCAL + "/#i=" + await L.encodeData(INV());
   const court = `${LOCAL}/#s=${"A".repeat(22)}.${"B".repeat(22)}`;
-  const e = entree(d, court, long, "2026-11-20T10:00:00.000Z", "abc123");
-  assert.equal(e.long, long, "le lien complet suit le lien court");
-  assert.ok(ok(e));
-  assert.ok(ok(entree(d, long, long, "2026-11-20T10:00:00.000Z", "abc123")), "lien complet seul");
-  for(const faux of [{ long: undefined }, { long: court }, { jeton: "C".repeat(43) }, { rep: "o" }, { link: "https://exemple.fr/#i=yAAAA" }, { occ: "inconnue" }, { from: "" }, { created: "hier" }])
+  const e = entree(d, court, "2026-11-20T10:00:00.000Z", "abc123");
+  assert.equal(e.link, court); assert.ok(!("long" in e), "pas de copie du lien complet : un lien expiré ou supprimé ne s’ouvre plus");
+  assert.ok(ok(e) && ok(entree(d, long, "2026-11-20T10:00:00.000Z", "abc123")), "lien court ou lien complet");
+  for(const faux of [{ long }, { jeton: "C".repeat(43) }, { rep: "o" }, { link: "https://exemple.fr/#i=yAAAA" }, { occ: "inconnue" }, { from: "" }, { created: "hier" }, { when: [] }])
     assert.ok(!ok({ ...e, ...faux }), `refusé : ${JSON.stringify(faux)}`);
-  assert.ok(!ok({ ...entree(d, long, long, "2026-11-20T10:00:00.000Z", "abc123"), long }), "lien complet seul : pas de champ long");
+  assert.ok(PAGE.lire("renderHistory").toString().includes(`window.open(it.link,"_blank","noopener")`), "« Ouvrir » passe par le lien gardé");
 });
 await test("Envoyées : une invitation qu'on crée quitte les Reçues ; « Tester l'invitation » note le lien 24 h", async () => {
   const stockage = new Map(), { P, lien } = await ouvrirRecue(stockage);
@@ -3627,12 +3626,15 @@ await test("Export (version 2) et import : versions 1 et 2 acceptées, Reçues r
   const src = PAGE.lire("exportHistory").toString();
   assert.ok(src.includes("version:2") && src.includes("items, recues"), "export : Envoyées et Reçues");
   const P = chargerPage({ stockage: new Map() }), d = await L.decodeData(await L.encodeData(INV()));
-  const long = LOCAL + "/#i=" + await L.encodeData(INV()), recue = P.lire("recueEntry")(d, long, long, "2026-11-20T10:00:00.000Z", "abc123");
+  const long = LOCAL + "/#i=" + await L.encodeData(INV()), recue = P.lire("recueEntry")(d, long, "2026-11-20T10:00:00.000Z", "abc123");
   const fichier = obj => ({ size: 1000, text: async () => JSON.stringify(obj) });
   await P.lire("importHistory")(fichier({ app: "ose-demander", version: 2, items: [], recues: [recue, { ...recue, id: "pirate", rep: "o" }] }));
   assert.equal(recuesDe(P.stockage).length, 1, "une Reçue importée, l'entrée invalide ignorée");
+  const court = { ...recue, id: "court1", link: `${LOCAL}/#s=${"A".repeat(22)}.${"B".repeat(22)}` };
+  await P.lire("importHistory")(fichier({ app: "ose-demander", version: 2, items: [], recues: [court] }));
+  assert.ok(recuesDe(P.stockage).some(x => x.link === court.link && !("long" in x)), "lien court importé tel quel, sans lien complet");
   await P.lire("importHistory")(fichier({ app: "ose-demander", version: 2, items: [], recues: [recue] }));
-  assert.equal(recuesDe(P.stockage).length, 1, "réimport : pas de doublon");
+  assert.equal(recuesDe(P.stockage).length, 2, "réimport : pas de doublon (lien complet et lien court)");
   const P2 = chargerPage({ stockage: new Map() });
   await P2.lire("importHistory")(fichier({ app: "ose-demander", version: 1, items: [], recues: [recue] }));
   assert.ok(!P2.stockage.has("ose-recues"), "version 1 : pas de Reçues (format refusé)");
