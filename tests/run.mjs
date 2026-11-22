@@ -3881,6 +3881,138 @@ await test("« Voir un exemple » (pied de page) et « Revoir l'exemple » (Mes 
   assert.ok(PAGE.lire("footerHTML").toString().includes('"/#exemple","Voir un exemple"') || readFileSync(RACINE + "app/creer.js", "utf8").includes('"/#exemple","Voir un exemple"'));
 });
 
+/* =========================================================
+   48. Rappel « 3 h avant » : le Worker (table rdv, rien que l'heure et l'abonnement, ligne supprimée après l'envoi, limites, budget partagé)
+   ========================================================= */
+titre("48. Rappel 3 h avant : le Worker");
+const DID = i => String(i).padStart(22, "D");
+const ENDPOINT_EX2 = "https://fcm.googleapis.com/fcm/send/autre-abonnement-fictif";
+const programmerRdv = async (env, app, id, heure, extra = {}, endpoint = ENDPOINT_EX) =>
+  appel(env, "POST", "/v1/rdv", { id, abo: { endpoint, keys: app.keys }, heure, del: await empreinteDe(JETON_EX), ...extra });
+const rdvDu = (env, id, avant = 0) => env.DB.db.prepare("UPDATE rdv SET heure = ?, prochain = ? WHERE id = ?").run(Date.now() - avant, Date.now() - avant, id);
+const lignesRdv = env => env.DB.db.prepare("SELECT COUNT(*) AS n FROM rdv").get().n;
+
+await essaiWorker("Programmer : une ligne, abonnement chiffré, empreinte illisible, ni lien ni titre ni lieu ; rien avant l'heure", async () => {
+  await avecPush(async () => {
+    const env = ENV_N(), app = WP.appareil();
+    const r = await programmerRdv(env, app, DID(1), Date.now() + 60 * minute);
+    assert.equal(r.status, 201); assert.deepEqual(await r.json(), { ok: true });
+    const l = env.DB.db.prepare("SELECT * FROM rdv").get();
+    assert.deepEqual(Object.keys(l).sort(), ["abo", "aboh", "del", "heure", "id", "prochain"], "aucune colonne pour le lien, le titre, le lieu ou les prénoms");
+    for(const clair of ["fcm.googleapis.com", "exemple-abonnement-fictif", app.keys.auth]){ assert.ok(!l.abo.includes(clair), "abonnement chiffré"); assert.ok(!l.aboh.includes(clair), "empreinte illisible"); }
+    assert.match(l.aboh, /^[A-Za-z0-9_-]{43}$/);
+    const env2 = ENV_N(); await programmerRdv(env2, app, DID(1), Date.now() + 60 * minute);
+    assert.notEqual(env2.DB.db.prepare("SELECT aboh FROM rdv").get().aboh, l.aboh, "empreinte liée au secret CLE_STOCKAGE");
+    await passage(env);
+    assert.equal(envois.length, 0, "rien avant l'heure prévue");
+  });
+});
+await essaiWorker("À l'heure : la notification part chiffrée et signée avec seulement l'identifiant, puis la ligne est SUPPRIMÉE (jamais renvoyée)", async () => {
+  await avecPush(async () => {
+    const env = ENV_N(), app = WP.appareil();
+    await programmerRdv(env, app, DID(1), Date.now() + 60 * minute); await programmerRdv(env, app, DID(2), Date.now() + 90 * minute);
+    rdvDu(env, DID(1));
+    await passage(env);
+    assert.equal(envois.length, 1, "seulement celui arrivé à échéance");
+    WP.verifierVapid(envois[0].headers.Authorization, ENDPOINT_EX, VAPID_TEST.pub);
+    assert.deepEqual(JSON.parse(WP.dechiffrer(app, envois[0].corps)), { v: 1, k: "rdv", i: DID(1) }, "rien d'autre que l'identifiant");
+    assert.equal(env.DB.db.prepare("SELECT COUNT(*) AS n FROM rdv WHERE id = ?").get(DID(1)).n, 0, "ligne supprimée après l'envoi");
+    assert.equal(lignesRdv(env), 1);
+    await passage(env); await passage(env);
+    assert.equal(envois.length, 1, "jamais renvoyé");
+  });
+});
+await essaiWorker(`${WORKER.RDV_PAR_ABO} rappels en attente au plus par abonnement (429 « trop ») ; un autre appareil n'est pas bloqué ; une place se libère à l'annulation`, async () => {
+  await avecPush(async () => {
+    const env = ENV_N(), app = WP.appareil(), h = Date.now() + 60 * minute;
+    for(let i = 0; i < WORKER.RDV_PAR_ABO; i++) assert.equal((await programmerRdv(env, app, DID(i), h + i * minute)).status, 201);
+    const trop = await programmerRdv(env, app, DID(50), h);
+    assert.equal(trop.status, 429); assert.deepEqual(await trop.json(), { erreur: "trop" });
+    assert.equal((await programmerRdv(env, WP.appareil(), DID(51), h, {}, ENDPOINT_EX2)).status, 201, "autre appareil");
+    assert.equal((await appel(env, "POST", `/v1/rdv/${DID(0)}/supprimer`, { jeton: JETON_EX })).status, 200);
+    assert.equal((await programmerRdv(env, app, DID(52), h)).status, 201, "place libérée");
+    assert.ok(WORKER.RDV_PAR_ABO >= 5 && WORKER.RDV_PAR_ABO <= 20);
+  });
+});
+await essaiWorker(`Budget partagé avec les révélations : ${WORKER.RAPPEL_LOT} envois au plus par passage en tout, révélations d'abord, le reste à la minute suivante`, async () => {
+  await avecPush(async () => {
+    const env = ENV_N(), app = WP.appareil();
+    await abonnerRappels(env, app, [{ id: RID(1), heure: Date.now() + 30 * minute }, { id: RID(2), heure: Date.now() + 30 * minute }]);
+    env.DB.db.prepare("UPDATE rappels SET heure = ?, prochain = ?").run(Date.now() - 1000, Date.now() - 1000);
+    for(let i = 0; i < WORKER.RAPPEL_LOT; i++){ await programmerRdv(env, app, DID(i), Date.now() + 60 * minute); rdvDu(env, DID(i), 1000); }
+    await passage(env);
+    assert.equal(envois.length, WORKER.RAPPEL_LOT, "budget du passage respecté");
+    const k = envois.map(e => JSON.parse(WP.dechiffrer(app, e.corps)).k);
+    assert.deepEqual(k.slice(0, 2), ["rv", "rv"], "révélations d'abord");
+    await passage(env);
+    assert.equal(envois.length, 2 + WORKER.RAPPEL_LOT, "le reste part au passage suivant");
+    assert.equal(lignesRdv(env), 0);
+  });
+});
+await essaiWorker("Erreur passagère : nouvel essai 5 minutes plus tard ; appareil désabonné : supprimé ; 2 h après l'heure : supprimé sans envoi", async () => {
+  await avecPush(async () => {
+    const env = ENV_N(), app = WP.appareil();
+    for(const i of [1, 2, 3]) await programmerRdv(env, app, DID(i), Date.now() + 60 * minute);
+    rdvDu(env, DID(1)); codePush = 503;
+    await passage(env);
+    const l = env.DB.db.prepare("SELECT prochain FROM rdv WHERE id = ?").get(DID(1));
+    assert.ok(l && l.prochain > Date.now() + 4 * minute && l.prochain <= Date.now() + 5 * minute, "nouvel essai dans 5 minutes");
+    await passage(env); assert.equal(envois.length, 1, "pas de nouvel essai avant 5 minutes");
+    rdvDu(env, DID(2)); codePush = 410;
+    await passage(env);
+    assert.equal(env.DB.db.prepare("SELECT COUNT(*) AS n FROM rdv WHERE id = ?").get(DID(2)).n, 0, "désabonné : supprimé");
+    rdvDu(env, DID(3), WORKER.RDV_GARDE + minute); const avant = envois.length;
+    await passage(env);
+    assert.equal(envois.length, avant, "trop tard : rien n'est envoyé");
+    assert.equal(env.DB.db.prepare("SELECT COUNT(*) AS n FROM rdv WHERE id = ?").get(DID(3)).n, 0, "trop tard : supprimé");
+    assert.equal(WORKER.RDV_GARDE, 2 * 3600e3);
+  });
+});
+await essaiWorker("Renoncer : jeton faux refusé, bon jeton accepté (ligne supprimée), ensuite 404 et rien n'est envoyé ; nettoyage quotidien", async () => {
+  await avecPush(async () => {
+    const env = ENV_N(), app = WP.appareil();
+    await programmerRdv(env, app, DID(1), Date.now() + 60 * minute);
+    assert.equal((await appel(env, "POST", `/v1/rdv/${DID(1)}/supprimer`, { jeton: "C".repeat(43) })).status, 403);
+    assert.equal((await appel(env, "POST", `/v1/rdv/${DID(1)}/supprimer`, { jeton: JETON_EX })).status, 200);
+    assert.equal(lignesRdv(env), 0, "ligne supprimée, pas seulement marquée");
+    assert.equal((await appel(env, "POST", `/v1/rdv/${DID(1)}/supprimer`, { jeton: JETON_EX })).status, 404);
+    await passage(env); assert.equal(envois.length, 0);
+    // Filet de sécurité : une ligne oubliée (heure dépassée de plus de 2 h) disparaît au nettoyage quotidien
+    await programmerRdv(env, app, DID(2), Date.now() + 60 * minute);
+    env.DB.db.prepare("UPDATE rdv SET heure = ?, prochain = ?").run(Date.now() - WORKER.RDV_GARDE - minute, Date.now() + 864e5);
+    await passage(env, Date.UTC(2026, 10, 22, 12, 0)); assert.equal(lignesRdv(env), 1, "pas de nettoyage à midi");
+    await passage(env, Date.UTC(2026, 10, 22, 3, 17)); assert.equal(lignesRdv(env), 0, "nettoyage quotidien à 3 h 17 UTC");
+  });
+});
+await essaiWorker("Validation stricte : heure passée, à moins d'une minute ou à plus d'un an, champs en trop (lien, titre, lieu), service inconnu, taille, doublon ; aucune lecture", async () => {
+  await avecPush(async () => {
+    const app = WP.appareil(), h = Date.now() + 60 * minute, essai = (heure, extra) => programmerRdv(ENV_N(), app, DID(1), heure, extra);
+    assert.equal((await essai(Date.now() - minute)).status, 400, "heure passée");
+    assert.equal((await essai(Date.now() + 10 * 1000)).status, 400, "moins d'une minute");
+    assert.equal((await essai(Date.now() + 400 * 864e5)).status, 400, "plus d'un an");
+    assert.equal((await essai(h + 0.5)).status, 400, "heure entière");
+    for(const k of ["lien", "titre", "lieu", "texte", "c"]) assert.equal((await essai(h, { [k]: "x" })).status, 400, `jamais de champ « ${k} »`);
+    assert.equal((await programmerRdv(ENV_N(), app, "court", h)).status, 400, "identifiant de 22 caractères");
+    assert.equal((await programmerRdv(ENV_N(), app, DID(1), h, {}, "https://exemple.com/x")).status, 400, "service de notification inconnu");
+    assert.equal((await appel(ENV_N(), "POST", "/v1/rdv", "x".repeat(WORKER.NOTIF_CORPS_MAX + 1))).status, 413);
+    const env = ENV_N(); await programmerRdv(env, app, DID(1), h);
+    assert.equal((await programmerRdv(env, app, DID(1), h)).status, 409);
+    assert.equal((await appel(env, "GET", "/v1/rdv")).status, 405, "aucune lecture");
+    assert.equal((await appel(env, "GET", `/v1/rdv/${DID(1)}`)).status, 404);
+    assert.equal((await programmerRdv(ENV_N({ CLE_STOCKAGE: undefined }), app, DID(1), h)).status, 503);
+    assert.equal((await appel(ENV_N(), "POST", "/v1/rdv", {}, "https://pirate.example")).status, 403, "CORS : seul le site");
+    assert.equal(envois.length, 0);
+  });
+});
+await test("Schéma : table rdv sans colonne de contenu, index sur l'heure et l'empreinte ; requêtes SQL de regles.js seulement", () => {
+  const sql = readFileSync(RACINE + "worker/schema.sql", "utf8"), t = sql.slice(sql.indexOf("CREATE TABLE IF NOT EXISTS rdv"));
+  assert.deepEqual([...t.slice(0, t.indexOf(");")).matchAll(/^\s+([a-z]+)\s+(TEXT|INTEGER)/gm)].map(m => m[1]), ["id", "abo", "aboh", "del", "heure", "prochain"]);
+  assert.ok(t.includes("CREATE INDEX IF NOT EXISTS rdv_prochain") && t.includes("CREATE INDEX IF NOT EXISTS rdv_aboh"));
+  const src = readFileSync(RACINE + "worker/src/index.js", "utf8");
+  assert.ok(!/prepare\("/.test(src), "aucune requête écrite en dur dans index.js");
+  assert.ok(src.includes("await envoyerRdv(env, maintenant, RAPPEL_LOT - faits);"), "budget partagé");
+});
+
 /* ---------- Bilan ---------- */
 console.log(`\n${ko ? "❌" : "✅"} ${ok} tests réussis, ${ko} en échec (graine ${GRAINE}${ko ? ` — pour rejouer : node tests/run.mjs --graine=${GRAINE}` : ""})`);
 if(ko){ console.log(echecs.map(e => "  - " + e).join("\n")); process.exitCode = 1; }

@@ -26,6 +26,11 @@
      POST /v1/rappels/:id/supprimer {jeton}                         -> 200 {ok}  la personne y renonce (case décochée)
    La tâche planifiée (chaque minute) envoie {v:1, k:"rv", i:id} à l'heure prévue, puis efface l'abonnement.
    Ni le lien, ni sa clé, ni les prénoms, ni la surprise : l'appareil retrouve l'invitation grâce à l'identifiant.
+   Rappels de rendez-vous « Me rappeler 3 h avant » (facultatifs, pour son propre appareil, une fois l'invitation acceptée) :
+     POST /v1/rdv              {id, abo, heure, del} -> 201 {ok}   une ligne ; 429 {erreur: "trop"} au-delà de RDV_PAR_ABO en attente
+     POST /v1/rdv/:id/supprimer {jeton}              -> 200 {ok}   y renoncer (case décochée, invitation retirée) ; 404 déjà parti
+   La tâche planifiée envoie {v:1, k:"rdv", i:id} à l'heure prévue, puis SUPPRIME la ligne ; 2 h après l'heure, supprimée sans envoi.
+   L'appareil compose le texte (titre, heure, lieu) à partir de ce qu'il a gardé : rien de tout cela n'est envoyé.
    Clés (secrets Cloudflare, jamais dans le dépôt) : VAPID_PRIVEE, CLE_STOCKAGE ; VAPID_PUBLIQUE est publique (wrangler.toml).
 
    Aucun journal : le Worker n'écrit jamais rien dans la console, et les journaux Cloudflare sont coupés (wrangler.toml).
@@ -33,8 +38,8 @@
 
 import { CT_MAX, CORPS_MAX, DUREE, GARDE, ID, B64, EMPREINTE, SQL,
   NOTIF_MAX, NOTIF_GARDE, NOTIF_CORPS_MAX, REPONSE_MAX, HOTES_PUSH, P256, AUTH,
-  RAPPEL_MAX, RAPPEL_LOT, RAPPEL_MIN, RAPPEL_GARDE, RAPPEL_REESSAI } from "./regles.js";
-import { envoyerPush, scellerAbo, ouvrirAbo, deB64 } from "./push.js";
+  RAPPEL_MAX, RAPPEL_LOT, RAPPEL_MIN, RAPPEL_GARDE, RAPPEL_REESSAI, RDV_PAR_ABO, RDV_GARDE, RDV_REESSAI } from "./regles.js";
+import { envoyerPush, scellerAbo, ouvrirAbo, deB64, empreinteAbo } from "./push.js";
 
 const origines = env => String(env.ORIGINES || "https://osedemander.fr").split(",").map(s => s.trim()).filter(Boolean);
 
@@ -156,18 +161,61 @@ async function rappels(requete, env, permise, id){
 async function envoyerRappels(env, maintenant){
   if(!env.VAPID_PRIVEE || !env.VAPID_PUBLIQUE || !env.CLE_STOCKAGE) return 0;
   const { results = [] } = await env.DB.prepare(SQL.rappelsDus).bind(maintenant, RAPPEL_LOT).all();
-  let n = 0;
   for(const r of results){
     const fin = etat => env.DB.prepare(SQL.rappelFin).bind(etat, r.id).run();
     try{
       if(!r.abo || r.heure + RAPPEL_GARDE < maintenant){ await fin("expire"); continue; } // trop tard : effacé sans envoi
       const statut = await envoyerPush(await ouvrirAbo(r.abo, r.id, env), new TextEncoder().encode(JSON.stringify({ v: 1, k: "rv", i: r.id })), env);
-      if(statut >= 200 && statut < 300){ await fin("envoye"); n++; }
+      if(statut >= 200 && statut < 300) await fin("envoye");
       else if(statut === 404 || statut === 410) await fin("expire"); // l'appareil s'est désabonné
       else await env.DB.prepare(SQL.rappelReessai).bind(maintenant + RAPPEL_REESSAI, r.id).run();
     }catch{ try{ await env.DB.prepare(SQL.rappelReessai).bind(maintenant + RAPPEL_REESSAI, r.id).run(); }catch{} }
   }
-  return n;
+  return results.length; // envois tentés : ils comptent dans le budget de calcul du passage
+}
+
+// Rappels de rendez-vous : programmer (une ligne) ou y renoncer
+async function rdv(requete, env, permise, id){
+  if(requete.method !== "POST") return reponse(405, { erreur: "methode" }, permise);
+  if(!await limite(env.LIMITE_ABO, requete)) return reponse(429, { erreur: "limite" }, permise);
+  const { x, trop } = await lireCorps(requete, NOTIF_CORPS_MAX);
+  if(trop) return reponse(413, { erreur: "taille" }, permise);
+  if(id){ // renoncer, avec le jeton gardé sur l'appareil
+    if(!ID.test(id) || !x || typeof x.jeton !== "string" || !/^[A-Za-z0-9_-]{43}$/.test(x.jeton) || Object.keys(x).length !== 1) return reponse(400, { erreur: "contenu" }, permise);
+    const l = await env.DB.prepare(SQL.rdvLire).bind(id).first();
+    if(!l) return reponse(404, { erreur: "introuvable" }, permise); // déjà parti, déjà annulé ou trop tard
+    if(!egal(await empreinte(x.jeton), l.del)) return reponse(403, { erreur: "jeton" }, permise);
+    await env.DB.prepare(SQL.rdvEffacer).bind(id).run();
+    return reponse(200, { ok: true }, permise);
+  }
+  const maintenant = Date.now();
+  if(!x || Object.keys(x).sort().join() !== "abo,del,heure,id" || typeof x.id !== "string" || !ID.test(x.id) || !aboValide(x.abo)
+    || typeof x.del !== "string" || !EMPREINTE.test(x.del) || !Number.isSafeInteger(x.heure) || x.heure < maintenant + RAPPEL_MIN || x.heure > maintenant + NOTIF_MAX)
+    return reponse(400, { erreur: "contenu" }, permise);
+  if(!env.VAPID_PRIVEE || !env.VAPID_PUBLIQUE || !env.CLE_STOCKAGE) return reponse(503, { erreur: "indisponible" }, permise);
+  const aboh = await empreinteAbo(x.abo.endpoint, env);
+  const { n } = await env.DB.prepare(SQL.rdvCompter).bind(aboh).first() || { n: 0 };
+  if(n >= RDV_PAR_ABO) return reponse(429, { erreur: "trop" }, permise);
+  try{ await env.DB.prepare(SQL.rdvCreer).bind(x.id, await scellerAbo(x.abo, x.id, env), aboh, x.del, x.heure, x.heure).run(); }
+  catch(e){ if(/UNIQUE|constraint/i.test(String(e && e.message))) return reponse(409, { erreur: "existe" }, permise); throw e; }
+  return reponse(201, { ok: true }, permise);
+}
+/* Tâche planifiée : envoie les rappels de rendez-vous arrivés à échéance (lot = ce qui reste du budget du passage).
+   Chaque ligne est supprimée dès l'envoi accepté, si l'appareil s'est désabonné, ou 2 h après l'heure. */
+async function envoyerRdv(env, maintenant, lot){
+  if(lot <= 0 || !env.VAPID_PRIVEE || !env.VAPID_PUBLIQUE || !env.CLE_STOCKAGE) return 0;
+  const { results = [] } = await env.DB.prepare(SQL.rdvDus).bind(maintenant, lot).all();
+  for(const r of results){
+    const effacer = () => env.DB.prepare(SQL.rdvEffacer).bind(r.id).run();
+    const reessai = () => env.DB.prepare(SQL.rdvReessai).bind(maintenant + RDV_REESSAI, r.id).run();
+    try{
+      if(r.heure + RDV_GARDE < maintenant){ await effacer(); continue; } // trop tard : supprimé sans envoi
+      const statut = await envoyerPush(await ouvrirAbo(r.abo, r.id, env), new TextEncoder().encode(JSON.stringify({ v: 1, k: "rdv", i: r.id })), env);
+      if((statut >= 200 && statut < 300) || statut === 404 || statut === 410) await effacer(); // parti, ou appareil désabonné
+      else await reessai();
+    }catch{ try{ await reessai(); }catch{} }
+  }
+  return results.length;
 }
 
 // Limite par adresse IP (compteur du limiteur de Cloudflare, en mémoire : aucune adresse n'est enregistrée)
@@ -182,6 +230,8 @@ export default {
     const permise = o && origines(env).includes(o) ? o : null;
     if(o && !permise) return reponse(403, { erreur: "origine" }, null); // une page d'un autre site ne peut rien faire
     if(requete.method === "OPTIONS") return reponse(204, null, permise);
+    const rv = url.pathname.match(/^\/v1\/rdv(?:\/([^/]+)\/supprimer)?$/);
+    if(rv){ try{ return await rdv(requete, env, permise, rv[1]); }catch{ return reponse(503, { erreur: "indisponible" }, permise); } }
     const rp = url.pathname.match(/^\/v1\/rappels(?:\/([^/]+)\/supprimer)?$/);
     if(rp){ try{ return await rappels(requete, env, permise, rp[1]); }catch{ return reponse(503, { erreur: "indisponible" }, permise); } }
     const n = url.pathname.match(/^\/v1\/notifs(?:\/([^/]+)(\/reponse|\/supprimer)?)?$/);
@@ -233,17 +283,20 @@ export default {
     }
   },
 
-  // Tâche planifiée, chaque minute : envoie les notifications de révélation arrivées à échéance.
+  // Tâche planifiée, chaque minute : envoie les notifications de révélation, puis les rappels de rendez-vous arrivés à échéance,
+  // RAPPEL_LOT envois au plus en tout par passage (limite de calcul de l'offre gratuite ; le reste part à la minute suivante).
   // Une fois par jour (3 h 17 UTC, ou appel sans heure prévue) : efface le contenu des liens expirés, puis oublie les identifiants
   // après un an de plus ; efface les abonnements expirés jamais utilisés, puis oublie leurs identifiants 30 jours plus tard.
   async scheduled(evenement, env){
     const maintenant = Date.now(), h = evenement && evenement.scheduledTime ? new Date(evenement.scheduledTime) : null;
-    await envoyerRappels(env, maintenant);
+    const faits = await envoyerRappels(env, maintenant);
+    await envoyerRdv(env, maintenant, RAPPEL_LOT - faits);
     if(h && !(h.getUTCHours() === 3 && h.getUTCMinutes() === 17)) return;
     await env.DB.prepare(SQL.expirer).bind(maintenant).run();
     await env.DB.prepare(SQL.oublier).bind(maintenant - GARDE).run();
     await env.DB.prepare(SQL.notifExpirer).bind(maintenant).run();
     await env.DB.prepare(SQL.notifOublier).bind(maintenant - NOTIF_GARDE).run();
     await env.DB.prepare(SQL.rappelOublier).bind(maintenant - RAPPEL_GARDE - NOTIF_GARDE).run();
+    await env.DB.prepare(SQL.rdvOublier).bind(maintenant - RDV_GARDE).run();
   }
 };

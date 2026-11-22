@@ -38,3 +38,20 @@ CREATE TABLE IF NOT EXISTS rappels (
   etat     TEXT
 );
 CREATE INDEX IF NOT EXISTS rappels_prochain ON rappels (prochain) WHERE etat IS NULL;
+
+-- Rappels de rendez-vous « Me rappeler 3 h avant » (facultatifs, demandés pour son propre appareil, une fois l'invitation acceptée)
+-- abo   : abonnement Web Push, chiffré au repos (CLE_STOCKAGE) ; aboh : empreinte HMAC de l'abonnement (clé dérivée de CLE_STOCKAGE),
+--         sert seulement à limiter le nombre de rappels en attente par appareil (RDV_PAR_ABO) ; elle ne permet pas de retrouver l'abonnement.
+-- heure : heure d'envoi (rendez-vous moins 3 h, ms) ; prochain : prochain essai.
+-- La ligne est SUPPRIMÉE dès l'envoi, l'annulation, ou 2 h après l'heure si l'envoi n'a pas pu se faire.
+-- Ni le lien, ni le titre, ni le lieu, ni les prénoms : l'appareil compose le texte lui-même (IndexedDB « ose-notifs », magasin « rdv »).
+CREATE TABLE IF NOT EXISTS rdv (
+  id       TEXT PRIMARY KEY,
+  abo      TEXT NOT NULL,
+  aboh     TEXT NOT NULL,
+  del      TEXT NOT NULL,
+  heure    INTEGER NOT NULL,
+  prochain INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS rdv_prochain ON rdv (prochain);
+CREATE INDEX IF NOT EXISTS rdv_aboh ON rdv (aboh);

@@ -27,6 +27,11 @@ export const RAPPEL_MIN = 60 * 1000;                  // au moins une minute dan
 export const RAPPEL_GARDE = 7 * 24 * 3600 * 1000;     // pas encore parti 7 jours après l'heure prévue : effacé
 export const RAPPEL_REESSAI = 15 * 60 * 1000;         // erreur passagère du service de notification : nouvel essai 15 minutes plus tard
 
+/* Rappels de rendez-vous « Me rappeler 3 h avant » (pour son propre appareil, une fois l'invitation acceptée) */
+export const RDV_PAR_ABO = 10;                        // rappels en attente au plus par abonnement (empreinte HMAC de l'abonnement)
+export const RDV_GARDE = 2 * 3600 * 1000;             // pas encore parti 2 h après l'heure prévue : supprimé sans envoi (il ne sert plus à rien)
+export const RDV_REESSAI = 5 * 60 * 1000;             // erreur passagère du service de notification : nouvel essai 5 minutes plus tard
+
 /* Requêtes SQL (les seules utilisées ; le banc de test les reconnaît) */
 export const SQL = {
   rappelCreer:    "INSERT INTO rappels (id, abo, del, heure, prochain, etat) VALUES (?1, ?2, ?3, ?4, ?5, NULL)",
@@ -35,6 +40,13 @@ export const SQL = {
   rappelFin:      "UPDATE rappels SET abo = NULL, etat = ?1 WHERE id = ?2 AND etat IS NULL",
   rappelReessai:  "UPDATE rappels SET prochain = ?1 WHERE id = ?2 AND etat IS NULL",
   rappelOublier:  "DELETE FROM rappels WHERE heure < ?1",
+  rdvCreer:       "INSERT INTO rdv (id, abo, aboh, del, heure, prochain) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+  rdvLire:        "SELECT del FROM rdv WHERE id = ?1",
+  rdvCompter:     "SELECT COUNT(*) AS n FROM rdv WHERE aboh = ?1",
+  rdvDus:         "SELECT id, abo, heure FROM rdv WHERE prochain <= ?1 ORDER BY prochain LIMIT ?2",
+  rdvEffacer:     "DELETE FROM rdv WHERE id = ?1",
+  rdvReessai:     "UPDATE rdv SET prochain = ?1 WHERE id = ?2",
+  rdvOublier:     "DELETE FROM rdv WHERE heure < ?1",
   notifCreer:     "INSERT INTO notifs (id, abo, del, expire, etat) VALUES (?1, ?2, ?3, ?4, NULL)",
   notifLire:      "SELECT abo, del, expire, etat FROM notifs WHERE id = ?1",
   notifFin:       "UPDATE notifs SET abo = NULL, etat = ?1 WHERE id = ?2 AND etat IS NULL",

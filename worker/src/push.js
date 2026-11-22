@@ -73,3 +73,10 @@ export async function ouvrirAbo(scelle, id, env){
   const [iv, ct] = scelle.split(".");
   return JSON.parse(new TextDecoder().decode(await crypto.subtle.decrypt({ name: "AES-GCM", iv: deB64(iv), additionalData: enc.encode(id) }, await cleStockage(env), deB64(ct))));
 }
+/* Empreinte d'un abonnement (rappels de rendez-vous) : HMAC-SHA-256 de son adresse, avec une clé dérivée de CLE_STOCKAGE.
+   Toujours la même pour un appareil (pour compter ses rappels en attente), illisible et impossible à retrouver sans le secret. */
+export async function empreinteAbo(endpoint, env){
+  const k = await crypto.subtle.importKey("raw", await hkdf(new Uint8Array(0), deB64(env.CLE_STOCKAGE), enc.encode("Ose Demander : empreinte des abonnements"), 256),
+    { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+  return b64(await crypto.subtle.sign("HMAC", k, enc.encode(endpoint)));
+}
