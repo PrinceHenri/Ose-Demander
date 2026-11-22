@@ -3806,6 +3806,33 @@ await test("Mise à jour : un seul minuteur, cartes visibles seulement, rien qua
   assert.ok(css.some(l => l.includes("tabular-nums")), "chiffres de largeur fixe");
 });
 
+/* =========================================================
+   46. « Mes invitations » : une invitation à la fois, en glissant de gauche à droite
+   ========================================================= */
+titre("46. Mes invitations : défilement de gauche à droite");
+await test("Plusieurs invitations : carrousel accessible (« 2 sur 5 »), boutons de 44 px ; une seule : liste simple", async () => {
+  const P = chargerPage(), liste = P.lire("histListeHTML"), lien = LOCAL + "/#i=" + await L.encodeData(INV());
+  const rec = i => ({ id: "abc12" + i, from: "Alex", to: "Sam", occ: "date", when: [["2027-03-12", "20:00"]], created: "2026-11-20T10:00:00.000Z", link: lien });
+  let h = liste([rec(1), rec(2), rec(3)], true);
+  assert.ok(h.includes('class="hist hist-defile"') && h.includes('aria-roledescription="carrousel" aria-label="Invitations reçues"'));
+  assert.ok(h.includes('aria-roledescription="diapositive" aria-label="2 sur 3" data-id="abc122"'), "chaque carte annonce sa place");
+  assert.ok(h.includes('id="defPrec">Précédente') && h.includes('id="defSuiv">Suivante') && h.includes('id="defPos" aria-live="polite">1 sur 3'));
+  assert.ok(!/[←→‹›]/.test(h), "pas de flèches décoratives");
+  assert.ok(liste([rec(1), rec(2)], false).includes('aria-label="Invitations envoyées"'), "aussi pour les Envoyées");
+  h = liste([rec(1)], true);
+  assert.ok(!h.includes("hist-defile") && !h.includes("defPrec"), "une seule invitation : pas de carrousel");
+});
+await test("Défilement natif calé, position gardée par onglet, « moins de mouvement » respecté, flèches du clavier", () => {
+  const css = readFileSync(RACINE + "app/creer.css", "utf8");
+  assert.ok(/\.hist-defile\{[^}]*overflow-x:auto;scroll-snap-type:x mandatory/.test(css) && /\.hist-defile>li\{flex:0 0 86%;scroll-snap-align:start/.test(css), "une carte calée, la suivante dépasse");
+  assert.ok(/\.defile-nav \.btn\{min-height:44px\}/.test(css));
+  const src = PAGE.lire("bindDefile").toString();
+  assert.ok(src.includes('REDUCED_ANIM ? "auto" : "smooth"'), "moins de mouvement : pas de glissement animé");
+  assert.ok(src.includes("histPos[tab]=i") && src.includes('aller(Math.min(histPos[tab], n-1), "auto")'), "position gardée quand l'écran est refait");
+  assert.ok(src.includes('"ArrowLeft"') && src.includes('"ArrowRight"') && src.includes('{passive:true}'));
+  assert.ok(PAGE.lire("renderHistory").toString().includes("bindDefile(recues);"));
+});
+
 /* ---------- Bilan ---------- */
 console.log(`\n${ko ? "❌" : "✅"} ${ok} tests réussis, ${ko} en échec (graine ${GRAINE}${ko ? ` — pour rejouer : node tests/run.mjs --graine=${GRAINE}` : ""})`);
 if(ko){ console.log(echecs.map(e => "  - " + e).join("\n")); process.exitCode = 1; }

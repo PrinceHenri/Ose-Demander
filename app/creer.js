@@ -1448,6 +1448,40 @@ function histCardRecue(it){
           </div>
         </li>`;
 }
+/* Plusieurs invitations : une à la fois, en glissant de gauche à droite (défilement natif du navigateur, cartes calées),
+   la suivante dépasse un peu ; « Précédente » / « Suivante » (44 px) et « 2 sur 7 » dessous, pour le clavier et les
+   lecteurs d'écran. La position est gardée par onglet quand l'écran est refait (après « Marquer comme acceptée »…). */
+const histPos={envoyees:0, recues:0};
+function histListeHTML(list, recues){
+  const cartes=list.map(recues ? histCardRecue : histCardEnv);
+  if(list.length<2) return `<ul class="hist" id="histList">${cartes.join("")}</ul>`;
+  const n=list.length, nom = recues ? "Invitations reçues" : "Invitations envoyées";
+  return `<ul class="hist hist-defile" id="histList" aria-roledescription="carrousel" aria-label="${nom}">${
+      cartes.map((c,i)=>c.replace("<li ", `<li aria-roledescription="diapositive" aria-label="${i+1} sur ${n}" `)).join("")}</ul>
+    <div class="defile-nav">
+      <button type="button" class="btn sm" id="defPrec">Précédente</button>
+      <span class="defile-pos" id="defPos" aria-live="polite">1 sur ${n}</span>
+      <button type="button" class="btn sm" id="defSuiv">Suivante</button>
+    </div>`;
+}
+function bindDefile(recues){
+  const ul=$("#histList.hist-defile"); if(!ul || !ul.children || !ul.children.length) return;
+  const cartes=[...ul.children], tab = recues ? "recues" : "envoyees", n=cartes.length;
+  const lisse = REDUCED_ANIM ? "auto" : "smooth";
+  // Carte affichée : celle dont le bord gauche est le plus près du bord gauche de la liste
+  const actuelle = () => { let best=0, d=Infinity; cartes.forEach((c,i)=>{ const x=Math.abs(c.offsetLeft-ul.offsetLeft-ul.scrollLeft); if(x<d){ d=x; best=i; } }); return best; };
+  const maj = i => { histPos[tab]=i; $("#defPos").textContent=`${i+1} sur ${n}`; $("#defPrec").disabled = i===0; $("#defSuiv").disabled = i===n-1; };
+  const aller = (i, comment=lisse) => { i=Math.max(0, Math.min(n-1, i)); ul.scrollTo({left: cartes[i].offsetLeft-ul.offsetLeft, behavior: comment}); maj(i); };
+  let attente=0;
+  ul.addEventListener("scroll", ()=>{ cancelAnimationFrame(attente); attente=requestAnimationFrame(()=>maj(actuelle())); }, {passive:true});
+  $("#defPrec").addEventListener("click", ()=>aller(actuelle()-1));
+  $("#defSuiv").addEventListener("click", ()=>aller(actuelle()+1));
+  ul.addEventListener("keydown", e=>{
+    if(e.target.closest("input,textarea") || (e.key!=="ArrowLeft" && e.key!=="ArrowRight")) return;
+    e.preventDefault(); aller(actuelle() + (e.key==="ArrowRight" ? 1 : -1));
+  });
+  aller(Math.min(histPos[tab], n-1), "auto"); // retour à la carte où l'on était
+}
 function renderHistory(){
   setTheme("base","n");
   document.title = "Mes invitations — Ose Demander";
@@ -1466,7 +1500,7 @@ function renderHistory(){
       <div class="seg hist-tabs" role="tablist" aria-label="Mes invitations">${tab("envoyees","Envoyées",env.length)}${tab("recues","Reçues",rec.length)}</div>
       <div id="histPanel" role="tabpanel" aria-labelledby="tab-${histTab}">
       ${recues ? `<p class="hint">Les invitations que tu ouvres sont gardées ici, sur cet appareil seulement. Personne n'en est averti.</p>` : ""}
-      ${list.length ? `<ul class="hist" id="histList">${list.map(recues ? histCardRecue : histCardEnv).join("")}</ul>`
+      ${list.length ? histListeHTML(list, recues)
         : recues ? `<p class="empty">Aucune invitation reçue pour l'instant.<br>Quand tu ouvres une invitation, elle s'ajoute ici.</p>`
         : `<p class="empty">Aucune invitation pour l'instant.<br>Quand tu cliques sur « Créer mon lien », elle s'ajoute ici.</p>`}
       </div>
@@ -1484,6 +1518,7 @@ function renderHistory(){
   bindSound(true);
   syncReplies().then(ch=>{ if(ch && location.hash==="#mes-invitations") renderHistory(); });
   startRebours();
+  bindDefile(recues);
 
   const tabs=$$(".hist-tabs [role=tab]");
   const choisir=id=>{ if(id===histTab) return; histTab=id; renderHistory(); $(`#tab-${id}`)?.focus(); };
@@ -1701,4 +1736,4 @@ async function importHistory(file){
   toast(msg);
 }
 
-oseLoaded("creer", "9576ee0565");
+oseLoaded("creer", "b8c975d1d4");

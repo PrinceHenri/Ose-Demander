@@ -75,6 +75,14 @@
 .hist .acts{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
 .btn.sm{padding:8px 12px;font-size:14px;border-radius:12px}
 .btn.danger{color:#B3122E;border-color:#B3122E}
+/* Défilement de gauche à droite (plusieurs invitations) : une carte à la fois, calée, la suivante dépasse un peu */
+.hist-defile{flex-direction:row;align-items:flex-start;overflow-x:auto;scroll-snap-type:x mandatory;overscroll-behavior-x:contain;scrollbar-width:none;margin:0 0 10px;padding:2px 2px 8px}
+.hist-defile::-webkit-scrollbar{display:none}
+.hist-defile>li{flex:0 0 86%;scroll-snap-align:start;scroll-snap-stop:always}
+.defile-nav{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 0 18px}
+.defile-nav .btn{min-height:44px}
+.defile-nav .btn:disabled{opacity:.45;cursor:default}
+.defile-pos{font-weight:700;font-size:14px;color:var(--muted);font-variant-numeric:tabular-nums}
 .hist-tools{display:flex;flex-wrap:wrap;gap:10px;border-top:2px dashed var(--line);padding-top:16px}
 /* Onglets Envoyées / Reçues : le style des choix segmentés, onglet actif comme un choix pressé ; 44 px (navigation essentielle) */
 .hist-tabs{margin:4px 0 16px}
@@ -176,4 +184,4 @@
 .img-btns .btn{flex:1 1 160px}
 .img-btns a.btn{display:block;text-align:center;text-decoration:none}
 .img-close{display:block;min-height:44px;margin:4px auto 0}
-:root{--ose-creer-css:"9256940306"}
+:root{--ose-creer-css:"1548b0ea7d"}
