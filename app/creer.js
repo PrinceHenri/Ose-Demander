@@ -1512,7 +1512,7 @@ function renderHistory(){
       <input type="file" id="histFile" accept=".json,application/json" class="hidden">
       <p class="hint">L'export crée un fichier .json à garder pour toi : il contient tes liens, donc tes invitations envoyées et reçues, et de quoi supprimer tes liens courts. Pratique pour changer de téléphone ou passer du navigateur à l'appli.</p>
     </section>
-    <p class="foot">Rien n'est envoyé en ligne : l'historique est enregistré dans ce navigateur.<br><a href="mentions-legales.html#historique">En savoir plus</a></p>
+    <p class="foot">Rien n'est envoyé en ligne : l'historique est enregistré dans ce navigateur.<br><a href="mentions-legales.html#historique">En savoir plus</a><br><a href="#exemple">Revoir l'exemple</a></p>
   </div>`;
   refreshInstall();
   bindSound(true);
@@ -1736,4 +1736,4 @@ async function importHistory(file){
   toast(msg);
 }
 
-oseLoaded("creer", "b8c975d1d4");
+oseLoaded("creer", "82fff0eba1");

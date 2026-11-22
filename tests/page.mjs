@@ -40,7 +40,7 @@ export function chargerPage({ share = false, ios = false, fichiers = ["scenes", 
     querySelector: sel => { vus.push(sel); return zones[sel] || neutre(); }, querySelectorAll: () => [],
     getElementById: id => zones["#" + id] || neutre(), body: neutre(), documentElement: neutre(),
     createElement: tag => tag === "script" || tag === "link" ? { tag, dataset: {}, remove: rien } : neutre(),
-    head: { appendChild: el => { const u = el.src || el.href; demandes.push(u); queueMicrotask(() => charge(u) === "ok" ? el.onload?.() : el.onerror?.()); return el; } },
+    head: { insertAdjacentHTML: rien, appendChild: el => { const u = el.src || el.href; demandes.push(u); queueMicrotask(() => charge(u) === "ok" ? el.onload?.() : el.onerror?.()); return el; } },
     addEventListener: rien
   };
   const location = { origin: "http://localhost:8000", pathname: "/", hash: "", hostname: "localhost", protocol: "http:", href: "http://localhost:8000/",

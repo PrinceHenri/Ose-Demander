@@ -3833,6 +3833,54 @@ await test("Défilement natif calé, position gardée par onglet, « moins de mo
   assert.ok(PAGE.lire("renderHistory").toString().includes("bindDefile(recues);"));
 });
 
+/* =========================================================
+   47. Démo du premier lancement (app/demo.js)
+   ========================================================= */
+titre("47. Démo du premier lancement");
+await test("Affichée seulement au premier passage sur l'accueil (jamais avec un lien, ni quand l'appareil a déjà un historique)", async () => {
+  const P = chargerPage({ stockage: new Map() }), voir = P.lire("demoAVoir"), S = P.lire("S");
+  S.step = "home"; P.location.hash = "";
+  assert.equal(voir(), true, "premier passage");
+  for(const h of ["#choisir", "#exemple", "#mes-invitations", "#i=yAAAA", "#s=abc.def", "#modele=rdv"]){ P.location.hash = h; assert.equal(voir(), false, h); }
+  P.location.hash = ""; S.step = 2; assert.equal(voir(), false, "pendant la création"); S.step = "home";
+  P.stockage.set("ose-demo-vu", "1"); assert.equal(voir(), false, "déjà vue");
+  const Q = chargerPage({ stockage: new Map([["ose-historique", JSON.stringify([{ id: "x" }])]]) }); Q.lire("S").step = "home";
+  assert.equal(Q.lire("demoAVoir")(), false, "des invitations envoyées");
+  const R = chargerPage({ stockage: new Map([["ose-recues", JSON.stringify([{ id: "x" }])]]) }); R.lire("S").step = "home";
+  assert.equal(R.lire("demoAVoir")(), false, "des invitations reçues");
+});
+await test("Chargée à la demande : accueil d'un premier lancement et exemple seulement ; jamais pour une invitation", async () => {
+  const demande = P => P.demandes.some(u => /app\/demo\.js\?v=[0-9a-f]{10}$/.test(u));
+  const P1 = chargerPage({ stockage: new Map(), charge: () => "ok" }); await P1.lire("route")();
+  assert.ok(demande(P1), "premier lancement");
+  const P2 = chargerPage({ stockage: new Map([["ose-demo-vu", "1"]]), charge: () => "ok" }); await P2.lire("route")();
+  assert.ok(!demande(P2), "déjà vue : pas chargée");
+  const P3 = chargerPage({ stockage: new Map(), charge: () => "ok" }); P3.location.hash = "#i=" + await L.encodeData(INV()); await P3.lire("route")();
+  assert.ok(!demande(P3), "invitation : jamais");
+  const P4 = chargerPage({ stockage: new Map(), charge: () => "ok" }); P4.location.hash = "#exemple"; await P4.lire("route")();
+  assert.ok(demande(P4), "exemple : pour « À toi de créer la tienne »");
+  const src = PAGE.lire("sayYes").toString() + PAGE.lire("openRefuse").toString();
+  assert.ok(src.includes('if(EXAMPLE) document.dispatchEvent(new CustomEvent("ose:exemple", {detail:"oui"}))') && src.includes('{detail:"non"}'), "fin de l'exemple : au Oui et au vrai refus");
+});
+await test("Fichier à part : versionné, précaché par sw.js, textes regroupés, boutons et accessibilité", () => {
+  const demo = readFileSync(RACINE + "app/demo.js", "utf8"), sw = readFileSync(RACINE + "sw.js", "utf8"), html = readFileSync(RACINE + "index.html", "utf8");
+  const v = (demo.match(/oseLoaded\("demo", "([0-9a-f]{10})"\)/) || [])[1];
+  assert.ok(v && sw.includes(`"./app/demo.js?v=${v}"`) && html.includes(`demo:"${v}"`), "même version dans le fichier, sw.js et index.html");
+  assert.ok(CSP.FICHIERS.some(f => f.chemin === "app/demo.js"), "versionné par outils/csp.mjs");
+  const textes = demo.slice(demo.indexOf("const DEMO_TEXTES"), demo.indexOf("};", demo.indexOf("const DEMO_TEXTES")));
+  for(const t of ["Voir un exemple", "Créer directement", "Passer", "À toi de créer la tienne", "Revoir l'exemple"]) assert.ok(textes.includes(`"${t}"`), t);
+  assert.ok(/"demo\.[a-z.]+": "/.test(textes) && !demo.slice(demo.indexOf("function demoFenetre")).includes("Voir un exemple"), "textes seulement dans DEMO_TEXTES (prêts pour lang/en.json)");
+  assert.ok(demo.includes('setAttribute("role","dialog")') && demo.includes('setAttribute("aria-modal","true")') && demo.includes('d.querySelector("h3").focus()') && demo.includes('e.key==="Escape"'));
+  assert.equal((demo.match(/, "primary", /g) || []).length, 2, "une seule action principale par fenêtre");
+  assert.ok(demo.includes("min-height:44px") && demo.includes("localStorage.setItem(DEMO_KEY"), "« Passer » 44 px ; déjà vue retenue");
+  assert.ok(demo.includes('invAnim()==="0"'), "animations coupées : la fin s'affiche tout de suite");
+  assert.ok(gzipSync(demo).length < 3000, "petit fichier");
+});
+await test("« Voir un exemple » (pied de page) et « Revoir l'exemple » (Mes invitations) mènent à l'exemple", () => {
+  assert.ok(PAGE.lire("renderHistory").toString().includes('<a href="#exemple">Revoir l\'exemple</a>'));
+  assert.ok(PAGE.lire("footerHTML").toString().includes('"/#exemple","Voir un exemple"') || readFileSync(RACINE + "app/creer.js", "utf8").includes('"/#exemple","Voir un exemple"'));
+});
+
 /* ---------- Bilan ---------- */
 console.log(`\n${ko ? "❌" : "✅"} ${ok} tests réussis, ${ko} en échec (graine ${GRAINE}${ko ? ` — pour rejouer : node tests/run.mjs --graine=${GRAINE}` : ""})`);
 if(ko){ console.log(echecs.map(e => "  - " + e).join("\n")); process.exitCode = 1; }

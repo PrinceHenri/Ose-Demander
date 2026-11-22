@@ -289,6 +289,14 @@ L'enveloppe ressemble à une carte illustrée : chaque thème a son motif (`ENVE
 - **Plusieurs invitations** : une carte à la fois, en glissant de gauche à droite (`.hist-defile` : défilement natif `scroll-snap`, carte à 86 % de large, la suivante dépasse), `aria-roledescription` carrousel / diapositive « 2 sur 7 » ; dessous, « Précédente » / « Suivante » (`.btn sm`, 44 px, désactivés aux bouts) et la position « 2 sur 7 » (`aria-live`). Position gardée par onglet quand l'écran est refait ; glissement animé seulement sans « moins de mouvement ». Une seule invitation : liste simple, sans boutons.
 - **Agenda** : « Ajouter à mon agenda » (bouton secondaire) = fichier .ics fabriqué sur l'appareil, alerte 3 h avant ; sur Android, lien discret « Google Agenda » en plus (sans alerte). Seulement pour une invitation acceptée dont le créneau est connu ; jamais pour une Refusée.
 
+## 2 septdecies. Démo du premier lancement
+
+Code et textes dans `app/demo.js` (chargé seulement quand il sert ; textes regroupés dans `DEMO_TEXTES`, clés prêtes pour `lang/en.json`).
+- **Quand** : accueil sans aucune ancre (`#…`), jamais vue (`ose-demo-vu`), aucun historique (Envoyées ni Reçues) : les personnes qui utilisent déjà le site ne la voient pas. Jamais avec `#i=`, `#s=`, `#exemple`, `#modele=`. « Déjà vu » retenu dès l'affichage.
+- **Fenêtre de bienvenue** (`.sheet`, comme les autres fenêtres, titre focalisé, Échap = Passer) : « Bienvenue sur Ose Demander », une phrase ; « Voir un exemple » (seule action principale), « Créer directement » (secondaire, vers le choix des modèles), « Passer » (discret : contour `--line`, texte `--muted`, 44 px).
+- **Fin de l'exemple** : après le Oui (1,8 s, le temps de l'explosion) ou le vrai refus, fenêtre « À toi de créer la tienne » : « Créer mon invitation » (principale), « Revoir l'exemple », « Fermer » (discret). Tout de suite si les animations sont coupées. L'exemple se lance aussi depuis « Voir un exemple » (pied de page) et « Revoir l'exemple » (bas de « Mes invitations »).
+- Pas de bulles d'aide pour l'instant.
+
 ## 3. Typographie : deux polices, pas une de plus
 
 Polices **hébergées dans `fonts/`** (licence SIL OFL, aucun appel à Google Fonts — RGPD).
