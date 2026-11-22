@@ -47,7 +47,7 @@
 .sf-bas{max-width:980px;margin:22px auto 0;padding-top:14px;border-top:1px solid var(--f-line);color:var(--f-mut);font-size:13px}
 @media (max-width:760px){.sf-in{grid-template-columns:1fr 1fr}.sf-brand{grid-column:1/-1}}
 @media (max-width:520px){.sf-in{grid-template-columns:1fr}}
-.rep{margin:2px 0 4px;font-weight:800}
+.hist .rep{margin:2px 0 4px;font-weight:800}
 .optcard{text-align:left;border:2px solid var(--line);background:var(--soft);border-radius:14px;padding:12px;cursor:pointer}
 .optcard b{display:block;font-size:16px}
 .optcard span{font-size:14px;color:var(--muted)}
@@ -79,6 +79,9 @@
 /* Onglets Envoyées / Reçues : le style des choix segmentés, onglet actif comme un choix pressé ; 44 px (navigation essentielle) */
 .hist-tabs{margin:4px 0 16px}
 #histPanel>.hint{margin:0 0 14px}
+/* Statut Refusée (Reçues), fenêtre de choix du créneau accepté */
+.hist .rep-n{color:var(--muted)}
+.choix-creneau{display:flex;flex-direction:column;gap:8px;margin:14px 0}
 .hist-tabs button{min-height:44px;display:inline-flex;align-items:center;justify-content:center;gap:8px;font-size:15px}
 .hist-tabs button[aria-selected="true"]{background:var(--surface);color:var(--ink);box-shadow:0 1px 0 var(--line),0 0 0 2px var(--ink)}
 .hist-tabs .tab-n{min-width:22px;padding:0 7px;border-radius:999px;background:var(--line);color:var(--ink);font-size:12px;line-height:20px;font-variant-numeric:tabular-nums}
@@ -165,4 +168,4 @@
 .img-btns .btn{flex:1 1 160px}
 .img-btns a.btn{display:block;text-align:center;text-decoration:none}
 .img-close{display:block;min-height:44px;margin:4px auto 0}
-:root{--ose-creer-css:"d7a82c3ac0"}
+:root{--ose-creer-css:"ce3d665876"}

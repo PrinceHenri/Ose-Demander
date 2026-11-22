@@ -279,6 +279,14 @@ L'enveloppe ressemble à une carte illustrée : chaque thème a son motif (`ENVE
 - **Poids** : moins de 2 Ko de code par motif en moyenne (0,7 Ko mesuré) ; `index.html` compressé sous 145 Ko pour ce chantier (au-delà : en reparler, fichier séparé gardé en cache par `sw.js`).
 - **Contrôle visuel** : captures à 360 px, enveloppe fermée, en cours d'ouverture (animations figées par `document.getAnimations()`), ouverte ; accent par défaut et « Nuit ».
 
+## 2 sexdecies. « Mes invitations » : onglets, statuts, agenda
+
+- **Deux onglets** `Envoyées` / `Reçues` : `.seg.hist-tabs`, `role="tablist"`, onglet actif en `aria-selected` (même aspect qu'un choix pressé), nombre en pastille `.tab-n` (accent sur l'onglet actif), 44 px, flèches gauche et droite. Envoyées par défaut, Reçues si rien n'est envoyé.
+- **Reçues** : phrase en tête d'onglet (« Les invitations que tu ouvres sont gardées ici, sur cet appareil seulement. Personne n'en est averti. ») ; carte « De {prénom} », actions Ouvrir (principale), Ajouter à mon agenda, Retirer de l'historique. Jamais de copie ni de duplication d'une invitation reçue.
+- **Statuts** (`.hist .rep`) : « Acceptée 🎉, {date} à {heure} » en `--accent-text` (`.rep-o`), « Refusée » en `--muted` (`.rep-n`), « Répondu : Oui / Non » quand la réponse vient d'une notification. Heure insécable (« 12 h 30 » ne se coupe jamais).
+- **Envoyées sans réponse** : bouton secondaire « Marquer comme acceptée » ; plusieurs créneaux : fenêtre `choixSheet` « Quel créneau ? » (un bouton par créneau, Annuler) ; une fois marquée : lien discret « Annuler « acceptée » ».
+- **Agenda** : « Ajouter à mon agenda » (bouton secondaire) = fichier .ics fabriqué sur l'appareil, alerte 3 h avant ; sur Android, lien discret « Google Agenda » en plus (sans alerte). Seulement pour une invitation acceptée dont le créneau est connu ; jamais pour une Refusée.
+
 ## 3. Typographie : deux polices, pas une de plus
 
 Polices **hébergées dans `fonts/`** (licence SIL OFL, aucun appel à Google Fonts — RGPD).

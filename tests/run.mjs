@@ -3652,6 +3652,102 @@ await test("Mentions légales : l'onglet Reçues est décrit (appareil seulement
   assert.ok(p.includes("Reçues") && p.includes("sur votre appareil seulement") && p.includes("personne n'en est averti") && p.includes("Retirer de l'historique"));
 });
 
+/* =========================================================
+   44. « Mes invitations » : Acceptée, Refusée, « Ajouter à mon agenda » (alerte 3 h avant)
+   ========================================================= */
+titre("44. Mes invitations : statut et agenda");
+await test("Reçues : Acceptée au Oui (titre et lieu tels qu'affichés), créneau noté au choix, Refusée au vrai refus, rien si l'on revient", async () => {
+  const stockage = new Map(), { P } = await ouvrirRecue(stockage, { l: { v: "v", x: "Le café de l'Exemple" } });
+  P.lire("sayYes")();
+  let r = recuesDe(stockage)[0];
+  assert.equal(r.rep, "o"); assert.equal(r.repSlot, 0);
+  assert.deepEqual(r.ag, { t: "Dîner avec Alex", l: "Le café de l'Exemple", e: "" });
+  assert.ok(P.lire("validRecue")(r), "entrée valide");
+  // Plusieurs créneaux : Acceptée tout de suite, le créneau quand il est choisi
+  const s2 = new Map(), { P: P2 } = await ouvrirRecue(s2, { d: undefined, h: undefined, sl: [["2027-03-12", "20:00"], ["2027-03-13", "19:30"]] });
+  P2.lire("sayYes")();
+  assert.equal(recuesDe(s2)[0].rep, "o"); assert.equal(recuesDe(s2)[0].repSlot, undefined);
+  P2.ecrire("chosenSlot", 1); P2.lire("noteReponse")("o");
+  assert.equal(recuesDe(s2)[0].repSlot, 1);
+  assert.ok(P.lire("bindAfter").toString().includes('if(afterMode==="yes") noteReponse("o");'), "au choix et au changement de créneau");
+  // Vrai refus, puis retour en arrière
+  const s3 = new Map(), { P: P3 } = await ouvrirRecue(s3);
+  P3.lire("openRefuse")();
+  r = recuesDe(s3)[0];
+  assert.equal(r.rep, "n"); assert.equal(r.ag, undefined); assert.ok(P3.lire("validRecue")(r));
+  P3.lire("noteReponse")("");
+  assert.equal(recuesDe(s3)[0].rep, undefined, "revenu en arrière : plus de statut");
+  assert.ok(P.lire("openRefuse").toString().includes('noteReponse(""); renderInvite();'), "« Finalement, je reviens en arrière »");
+  // Une surprise ne va jamais dans l'agenda de la personne invitée
+  const s4 = new Map(), { P: P4 } = await ouvrirRecue(s4, { a: { v: "s", h: "Prévois une tenue" }, l: { v: "s" } });
+  P4.lire("sayYes")();
+  assert.deepEqual(recuesDe(s4)[0].ag, { t: "Surprise avec Alex", l: "", e: "" });
+});
+await test("Validation : statut des Reçues et acceptation notée à la main (Envoyées), champs stricts", async () => {
+  const P = chargerPage(), ok = P.lire("validRecue"), okE = P.lire("validEntry");
+  const d = await L.decodeData(await L.encodeData(INV({ d: undefined, h: undefined, sl: [["2027-03-12", "20:00"], ["2027-03-13", "19:30"]] })));
+  const lien = LOCAL + "/#i=" + await L.encodeData(INV()), base = P.lire("recueEntry")(d, lien, "2026-11-20T10:00:00.000Z", "abc123");
+  const acc = { ...base, rep: "o", repAt: "2026-11-21T10:00:00.000Z", repSlot: 1, ag: { t: "Dîner avec Alex", l: "", e: "23:00" } };
+  assert.ok(ok(acc) && ok({ ...acc, repSlot: undefined }) && ok({ ...base, rep: "n", repAt: acc.repAt }));
+  for(const faux of [{ rep: "peut-être" }, { repSlot: 2 }, { repAt: "hier" }, { ag: undefined }, { ag: { t: "", l: "", e: "" } }, { ag: { t: "x", l: "", e: "23h" } },
+    { ag: { t: "x", l: "", e: "", url: "https://exemple.fr" } }, { ag: { t: "x".repeat(141), l: "", e: "" } }])
+    assert.ok(!ok({ ...acc, ...faux }), `refusé : ${JSON.stringify(faux)}`);
+  assert.ok(!ok({ ...base, rep: "n", repAt: acc.repAt, ag: acc.ag }), "Refusée : pas d'agenda");
+  assert.ok(!ok({ ...base, repAt: acc.repAt }), "pas de date sans statut");
+  const env = { id: "abc123", from: "Alex", to: "Sam", occ: "date", when: [["2027-03-12", "20:00"], ["2027-03-13", "19:30"]], created: "2026-10-17T10:00:00.000Z", link: lien };
+  assert.ok(okE({ ...env, ok: "2026-11-21T10:00:00.000Z", okSlot: 1 }) && okE({ ...env, ok: "2026-11-21T10:00:00.000Z" }));
+  for(const faux of [{ okSlot: 0 }, { ok: "hier" }, { ok: "2026-11-21T10:00:00.000Z", okSlot: 2 }, { ok: true }])
+    assert.ok(!okE({ ...env, ...faux }), `refusé : ${JSON.stringify(faux)}`);
+  assert.ok(P.lire("HIST_FIELDS").includes("ok") && P.lire("entryFrom").toString().includes("if(extra.ok)"), "l'acceptation part avec l'export et revient à l'import");
+});
+await test("Cartes : « Marquer comme acceptée », Acceptée (notification ou à la main), Refusée, « Ajouter à mon agenda » seulement avec un créneau", async () => {
+  const P = chargerPage(), lien = LOCAL + "/#i=" + await L.encodeData(INV());
+  const env = { id: "abc123", from: "Alex", to: "Sam", occ: "date", when: [["2027-03-12", "20:00"]], created: "2026-10-17T10:00:00.000Z", link: lien };
+  const carte = P.lire("histCardEnv"), carteR = P.lire("histCardRecue");
+  let h = carte(env);
+  assert.ok(h.includes('data-act="ok">Marquer comme acceptée') && !h.includes('data-act="cal"'), "pas encore de réponse");
+  h = carte({ ...env, ok: "2026-11-21T10:00:00.000Z", okSlot: 0 });
+  assert.ok(h.includes("Acceptée 🎉, vendredi 12 mars à 20 h") && h.includes('data-act="cal">Ajouter à mon agenda') && h.includes('data-act="unok"') && !h.includes('data-act="ok"'));
+  h = carte({ ...env, nid: "A".repeat(22), rep: "o", repAt: "2026-11-21T10:00:00.000Z" });
+  assert.ok(h.includes("Répondu : Oui 🎉") && h.includes('data-act="cal"') && !h.includes('data-act="ok"'), "Oui reçu par notification");
+  h = carte({ ...env, nid: "A".repeat(22), rep: "n", repAt: "2026-11-21T10:00:00.000Z" });
+  assert.ok(h.includes("Répondu : Non") && !h.includes('data-act="cal"') && !h.includes('data-act="ok"'), "Non reçu : ni agenda ni « acceptée »");
+  const deux = { ...env, when: [["2027-03-12", "20:00"], ["2027-03-13", "19:30"]], ok: "2026-11-21T10:00:00.000Z" };
+  assert.ok(!carte(deux).includes('data-act="cal"'), "plusieurs créneaux, aucun choisi : pas d'agenda");
+  const rec = { id: "abc124", from: "Alex", to: "Sam", occ: "date", when: [["2027-03-12", "20:00"]], created: "2026-11-20T10:00:00.000Z", link: lien };
+  assert.ok(!carteR(rec).includes("Acceptée") && !carteR(rec).includes('data-act="cal"'));
+  h = carteR({ ...rec, rep: "o", repAt: "2026-11-21T10:00:00.000Z", repSlot: 0, ag: { t: "Dîner avec Alex", l: "", e: "" } });
+  assert.ok(h.includes("Acceptée 🎉, vendredi 12 mars à 20 h") && h.includes('data-act="cal"'));
+  h = carteR({ ...rec, rep: "n", repAt: "2026-11-21T10:00:00.000Z" });
+  assert.ok(h.includes('class="rep rep-n">Refusée</p>') && !h.includes('data-act="cal"'), "Refusée : ni compte à rebours ni agenda");
+  assert.ok(P.lire("renderHistory").toString().includes('choixSheet("Quel créneau ?"'), "plusieurs créneaux : on demande lequel");
+});
+await test("Agenda : fichier .ics avec une alerte 3 h avant ; Reçues = ce que la personne invitée a vu ; Envoyées = ce qui a été écrit", async () => {
+  const P = chargerPage(), ics = P.lire("icsText");
+  const rec = { id: "abc124", from: "Alex", to: "Sam", occ: "date", when: [["2027-03-12", "20:00"]], created: "2026-11-20T10:00:00.000Z",
+    link: LOCAL + "/#i=yAAAA", rep: "o", repAt: "2026-11-21T10:00:00.000Z", repSlot: 0, ag: { t: "Dîner avec Alex", l: "Le café de l'Exemple", e: "23:30" } };
+  let t = ics([P.lire("eventRecue")(rec)]);
+  for(const ligne of ["DTSTART:20270312T200000", "DTEND:20270312T233000", "SUMMARY:Dîner avec Alex", "LOCATION:Le café de l'Exemple", "TRIGGER:-PT180M"])
+    assert.ok(t.includes(ligne), ligne);
+  // Envoyée : une activité « Révélé plus tard » est déchiffrée pour la personne qui l'a créée ; une « Surprise » reste « Surprise »
+  const lien = LOCAL + "/#i=" + await L.encodeData(INV({ a: { v: "r", h: "Une table", at: "2027-03-12T18:00", e: L.scramble("Dîner aux chandelles") }, l: { v: "s", h: "Pas loin" } }));
+  const d = await L.decodeData(lien.split("#i=")[1]);
+  const env = P.lire("entryFrom")(d, lien, "2026-10-17T10:00:00.000Z", "abc123", { ok: "2026-11-21T10:00:00.000Z" });
+  t = ics([await P.lire("eventEnvoyee")(env)]);
+  assert.ok(t.includes("SUMMARY:Dîner aux chandelles avec Sam") && !t.includes("LOCATION:") && t.includes("TRIGGER:-PT180M"), t);
+  // Invitation ouverte : « Ajouter à mon agenda » (fichier .ics) a aussi l'alerte 3 h avant
+  ouvrir(INV()); assert.deepEqual(PAGE.lire("calEvent")().alarms, [180]);
+  assert.ok(PAGE.lire("googleCalUrl")().startsWith("https://calendar.google.com/"), "le lien Google Agenda reste possible (sans alerte)");
+});
+await test("Import : une Reçue acceptée garde son statut et son agenda", async () => {
+  const P = chargerPage({ stockage: new Map() }), d = await L.decodeData(await L.encodeData(INV()));
+  const lien = LOCAL + "/#i=" + await L.encodeData(INV());
+  const rec = { ...P.lire("recueEntry")(d, lien, "2026-11-20T10:00:00.000Z", "abc123"), rep: "o", repAt: "2026-11-21T10:00:00.000Z", repSlot: 0, ag: { t: "Dîner avec Alex", l: "", e: "" } };
+  await P.lire("importHistory")({ size: 1000, text: async () => JSON.stringify({ app: "ose-demander", version: 2, items: [], recues: [rec] }) });
+  const r = recuesDe(P.stockage)[0];
+  assert.equal(r.rep, "o"); assert.deepEqual(r.ag, rec.ag);
+});
+
 /* ---------- Bilan ---------- */
 console.log(`\n${ko ? "❌" : "✅"} ${ok} tests réussis, ${ko} en échec (graine ${GRAINE}${ko ? ` — pour rejouer : node tests/run.mjs --graine=${GRAINE}` : ""})`);
 if(ko){ console.log(echecs.map(e => "  - " + e).join("\n")); process.exitCode = 1; }

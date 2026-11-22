@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'sha256-w65zPb/FdLF8fGSedATRz+1d+0DWaJSux1rk1d9Ucro=' 'sha256-4AC73YGfWfQl1EZUmqeBGGXtg9e3IZ/m59XNx3ONmhw='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' https://ose-liens.osedemander.workers.dev; manifest-src 'self'; worker-src 'self'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'sha256-F8BPQikhFaI1ZJaiCky7y2l8GIcnSHoanCGn+CJ+D0w=' 'sha256-qbjX5Vv4vUA3PwmTZsRq2AO59YXyeoC7hR/ETDMdfVc='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' https://ose-liens.osedemander.workers.dev; manifest-src 'self'; worker-src 'self'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
 <title>Ose Demander — crée une invitation à laquelle on ne dit pas non</title>
@@ -35,7 +35,7 @@
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"WebApplication","name":"Ose Demander","url":"https://osedemander.fr/","description":"Crée gratuitement une invitation animée à envoyer par lien : rendez-vous, anniversaire, témoin, fêtes de l'année. Le bouton Non résiste, mais un vrai refus reste possible.","applicationCategory":"LifestyleApplication","operatingSystem":"Tous (navigateur web)","inLanguage":"fr","isAccessibleForFree":true,"offers":{"@type":"Offer","price":"0","priceCurrency":"EUR"}}</script>
 <link rel="preload" href="fonts/bricolage-grotesque.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="app/scenes.js?v=ad35c435a6" as="script">
-<script data-tete>if(!/^#(i|s)=|^#exemple$/.test(location.hash))for(const[h,a]of[["app/creer.js?v=f6eed4b207","script"],["app/creer.css?v=d7a82c3ac0","style"]]){const l=document.createElement("link");l.rel="preload";l.as=a;l.href=h;document.head.appendChild(l)}</script>
+<script data-tete>if(!/^#(i|s)=|^#exemple$/.test(location.hash))for(const[h,a]of[["app/creer.js?v=cae8af06c0","script"],["app/creer.css?v=ce3d665876","style"]]){const l=document.createElement("link");l.rel="preload";l.as=a;l.href=h;document.head.appendChild(l)}</script>
 <style>
 /* ---------- Polices (hébergées sur le site, aucun appel à Google) ---------- */
 @font-face{font-family:"Bricolage Grotesque";font-style:normal;font-display:swap;font-weight:200 800;font-stretch:75% 100%;
@@ -1179,7 +1179,7 @@ const STEP_TITLES = ["Le modèle","Les prénoms","Quand et où","L'aperçu"];
    liste de sw.js qui les garde dès l'installation). GitHub Pages ignore ?v= et sert toujours le fichier le plus récent : chaque
    fichier déclare donc sa version en dernière ligne (oseLoaded, ou --ose-creer-css) ; si ce n'est pas celle attendue (page
    ancienne, fichier neuf), un seul rechargement complet (oseReload), puis un message. */
-const OSE_FILES = {creer:"f6eed4b207", scenes:"ad35c435a6", creerCss:"d7a82c3ac0"};
+const OSE_FILES = {creer:"cae8af06c0", scenes:"ad35c435a6", creerCss:"ce3d665876"};
 const oseGot = {}, oseNeeds = {};
 const oseLoaded = (name, v) => { oseGot[name]=v; };
 const oseUrl = name => `app/${name==="creerCss" ? "creer.css" : name+".js"}?v=${OSE_FILES[name]}`;
@@ -1861,6 +1861,16 @@ function revealEvents(d, now, link){
     return {key, start, end, title:`Ta surprise de ${d.f} se révèle 🔓`, loc:"", desc, url:link||"", alarms:REVEAL_ALARMS};
   });
 }
+/* Événement d'agenda d'un rendez-vous : jour et heure de l'invitation, deux heures par défaut (ou jusqu'à l'heure de fin),
+   une alerte 3 h avant (fichier .ics ; Google Agenda, par lien, applique les alertes réglées dans l'agenda). */
+const RDV_ALARME=180;
+function rdvEvent(day, time, fin, title, loc, desc, url=""){
+  const [Y,M,Dd]=day.split("-").map(Number), [hh,mm]=time.split(":").map(Number);
+  const start=new Date(Y,M-1,Dd,hh,mm);
+  let end=new Date(start.getTime()+2*3600e3);
+  if(fin){ const [eh,em]=fin.split(":").map(Number); end=new Date(Y,M-1,Dd,eh,em); if(end<=start) end.setDate(end.getDate()+1); }
+  return {start, end, title, loc, desc, url, alarms:[RDV_ALARME]};
+}
 /* Agenda : heure locale sans fuseau (l'heure de l'invitation), au format AAAAMMJJTHHMMSS */
 const calFmt=x=>`${x.getFullYear()}${String(x.getMonth()+1).padStart(2,"0")}${String(x.getDate()).padStart(2,"0")}T${String(x.getHours()).padStart(2,"0")}${String(x.getMinutes()).padStart(2,"0")}00`;
 /* Fichier .ics (RFC 5545) : un ou plusieurs événements, alertes facultatives (minutes avant le début) */
@@ -1911,15 +1921,18 @@ function recueEntry(d, link, created=new Date().toISOString(), id=Date.now().toS
 }
 const recueIgnoree = (link, long, envoyees, testees, now=Date.now()) =>
   envoyees.some(x=>x.link===link || x.link===long || x.long===long) || testees.some(t=>t.l===long && now-t.t<TESTEE_DUREE);
+let recueLien=""; // lien de l'invitation ouverte, s'il est rangé dans les Reçues (sa réponse y sera notée)
 function noteRecue(d, code){
+  recueLien="";
   if(EXAMPLE || d.vu || d.rv) return;
   try{
     const base=location.origin+location.pathname, long=base+"#i="+code, link=SHORT_HASH.test(location.hash) ? base+location.hash : long;
     if(recueIgnoree(link, long, lireListe("ose-historique"), lireListe(TESTEES_KEY))) return;
     const list=lireListe(RECUES_KEY);
-    if(list.some(x=>x.link===link)) return;
+    if(list.some(x=>x.link===link)){ recueLien=link; return; }
     list.unshift(recueEntry(d, link));
     localStorage.setItem(RECUES_KEY, JSON.stringify(list.slice(0,RECUES_MAX)));
+    recueLien=link;
   }catch(e){}
 }
 
@@ -2510,6 +2523,7 @@ const refuseText = () => (refuseDrafts[refuseWhy] ?? refuseDefault(refuseWhy, D.
 function openRefuse(){
   if(yesDone) return;
   refused=true; clearTimeout(refuseTimer);
+  noteReponse("n");
   $$(".no.flee").forEach(b=>b.remove());
   const main=$("#main");
   main.innerHTML = `
@@ -2543,7 +2557,7 @@ function openRefuse(){
   $("#replyNo").addEventListener("click",withText(t=>sendReply(t)));
   $("#copyNo").addEventListener("click",withText(async t=>toast(await copyText(t)?"Réponse copiée":"Copie impossible")));
   $("#notifR")?.addEventListener("click",()=>notifyReply("n"));
-  $("#undoNo").addEventListener("click",renderInvite);
+  $("#undoNo").addEventListener("click",()=>{ noteReponse(""); renderInvite(); });
   $("#replyNo").focus();
 }
 
@@ -2604,6 +2618,7 @@ function sayYes(e){
   if(src){ const r=src.getBoundingClientRect(); x=r.left+r.width/2; y=r.top+r.height/2; }
   $$(".no.flee").forEach(b=>b.remove());
   yesDone=true;
+  noteReponse("o");
   Decor.burst(x, y, 150); Sound.yes(); buzz([40,60,40]);
   initReveals();
   afterMode="yes";
@@ -2883,8 +2898,8 @@ function replyText(){
 }
 function cleanPhone(p){ let n=p.replace(/[^\d+]/g,""); if(n.startsWith("+")) return n.slice(1); if(n.startsWith("00")) return n.slice(2); if(n.startsWith("0")) return "33"+n.slice(1); return n; }
 function bindAfter(){
-  $$("[data-pick]").forEach(b=>b.addEventListener("click",()=>{ chosenSlot=+b.dataset.pick; prepReminder(); refreshAfter(); refocus("#repick"); }));
-  $("#repick")?.addEventListener("click",()=>{ chosenSlot=null; prepReminder(); refreshAfter(); refocus("[data-pick]"); });
+  $$("[data-pick]").forEach(b=>b.addEventListener("click",()=>{ chosenSlot=+b.dataset.pick; if(afterMode==="yes") noteReponse("o"); prepReminder(); refreshAfter(); refocus("#repick"); }));
+  $("#repick")?.addEventListener("click",()=>{ chosenSlot=null; if(afterMode==="yes") noteReponse("o"); prepReminder(); refreshAfter(); refocus("[data-pick]"); });
   bindSend();
   bindActions();
 }
@@ -2948,19 +2963,34 @@ function shownValue(it){ // valeur affichable d'une info, ou "" si elle est enco
   if(it.v==="r" && revealable(it.at)){ try{ return unscramble(it.e).slice(0,120); }catch(e){} }
   return "";
 }
-function calEvent(){
-  let d,t;
-  if(D.sl){ [d,t]=D.sl[chosenSlot]; } else { d=D.d; t=D.h; }
-  const [Y,M,Dd]=d.split("-").map(Number), [hh,mm]=t.split(":").map(Number);
-  const start=new Date(Y,M-1,Dd,hh,mm);
-  let end=new Date(start.getTime()+2*3600e3);
-  if(D.en){ const [eh,em]=D.en.split(":").map(Number); end=new Date(Y,M-1,Dd,eh,em); if(end<=start) end.setDate(end.getDate()+1); }
+// Titre et lieu tels que la personne invitée les voit (jamais une surprise, ni une révélation pas encore atteinte)
+function calInfo(){
   const occ = D.o==="libre" ? (D.of||"Invitation") : (OCC[D.o]?.label||"Invitation");
   const act = D.p ? "" : shownValue(D.a);
   const title = (D.p ? (D.p.some(s=>s.v!=="v")?"Journée surprise":"Journée") : (act || "Surprise")) + ` avec ${D.f}`;
-  const loc = D.p ? (D.me||"") : (shownValue(D.l) || "");
-  const desc=`${occ}. Invitation créée avec Ose Demander.` + (remLink ? `\n\nTon invitation : ${remLink}` : "");
-  return {start, end, title, loc, desc, url:remLink};
+  return {occ, title, loc: D.p ? (D.me||"") : (shownValue(D.l) || "")};
+}
+function calEvent(){
+  const [d,t] = D.sl ? D.sl[chosenSlot] : [D.d, D.h], c=calInfo();
+  return rdvEvent(d, t, D.en, c.title, c.loc, `${c.occ}. Invitation créée avec Ose Demander.` + (remLink ? `\n\nTon invitation : ${remLink}` : ""), remLink);
+}
+/* Onglet Reçues : Acceptée au Oui (avec le créneau dès qu'il est choisi), Refusée au vrai refus, rien si l'on revient en arrière.
+   ag : ce que l'agenda reprendra plus tard sans rouvrir le lien (titre et lieu tels qu'affichés, heure de fin). */
+function noteReponse(rep){
+  if(!recueLien) return;
+  try{
+    const list=lireListe(RECUES_KEY), x=list.find(e=>e.link===recueLien); if(!x) return;
+    for(const k of ["rep","repAt","repSlot","ag"]) delete x[k];
+    if(rep){
+      x.rep=rep; x.repAt=new Date().toISOString();
+      if(rep==="o"){
+        const slot = D.sl ? chosenSlot : 0;
+        if(slot!==null) x.repSlot=slot;
+        const c=calInfo(); x.ag={t:c.title.slice(0,140), l:c.loc.slice(0,160), e:D.en||""};
+      }
+    }
+    localStorage.setItem(RECUES_KEY, JSON.stringify(list));
+  }catch(e){}
 }
 /* Google Agenda ne permet pas de fixer les alertes par lien : ce sont celles réglées par défaut dans l'agenda */
 function googleCalUrl(ev=calEvent()){

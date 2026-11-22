@@ -1156,7 +1156,8 @@ async function buildLink(nz){
    (localStorage). Jamais envoyé nulle part, jamais lu côté destinataire.
    ========================================================= */
 const HIST_KEY="ose-historique", HIST_MAX=200, SITE_HOST="osedemander.fr";
-const HIST_FIELDS=["id","from","to","occ","occFree","when","link","created","long","jeton","gone","img","imgJeton","nid","njeton","rep","repAt","repSlot"];
+const HIST_FIELDS=["id","from","to","occ","occFree","when","link","created","long","jeton","gone","img","imgJeton","nid","njeton","rep","repAt","repSlot","ok","okSlot"];
+// ok, okSlot : acceptation notée à la main (« Marquer comme acceptée »), quand aucune notification n'est arrivée
 // Notification : nid = identifiant (dans le lien), njeton = pour y renoncer ; rep = "o" ou "n", repAt = date de réception, repSlot = créneau choisi
 // Lien court : link = #s=…, long = le lien complet (#i=…, l'historique fonctionne même sans le service), jeton = pour supprimer le lien en ligne
 const invLink = it => it.long || it.link;
@@ -1193,6 +1194,9 @@ function validEntry(x){
   if(!x || typeof x!=="object" || Array.isArray(x)) return false;
   if(Object.keys(x).some(k=>!HIST_FIELDS.includes(k))) return false;
   if(!validCommun(x)) return false;
+  // Acceptation notée à la main : une date, et le créneau s'il y en a plusieurs
+  if(x.ok===undefined ? x.okSlot!==undefined : !(typeof x.ok==="string" && x.ok.length<=30 && !isNaN(Date.parse(x.ok))
+    && (x.okSlot===undefined || (Number.isInteger(x.okSlot) && x.okSlot>=0 && x.okSlot<x.when.length)))) return false;
   return true // puis les champs propres aux Envoyées : lien court et son lien complet, image, notification
     && (shortId(x.link)
       ? isOwnLink(x.long) && x.long.includes("#i=") && (x.jeton===undefined || (typeof x.jeton==="string" && /^[A-Za-z0-9_-]{43}$/.test(x.jeton))) && (x.gone===undefined || x.gone===true)
@@ -1210,9 +1214,18 @@ function validEntry(x){
    Mêmes exigences que les Envoyées : champs connus seulement, bons types, liens d'Ose Demander ; un lien court garde son lien complet. */
 // Un lien court reçu est gardé seul, jamais recopié en lien complet : s'il expire ou est supprimé en ligne,
 // l'invitation ne s'ouvre plus, ici non plus (ce que la personne qui l'a créée attend)
-const RECUE_FIELDS=["id","from","to","occ","occFree","when","link","created"];
+// rep : "o" (Acceptée, au Oui) ou "n" (Refusée, au vrai refus), repAt : date ; repSlot : créneau choisi ;
+// ag : titre et lieu tels qu'affichés à la personne invitée, heure de fin (pour l'agenda, sans rouvrir le lien)
+const RECUE_FIELDS=["id","from","to","occ","occFree","when","link","created","rep","repAt","repSlot","ag"];
 function validRecue(x){
-  return !!x && typeof x==="object" && !Array.isArray(x) && !Object.keys(x).some(k=>!RECUE_FIELDS.includes(k)) && validCommun(x);
+  if(!x || typeof x!=="object" || Array.isArray(x) || Object.keys(x).some(k=>!RECUE_FIELDS.includes(k)) || !validCommun(x)) return false;
+  if(x.rep===undefined) return x.repAt===undefined && x.repSlot===undefined && x.ag===undefined;
+  const ag=x.ag, okAg = ag && typeof ag==="object" && !Array.isArray(ag) && Object.keys(ag).every(k=>["t","l","e"].includes(k))
+    && typeof ag.t==="string" && ag.t.trim()!=="" && ag.t.length<=140 && typeof ag.l==="string" && ag.l.length<=160
+    && typeof ag.e==="string" && (ag.e==="" || /^\d{2}:\d{2}$/.test(ag.e));
+  return (x.rep==="o" || x.rep==="n") && typeof x.repAt==="string" && x.repAt.length<=30 && !isNaN(Date.parse(x.repAt))
+    && (x.rep==="o" ? okAg && (x.repSlot===undefined || (Number.isInteger(x.repSlot) && x.repSlot>=0 && x.repSlot<x.when.length))
+      : x.repSlot===undefined && ag===undefined);
 }
 const loadRecuesBrutes = () => lireListe(RECUES_KEY).filter(validRecue);
 // Une invitation présente dans les Envoyées de cet appareil n'est jamais affichée en Reçues
@@ -1245,6 +1258,7 @@ function entryFrom(d, link, created=new Date().toISOString(), id=newId(), extra=
     if(extra.njeton) e.njeton=extra.njeton;
     if(extra.rep){ e.rep=extra.rep; e.repAt=extra.repAt; if(extra.repSlot!==undefined) e.repSlot=extra.repSlot; }
   }
+  if(extra.ok){ e.ok=extra.ok; if(extra.okSlot!==undefined) e.okSlot=extra.okSlot; }
   return e;
 }
 function loadHistory(){
@@ -1310,11 +1324,32 @@ function histWhen(it){
 /* « Mes invitations » : deux onglets, Envoyées (créées sur cet appareil) et Reçues (ouvertes depuis leur lien).
    Onglet par défaut : Envoyées, sauf s'il est vide et qu'il y a des Reçues. Flèches gauche et droite : changer d'onglet. */
 let histTab="";
+/* Rendez-vous d'une invitation de l'historique. Acceptée : Oui reçu par notification ou noté à la main (Envoyées),
+   Oui de la personne invitée sur cet appareil (Reçues). rdvSlot : le créneau du rendez-vous, ou null (pas acceptée,
+   ou créneau pas encore connu parmi plusieurs). */
+const rdvAccepte = (it, recue) => recue ? it.rep==="o" : it.rep==="o" || !!it.ok;
+function rdvSlot(it, recue){
+  if(!rdvAccepte(it, recue)) return null;
+  const s = recue || it.rep==="o" ? it.repSlot : it.okSlot;
+  return s!==undefined ? s : it.when.length===1 ? 0 : null;
+}
+// Heure insécable : « 12 h 30 » ne se coupe jamais en fin de ligne
+const rdvQuand = (it, s) => `${frDate(it.when[s][0])} à ${frTime(it.when[s][1]).replace(/ /g, " ")}`;
+function statutRecue(it){
+  if(it.rep==="n") return `<p class="rep rep-n">Refusée</p>`;
+  if(it.rep!=="o") return "";
+  const s=rdvSlot(it, true);
+  return `<p class="rep rep-o">Acceptée 🎉, ${esc(s===null ? "créneau à choisir dans l'invitation" : rdvQuand(it, s))}</p>`;
+}
+// « Ajouter à mon agenda » : fichier .ics (alerte 3 h avant) ; sur Android, Google Agenda en plus (sans l'alerte, qu'un lien ne peut pas fixer)
+const agendaBtns = () => `<button type="button" class="btn sm" data-act="cal">Ajouter à mon agenda</button>${isAndroid() ? `<button type="button" class="linkbtn" data-act="gcal">Google Agenda</button>` : ""}`;
 function histCardEnv(it){
+  const s=rdvSlot(it, false);
   return `
         <li data-id="${esc(it.id)}">
           <p class="who">Pour ${esc(it.to)}</p>
           ${histReply(it)}
+          ${!it.rep && it.ok ? `<p class="rep rep-o">Acceptée 🎉${s===null ? "" : esc(", " + rdvQuand(it, s))}</p>` : ""}
           <p class="meta">De ${esc(it.from)} · ${esc(histOcc(it))}</p>
           <p class="meta">${esc(histWhen(it))}</p>
           <p class="meta">Créée le ${esc(new Date(it.created).toLocaleDateString("fr-FR",{day:"numeric",month:"long",year:"numeric"}))}</p>
@@ -1326,18 +1361,25 @@ function histCardEnv(it){
             <button type="button" class="btn sm ghost" data-act="del">Retirer de l'historique</button>
             ${it.jeton && !it.gone ? `<button type="button" class="btn sm danger" data-act="unpub">Supprimer le lien en ligne</button>` : ""}
           </div>
+          ${s!==null || !it.rep ? `<div class="acts">
+            ${s!==null ? agendaBtns() : ""}
+            ${!it.rep && !it.ok ? `<button type="button" class="btn sm" data-act="ok">Marquer comme acceptée</button>` : ""}
+            ${!it.rep && it.ok ? `<button type="button" class="linkbtn" data-act="unok">Annuler « acceptée »</button>` : ""}
+          </div>` : ""}
         </li>`;
 }
 function histCardRecue(it){
   return `
         <li data-id="${esc(it.id)}">
           <p class="who">De ${esc(it.from)}</p>
+          ${statutRecue(it)}
           <p class="meta">Pour ${esc(it.to)}</p>
           <p class="meta">${esc(histOcc(it))}</p>
           <p class="meta">${esc(histWhen(it))}</p>
           <p class="meta">Ouverte le ${esc(new Date(it.created).toLocaleDateString("fr-FR",{day:"numeric",month:"long",year:"numeric"}))}</p>
           <div class="acts">
             <button type="button" class="btn sm primary" data-act="open">Ouvrir</button>
+            ${rdvSlot(it, true)!==null ? agendaBtns() : ""}
             <button type="button" class="btn sm ghost" data-act="del">Retirer de l'historique</button>
           </div>
         </li>`;
@@ -1394,6 +1436,7 @@ function renderHistory(){
       const it=loadRecuesBrutes().find(x=>x.id===id);
       if(!it){ renderHistory(); return; }
       if(b.dataset.act==="open") window.open(it.link,"_blank","noopener");
+      if(b.dataset.act==="cal" || b.dataset.act==="gcal") agendaHist(eventRecue(it), b.dataset.act);
       if(b.dataset.act==="del"){
         if(storeRecues(loadRecuesBrutes().filter(x=>x.id!==id))){ renderHistory(); toast("Invitation retirée de l'historique"); }
         else toast("Impossible de modifier l'historique sur cet appareil");
@@ -1406,6 +1449,19 @@ function renderHistory(){
       case "copy": { const l=it.gone ? it.long : it.link; toast(await copyText(l) ? (it.gone ? "Lien complet copié (le lien court a été supprimé)" : "Lien copié") : "Copie impossible"); break; }
       case "open": window.open(invLink(it),"_blank","noopener"); break;
       case "dup": duplicateInvitation(it); break;
+      case "cal": case "gcal": try{ agendaHist(await eventEnvoyee(it), b.dataset.act); }catch(err){ toast("Impossible de relire ce lien"); } break;
+      case "ok": {
+        // Plusieurs créneaux : on demande lequel
+        let slot=0;
+        if(it.when.length>1){ slot=await choixSheet("Quel créneau ?", `Choisis le créneau accepté par ${it.to}.`, it.when.map((_,i)=>rdvQuand(it, i))); if(slot===null) return; }
+        if(storeHistory(loadHistory().map(x=>x.id===id ? { ...x, ok:new Date().toISOString(), okSlot:slot } : x))){ renderHistory(); toast("Invitation marquée comme acceptée"); }
+        else toast("Impossible de modifier l'historique sur cet appareil");
+        break;
+      }
+      case "unok":
+        if(storeHistory(loadHistory().map(x=>{ if(x.id!==id) return x; const { ok, okSlot, ...reste }=x; return reste; }))){ renderHistory(); toast("Ce n'est plus marqué comme acceptée"); }
+        else toast("Impossible de modifier l'historique sur cet appareil");
+        break;
       case "unpub": unpublishShort(it); break;
       case "del":
         if(it.nid && it.njeton && !it.rep) cancelNotif(it.nid, it.njeton); // plus de statut à afficher : plus de notification
@@ -1492,6 +1548,38 @@ async function duplicateInvitation(it){
   window.scrollTo({top:0});
   toast("Invitation dupliquée : modifie ce que tu veux");
 }
+/* Agenda d'une invitation envoyée : ce que la personne qui l'a créée a écrit (les « Révélé plus tard » déchiffrés ;
+   une « Surprise » n'est jamais dans le lien, elle reste « Surprise »). */
+async function eventEnvoyee(it){
+  const d=await decodeData(linkData(invLink(it))), s=rdvSlot(it, false);
+  const vrai=x=>{ if(!x) return ""; if(x.v==="v") return x.x; if(x.v==="r"){ try{ return unscramble(x.e).slice(0,120); }catch(e){} } return ""; };
+  const title=(d.p ? "Journée" : (vrai(d.a) || "Surprise")) + ` avec ${d.t}`;
+  return rdvEvent(it.when[s][0], it.when[s][1], d.en, title, d.p ? (d.me||"") : vrai(d.l), `${histOcc(it)}. Invitation créée avec Ose Demander.\n\nTon invitation : ${invLink(it)}`, invLink(it));
+}
+// Agenda d'une invitation reçue : ce que la personne invitée a vu au moment du Oui (ag), sans rouvrir le lien
+function eventRecue(it){
+  const s=rdvSlot(it, true);
+  return rdvEvent(it.when[s][0], it.when[s][1], it.ag.e, it.ag.t, it.ag.l, `${histOcc(it)}. Invitation reçue avec Ose Demander.\n\nTon invitation : ${it.link}`, it.link);
+}
+function agendaHist(ev, quoi){
+  if(quoi==="gcal"){ window.open(googleCalUrl(ev),"_blank","noopener"); return; }
+  saveFile("rendez-vous.ics", icsText([ev]), "text/calendar");
+  toast("Fichier d'agenda téléchargé : ouvre-le pour ajouter le rendez-vous");
+}
+/* Fenêtre de choix (un bouton par option) : renvoie l'indice choisi, ou null (Annuler, Échap, toucher le fond) */
+function choixSheet(title, text, options){
+  return new Promise(resolve=>{
+    const d=document.createElement("div"); d.className="sheet"; d.setAttribute("role","dialog"); d.setAttribute("aria-modal","true"); d.setAttribute("aria-label",title);
+    d.innerHTML=`<div class="sheet-card"><h3>${esc(title)}</h3><p>${esc(text)}</p>
+      <div class="choix-creneau">${options.map((o,i)=>`<button type="button" class="btn" data-i="${i}">${esc(o)}</button>`).join("")}</div>
+      <div class="btns"><button type="button" class="btn ghost" data-i="-1">Annuler</button></div></div>`;
+    const onKey=e=>{ if(e.key==="Escape") close(-1); };
+    const close=i=>{ d.remove(); document.removeEventListener("keydown",onKey); resolve(i<0 ? null : i); };
+    d.addEventListener("click",e=>{ if(e.target===d) return close(-1); const b=e.target.closest("[data-i]"); if(b) close(+b.dataset.i); });
+    document.addEventListener("keydown",onKey);
+    document.body.appendChild(d); $("[data-i='0']",d).focus();
+  });
+}
 function exportHistory(){
   const items=loadHistory(), recues=loadRecues();
   if(!items.length && !recues.length){ toast("Ton historique est vide"); return; }
@@ -1531,7 +1619,10 @@ async function importHistory(file){
     if(!validRecue(x)){ skipped++; continue; }
     if(rLinks.has(x.link) || recueIgnoree(x.link, x.link, list, [])) continue;
     let e={ ...x, id: rIds.has(x.id) ? newId() : x.id };
-    if(!shortId(x.link)){ let d; try{ d=await decodeData(linkData(x.link)); }catch(err){ skipped++; continue; } e=recueEntry(d, x.link, x.created, e.id); }
+    if(!shortId(x.link)){
+      let d; try{ d=await decodeData(linkData(x.link)); }catch(err){ skipped++; continue; }
+      e={ ...recueEntry(d, x.link, x.created, e.id), ...Object.fromEntries(["rep","repAt","repSlot","ag"].filter(k=>x[k]!==undefined).map(k=>[k, x[k]])) };
+    }
     if(!validRecue(e)){ skipped++; continue; }
     recues.push(e); rLinks.add(e.link); rIds.add(e.id); addedR++;
   }
@@ -1545,4 +1636,4 @@ async function importHistory(file){
   toast(msg);
 }
 
-oseLoaded("creer", "f6eed4b207");
+oseLoaded("creer", "cae8af06c0");
