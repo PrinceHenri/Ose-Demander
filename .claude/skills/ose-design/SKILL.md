@@ -297,6 +297,15 @@ Code et textes dans `app/demo.js` (chargé seulement quand il sert ; textes regr
 - **Fin de l'exemple** : après le Oui (1,8 s, le temps de l'explosion) ou le vrai refus, fenêtre « À toi de créer la tienne » : « Créer mon invitation » (principale), « Revoir l'exemple », « Fermer » (discret). Tout de suite si les animations sont coupées. L'exemple se lance aussi depuis « Voir un exemple » (pied de page) et « Revoir l'exemple » (bas de « Mes invitations »).
 - Pas de bulles d'aide pour l'instant.
 
+## 2 octodecies. Rappel « 3 h avant »
+
+Une fois une invitation acceptée, une notification sur son propre appareil, 3 h avant le rendez-vous (`rdv3HTML`, `syncRdv3`, `setRdv3`, `scheduleRdv3`, `cancelRdv3`, Worker `/v1/rdv`, table `rdv`, `sw.js` `onRdv` / `rdvTexte`).
+- **Où** : après le Oui (dans `#actions`, sous la notification de révélation, seulement si l'invitation est rangée dans les Reçues : même case que sa carte, clé `r:`+id) et sur les cartes acceptées de « Mes invitations », sous le compte à rebours (Reçues `r:`+id, Envoyées `e:`+id). Jamais dans l'exemple, le rappel d'agenda ni la version partagée.
+- **Case** : même encadré que la révélation (`.rev-notif.rdv3`, pointillés `--line`), « ⏰ Me rappeler 3 h avant » en gras, `.hint` dessous : « Une notification sur cet appareil, 3 h avant le rendez-vous. » ; cochée : « ⏰ C'est noté : … » ; erreurs (`role="alert"`) : « Le rappel n'a pas pu être programmé. Réessaie, ou ajoute le rendez-vous à ton agenda. », « Il y a déjà 10 rappels en attente sur cet appareil. Décoches-en un, ou ajoute le rendez-vous à ton agenda. » ; bloquées : case désactivée et la raison. **Toujours décochée par défaut**, autorisation demandée au toucher. C'est une case : aucune action principale.
+- **Proposée seulement** si le rendez-vous a une heure et qu'il reste plus de 3 h (70 s de marge) ; un rappel déjà programmé reste affiché coché jusqu'à son envoi. Pas de case sur iPhone hors de l'appli installée, dans les navigateurs intégrés ni sans notifications : « Ajouter à mon agenda » a déjà l'alerte 3 h avant.
+- **Annulé tout seul** quand la réponse change (créneau, retour en arrière, refus), quand l'invitation est retirée de l'historique (ou « Tout effacer »), ou n'est plus marquée acceptée.
+- **Notification** (texte composé par `sw.js` depuis IndexedDB, rien n'est envoyé) : « ⏰ Dans 3 h : {titre} » / « Rendez-vous à 20 h, {lieu}. » (durée recalculée si l'envoi est retardé, « C'est l'heure » à moins de 5 min) ; sans données : « ⏰ Ton rendez-vous approche » / « Touche pour le retrouver dans « Mes invitations ». ». Le toucher ouvre « Mes invitations ». Le titre et le lieu sont ceux de l'agenda (une « Surprise » reste « Surprise »).
+
 ## 3. Typographie : deux polices, pas une de plus
 
 Polices **hébergées dans `fonts/`** (licence SIL OFL, aucun appel à Google Fonts — RGPD).
