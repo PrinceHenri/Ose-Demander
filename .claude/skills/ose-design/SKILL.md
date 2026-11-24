@@ -318,6 +318,14 @@ Un seul lien pour plusieurs personnes ; seule la personne qui organise lit les r
 - **Mes invitations** : pastille `.tag-groupe` « Groupe », dernier relevé (« 3 oui, 1 peut-être, 1 non »), « Voir les réponses » (principale). Reçues : Acceptée, Peut-être, Refusée.
 - **Textes** : regroupés dans `GRP_TEXTES` et `ORGA_TEXTES` (clés prêtes pour lang/en.json) ; « vous » pour le groupe dans le message de partage (« La bande, j'ai une question pour vous 💌 »), tutoiement partout ailleurs ; jamais de point médian (« seul·e » reformulé).
 
+## 2 vicies. Scanner une invitation
+
+Ouvrir une invitation depuis son QR code (`app/scanner.js`, chargé au toucher de l'icône ; `app/vendor/jsqr.js` seulement sans `BarcodeDetector`). Textes dans `SCAN_TEXTES`.
+- **Icône seule** (`SCAN_ICONE` : quatre coins de visée arrondis et un petit carré, trait 2,2 `currentColor`), `aria-label="Scanner une invitation"`, ni texte ni infobulle : dans l'en-tête de l'accueil à côté du son (même bouton rond `.snd-inline`), et discrète en haut de l'onglet Reçues (`.scan-discret` : contour `--line`, `--muted`, 44 px). Les petits boutons ronds de l'en-tête gardent leur aspect (38 × 36) mais ont une zone touchable de 44 px (`.snd-inline::after`).
+- **Panneau** (`.sheet`) : « Tu as reçu une invitation ? », une phrase, « Choisir une image » (principal, `--accent-btn`, ombre 4 px comme le Oui), « Utiliser la caméra » (blanc contouré comme le Non, seulement s'il y a une caméra), « Fermer » discret ; petite icône devant chaque bouton ; Échap, toucher le fond.
+- **Vue plein écran** (`.scan-vue`, fond `--ink`, texte `--bg`) : cadre carré (`.scan-cadre`) dont le voile `color-mix(--ink 72 %)` assombrit le reste, coins arrondis à l'`--accent` qui pulsent doucement ; « Place le QR code dans le cadre » ; Fermer rond 48 px en haut ; « Choisir une image » en bas. Réussite : dernière image figée, coins qui se resserrent avec rebond, vibration courte, puis fondu vers l'enveloppe. Refus : secousse du cadre et bulle (`.scan-bulle`, ombre décalée à l'accent) « Ce QR code ne vient pas d'Ose Demander » avec « Réessayer » ; le contenu lu n'est JAMAIS affiché. Image choisie : vignette dans le cadre et ligne de lecture qui balaie.
+- **Moins de mouvement** : ni pulsation, ni secousse, ni rebond, ni vibration ; fondus seulement. Espaces insécables devant « ? ! : ; » dans les textes.
+
 ## 3. Typographie : deux polices, pas une de plus
 
 Polices **hébergées dans `fonts/`** (licence SIL OFL, aucun appel à Google Fonts — RGPD).

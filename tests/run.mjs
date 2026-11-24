@@ -6,6 +6,7 @@ import assert from "node:assert/strict";
 import { deflateRawSync, inflateRawSync, gzipSync } from "node:zlib";
 import { readFileSync, readdirSync } from "node:fs";
 import { execFileSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { charger } from "./charger.mjs";
 import { REFERENCES } from "./references.mjs";
@@ -5019,6 +5020,90 @@ await essaiWorker("Envoyées et carte « Ton lien est prêt » : le bouton ; l'i
   assert.ok(!h.includes("#ga="));
   assert.ok(C.lire("bindCreator").toString().includes("openImageSheet(e.currentTarget, S.groupe ? grpImageDeS() : null)"));
   assert.ok(!C.lire("grpImageDeS").toString().includes("orgaLink"), "le dessin ne reçoit jamais le lien organisateur");
+});
+
+/* =========================================================
+   59. Scanner une invitation (app/scanner.js) : filtre strict, décodage des images de l'appli, caméra, jsQR
+   ========================================================= */
+titre("59. Scanner une invitation");
+const PSC = chargerPage({ fichiers: ["scenes", "creer", "scanner"] });
+const jsQRnode = (await import("node:module")).createRequire(import.meta.url)("../app/vendor/jsqr.js");
+await test("Filtre : #i=, #s= et #g= de https://osedemander.fr/ acceptés ; tout le reste refusé (domaine, sous-domaine piégé, http, port, ?, chemin, #ga=, javascript:, texte)", () => {
+  const f = PSC.lire("scanLien"), id = "A".repeat(22), k = "B".repeat(22), code = "yq1ZKU7JScsxJrVDSUSpRslLySVRISsxLSVXSUcpXsjI21lEqVLIyM9NRSlSyUgrOzyw6vDJVITkjtUoBqikHJJ6Yk5OqkJKqkKPuWpGaW5AD0l6uZGVqYWFuZKCj5K5kpeTkSBOgVAsA";
+  for(const [l, h] of [[`https://osedemander.fr/#s=${id}.${k}`, `#s=${id}.${k}`], [`https://osedemander.fr/#g=${id}.${k}`, `#g=${id}.${k}`],
+    [`https://osedemander.fr/#i=${code}`, `#i=${code}`], [`https://osedemander.fr/index.html#s=${id}.${k}`, `#s=${id}.${k}`], [` https://osedemander.fr/#s=${id}.${k}\n`, `#s=${id}.${k}`]])
+    assert.equal(f(l), h, l);
+  const refuses = [`https://osedemander.fr/#ga=${id}.${k}.${"D".repeat(43)}`, `https://osedemander.fr.exemple.com/#s=${id}.${k}`, `https://exemple.com/#s=${id}.${k}`,
+    `https://exemple.com/?u=https://osedemander.fr/#s=${id}.${k}`, `http://osedemander.fr/#s=${id}.${k}`, `https://osedemander.fr:8443/#s=${id}.${k}`,
+    "https://a:b" + "@" + `osedemander.fr/#s=${id}.${k}`, `https://osedemander.fr/?x=1#s=${id}.${k}`, `https://osedemander.fr/autre/#s=${id}.${k}`,
+    `https://www.osedemander.fr/#s=${id}.${k}`, `https://osedemander.fr/#s=${id}`, `https://osedemander.fr/#groupe=${id}`, "https://osedemander.fr/#mes-invitations",
+    "https://osedemander.fr/", "javascript:location=\"https://osedemander.fr/#s=" + id + "." + k + "\"", "data:text/html,https://osedemander.fr/#s=" + id + "." + k,
+    "Bonjour, ceci n’est pas un lien", "", "https://osedemander.fr/#i=y" + "A".repeat(PSC.lire("MAX_LINK") + 100), null, 42];
+  for(const l of refuses) assert.equal(f(l), null, String(l).slice(0, 80));
+});
+// Image de l'appli reconstituée en pixels : fond blanc, modules foncés du QR code tels que le dessin les peint (logo : non peint)
+function pixelsDe(f, q, w, h){
+  const px = new Uint8ClampedArray(w * h * 4).fill(255);
+  for(const r of f.peint) if(r.c === q.color && r.w === q.module)
+    for(let y = Math.round(r.y); y < Math.round(r.y + r.h); y++) for(let x = Math.round(r.x); x < Math.round(r.x + r.w); x++){ const i = (y * w + x) * 4; px[i] = px[i + 1] = px[i + 2] = 0; }
+  return px;
+}
+await test("Décodage : les images de l'appli (story et carré, invitation simple et groupe) se lisent avec jsQR et ouvrent le bon lien", async () => {
+  const formats = PAGE.lire("IMG_FORMATS"), filtre = PSC.lire("scanLien");
+  for(const fmt of ["story", "carre"]) for(const [lien, groupe] of [["https://osedemander.fr/#s=" + lienAuHasard(22, 41) + "." + lienAuHasard(22, 42), false], ["https://osedemander.fr/#g=" + lienAuHasard(22, 43) + "." + lienAuHasard(22, 44), true]]){
+    const f = fauxCanevas(), { qr: q } = await PAGE.lire("drawInviteImage")(fmt, { ...DESSIN, th: "soiree", link: lien, groupe }, f.canvas);
+    const { w, h } = formats[fmt], r = jsQRnode(pixelsDe(f, q, w, h), w, h), ou = `${fmt}, ${groupe ? "groupe" : "simple"}`;
+    assert.ok(r, `${ou} : QR code lu`);
+    assert.equal(r.data, lien, ou);
+    assert.equal(filtre(r.data), lien.slice(lien.indexOf("#")), `${ou} : accepté par le scanner`);
+  }
+});
+await test("jsQR : fichier publié tel quel (SHA-256 du README), licence Apache 2.0 jointe, chargé seulement sans BarcodeDetector, aucun appel externe", () => {
+  const brut = readFileSync(RACINE + "app/vendor/jsqr.js"), sha = createHash("sha256").update(brut).digest("hex"), readme = readFileSync(RACINE + "README.md", "utf8");
+  assert.equal(sha, "bc40c8a15196236b2314db0856f72ca0b49980cd5413b8c852a7349f5fee0859", "fichier modifié");
+  assert.ok(readme.includes(sha) && readme.includes("jsQR 1.4.0"));
+  assert.ok(readFileSync(RACINE + "app/vendor/jsqr-LICENSE.txt", "utf8").includes("Apache License"));
+  const sc = readFileSync(RACINE + "app/scanner.js", "utf8");
+  assert.ok(sc.includes(`const JSQR_V = "${sha.slice(0, 10)}"`), "version de chargement = empreinte du fichier");
+  assert.ok(sc.indexOf("typeof BarcodeDetector") < sc.indexOf("await scanJsQR()"), "BarcodeDetector d'abord");
+  assert.equal((brut.toString().match(/https?:\/\/[^\s'"]+/g) || []).filter(u => !u.includes("wikipedia.org")).length, 0, "aucune adresse dans jsQR");
+  assert.ok(!/fetch\(|XMLHttpRequest|https?:\/\//.test(sc.replace(/https:\/\/osedemander\.fr/g, "")), "scanner.js : aucun appel ni adresse externe");
+});
+await test("Image choisie : 1 200 px puis 2 000 px, orientation EXIF ; caméra : seulement au bouton, 5 à 8 analyses par seconde, pause onglet caché, arrêtée à la sortie ; contenu lu jamais affiché", () => {
+  const sc = readFileSync(RACINE + "app/scanner.js", "utf8");
+  assert.ok(sc.includes("await lire(img, 1200) || await lire(img, 2000)") && sc.includes('{imageOrientation:"from-image"}'));
+  assert.equal((sc.match(/getUserMedia\(/g) || []).length, 1, "un seul appel à la caméra");
+  const cam = sc.slice(sc.indexOf("async function scanCamera"), sc.indexOf("function scanBoucle"));
+  assert.ok(cam.includes("getUserMedia(") && cam.includes('facingMode:{ideal:"environment"}'), "caméra arrière, seulement dans scanCamera");
+  const ecart = +sc.match(/const SCAN_ECART = (\d+)/)[1]; assert.ok(1000 / ecart >= 5 && 1000 / ecart <= 8, `${(1000 / ecart).toFixed(1)} analyses par seconde`);
+  assert.ok(sc.includes("if(e.pause || document.hidden){ scanBoucle(); return; }"), "pause onglet caché");
+  let arrets = 0; const piste = { stop: () => arrets++ };
+  PSC.ecrire("scanEtat", { vue: { remove(){} }, flux: { getTracks: () => [piste, piste] }, minuteur: 0, opener: null, onKey(){}, vignette: "" });
+  PSC.lire("scanFin")(false); assert.equal(arrets, 2, "chaque piste arrêtée"); assert.equal(PSC.lire("scanEtat"), null);
+  const res = sc.slice(sc.indexOf("function scanResultat"), sc.indexOf("async function scanImage"));
+  assert.ok(!/esc\(texte\)|\$\{texte\}|location\.href|window\.open/.test(sc), "jamais le texte lu dans la page");
+  assert.ok(res.includes("location.hash=h") && res.includes('scanBulle(scanT("scan.refus")'));
+});
+await test("Icône : seule (aucun texte visible), « Scanner une invitation », sur l'accueil à côté du son et en haut des Reçues ; boutons ronds de l'en-tête à 44 px", () => {
+  const P = chargerPage(), S = P.lire("S");
+  S.step = "home"; const h = P.lire("topHTML")(false);
+  const b = h.match(/<button type="button" class="snd-inline scan-btn" data-scan aria-label="Scanner une invitation">([\s\S]*?)<\/button>/);
+  assert.ok(b, "icône de l'accueil"); assert.equal(b[1].replace(/<[^>]+>/g, "").trim(), "", "aucun texte visible");
+  assert.ok(h.indexOf('id="snd"') < h.indexOf("data-scan"), "à côté du son");
+  S.step = 2; assert.ok(!P.lire("topHTML")(false).includes("data-scan"), "seulement sur l'accueil");
+  assert.ok(P.lire("renderHistory").toString().includes('${scanBtnHTML("scan-discret")}'), "en haut des Reçues");
+  assert.ok(!/title=/.test(P.lire("scanBtnHTML")("x")), "pas d'infobulle");
+  assert.ok(readFileSync(RACINE + "index.html", "utf8").includes('.snd-inline::after{content:"";position:absolute;inset:-6px -5px}'), "38 + 2 × 3 = 44 px de large, 36 + 2 × 4 = 44 de haut");
+  const T = PSC.lire("SCAN_TEXTES");
+  assert.equal(T["scan.titre"], "Tu as reçu une invitation ?"); assert.ok(!Object.values(T).some(t => / [?!:;]/.test(t)), "espaces insécables devant ? ! : ;"); assert.equal(T["scan.refus"], "Ce QR code ne vient pas d'Ose Demander");
+});
+await test("Fichier à part : chargé au toucher, versionné, précaché ; jsQR à la demande (gardé en cache après son premier usage)", () => {
+  const f = readFileSync(RACINE + "app/scanner.js", "utf8"), sw = readFileSync(RACINE + "sw.js", "utf8"), html = readFileSync(RACINE + "index.html", "utf8");
+  const v = (f.match(/oseLoaded\("scanner", "([0-9a-f]{10})"\)/) || [])[1];
+  assert.ok(v && sw.includes(`"./app/scanner.js?v=${v}"`) && html.includes(`scanner:"${v}"`));
+  assert.ok(CSP.FICHIERS.some(x => x.chemin === "app/scanner.js"));
+  assert.ok(!sw.includes("jsqr.js"), "jsQR n'est pas téléchargé par tout le monde à l'installation");
+  assert.ok(gzipSync(f).length < 9000, `${gzipSync(f).length} octets compressés`);
 });
 
 /* ---------- Bilan ---------- */

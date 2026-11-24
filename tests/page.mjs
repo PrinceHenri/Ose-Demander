@@ -41,7 +41,7 @@ export function chargerPage({ share = false, ios = false, fichiers = ["scenes", 
     getElementById: id => zones["#" + id] || neutre(), body: neutre(), documentElement: neutre(),
     createElement: tag => tag === "script" || tag === "link" ? { tag, dataset: {}, remove: rien } : neutre(),
     head: { insertAdjacentHTML: rien, appendChild: el => { const u = el.src || el.href; demandes.push(u); queueMicrotask(() => charge(u) === "ok" ? el.onload?.() : el.onerror?.()); return el; } },
-    addEventListener: rien
+    addEventListener: rien, removeEventListener: rien
   };
   const location = { origin: "http://localhost:8000", pathname: "/", hash: "", hostname: "localhost", protocol: "http:", href: "http://localhost:8000/",
     rechargements: 0, reload(){ this.rechargements++; } };

@@ -231,12 +231,20 @@ function applyTemplate(id){
 }
 
 const SITE_TITLE = document.title;
+/* Scanner une invitation (app/scanner.js) : une icône seule (coins de visée), libellé pour les lecteurs d'écran */
+const SCAN_ICONE = `<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 9V6.5A2.5 2.5 0 0 1 6.5 4H9M15 4h2.5A2.5 2.5 0 0 1 20 6.5V9M20 15v2.5a2.5 2.5 0 0 1-2.5 2.5H15M9 20H6.5A2.5 2.5 0 0 1 4 17.5V15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><rect x="9" y="9" width="6" height="6" rx="1.6" fill="currentColor"/></svg>`;
+const scanBtnHTML = cls => `<button type="button" class="${cls}" data-scan aria-label="Scanner une invitation">${SCAN_ICONE}</button>`;
+if(typeof document!=="undefined" && document.addEventListener) document.addEventListener("click", e=>{
+  const b=e.target && e.target.closest && e.target.closest("[data-scan]"); if(!b) return;
+  need("scanner").then(()=>ouvrirScanner(b), ()=>toast("Le lecteur n'a pas pu se charger. Vérifie ta connexion, puis réessaie."));
+});
 function topHTML(onHistory){
   const n = onHistory ? 0 : loadHistory().length + loadRecues().length;
   return `<header class="top">
       ${logoHTML(seasonToday(), S.anim!=="0")}
       <div class="top-actions">
         <button type="button" class="snd-inline" id="snd" aria-pressed="${Sound.on}" aria-label="${Sound.on?"Couper le son":"Activer le son"}">${Sound.on?"🔊":"🔇"}</button>
+        ${!onHistory && S.step==="home" ? scanBtnHTML("snd-inline scan-btn") : ""}
         ${onHistory ? "" : `<a class="hist-btn" href="#mes-invitations">Mes invitations<span class="badge ${n?"":"hidden"}" id="histBadge">${n}</span></a>`}
         <span id="installSlot"><small>Gratuit, sans compte</small></span>
       </div>
@@ -1695,7 +1703,7 @@ function renderHistory(){
       ${isStandalone() ? "" : `<p class="tip">💡 Installe l'appli pour mieux conserver ton historique.</p>`}
       <div class="seg hist-tabs" role="tablist" aria-label="Mes invitations">${tab("envoyees","Envoyées",env.length)}${tab("recues","Reçues",rec.length)}</div>
       <div id="histPanel" role="tabpanel" aria-labelledby="tab-${histTab}">
-      ${recues ? `<p class="hint">Les invitations que tu ouvres sont gardées ici, sur cet appareil seulement. Personne n'en est averti.</p>` : ""}
+      ${recues ? `<div class="hist-scan"><p class="hint">Les invitations que tu ouvres sont gardées ici, sur cet appareil seulement. Personne n'en est averti.</p>${scanBtnHTML("scan-discret")}</div>` : ""}
       ${list.length ? histListeHTML(list, recues)
         : recues ? `<p class="empty">Aucune invitation reçue pour l'instant.<br>Quand tu ouvres une invitation, elle s'ajoute ici.</p>`
         : `<p class="empty">Aucune invitation pour l'instant.<br>Quand tu cliques sur « Créer mon lien », elle s'ajoute ici.</p>`}
@@ -1950,4 +1958,4 @@ async function importHistory(file){
   toast(msg);
 }
 
-oseLoaded("creer", "d98f3d167f");
+oseLoaded("creer", "d58f180930");

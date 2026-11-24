@@ -80,6 +80,13 @@ Il charge le vrai code de `index.html` et vérifie :
 En cas d'échec, la commande affiche la graine du tirage pour le rejouer (`node tests/run.mjs --graine=N`).
 Ne jamais modifier une référence ou une table figée : pour une nouveauté, on **ajoute** une référence ou un code.
 
+## Logiciels tiers
+
+- **jsQR 1.4.0** (licence Apache 2.0, texte complet : `app/vendor/jsqr-LICENSE.txt`) : lecteur de QR codes, utilisé par le scanner seulement quand le navigateur n'en a pas (`BarcodeDetector`). Fichier publié tel quel, sans modification : `app/vendor/jsqr.js`.
+  - Source : `https://registry.npmjs.org/jsqr/-/jsqr-1.4.0.tgz`, intégrité npm `sha512-dxLob7q65Xg2DvstYkRpkYtmKm2sPJ9oFhrhmudT1dZvNFFTlroai3AWSpLey/w5vMcLBXRgOJsbXpdN9HzU/A==` (vérifiée au téléchargement).
+  - SHA-256 du fichier `app/vendor/jsqr.js` : `bc40c8a15196236b2314db0856f72ca0b49980cd5413b8c852a7349f5fee0859` (le banc le vérifie).
+- Polices Bricolage Grotesque et Caveat : licence SIL OFL (`fonts/`).
+
 ## Sécurité
 
 - **Active la double authentification (2FA)** sur ton compte GitHub : c'est la protection la plus importante, car quiconque contrôle le compte contrôle le site.
