@@ -4309,6 +4309,162 @@ await essaiWorker("Limites par adresse IP, CORS limité au site, routes inconnue
   assert.ok(src.includes("await envoyerGroupes(env, maintenant, RAPPEL_LOT - faits - faitsRdv);") && src.includes("await nettoyerGroupes(env, maintenant);"));
 });
 
+/* =========================================================
+   51. Invitation de groupe : le chiffrement (app/groupe-commun.js)
+   ========================================================= */
+titre("51. Invitation de groupe : le chiffrement");
+const PG = chargerPage({ fichiers: ["scenes", "creer", "groupe-commun"] });
+const G = nom => PG.lire(nom);
+const GSUB = crypto.subtle, GB64 = b => Buffer.from(b).toString("base64url");
+// Chiffrement écrit à part (d'après la description du format), pour vérifier le format et la validation après déchiffrement
+async function scellerAPart(gid, rid, contenu, gp){
+  const pub = await GSUB.importKey("raw", Buffer.from(gp, "base64url"), { name: "ECDH", namedCurve: "P-256" }, false, []);
+  const eph = await GSUB.generateKey({ name: "ECDH", namedCurve: "P-256" }, true, ["deriveBits"]);
+  const s = await GSUB.deriveBits({ name: "ECDH", public: pub }, eph.privateKey, 256);
+  const k = await GSUB.importKey("raw", await GSUB.deriveBits({ name: "HKDF", hash: "SHA-256", salt: new TextEncoder().encode(gid), info: new TextEncoder().encode("ose-reponse") },
+    await GSUB.importKey("raw", s, "HKDF", false, ["deriveBits"]), 128), "AES-GCM", false, ["encrypt"]);
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const c = new Uint8Array(await GSUB.encrypt({ name: "AES-GCM", iv, additionalData: new TextEncoder().encode(gid + "." + rid) }, k, new TextEncoder().encode(contenu)));
+  const e = new Uint8Array(await GSUB.exportKey("raw", eph.publicKey));
+  return GB64(Buffer.concat([Buffer.from([1]), e, iv, c]));
+}
+const GID2 = "GGGGGGGGGGGGGGGGGGGGGG", RID_A = "AAAAAAAAAAAAAAAAAAAAAA", RID_B = "BBBBBBBBBBBBBBBBBBBBBB";
+
+await test("Liens : #g=ID.CLÉ (48 caractères) et #ga=ID.CLÉ.D ; tout autre format refusé", () => {
+  const lire = G("grpLireHash"), id = "I".repeat(22), key = "K".repeat(22), d = "D".repeat(43);
+  const inv = G("grpLienInvite")("https://osedemander.fr/", id, key), orga = G("grpLienOrga")("https://osedemander.fr/", id, key, d);
+  assert.equal(inv.slice(inv.indexOf("#")).length, 48, "lien invités aussi court qu'un lien court");
+  assert.deepEqual(lire(inv.slice(inv.indexOf("#"))), { mode: "invite", id, key });
+  assert.deepEqual(lire(orga.slice(orga.indexOf("#"))), { mode: "orga", id, key, d });
+  for(const h of ["#g=" + id, "#g=" + id + "." + key + ".x", "#ga=" + id + "." + key, "#ga=" + id + "." + key + "." + d + "x", "#s=" + id + "." + key, "#i=yAAA", "", "#g=" + id + "." + key + "+"])
+    assert.equal(lire(h), null, h);
+});
+await test("Paire de clés WebCrypto : d (43) et gp (87, point non compressé) ; clé de gestion tirée de d, stable, 43 caractères", async () => {
+  const { d, gp } = await G("grpCles")(), autre = await G("grpCles")();
+  assert.match(d, /^[A-Za-z0-9_-]{43}$/); assert.match(gp, /^[A-Za-z0-9_-]{87}$/);
+  assert.equal(Buffer.from(gp, "base64url")[0], 4);
+  const g1 = await G("grpGestion")(d);
+  assert.match(g1, /^[A-Za-z0-9_-]{43}$/);
+  assert.equal(await G("grpGestion")(d), g1, "toujours la même pour un même d");
+  assert.notEqual(await G("grpGestion")(autre.d), g1);
+  // Calcul indépendant : HKDF-SHA-256(d, sel vide, « ose-gestion »)
+  const ref = GB64(await GSUB.deriveBits({ name: "HKDF", hash: "SHA-256", salt: new Uint8Array(0), info: new TextEncoder().encode("ose-gestion") },
+    await GSUB.importKey("raw", Buffer.from(d, "base64url"), "HKDF", false, ["deriveBits"]), 256));
+  assert.equal(g1, ref);
+  assert.notEqual(g1, d, "la clé de gestion n'est pas d");
+  await assert.rejects(G("grpGestion")("court"));
+  assert.ok(!readFileSync(RACINE + "app/groupe-commun.js", "utf8").match(/BigInt|modPow|\bn\s*\*\*/), "aucun calcul elliptique maison");
+});
+await test("Aller-retour : une réponse chiffrée vers gp se déchiffre avec la clé rebâtie depuis le lien #ga= (d) ; mauvaise clé, autre place, autre groupe, bloc altéré : refusés", async () => {
+  const { d, gp } = await G("grpCles")(), autre = await G("grpCles")();
+  const rep = { p: "Sam", r: "o", a: 2, m: "Avec plaisir !" };
+  const blob = await G("grpSceller")(GID2, RID_A, rep, gp);
+  const priv = await G("grpClePrivee")(d, gp);
+  assert.deepEqual(await G("grpOuvrir")(GID2, RID_A, blob, priv), rep);
+  assert.equal(await G("grpOuvrir")(GID2, RID_A, blob, await G("grpClePrivee")(autre.d, autre.gp)), null, "mauvaise clé");
+  assert.equal(await G("grpOuvrir")(GID2, RID_B, blob, priv), null, "recopiée à une autre place");
+  assert.equal(await G("grpOuvrir")("HHHHHHHHHHHHHHHHHHHHHH", RID_A, blob, priv), null, "recopiée dans un autre groupe");
+  const b = Buffer.from(blob, "base64url"); b[90] ^= 1;
+  assert.equal(await G("grpOuvrir")(GID2, RID_A, GB64(b), priv), null, "bloc altéré");
+  assert.equal(await G("grpOuvrir")(GID2, RID_A, "x", priv), null);
+  // Format vérifié par un chiffrement écrit à part
+  assert.deepEqual(await G("grpOuvrir")(GID2, RID_A, await scellerAPart(GID2, RID_A, JSON.stringify(rep), gp), priv), rep);
+  assert.equal(Buffer.from(blob, "base64url")[0], 1, "version 1");
+  // Chaque envoi tire une nouvelle clé éphémère : deux fois la même réponse donne deux blocs différents
+  assert.notEqual(await G("grpSceller")(GID2, RID_A, rep, gp), blob);
+});
+await test("Lien organisateur : d qui ne correspond pas à gp, ou mal formé, refusé (« lien organisateur invalide ») ; le bon d est accepté", async () => {
+  const { d, gp } = await G("grpCles")(), autre = await G("grpCles")(), verifier = G("grpVerifierOrga");
+  const priv = await verifier(GID2, d, gp);
+  assert.deepEqual(await G("grpOuvrir")(GID2, RID_A, await G("grpSceller")(GID2, RID_A, { p: "Lou", r: "p", a: 0 }, gp), priv), { p: "Lou", r: "p", a: 0, m: "" });
+  for(const mauvais of [autre.d, "A".repeat(43), "court"])
+    await assert.rejects(verifier(GID2, mauvais, gp), e => e.kind === "orga-invalide", mauvais.slice(0, 6));
+  await assert.rejects(verifier(GID2, d, "x".repeat(87)), e => e.kind === "orga-invalide", "gp invalide");
+});
+await test("Validation stricte des réponses, à l'envoi et après déchiffrement : prénom obligatoire (Non compris), 40 caractères, Oui/Peut-être/Non, 0 à 5 accompagnants (0 pour un Non), petit mot de 200", async () => {
+  const v = G("grpValider");
+  assert.deepEqual(v({ p: "  Sam ", r: "n" }), { p: "Sam", r: "n", a: 0, m: "" });
+  assert.deepEqual(v({ p: "Zoé", r: "p", a: 5, m: "À bientôt\nbises" }), { p: "Zoé", r: "p", a: 5, m: "À bientôt\nbises" });
+  assert.equal(v({ p: "😀".repeat(40), r: "o" }).p.length, 80, "40 caractères (emojis compris)");
+  for(const [x, pourquoi] of [[{ r: "o" }, "sans prénom"], [{ p: "  ", r: "n" }, "prénom vide, même pour un Non"], [{ p: "a".repeat(41), r: "o" }, "41 caractères"],
+    [{ p: "Sam", r: "x" }, "réponse inconnue"], [{ p: "Sam", r: "o", a: 6 }, "6 accompagnants"], [{ p: "Sam", r: "o", a: -1 }, "négatif"], [{ p: "Sam", r: "o", a: 1.5 }, "pas entier"],
+    [{ p: "Sam", r: "n", a: 1 }, "accompagnant avec un Non"], [{ p: "Sam", r: "o", m: "x".repeat(201) }, "petit mot trop long"], [{ p: "Sam", r: "o", lien: "x" }, "champ inconnu"],
+    [{ p: "Sa\u0000m", r: "o" }, "caractère de contrôle"], [{ p: 3, r: "o" }, "type"], [[], "tableau"], [null, "vide"]])
+    assert.equal(v(x), null, pourquoi);
+  // Après déchiffrement : un contenu bien chiffré mais invalide est écarté
+  const { d, gp } = await G("grpCles")(), priv = await G("grpClePrivee")(d, gp);
+  for(const c of ['{"p":"Sam","r":"o","a":9}', '{"p":"","r":"n"}', '{"p":"Sam","r":"o","x":1}', "pas du JSON", '"Sam"'])
+    assert.equal(await G("grpOuvrir")(GID2, RID_A, await scellerAPart(GID2, RID_A, c, gp), priv), null, c);
+  await assert.rejects(G("grpSceller")(GID2, RID_A, { p: "", r: "n" }, gp), "rien n'est chiffré sans prénom");
+});
+await test("Taille : réponse la plus longue sous 2 Ko ; longueur du prénom et du petit mot masquée (contenu complété)", async () => {
+  const { gp } = await G("grpCles")(), sc = (rep) => G("grpSceller")(GID2, RID_A, rep, gp);
+  const max = await sc({ p: "😀".repeat(40), r: "o", a: 5, m: "\"".repeat(100) + "😀".repeat(100) });
+  assert.ok(max.length <= 2048, `${max.length} caractères`);
+  assert.equal((await sc({ p: "Al", r: "o" })).length, (await sc({ p: "Maximilienne", r: "n", m: "On sera là" })).length, "même taille");
+});
+await test("Échéance : dernier créneau + 3 mois ; sans date, 6 mois après la création ; un an au plus", () => {
+  const e = G("grpExpire"), now = new Date(2026, 10, 24, 12).getTime();
+  const mois = (t, n) => { const x = new Date(t); x.setMonth(x.getMonth() + n); return x.getTime(); };
+  assert.equal(e([["2026-12-24", "20:00"], ["2026-12-31", "21:00"]], now), mois(new Date(2026, 11, 31, 21).getTime(), 3), "dernier créneau + 3 mois");
+  assert.equal(e([], now), mois(now, 6), "sans date : 6 mois");
+  assert.equal(e([["", ""]], now), mois(now, 6));
+  assert.equal(e([["2027-11-01", "20:00"]], now), now + 365 * 864e5, "un an au plus");
+  assert.equal(e([["2020-01-01", "20:00"]], now), now + 864e5, "date passée : un jour");
+});
+await test("Résumé : Oui, Peut-être, Non, personnes attendues avec les accompagnants", () => {
+  assert.deepEqual(G("grpResume")([{ r: "o", a: 2 }, { r: "o", a: 0 }, { r: "p", a: 1 }, { r: "n", a: 0 }]), { o: 2, p: 1, n: 1, personnes: 4, peutEtre: 2 });
+});
+await essaiWorker("Avec le service : créer, répondre, modifier (mauvais jeton refusé), lire et déchiffrer, clôturer, supprimer ; ni prénom ni d n'est envoyé", async () => {
+  const r = reseau(ENV_N({ ORIGINES: LOCAL })), avant = PG.lire("shortFetch"); PG.ecrire("shortFetch", r.f);
+  try{
+    const { d, gp } = await G("grpCles")(), code = await L.encodeData(INV());
+    const c = await G("grpCreer")(code, d, Date.now() + 90 * 864e5, LOCAL + "/");
+    assert.equal(c.etat, "ok");
+    assert.ok(c.invite.endsWith(`#g=${c.id}.${c.key}`) && c.orga.endsWith(`#ga=${c.id}.${c.key}.${d}`));
+    const priv = await G("grpVerifierOrga")(c.id, d, gp);
+    const a = await G("grpRepondre")(c.id, { p: "Sam", r: "o", a: 1, m: "Super" }, gp);
+    const b = await G("grpRepondre")(c.id, { p: "Alex", r: "n" }, gp);
+    assert.equal(a.etat, "ok"); assert.equal(b.etat, "ok");
+    assert.equal((await G("grpRepondre")(c.id, { p: "", r: "n" }, gp)).etat, "contenu", "prénom obligatoire");
+    assert.equal((await G("grpModifier")(c.id, a.rid, b.jeton, { p: "Sam", r: "n" }, gp)).etat, "jeton", "jeton d'une autre réponse");
+    assert.equal((await G("grpModifier")(c.id, a.rid, a.jeton, { p: "Sam", r: "p", a: 0 }, gp)).etat, "ok");
+    let l = await G("grpLire")(c.id, d, priv);
+    assert.equal(l.etat, "ok"); assert.equal(l.ignorees, 0);
+    assert.deepEqual(l.reponses.map(x => [x.p, x.r, x.a]).sort(), [["Alex", "n", 0], ["Sam", "p", 0]]);
+    assert.equal((await G("grpLire")(c.id, (await G("grpCles")()).d, priv)).etat, "jeton", "mauvaise clé de gestion");
+    // Ce qui a circulé : jamais un prénom, un petit mot, ni d ; à la création, seulement l'empreinte de la clé de gestion
+    const tout = r.journal.map(q => q.body).join("\n");
+    for(const s of ["Sam", "Alex", "Super", d]) assert.ok(!tout.includes(s), `envoyé : ${s}`);
+    assert.ok(!r.journal[0].body.includes(await G("grpGestion")(d)), "création : empreinte seulement");
+    for(const ligne of r.env.DB.db.prepare("SELECT blob FROM reponses").all()) assert.ok(!/Sam|Alex/.test(ligne.blob));
+    // Clôturer, rouvrir, supprimer
+    assert.equal(await G("grpCloturer")(c.id, d, true), "ok");
+    assert.equal((await G("grpRepondre")(c.id, { p: "Lou", r: "o" }, gp)).etat, "ferme");
+    assert.equal((await G("grpModifier")(c.id, a.rid, a.jeton, { p: "Sam", r: "o" }, gp)).etat, "ferme");
+    assert.equal(await G("grpCloturer")(c.id, d, false), "ok");
+    assert.equal(await G("grpSupprimerReponse")(c.id, d, b.rid), "ok");
+    assert.equal((await G("grpLire")(c.id, d, priv)).reponses.length, 1);
+    assert.equal(await G("grpSupprimer")(c.id, d), "ok");
+    assert.equal((await G("grpLire")(c.id, d, priv)).etat, "supprime");
+    assert.equal((await G("grpRepondre")(c.id, { p: "Lou", r: "o" }, gp)).etat, "supprime");
+    // Une réponse déposée avec une autre clé publique (invitation falsifiée ailleurs) est écartée et comptée
+    const c2 = await G("grpCreer")(code, d, Date.now() + 864e5 * 30, LOCAL + "/");
+    await G("grpRepondre")(c2.id, { p: "Zoé", r: "o" }, (await G("grpCles")()).gp);
+    l = await G("grpLire")(c2.id, d, priv);
+    assert.deepEqual([l.reponses.length, l.ignorees], [0, 1]);
+  } finally { PG.ecrire("shortFetch", avant); }
+});
+await test("Fichier à part : chargé à la demande, versionné, précaché par sw.js ; index.html ne fait que le déclarer", () => {
+  const f = readFileSync(RACINE + "app/groupe-commun.js", "utf8"), sw = readFileSync(RACINE + "sw.js", "utf8"), html = readFileSync(RACINE + "index.html", "utf8");
+  const v = (f.match(/oseLoaded\("groupeCommun", "([0-9a-f]{10})"\)/) || [])[1];
+  assert.ok(v && sw.includes(`"./app/groupe-commun.js?v=${v}"`) && html.includes(`groupeCommun:"${v}"`), "même version partout");
+  assert.equal(PG.lire("oseUrl")("groupeCommun"), `app/groupe-commun.js?v=${v}`);
+  assert.ok(CSP.FICHIERS.some(x => x.chemin === "app/groupe-commun.js"));
+  assert.ok(!html.includes("grpSceller") && !html.includes("grpOuvrir"), "le chiffrement des groupes n'est pas dans index.html");
+  assert.ok(gzipSync(f).length < 6000, `${gzipSync(f).length} octets compressés`);
+});
+
 /* ---------- Bilan ---------- */
 console.log(`\n${ko ? "❌" : "✅"} ${ok} tests réussis, ${ko} en échec (graine ${GRAINE}${ko ? ` — pour rejouer : node tests/run.mjs --graine=${GRAINE}` : ""})`);
 if(ko){ console.log(echecs.map(e => "  - " + e).join("\n")); process.exitCode = 1; }
