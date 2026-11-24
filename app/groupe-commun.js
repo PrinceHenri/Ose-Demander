@@ -177,4 +177,22 @@ const grpSupprimerReponse = (gid, d, rid) => grpGerer(gid, d, `reponses/${rid}/s
 const grpSupprimer = (gid, d) => grpGerer(gid, d, "supprimer");
 const grpAbo = (gid, d, abo) => grpGerer(gid, d, "abo", {abo});
 
-oseLoaded("groupeCommun", "59b52daeee");
+/* Notifications des nouvelles réponses (organisateur, sur cet appareil) : l'abonnement part au service (chiffré au repos) ;
+   la question et le nom du groupe restent ici, dans IndexedDB, pour composer le texte (sw.js, grpTexte).
+   Autorisation déjà accordée (demandée pendant le toucher). "ok" | "reseau" */
+async function grpNotifActiver(gid, d, info){
+  try{
+    const abo=await pushAbo(); if(!abo) return "reseau";
+    if(await grpAbo(gid, d, abo)!=="ok") return "reseau";
+    await notifStore("groupes","readwrite",st=>st.put({id:gid, q:String(info.q||"").slice(0,80), t:String(info.t||"").slice(0,30)}));
+    return "ok";
+  }catch(e){ return "reseau"; }
+}
+async function grpNotifCouper(gid, d){
+  const r=await grpAbo(gid, d, null);
+  try{ await notifStore("groupes","readwrite",st=>st.delete(gid)); }catch(e){}
+  return r;
+}
+async function grpNotifActive(gid){ try{ return !!(await notifStore("groupes","readonly",st=>st.get(gid))); }catch(e){ return false; } }
+
+oseLoaded("groupeCommun", "d17fde3b5a");

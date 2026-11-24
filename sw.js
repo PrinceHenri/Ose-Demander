@@ -16,11 +16,11 @@ const CORE = [
   // Fichiers chargés à part par index.html : l'empreinte de leur contenu (?v=) est écrite par node outils/csp.mjs.
   // Gardés dès l'installation : une invitation ouverte une fois s'affiche sans réseau, scènes comprises.
   "./app/scenes.js?v=ad35c435a6",
-  "./app/creer.js?v=882f407d45",
+  "./app/creer.js?v=b6c6ceb14e",
   "./app/demo.js?v=def882fa95",
-  "./app/groupe-orga.js?v=0c2271475b",
+  "./app/groupe-orga.js?v=c8ae1c55a5",
   "./app/groupe-invite.js?v=bf8d66b5fc",
-  "./app/groupe-commun.js?v=59b52daeee",
+  "./app/groupe-commun.js?v=d17fde3b5a",
   "./app/creer.css?v=efe771ee77"
 ];
 
@@ -74,9 +74,9 @@ const NOTIF_DB = "ose-notifs";
 const b64d = s => Uint8Array.from(atob(s.replace(/-/g, "+").replace(/_/g, "/") + "=".repeat((4 - s.length % 4) % 4)), c => c.charCodeAt(0));
 function notifDb() {
   return new Promise((res, rej) => {
-    const r = indexedDB.open(NOTIF_DB, 3); // 2 : notifications de révélation (« revelations ») ; 3 : rappels 3 h avant (« rdv »)
+    const r = indexedDB.open(NOTIF_DB, 4); // 2 : notifications de révélation (« revelations ») ; 3 : rappels 3 h avant (« rdv ») ; 4 : groupes (« groupes »)
     r.onupgradeneeded = () => { const db = r.result, mk = (n, k) => { if (!db.objectStoreNames.contains(n)) db.createObjectStore(n, { keyPath: k }); };
-      mk("cles", "nid"); mk("reponses", "nid"); mk("revelations", "id"); mk("rdv", "id"); };
+      mk("cles", "nid"); mk("reponses", "nid"); mk("revelations", "id"); mk("rdv", "id"); mk("groupes", "id"); };
     r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error);
   });
 }
@@ -131,10 +131,29 @@ async function onRdv(id) {
   const t = rdvTexte(x);
   await self.registration.showNotification(t.title, { body: t.body, icon: "icons/icon-192.png", badge: "icons/favicon-64.png", tag: "rdv-" + id, data: { url: "./#mes-invitations" } });
 }
+/* Invitation de groupe : nouvelles réponses (au plus une notification toutes les 15 minutes par groupe). Le message ne contient
+   que l'identifiant du groupe et le nombre ; la question et le nom du groupe ont été rangés sur cet appareil à l'activation. */
+function grpTexte(x, n) {
+  const k = Number.isInteger(n) && n > 0 && n <= 1000 ? n : 0, quoi = k > 1 ? `${k} nouvelles réponses` : "Nouvelle réponse";
+  if (x && typeof x.q === "string" && x.q) {
+    const pour = typeof x.t === "string" && x.t ? `Pour ${x.t.slice(0, 30)}. ` : "";
+    return { title: `${quoi} à « ${x.q.slice(0, 80)} »`, body: pour + "Touche pour les voir." };
+  }
+  return { title: `${quoi} à ton invitation`, body: "Touche pour les voir dans « Mes invitations »." };
+}
+async function onGroupe(id, n) {
+  let x = null;
+  try { x = /^[A-Za-z0-9_-]{22}$/.test(id) ? await notifStore("groupes", "readonly", st => st.get(id)) : null; } catch (e) {}
+  const t = grpTexte(x, n);
+  // Même étiquette pour un groupe : une nouvelle notification remplace la précédente
+  await self.registration.showNotification(t.title, { body: t.body, icon: "icons/icon-192.png", badge: "icons/favicon-64.png", tag: "grp-" + id,
+    data: { url: x ? "./#groupe=" + id : "./#mes-invitations" } });
+}
 async function onPush(event) {
   let m = null; try { m = event.data ? event.data.json() : null; } catch (e) {}
   if (m && m.k === "rv") return onReveal(String(m.i || ""));
   if (m && m.k === "rdv") return onRdv(String(m.i || ""));
+  if (m && m.k === "grp") return onGroupe(String(m.i || ""), m.n);
   let title = "Ose Demander", body = "Tu as reçu une réponse à une de tes invitations.";
   const nid = m && typeof m.i === "string" && /^[A-Za-z0-9_-]{22}$/.test(m.i) ? m.i : null;
   try {

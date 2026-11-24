@@ -3080,14 +3080,15 @@ await test("iPhone hors de l'appli, navigateurs intégrés : pas de case désact
   for(const u of ["Mozilla/5.0 (Linux; Android 14) Chrome/130.0 Mobile Safari/537.36", "Mozilla/5.0 (iPhone) Version/18.0 Mobile Safari/604.1"]) assert.ok(!ua(u), u);
   assert.equal((P.navigator.userAgent = "Instagram", P.lire("notifSupport")()), "integre");
 });
-await test("sw.js : « 🔓 Ta surprise est prête ! », rien de la surprise, aucune requête, le lien rangé sur l'appareil (même site) ; IndexedDB version 3 des deux côtés", () => {
+await test("sw.js : « 🔓 Ta surprise est prête ! », rien de la surprise, aucune requête, le lien rangé sur l'appareil (même site) ; IndexedDB version 4 des deux côtés", () => {
   const sw = readFileSync(RACINE + "sw.js", "utf8"), rv = sw.slice(sw.indexOf("async function onReveal"), sw.indexOf("async function onPush"));
   assert.ok(rv.includes('showNotification("🔓 Ta surprise est prête !", { body: "Touche pour la découvrir."'));
   assert.ok(!/\bfetch\(/.test(rv), "aucune requête");
   assert.ok(rv.includes("new URL(x.lien).origin === self.location.origin"), "n'ouvre qu'une page du site");
   assert.ok(sw.includes('if (m && m.k === "rv") return onReveal(String(m.i || ""));'));
   const idx = readFileSync(RACINE + "index.html", "utf8");
-  assert.ok(idx.includes("indexedDB.open(NOTIF_DB,3)") && sw.includes("indexedDB.open(NOTIF_DB, 3)"), "même version de la base");
+  assert.ok(idx.includes("indexedDB.open(NOTIF_DB,4)") && sw.includes("indexedDB.open(NOTIF_DB, 4)"), "même version de la base");
+  assert.ok(idx.includes('mk("groupes","id")') && sw.includes('mk("groupes", "id")'), "magasin des groupes");
   assert.ok(idx.includes('mk("revelations","id")') && sw.includes('mk("revelations", "id")'));
   assert.ok(idx.includes('mk("rdv","id")') && sw.includes('mk("rdv", "id")'), "magasin des rappels 3 h avant");
 });
@@ -4503,7 +4504,8 @@ await test("Étape 4 en groupe : ni canal ni partage de la surprise ni notificat
   P.lire("renderCreator")();
   const h = P.zones["#app"].innerHTML;
   assert.ok(h.includes("Chaque personne répond depuis le lien") && h.includes("Les réponses ne se lisent qu'avec ton lien organisateur."));
-  assert.ok(!h.includes("Comment veux-tu recevoir la réponse ?") && !h.includes("allowShare") && !h.includes("notifMe"));
+  assert.ok(!h.includes("Comment veux-tu recevoir la réponse ?") && !h.includes("allowShare") && !h.includes("Me prévenir dès que"));
+  assert.ok(h.includes("🔔 Me prévenir des nouvelles réponses"), "notification de groupe à la place (étape 6)");
   assert.deepEqual(principales(h.replace(/<[^>]*class="[^"]*hidden[^"]*"[\s\S]*?<\/div>/g, "")).filter(t => t === "Créer mon lien"), ["Créer mon lien"]);
 });
 await essaiWorker("Créer en groupe : paire de clés, invitation chiffrée avec la clé publique, lien invités #g= et lien organisateur #ga= ; rangée dans les Envoyées ; rien de lisible en ligne", async () => {
@@ -4800,6 +4802,93 @@ await test("Fichier à part : chargé pour #ga= et #groupe=, versionné, précac
   assert.ok(/"orga\.[a-z.]+": "/.test(f.slice(f.indexOf("const ORGA_TEXTES"), f.indexOf("};", f.indexOf("const ORGA_TEXTES")))));
   assert.ok(gzipSync(f).length < 5000, `${gzipSync(f).length} octets compressés`);
   assert.ok(!html.includes("renderTableau(") || html.indexOf("renderTableau(") > html.indexOf("CRÉATEUR"), "le tableau de bord n'est pas dans la partie de la personne invitée");
+});
+
+/* =========================================================
+   55. Invitation de groupe : notifications des nouvelles réponses (abonnement avec la clé de gestion, texte composé sur l'appareil)
+   ========================================================= */
+titre("55. Invitation de groupe : notifications");
+// Page de l'organisateur avec un IndexedDB simulé et un abonnement Web Push de test
+function pageNotif(g, app, stockage = new Map()){
+  const P = chargerPage({ fichiers: ["scenes", "creer", "groupe-commun", "groupe-orga"], stockage }), local = new Map();
+  P.ecrire("shortFetch", g.r.f);
+  P.ecrire("notifStore", async (store, mode, fn) => { if(store !== "groupes") return undefined;
+    const st = { put: x => local.set(x.id, x), get: id => ({ result: local.get(id) }), delete: id => local.delete(id), getAll: () => ({ result: [...local.values()] }) }; const q = fn(st); return q && q.result; });
+  P.ecrire("pushAbo", async () => ({ endpoint: ENDPOINT_EX, keys: app.keys }));
+  return { P, local };
+}
+await essaiWorker("Activer : l'abonnement part au service avec la clé de gestion ; la question et le nom du groupe restent sur l'appareil ; une réponse = une notification « grp » avec le nombre", async () => {
+  await avecPush(async () => {
+    const g = await groupeDeTest({ q: "Tu viens à ma soirée ?" }), app = WP.appareil(), { P, local } = pageNotif(g, app);
+    const avant = g.r.journal.length;
+    assert.equal(await P.lire("grpNotifActiver")(g.id, g.d, { q: "Tu viens à ma soirée ?", t: "La bande" }), "ok");
+    const q = g.r.journal.slice(avant).find(x => x.url.endsWith(`/v1/groupes/${g.id}/abo`));
+    assert.ok(q, "une demande vers /abo");
+    for(const s of ["soirée", "La bande", g.d]) assert.ok(!q.body.includes(s), `envoyé : ${s}`);
+    assert.deepEqual(local.get(g.id), { id: g.id, q: "Tu viens à ma soirée ?", t: "La bande" }, "rangé sur l'appareil");
+    assert.equal(await P.lire("grpNotifActive")(g.id), true);
+    const ligne = g.r.env.DB.db.prepare("SELECT abo FROM groupes WHERE id = ?").get(g.id);
+    assert.ok(ligne.abo && !ligne.abo.includes("fcm.googleapis.com"), "abonnement chiffré au repos");
+    // Deux réponses, un passage de la tâche planifiée : une seule notification, avec le nombre
+    await repondreA(g, [{ p: "Sam", r: "o" }, { p: "Lou", r: "n" }]);
+    await WORKER.default.scheduled({ scheduledTime: Date.now() }, g.r.env);
+    assert.equal(envois.length, 1);
+    assert.deepEqual(JSON.parse(WP.dechiffrer(app, envois[0].corps)), { v: 1, k: "grp", i: g.id, n: 2 }, "rien que l'identifiant et le nombre");
+    // Couper : abonnement effacé en ligne et sur l'appareil
+    assert.equal(await P.lire("grpNotifCouper")(g.id, g.d), "ok");
+    assert.equal(g.r.env.DB.db.prepare("SELECT abo FROM groupes WHERE id = ?").get(g.id).abo, null);
+    assert.equal(local.size, 0); assert.equal(await P.lire("grpNotifActive")(g.id), false);
+    await repondreA(g, [{ p: "Zoé", r: "o" }]);
+    g.r.env.DB.db.prepare("UPDATE groupes SET notif_der = ?").run(Date.now() - 16 * 60e3);
+    await WORKER.default.scheduled({ scheduledTime: Date.now() }, g.r.env);
+    assert.equal(envois.length, 1, "plus rien après avoir coupé");
+  });
+});
+await test("sw.js : « 3 nouvelles réponses à « … » », « Pour {groupe}. Touche pour les voir. » ; générique sans données ; ouvre les réponses ; aucune requête", () => {
+  const sw = readFileSync(RACINE + "sw.js", "utf8");
+  const bloc = sw.slice(sw.indexOf("function grpTexte"), sw.indexOf("async function onGroupe"));
+  const t = new Function(bloc + "\nreturn grpTexte;")(), x = { q: "Tu viens à ma soirée ?", t: "La bande" };
+  assert.deepEqual(t(x, 3), { title: "3 nouvelles réponses à « Tu viens à ma soirée ? »", body: "Pour La bande. Touche pour les voir." });
+  assert.equal(t(x, 1).title, "Nouvelle réponse à « Tu viens à ma soirée ? »");
+  assert.equal(t(x, "9").title, "Nouvelle réponse à « Tu viens à ma soirée ? »", "nombre invalide : ignoré");
+  assert.deepEqual(t(null, 2), { title: "2 nouvelles réponses à ton invitation", body: "Touche pour les voir dans « Mes invitations »." });
+  const on = sw.slice(sw.indexOf("async function onGroupe"), sw.indexOf("async function onPush"));
+  assert.ok(!/\bfetch\(/.test(bloc + on), "aucune requête");
+  assert.ok(on.includes('tag: "grp-" + id') && on.includes('url: x ? "./#groupe=" + id : "./#mes-invitations"'));
+  assert.ok(sw.includes('if (m && m.k === "grp") return onGroupe(String(m.i || ""), m.n);'));
+});
+await essaiWorker("Création : la case « Me prévenir des nouvelles réponses » ; autorisation demandée pendant le toucher, avant toute attente ; l'abonnement suit la création", async () => {
+  await avecPush(async () => {
+    const C = chargerPage(), S = C.lire("S");
+    globalThis.Notification = { permission: "default", requestPermission: async () => "granted" };
+    C.ecrire("notifSupport", () => "ok");
+    Object.assign(S, { groupe: true, to: "La bande", link: "", notif: true });
+    const h = C.lire("notifHTML")();
+    assert.ok(h.includes("🔔 Me prévenir des nouvelles réponses") && h.includes("Au plus une notification toutes les 15 minutes"));
+    C.ecrire("notifSupport", () => "non"); S.notif = undefined;
+    assert.ok(C.lire("notifHTML")().includes("ouvre « Mes invitations » pour voir les réponses") && /disabled/.test(C.lire("notifHTML")()));
+    const src = C.lire("makeGroupe").toString();
+    assert.ok(src.indexOf("Notification.requestPermission()") < src.indexOf("await "), "autorisation avant toute attente (Safari)");
+    // Création réelle avec notification
+    const r = reseau(ENV_N({ ORIGINES: LOCAL })), app = WP.appareil(), stockage = new Map();
+    const { P, local } = pageNotif({ r }, app, stockage);
+    P.ecrire("notifSupport", () => "ok"); globalThis.Notification = { permission: "granted" };
+    Object.assign(P.lire("S"), { step: 4, occ: "soiree", tpl: "soiree", theme: "soiree", from: "Alex", to: "La bande", groupe: true, notif: true, q: "Tu viens à ma soirée ?",
+      date: "2027-02-13", time: "20:00", act: { v: "v", x: "Soirée", h: "", at: "" }, lieu: { v: "v", x: "", h: "", at: "" } });
+    await P.lire("makeGroupe")();
+    const id = P.lire("S").link.match(/#g=(.{22})/)[1];
+    assert.ok(r.env.DB.db.prepare("SELECT abo FROM groupes WHERE id = ?").get(id).abo, "abonné dès la création");
+    assert.deepEqual(local.get(id), { id, q: "Tu viens à ma soirée ?", t: "La bande" });
+    delete globalThis.Notification;
+  });
+});
+await test("Tableau de bord : la case (comme la révélation), pas de case sans notifications ; abonnement local oublié quand l'invitation est supprimée", () => {
+  const f = readFileSync(RACINE + "app/groupe-orga.js", "utf8");
+  assert.ok(f.includes('if(!["ok","refuse"].includes(st)){ box.innerHTML=""; return; }'), "iPhone hors appli, navigateurs intégrés : pas de case");
+  assert.ok(f.includes('class="rev-notif"') && f.includes('id="orgaNotif"'));
+  assert.ok(f.includes('await notifStore("groupes","readwrite",st=>st.delete(g.id))'));
+  const T = chargerPage({ fichiers: ["scenes", "creer", "groupe-commun", "groupe-orga"] }).lire("ORGA_TEXTES");
+  assert.equal(T["orga.notif"], "🔔 Me prévenir des nouvelles réponses");
 });
 
 /* ---------- Bilan ---------- */

@@ -396,8 +396,18 @@ function screenHTML(){
 /* Notifications de réponse : case décochée par défaut (une demande d'autorisation non sollicitée est souvent refusée,
    et un refus bloque le site durablement), mais déjà cochée si l'autorisation a été accordée auparavant */
 function notifHTML(){
-  if(S.groupe) return "";
   const st=notifSupport();
+  if(S.groupe){
+    if(S.notif===undefined) S.notif = st==="ok" && Notification.permission==="granted";
+    const note = st==="ios" ? "Sur iPhone, ajoute d'abord Ose Demander à ton écran d'accueil (bouton Partager, puis « Sur l'écran d'accueil »), puis crée ton invitation depuis l'appli."
+      : st==="refuse" ? "Les notifications sont bloquées pour ce site. Autorise-les dans les réglages de ton navigateur pour utiliser cette option."
+      : st==="non" || st==="integre" ? "Ce navigateur ne permet pas les notifications : ouvre « Mes invitations » pour voir les réponses."
+      : "Au plus une notification toutes les 15 minutes, avec le nombre de nouvelles réponses. La question reste sur cet appareil.";
+    return `<div class="notif-opt ${S.link?"hidden":""}">
+      <label class="check"><input type="checkbox" id="notifMe" ${st==="ok"&&S.notif?"checked":""} ${st==="ok"?"":"disabled"}><span>🔔 Me prévenir des nouvelles réponses</span></label>
+      <p class="hint" id="notifNote">${note}</p>
+    </div>`;
+  }
   if(S.notif===undefined) S.notif = st==="ok" && Notification.permission==="granted";
   const to=esc(S.to||"la personne invitée");
   const note = st==="ios" ? "Sur iPhone, ajoute d'abord Ose Demander à ton écran d'accueil (bouton Partager, puis « Sur l'écran d'accueil »), puis crée ton invitation depuis l'appli."
@@ -424,6 +434,7 @@ function readyGroupeHTML(share){
       <div class="linkbox one" id="linkbox">${esc(S.link)}</div>
       <button type="button" class="linkbtn" id="showLink" aria-expanded="false" aria-controls="linkbox">Afficher le lien en entier</button>
       <p class="hint" id="shortNote"></p>
+      <p class="hint" id="notifDone"></p>
       <div class="orga-box">
         <h4>Ton lien organisateur</h4>
         <p class="orga-warn">🔑 Garde ce lien pour toi : il permet de lire les réponses.</p>
@@ -891,14 +902,19 @@ function bindCreator(){
 /* Invitation de groupe : paire de clés, invitation chiffrée déposée (avec la clé publique), puis les deux liens.
    Sans le service, pas de lien complet de repli : une invitation de groupe ne fonctionne qu'avec lui. */
 async function makeGroupe(){
+  // Notifications : l'autorisation est demandée ICI, pendant le toucher, avant toute attente (Safari l'exige)
+  const wantNotif = S.notif && notifSupport()==="ok";
+  const perm = !wantNotif ? null : Notification.permission==="granted" ? Promise.resolve("granted")
+    : (()=>{ try{ return Promise.resolve(Notification.requestPermission()).catch(()=>"denied"); }catch(e){ return Promise.resolve("denied"); } })();
   $$(".sec-body .error").forEach(el=>el.remove());
   const mk=$("#make"); mk.disabled=true; mk.textContent="Création du lien…";
-  let r={etat:"reseau"}, d=null;
+  let r={etat:"reseau"}, d=null, notif="";
   try{
     await need("groupeCommun");
     const cles=await grpCles(), long=await buildLink("", cles.gp);
     d=await decodeData(linkData(long));
     r=await grpCreer(linkData(long), cles.d, grpExpire(whenList()), location.origin+location.pathname);
+    if(r.etat==="ok" && perm) notif = (await perm)==="granted" ? await grpNotifActiver(r.id, cles.d, {q:d.q, t:d.t}) : "refuse";
   }catch(e){}
   mk.disabled=false; mk.textContent="Créer mon lien";
   if(r.etat!=="ok"){ const el=$("#err"); el.textContent=GROUPE_ERREUR; el.classList.remove("hidden"); el.scrollIntoView({block:"center"}); return; }
@@ -907,6 +923,11 @@ async function makeGroupe(){
   $("#linkbox").textContent=S.link; $("#result").classList.remove("hidden"); Sound.done();
   $("#shortNote").textContent=`Invitation chiffrée, gardée en ligne sans pouvoir y être lue jusqu'au ${frDate(new Date(grpExpire(whenList())).toISOString().slice(0,10))}, puis effacée.`;
   $("#make").classList.add("hidden");
+  $(".notif-opt")?.classList.add("hidden");
+  $("#notifDone").textContent = !wantNotif ? ""
+    : notif==="ok" ? "🔔 Notifications activées : tu en recevras sur cet appareil quand des réponses arrivent."
+    : notif==="refuse" ? "Notifications non autorisées : ouvre « Mes invitations » pour voir les réponses."
+    : "Les notifications n'ont pas pu être activées. Tu pourras réessayer depuis le tableau des réponses.";
   focusScreen(".ready-title");
   const saved=addGroupeToHistory(d, r.invite, r.orga);
   $("#savedNote").textContent = saved ? "Ajoutée à « Mes invitations ». Ton historique reste uniquement sur cet appareil." : "";
@@ -1894,4 +1915,4 @@ async function importHistory(file){
   toast(msg);
 }
 
-oseLoaded("creer", "882f407d45");
+oseLoaded("creer", "b6c6ceb14e");

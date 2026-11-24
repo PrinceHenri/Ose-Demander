@@ -33,7 +33,13 @@ const ORGA_TEXTES = {
   "orga.err.invalide": "Ce lien ne permet pas de lire les réponses de cette invitation. Vérifie que tu l'as copié en entier.",
   "orga.err.absente": "Cette invitation n'est pas dans « Mes invitations » sur cet appareil. Ouvre ton lien organisateur pour la retrouver.",
   "orga.mes": "Mes invitations",
-  "orga.err.action": "L'action n'a pas abouti. Vérifie ta connexion, puis réessaie."
+  "orga.err.action": "L'action n'a pas abouti. Vérifie ta connexion, puis réessaie.",
+  "orga.notif": "🔔 Me prévenir des nouvelles réponses",
+  "orga.notif.off": "Au plus une notification toutes les 15 minutes, sur cet appareil, avec le nombre de nouvelles réponses.",
+  "orga.notif.on": "🔔 C'est noté : une notification sur cet appareil quand des réponses arrivent (au plus une toutes les 15 minutes).",
+  "orga.notif.refuse": "Notifications non autorisées : reviens ici pour voir les réponses.",
+  "orga.notif.bloque": "Les notifications sont bloquées pour ce site. Autorise-les dans les réglages de ton navigateur pour utiliser cette option.",
+  "orga.notif.reseau": "La notification n'a pas pu être activée. Réessaie dans un instant."
 };
 // Styles du tableau de bord (ceux du site : contours encre, ombres décalées, variables du thème)
 document.head.insertAdjacentHTML("beforeend", `<style>.grp-compteurs{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:14px 0 10px}.grp-cpt{border:2px solid var(--ink);border-radius:14px;box-shadow:3px 3px 0 var(--ink);background:var(--surface);padding:10px 6px;text-align:center}.grp-cpt b{display:block;font-family:var(--display);font-weight:800;font-size:30px;line-height:1.1;font-variant-numeric:tabular-nums}.grp-cpt span{font-size:14px;font-weight:700;color:var(--muted)}.grp-cpt-o b{color:var(--accent-text)}.grp-total{margin:0 0 4px}.grp-liste{list-style:none;margin:14px 0 18px;padding:0;display:flex;flex-direction:column;gap:10px}.grp-liste li{border:2px solid var(--line);border-radius:14px;padding:12px 14px;background:var(--soft)}.grp-qui{margin:0 0 4px}.grp-rep{display:inline-block;padding:1px 10px;border:2px solid var(--ink);border-radius:999px;font-size:13px;font-weight:700}.grp-rep-o{background:var(--accent-btn);color:var(--accent-ink)}.grp-rep-n{border-color:var(--line);color:var(--muted)}.grp-acc{font-size:14px;color:var(--muted)}.grp-mot{margin:2px 0 8px;white-space:pre-wrap;overflow-wrap:anywhere}</style>`);
@@ -88,6 +94,7 @@ async function tableauCharger(g, coquille){
     </div>
     <p class="grp-total"><strong>${esc(orgaPluriel("orga.personnes", s.personnes))}</strong>${s.peutEtre ? ` ${esc(orgaT("orga.peutetre", {n:s.peutEtre}))}` : ""}</p>
     <p class="hint">${esc(orgaT(l.ferme ? "orga.closes" : "orga.ouvertes"))}</p>
+    <div id="orgaNotifBox"></div>
     ${liste.length ? `<ul class="grp-liste">${liste.map(r=>`
       <li data-rid="${esc(r.rid)}">
         <p class="grp-qui"><b>${esc(r.p)}</b> <span class="grp-rep grp-rep-${r.r}">${esc(orgaT("orga."+r.r))}</span>${r.a ? ` <span class="grp-acc">${esc(orgaPluriel("orga.avec", r.a))}</span>` : ""}</p>
@@ -102,6 +109,7 @@ async function tableauCharger(g, coquille){
       <button type="button" class="btn sm" id="orgaClos">${esc(orgaT(l.ferme ? "orga.rouvrir" : "orga.cloturer"))}</button>
       <button type="button" class="btn sm danger" id="orgaSuppr">${esc(orgaT("orga.supprimer"))}</button>
     </div>`);
+  orgaNotifPeindre(g);
   const erreur=()=>{ const e=$("#orgaErr"); e.textContent=orgaT("orga.err.action"); e.classList.remove("hidden"); };
   const recharger=async focus=>{ await tableauCharger(g, coquille); if(focus) $(focus)?.focus(); };
   $("#orgaMaj").addEventListener("click", ()=>recharger("#orgaMaj"));
@@ -116,8 +124,32 @@ async function tableauCharger(g, coquille){
     if(!await confirmSheet(orgaT("orga.suppr.titre"), orgaT("orga.suppr.texte"), orgaT("orga.supprimer"))) return;
     const r=await grpSupprimer(g.id, g.d);
     if(r!=="ok" && r!=="supprime"){ erreur(); return; }
+    try{ await notifStore("groupes","readwrite",st=>st.delete(g.id)); }catch(e){} // l'abonnement a été effacé en ligne avec l'invitation
     storeHistory(loadHistory().filter(x=>x.link!==g.invite)); // plus rien à lire : l'invitation quitte « Mes invitations »
     toast(orgaT("orga.suppr.ok")); location.hash="#mes-invitations";
+  });
+}
+/* « Me prévenir des nouvelles réponses » : une case (comme la révélation), pas de case là où les notifications ne fonctionnent pas
+   (iPhone hors de l'appli installée, navigateurs intégrés, navigateur sans notifications). etat : "off" | "on" | "attente" | "refuse" | "reseau" */
+async function orgaNotifPeindre(g, etat){
+  const box=$("#orgaNotifBox"); if(!box) return;
+  const st=notifSupport();
+  if(!["ok","refuse"].includes(st)){ box.innerHTML=""; return; }
+  if(!etat) etat = await grpNotifActive(g.id) ? "on" : "off";
+  const bloque = st==="refuse", on = etat==="on" || etat==="attente";
+  const note = bloque ? "orga.notif.bloque" : etat==="on" ? "orga.notif.on" : etat==="refuse" ? "orga.notif.refuse" : etat==="reseau" ? "orga.notif.reseau" : "orga.notif.off";
+  box.innerHTML=`<div class="rev-notif"><label class="check"><input type="checkbox" id="orgaNotif" ${on?"checked":""} ${bloque||etat==="attente"?"disabled":""}>
+      <span>${esc(orgaT("orga.notif"))}</span></label>
+    <p class="hint" ${etat==="reseau"?'role="alert"':'role="status"'}>${esc(orgaT(note))}</p></div>`;
+  $("#orgaNotif").addEventListener("change", async e=>{
+    const cocher=e.target.checked, refocus=()=>$("#orgaNotif")?.focus();
+    if(!cocher){ await orgaNotifPeindre(g, "attente"); await grpNotifCouper(g.id, g.d); await orgaNotifPeindre(g, "off"); refocus(); return; }
+    const perm = Notification.permission==="granted" ? "granted" : await Promise.resolve(Notification.requestPermission()).catch(()=>"denied");
+    if(perm!=="granted"){ await orgaNotifPeindre(g, perm==="denied" ? "refuse" : "off"); refocus(); return; }
+    await orgaNotifPeindre(g, "attente");
+    const r=await grpNotifActiver(g.id, g.d, {q:g.inv.q, t:g.inv.t});
+    await orgaNotifPeindre(g, r==="ok" ? "on" : "reseau"); refocus();
+    if(r==="ok") buzz(15);
   });
 }
 /* Résumé gardé sur la carte des Envoyées (champ grs) : nombres seulement, jamais de prénom */
@@ -128,4 +160,4 @@ function orgaGarderResume(invite, s){
   it.grs=grs; if(validEntry(it)) storeHistory(list);
 }
 
-oseLoaded("groupeOrga", "0c2271475b");
+oseLoaded("groupeOrga", "c8ae1c55a5");
