@@ -4891,6 +4891,23 @@ await test("Tableau de bord : la case (comme la révélation), pas de case sans 
   assert.equal(T["orga.notif"], "🔔 Me prévenir des nouvelles réponses");
 });
 
+/* =========================================================
+   56. Invitation de groupe : mentions légales et « Supprimer mes données »
+   ========================================================= */
+titre("56. Invitation de groupe : textes légaux");
+await test("Mentions légales : section « Invitations de groupe » (deux liens, chiffrement, durées, notifications) ; page de suppression à jour", () => {
+  const ml = lireFichier("mentions-legales.html"), sup = FAB["supprimer-mes-donnees/index.html"];
+  const txt = h => h.replace(/<[^>]+>/g, " ").replace(/&nbsp;/g, " ").replace(/&#39;/g, "'").replace(/\s+/g, " ");
+  assert.ok(ml.includes('<h3 id="groupes">Invitations de groupe</h3>'));
+  for(const t of ["Le lien organisateur (osedemander.fr/#ga=…) est à garder pour vous", "Cette clé n'est jamais envoyée au service",
+    "trois mois après la date de l'événement (six mois après la création s'il n'y a pas de date)", "Une invitation reçoit 100 réponses au plus",
+    "au plus une notification toutes les 15 minutes", "Ouvrir le lien du groupe n'envoie qu'une demande", "« Me prévenir des nouvelles réponses »"])
+    assert.ok(txt(ml).includes(t), t);
+  for(const t of ["Une invitation de groupe", "« Supprimer l'invitation »", "seule la personne qui organise peut la lire et la supprimer", "Invitation de groupe : l'invitation et les réponses sont chiffrées"])
+    assert.ok(txt(sup).includes(t), t);
+  assert.ok(!/vous seul\b|organisateur seul\b/.test(ml), "formulations neutres");
+});
+
 /* ---------- Bilan ---------- */
 console.log(`\n${ko ? "❌" : "✅"} ${ok} tests réussis, ${ko} en échec (graine ${GRAINE}${ko ? ` — pour rejouer : node tests/run.mjs --graine=${GRAINE}` : ""})`);
 if(ko){ console.log(echecs.map(e => "  - " + e).join("\n")); process.exitCode = 1; }
