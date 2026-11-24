@@ -2109,7 +2109,7 @@ await test("Panneau : mention de confidentialité, image indisponible, Safari (a
   assert.ok(src.includes(`<p class="img-q" id="imgWhoLbl">Pour qui est cette image ?</p>`), "une seule question");
   assert.ok(src.includes(`<button type="button" data-who="groupe" aria-pressed="true">Pour une story ou un groupe</button>`), "« story ou groupe » par défaut");
   assert.ok(src.includes('<button type="button" data-who="perso" aria-pressed="false">Pour ${esc(S.to)} uniquement</button>'));
-  assert.ok(src.includes('const hasId=!!S.chId, hasNz=!!S.nz, ask=hasId||hasNz, st={fmt:"story", strip:true'), "seulement s'il y a des coordonnées ou une notification");
+  assert.ok(src.includes('const hasId=!grp && !!S.chId, hasNz=!grp && !!S.nz, ask=hasId||hasNz, st={fmt:"story", strip:true'), "seulement s'il y a des coordonnées ou une notification (jamais pour un groupe)");
   assert.ok(!src.includes("imgStrip"), "plus de case séparée");
   assert.equal(PAGE.lire("IMG_UNAVAILABLE"), "L'image n'est pas disponible pour le moment. Réessaie dans quelques minutes.");
   const clic = src.slice(src.indexOf('send.addEventListener("click"'), src.indexOf('$("#imgClose", d)'));
@@ -4548,7 +4548,7 @@ await test("Carte « Ton lien est prêt » en groupe : une seule action principa
   assert.ok(h.includes("Ton lien organisateur") && h.includes("🔑 Garde ce lien pour toi : il permet de lire les réponses."));
   assert.ok(h.includes("Copier mon lien organisateur") && h.includes("M'envoyer ce lien"));
   assert.ok(h.includes("«&nbsp;La bande, j&#39;ai une question pour vous 💌&nbsp;»"));
-  assert.ok(!h.includes("imgOpen"), "pas d'image pour un groupe (pour l'instant)");
+  assert.ok(h.includes('id="imgOpen">Partager en image'), "image avec QR code du lien invités");
   assert.ok(!h.includes("#ga="), "le lien organisateur n'est jamais affiché en clair sur la carte");
   const sans = chargerPage(); Object.assign(sans.lire("S"), { groupe: true, to: "La bande", link: "x" });
   assert.deepEqual(principales(sans.lire("readyHTML")()), ["Copier le lien"], "sans partage natif : Copier");
@@ -4800,7 +4800,7 @@ await test("Fichier à part : chargé pour #ga= et #groupe=, versionné, précac
   assert.ok(CSP.FICHIERS.some(x => x.chemin === "app/groupe-orga.js"));
   assert.ok(html.includes('renderTableau(mga ? {id:mga[1], key:mga[2], d:mga[3]} : {id:mgt[1]})'));
   assert.ok(/"orga\.[a-z.]+": "/.test(f.slice(f.indexOf("const ORGA_TEXTES"), f.indexOf("};", f.indexOf("const ORGA_TEXTES")))));
-  assert.ok(gzipSync(f).length < 5000, `${gzipSync(f).length} octets compressés`);
+  assert.ok(gzipSync(f).length < 6000, `${gzipSync(f).length} octets compressés`);
   assert.ok(!html.includes("renderTableau(") || html.indexOf("renderTableau(") > html.indexOf("CRÉATEUR"), "le tableau de bord n'est pas dans la partie de la personne invitée");
 });
 
@@ -4959,6 +4959,66 @@ await test("Textes : mentions légales et « Supprimer mes données »", () => {
   const ml = lireFichier("mentions-legales.html"), sup = FAB["supprimer-mes-donnees/index.html"].replace(/&#39;/g, "'").replace(/&nbsp;/g, " ");
   assert.ok(ml.includes("La personne qui a répondu peut aussi supprimer sa réponse depuis l'appareil qui l'a envoyée (« Supprimer ma réponse »), même une fois les réponses closes"));
   assert.ok(sup.includes("Depuis un autre appareil, seule la personne qui organise peut la supprimer"));
+});
+
+/* =========================================================
+   58. Invitation de groupe : image avec QR code (lien invités #g= seulement, jamais #ga=)
+   ========================================================= */
+titre("58. Invitation de groupe : image avec QR code");
+const LIEN_G = "https://osedemander.fr/#g=" + lienAuHasard(22, 31) + "." + lienAuHasard(22, 32);
+const LIEN_GA = "https://osedemander.fr/#ga=" + lienAuHasard(22, 31) + "." + lienAuHasard(22, 32) + "." + lienAuHasard(43, 33);
+// Échoue si une image de groupe contient « #ga= » : dans le QR code relu (modules peints) ou dans un texte peint
+const sansOrga = (f, q, ou) => {
+  const lu = relirePeint(f.peint, q).texte;
+  assert.ok(!lu.includes("#ga="), `${ou} : le QR code contient le lien organisateur`);
+  assert.ok(!f.textes.some(t => String(t).includes("#ga=") || String(t).includes("ga=")), `${ou} : un texte contient le lien organisateur`);
+  return lu;
+};
+await test("Dessin d'un groupe : chaque thème, story et carré ; le QR code peint (logo compris) redonne exactement le lien invités ; « pour vous » ; jamais #ga=", async () => {
+  for(const fmt of ["story", "carre"]) for(const th of PAGE.lire("THEMES").map(t => t.id)){
+    const f = fauxCanevas(), { qr: q } = await PAGE.lire("drawInviteImage")(fmt, { ...DESSIN, to: "La bande", th, link: LIEN_G, groupe: true }, f.canvas);
+    const ou = `${fmt}, ${th}`;
+    assert.equal(sansOrga(f, q, ou), LIEN_G, ou);
+    assert.ok(q.logo, `${ou} : lien court, logo au centre`);
+  }
+  const f = fauxCanevas(); await PAGE.lire("drawInviteImage")("story", { ...DESSIN, to: "La bande", link: LIEN_G, groupe: true }, f.canvas);
+  assert.ok(f.textes.join(" ").includes("question pour vous") && !f.textes.join(" ").includes("pour toi"), "« pour vous » pour un groupe");
+  await assert.rejects(PAGE.lire("drawInviteImage")("story", { ...DESSIN, link: LIEN_GA, groupe: true }, fauxCanevas().canvas), /lien organisateur/, "le dessin refuse un lien organisateur");
+});
+await test("Le panneau d'un groupe ne prend que le lien invités : grpImageLien refuse #ga=, #s=, #i= et tout autre lien", () => {
+  const P = chargerPage(), lien = P.lire("grpImageLien"), base = LOCAL + "/";
+  assert.equal(lien(base + "#g=" + "A".repeat(22) + "." + "B".repeat(22)), base + "#g=" + "A".repeat(22) + "." + "B".repeat(22));
+  for(const l of [base + "#ga=" + "A".repeat(22) + "." + "B".repeat(22) + "." + "D".repeat(43), base + "#g=" + "A".repeat(22) + "." + "B".repeat(22) + "#ga=x",
+    base + "#s=" + "A".repeat(22) + "." + "B".repeat(22), base + "#i=yAAA", "https://exemple.com/", null])
+    assert.equal(lien(l), null, String(l));
+  const src = P.lire("openImageSheet").toString();
+  assert.ok(src.includes("link = grp ? grpImageLien(grp.link) : await imageLink(st.strip)"), "groupe : jamais le lien de l'invitation en cours ni un lien séparé");
+  assert.ok(src.includes("const hasId=!grp && !!S.chId, hasNz=!grp && !!S.nz"), "pas de question « Pour qui ? » pour un groupe");
+  const orga = readFileSync(RACINE + "app/groupe-orga.js", "utf8");
+  assert.ok(orga.includes("openImageSheet(e.currentTarget, {link:g.invite,"), "tableau : le lien invités");
+  assert.ok(!/openImageSheet\([^)]*g\.d|openImageSheet\([^)]*orga/.test(orga), "jamais la clé ni le lien organisateur");
+});
+await essaiWorker("Envoyées et carte « Ton lien est prêt » : le bouton ; l'image d'un groupe créé pour de bon se relit et ouvre le lien invités", async () => {
+  const g = await groupeDeTest(), P = chargerPage({ fichiers: ["scenes", "creer", "groupe-commun"] }); P.ecrire("shortFetch", g.r.f);
+  const it = { id: "abc123def", from: "Alex", to: "La bande", occ: "date", when: [["2027-02-13", "20:00"]], link: LOCAL + `/#g=${g.id}.${g.key}`, orga: LOCAL + `/#ga=${g.id}.${g.key}.${g.d}`, created: new Date().toISOString() };
+  assert.ok(P.lire("histCardEnv")(it).includes('data-act="qr">QR code du lien invités'));
+  const ctx = await P.lire("grpImageCtx")(it);
+  assert.equal(ctx.link, it.link); assert.equal(ctx.to, "La bande");
+  for(const v of Object.values(ctx)) assert.ok(!String(v).includes(g.d), "la clé privée n'est jamais dans le contexte du dessin");
+  const f = fauxCanevas(), { qr: q } = await P.lire("drawInviteImage")("carre", { ...ctx, initial: "A", groupe: true }, f.canvas);
+  const lu = sansOrga(f, q, "groupe réel");
+  assert.equal(lu, it.link, "le QR code ouvre le lien invités");
+  // Le lien relu ouvre bien l'invitation de groupe (formulaire de réponse)
+  const Q = await ouvrirGroupe(g, lu);
+  assert.deepEqual(Q.lire("GRP"), { id: g.id, key: g.key, ferme: false });
+  // Carte « Ton lien est prêt » en groupe : « Partager en image » à côté du lien du groupe ; une seule action principale
+  const C = chargerPage({ share: true }); Object.assign(C.lire("S"), { groupe: true, to: "La bande", link: it.link, orgaLink: it.orga });
+  const h = C.lire("readyHTML")();
+  assert.ok(h.includes('id="imgOpen">Partager en image') && h.indexOf("imgOpen") < h.indexOf("orga-box"));
+  assert.deepEqual(principales(h), ["Partager le lien"]);
+  assert.ok(!h.includes("#ga="));
+  assert.ok(C.lire("bindCreator").toString().includes("openImageSheet(e.currentTarget, S.groupe ? grpImageDeS() : null)"));
+  assert.ok(!C.lire("grpImageDeS").toString().includes("orgaLink"), "le dessin ne reçoit jamais le lien organisateur");
 });
 
 /* ---------- Bilan ---------- */

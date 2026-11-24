@@ -17,6 +17,7 @@ const ORGA_TEXTES = {
   "orga.ignorees": "{n} réponse{s} illisible{s} écartée{s}.",
   "orga.actualiser": "Actualiser",
   "orga.copier": "Copier le lien du groupe",
+  "orga.qr": "QR code du lien invités",
   "orga.cloturer": "Clôturer les réponses",
   "orga.rouvrir": "Rouvrir les réponses",
   "orga.supprimer": "Supprimer l'invitation",
@@ -106,6 +107,7 @@ async function tableauCharger(g, coquille){
     <div class="hist-tools">
       <button type="button" class="btn sm primary" id="orgaMaj">${esc(orgaT("orga.actualiser"))}</button>
       <button type="button" class="btn sm" id="orgaCopie">${esc(orgaT("orga.copier"))}</button>
+      <button type="button" class="btn sm" id="orgaQR">${esc(orgaT("orga.qr"))}</button>
       <button type="button" class="btn sm" id="orgaClos">${esc(orgaT(l.ferme ? "orga.rouvrir" : "orga.cloturer"))}</button>
       <button type="button" class="btn sm danger" id="orgaSuppr">${esc(orgaT("orga.supprimer"))}</button>
     </div>`);
@@ -114,6 +116,8 @@ async function tableauCharger(g, coquille){
   const recharger=async focus=>{ await tableauCharger(g, coquille); if(focus) $(focus)?.focus(); };
   $("#orgaMaj").addEventListener("click", ()=>recharger("#orgaMaj"));
   $("#orgaCopie").addEventListener("click", async()=>toast(await copyText(g.invite) ? "Lien du groupe copié" : "Copie impossible"));
+  // L'image et son QR code portent le lien invités, jamais le lien organisateur
+  $("#orgaQR").addEventListener("click", e=>openImageSheet(e.currentTarget, {link:g.invite, to:g.inv.t, th:g.inv.th, ac:g.inv.ac||"", occ:g.inv.o, em:g.inv.em||"", from:g.inv.f}));
   $("#orgaClos").addEventListener("click", async()=>{ (await grpCloturer(g.id, g.d, !l.ferme))==="ok" ? recharger("#orgaClos") : erreur(); });
   $$("[data-suppr]").forEach(b=>b.addEventListener("click", async()=>{
     const r=liste.find(x=>x.rid===b.dataset.suppr); if(!r) return;
@@ -160,4 +164,4 @@ function orgaGarderResume(invite, s){
   it.grs=grs; if(validEntry(it)) storeHistory(list);
 }
 
-oseLoaded("groupeOrga", "c8ae1c55a5");
+oseLoaded("groupeOrga", "b0a718225b");
