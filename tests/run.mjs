@@ -4581,6 +4581,143 @@ await test("Mes invitations : entrée de groupe validée strictement (deux liens
   assert.equal(stockage3.get("ose-historique"), undefined, "entrée incohérente refusée à l'import");
 });
 
+/* =========================================================
+   53. Invitation de groupe : la personne invitée (lien #g=, formulaire, envoi, modification, messages, Reçues)
+   ========================================================= */
+titre("53. Invitation de groupe : la personne invitée");
+const FICH_GRP = ["scenes", "creer", "groupe-commun", "groupe-invite"];
+// Un groupe créé pour de bon auprès du Worker du banc : {r, id, key, d, gp, lien}
+async function groupeDeTest(extra = {}){
+  const r = reseau(ENV_N({ ORIGINES: LOCAL })), P = chargerPage({ fichiers: FICH_GRP }); P.ecrire("shortFetch", r.f);
+  const { d, gp } = await P.lire("grpCles")(), code = await L.encodeData(INV({ gp, t: "La bande", ...extra }));
+  const c = await P.lire("grpCreer")(code, d, Date.now() + 60 * 864e5, LOCAL + "/");
+  return { r, id: c.id, key: c.key, d, gp, lien: c.invite };
+}
+// Ouvre un lien dans une page neuve (stockage local fourni), branchée sur le même Worker
+async function ouvrirGroupe(g, lien = g.lien, stockage = new Map()){
+  const P = chargerPage({ fichiers: FICH_GRP, stockage }); P.ecrire("shortFetch", g.r.f);
+  P.location.hash = lien.slice(lien.indexOf("#")); await P.lire("route")();
+  return P;
+}
+await essaiWorker("Ouvrir #g= : l'invitation habituelle (enveloppe), en mode groupe ; rangée dans les Reçues avec son lien de groupe ; aucune demande en dehors de la lecture", async () => {
+  const g = await groupeDeTest(), stockage = new Map(), avant = g.r.journal.length;
+  const P = await ouvrirGroupe(g, g.lien, stockage);
+  assert.ok(P.zones["#app"].innerHTML.includes('class="envelope'), "même enveloppe animée");
+  assert.deepEqual(P.lire("GRP"), { id: g.id, key: g.key, ferme: false });
+  assert.equal(P.lire("D").gp, g.gp);
+  const r = JSON.parse(stockage.get("ose-recues"));
+  assert.equal(r.length, 1); assert.ok(r[0].link.endsWith(`#g=${g.id}.${g.key}`), "lien de groupe gardé tel quel");
+  assert.deepEqual(g.r.journal.slice(avant).map(q => q.url.replace(/^.*\/v1\//, "")), [`liens/${g.id}`], "une seule demande : lire l'invitation");
+});
+await essaiWorker("Le même contenu ouvert par #s= reste une invitation ordinaire ; un #g= sans clé publique est refusé", async () => {
+  const g = await groupeDeTest();
+  const P = await ouvrirGroupe(g, LOCAL + `/#s=${g.id}.${g.key}`);
+  assert.equal(P.lire("GRP"), null); assert.equal(P.lire("D").gp, undefined, "clé publique retirée hors #g=");
+  // Un lien court ordinaire (sans gp) ouvert comme un groupe
+  const sh = await P.lire("createShort")(await CODE_EX(), LOCAL + "/");
+  const id = sh.link.match(/#s=(.{22})\.(.{22})/);
+  const Q = await ouvrirGroupe(g, LOCAL + `/#g=${id[1]}.${id[2]}`);
+  assert.equal(Q.lire("GRP"), null);
+  assert.ok(/Ce lien est incomplet/.test(Q.zones["#app"].innerHTML), "lien refusé, message d'erreur");
+});
+await essaiWorker("Oui : le formulaire (prénom, Oui / Peut-être / Non, personnes avec toi, petit mot), une seule action principale ; vrai refus : Non choisi, sans personnes", async () => {
+  const g = await groupeDeTest(), P = await ouvrirGroupe(g);
+  P.lire("renderInvite")(); P.lire("sayYes")(); await new Promise(r => setTimeout(r, 0)); await P.lire("groupeForm")("o");
+  let h = P.zones["#main"].innerHTML;
+  assert.ok(h.includes("C&#39;est un oui !") && h.includes("Ton prénom") && h.includes('autocomplete="given-name"'));
+  assert.ok(h.includes('data-grp-r="o" aria-pressed="true">Oui') && h.includes('data-grp-r="p" aria-pressed="false">Peut-être') && h.includes('data-grp-r="n" aria-pressed="false">Non'));
+  assert.ok(h.includes("Combien de personnes viennent avec toi ?") && h.includes(">Aucune</option>") && h.includes('<option value="5"'));
+  assert.ok(h.includes("Un petit mot (facultatif)") && h.includes('maxlength="200"') && h.includes('maxlength="40"'));
+  assert.deepEqual(principales(h), ["Envoyer ma réponse"]);
+  assert.ok(h.includes("<strong>Dernière étape :</strong> envoie ta réponse à Alex."));
+  assert.ok(h.includes("Seule la personne qui organise pourra lire ta réponse"));
+  assert.ok(!h.includes('id="reply"') && !h.includes("Copier ma réponse"), "pas d'envoi par message pour un groupe");
+  await P.lire("groupeForm")("n"); h = P.zones["#main"].innerHTML;
+  assert.ok(h.includes("Répondre non") && h.includes('data-grp-r="n" aria-pressed="true"') && /grp-avec hidden/.test(h));
+  assert.ok(h.includes("Finalement, je reviens en arrière"));
+  assert.equal(JSON.parse(P.stockage.get("ose-recues"))[0].rep, undefined, "rien n'est noté avant l'envoi");
+});
+await essaiWorker("Envoyer puis modifier depuis le même appareil : une seule réponse en ligne, lisible par l'organisateur ; Reçues : Acceptée, puis Peut-être", async () => {
+  const g = await groupeDeTest(), P = await ouvrirGroupe(g), env = P.lire("grpEnvoyer");
+  assert.deepEqual(await env({ p: "", r: "o" }), { etat: "contenu" }, "prénom obligatoire");
+  let x = await env({ p: "Sam", r: "o", a: 2, m: "Avec plaisir" });
+  assert.equal(x.etat, "ok");
+  const lire = async () => (await P.lire("grpLire")(g.id, g.d, await P.lire("grpClePrivee")(g.d, g.gp))).reponses.map(r => [r.p, r.r, r.a, r.m]);
+  assert.deepEqual(await lire(), [["Sam", "o", 2, "Avec plaisir"]]);
+  let recue = JSON.parse(P.stockage.get("ose-recues"))[0];
+  assert.deepEqual([recue.gr, recue.rep, recue.repSlot, !!recue.ag], ["o", "o", 0, true], "Acceptée, avec l'agenda");
+  assert.ok(P.lire("validRecue")(recue));
+  const garde = JSON.parse(P.stockage.get("ose-groupe-rep"))[g.id];
+  assert.match(garde.rid, /^[A-Za-z0-9_-]{22}$/); assert.match(garde.jeton, /^[A-Za-z0-9_-]{43}$/);
+  x = await env({ p: "Sam", r: "p", a: 1, m: "" });
+  assert.equal(x.etat, "ok");
+  assert.deepEqual(await lire(), [["Sam", "p", 1, ""]], "modifiée, jamais en double");
+  assert.equal(g.r.env.DB.db.prepare("SELECT COUNT(*) AS n FROM reponses").get().n, 1);
+  recue = JSON.parse(P.stockage.get("ose-recues"))[0];
+  assert.deepEqual([recue.gr, recue.rep], ["p", undefined]);
+  assert.ok(P.lire("validRecue")(recue)); assert.ok(P.lire("statutRecue")(recue).includes("Peut-être"));
+  // Rouvrir le lien sur le même appareil : le formulaire est prérempli, « Modifier ma réponse »
+  const Q = await ouvrirGroupe(g, g.lien, P.stockage);
+  await Q.lire("groupeForm")("o");
+  const h = Q.zones["#main"].innerHTML;
+  assert.ok(h.includes('value="Sam"') && h.includes('data-grp-r="p" aria-pressed="true"') && h.includes('<option value="1" selected>'));
+  assert.deepEqual(principales(h), ["Modifier ma réponse"]);
+  // Écran après l'envoi
+  Q.lire("renderGroupeEnvoye")({ p: "Sam", r: "o", a: 2, m: "" });
+  assert.ok(Q.zones["#main"].innerHTML.includes("Alex a bien reçu ta réponse : oui, avec 2 personnes."));
+});
+await essaiWorker("Messages : réponses clôturées (dès l'ouverture), réponse retirée par l'organisateur, invitation supprimée, groupe complet, service muet", async () => {
+  const g = await groupeDeTest(), P = await ouvrirGroupe(g), env = P.lire("grpEnvoyer"), T = P.lire("GRP_TEXTES");
+  await env({ p: "Sam", r: "o" });
+  const rid = JSON.parse(P.stockage.get("ose-groupe-rep"))[g.id].rid;
+  // Retirée par l'organisateur : l'appareil l'oublie, la suivante est une nouvelle réponse
+  await P.lire("grpSupprimerReponse")(g.id, g.d, rid);
+  assert.deepEqual(await env({ p: "Sam", r: "n" }), { etat: "retiree" });
+  assert.equal(JSON.parse(P.stockage.get("ose-groupe-rep"))[g.id], undefined);
+  assert.equal((await env({ p: "Sam", r: "n" })).etat, "ok");
+  // Clôturées : à l'ouverture, pas de formulaire pour une première réponse
+  await P.lire("grpCloturer")(g.id, g.d, true);
+  const Q = await ouvrirGroupe(g);
+  assert.equal(Q.lire("GRP").ferme, true, "le lien court signale la clôture");
+  await Q.lire("groupeForm")("o");
+  assert.ok(Q.zones["#main"].innerHTML.includes("Les réponses sont closes : Alex ne prend plus de réponses pour cette invitation.") && !Q.zones["#main"].innerHTML.includes("grpEnvoyer"));
+  assert.equal((await env({ p: "Sam", r: "o" })).etat, "ferme", "modification refusée aussi");
+  await P.lire("grpCloturer")(g.id, g.d, false);
+  // Supprimée, complète, service muet : messages prévus
+  await P.lire("grpSupprimer")(g.id, g.d);
+  assert.equal((await env({ p: "Sam", r: "o" })).etat, "supprime");
+  for(const k of ["ferme", "expire", "supprime", "plein", "limite", "reseau", "retiree"]) assert.ok(T["grp.err." + k], k);
+  assert.equal(P.lire("grpT")("grp.err.plein"), "Cette invitation a déjà reçu 100 réponses : il n'est plus possible d'en ajouter.");
+  const R = chargerPage({ fichiers: FICH_GRP }); R.ecrire("shortFetch", async () => { throw new TypeError("Failed to fetch"); });
+  R.ecrire("GRP", { id: g.id, key: g.key, ferme: false }); R.ecrire("D", L.sanitize(INV({ gp: g.gp })));
+  assert.equal((await R.lire("grpEnvoyer")({ p: "Sam", r: "o" })).etat, "reseau");
+});
+await test("Reçues : réponse de groupe validée strictement, gardée à l'import ; création en groupe : un seul créneau", async () => {
+  const P = chargerPage(), v = P.lire("validRecue"), base = LOCAL + "/", id = "I".repeat(22), key = "K".repeat(22);
+  const e = { id: "abc123def", from: "Alex", to: "La bande", occ: "soiree", when: [["2027-02-13", "20:00"]], link: base + `#g=${id}.${key}`, created: new Date().toISOString() };
+  assert.ok(v(e)); assert.ok(v({ ...e, gr: "p" }));
+  assert.ok(v({ ...e, gr: "o", rep: "o", repAt: new Date().toISOString(), repSlot: 0, ag: { t: "Soirée avec Alex", l: "", e: "" } }));
+  assert.ok(!v({ ...e, gr: "x" }), "réponse inconnue");
+  assert.ok(!v({ ...e, gr: "p", rep: "o", repAt: new Date().toISOString(), ag: { t: "x", l: "", e: "" } }), "Peut-être n'est pas Acceptée");
+  assert.ok(!v({ ...e, link: base + "#s=" + id + "." + key, gr: "p" }), "gr seulement pour un groupe");
+  const f = JSON.stringify({ app: "ose-demander", version: 2, items: [], recues: [{ ...e, gr: "p" }] }), st = new Map();
+  await chargerPage({ stockage: st }).lire("importHistory")({ size: f.length, text: async () => f });
+  assert.equal(JSON.parse(st.get("ose-recues"))[0].gr, "p", "lien de groupe gardé tel quel à l'import");
+  const C = chargerPage(), S = C.lire("S");
+  Object.assign(S, { step: 3, groupe: true, choose: true, mode: "one" }); C.lire("renderCreator")();
+  assert.ok(!C.zones["#app"].innerHTML.includes('id="choose"') && S.choose === false, "pas de choix de créneau pour un groupe");
+});
+await test("Fichier à part : chargé au Oui (préparé à l'ouverture), versionné, précaché ; textes regroupés, neutres", () => {
+  const f = readFileSync(RACINE + "app/groupe-invite.js", "utf8"), sw = readFileSync(RACINE + "sw.js", "utf8"), html = readFileSync(RACINE + "index.html", "utf8");
+  const v = (f.match(/oseLoaded\("groupeInvite", "([0-9a-f]{10})"\)/) || [])[1];
+  assert.ok(v && sw.includes(`"./app/groupe-invite.js?v=${v}"`) && html.includes(`groupeInvite:"${v}"`));
+  assert.ok(CSP.FICHIERS.some(x => x.chemin === "app/groupe-invite.js"));
+  const textes = f.slice(f.indexOf("const GRP_TEXTES"), f.indexOf("};", f.indexOf("const GRP_TEXTES")));
+  assert.ok(/"grp\.[a-z.0-9]+": "/.test(textes));
+  assert.ok(!/·e\b|accompagné|seul\b|prévenu/.test(textes), "textes neutres");
+  assert.ok(gzipSync(f).length < 5000, `${gzipSync(f).length} octets compressés`);
+});
+
 /* ---------- Bilan ---------- */
 console.log(`\n${ko ? "❌" : "✅"} ${ok} tests réussis, ${ko} en échec (graine ${GRAINE}${ko ? ` — pour rejouer : node tests/run.mjs --graine=${GRAINE}` : ""})`);
 if(ko){ console.log(echecs.map(e => "  - " + e).join("\n")); process.exitCode = 1; }

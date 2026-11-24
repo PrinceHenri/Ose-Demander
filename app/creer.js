@@ -514,7 +514,8 @@ function dateTimeHTML(){
 }
 /* Écran « Quand et où » : une date et une heure, ou 2 à 3 créneaux au choix */
 function whenHTML(){
-  return `<label class="check"><input type="checkbox" id="choose" ${S.choose?"checked":""}><span>Lui laisser choisir parmi plusieurs créneaux</span></label>
+  if(S.groupe) S.choose=false; // invitation de groupe : un seul créneau
+  return `${S.groupe ? "" : `<label class="check"><input type="checkbox" id="choose" ${S.choose?"checked":""}><span>Lui laisser choisir parmi plusieurs créneaux</span></label>`}
     ${!S.choose ? dateTimeHTML() : `
       <p class="hint" style="margin:0 0 12px">Propose 2 ou 3 créneaux : le choix se fera après le Oui.</p>
       ${S.slots.map((sl,i)=>`<div class="slot-box" data-slot="${i}">
@@ -1302,9 +1303,11 @@ function validEntry(x){
 // l'invitation ne s'ouvre plus, ici non plus (ce que la personne qui l'a créée attend)
 // rep : "o" (Acceptée, au Oui) ou "n" (Refusée, au vrai refus), repAt : date ; repSlot : créneau choisi ;
 // ag : titre et lieu tels qu'affichés à la personne invitée, heure de fin (pour l'agenda, sans rouvrir le lien)
-const RECUE_FIELDS=["id","from","to","occ","occFree","when","link","created","rep","repAt","repSlot","ag"];
+const RECUE_FIELDS=["id","from","to","occ","occFree","when","link","created","rep","repAt","repSlot","ag","gr"];
+// gr : réponse envoyée à une invitation de groupe (« o », « p » ou « n ») ; Oui = Acceptée, Non = Refusée, Peut-être = « Peut-être »
 function validRecue(x){
   if(!x || typeof x!=="object" || Array.isArray(x) || Object.keys(x).some(k=>!RECUE_FIELDS.includes(k)) || !validCommun(x)) return false;
+  if(x.gr!==undefined && (!GRP_LINK.test(hashOf(x.link)) || !["o","p","n"].includes(x.gr) || (x.gr==="p" ? x.rep!==undefined : x.rep!==x.gr))) return false;
   if(x.rep===undefined) return x.repAt===undefined && x.repSlot===undefined && x.ag===undefined;
   const ag=x.ag, okAg = ag && typeof ag==="object" && !Array.isArray(ag) && Object.keys(ag).every(k=>["t","l","e"].includes(k))
     && typeof ag.t==="string" && ag.t.trim()!=="" && ag.t.length<=140 && typeof ag.l==="string" && ag.l.length<=160
@@ -1436,6 +1439,7 @@ function rdvSlot(it, recue){
 const rdvPasse = (it, s) => rebours(it.when[s][0], it.when[s][1]).etat==="passe";
 const rdvQuand = (it, s) => `${frDate(it.when[s][0])} à ${frTime(it.when[s][1]).replace(/ /g, " ")}`;
 function statutRecue(it){
+  if(it.gr==="p") return `<p class="rep rep-n">Peut-être</p>`;
   if(it.rep==="n") return `<p class="rep rep-n">Refusée</p>`;
   if(it.rep!=="o") return "";
   const s=rdvSlot(it, true);
@@ -1864,7 +1868,7 @@ async function importHistory(file){
     if(!validRecue(x)){ skipped++; continue; }
     if(rLinks.has(x.link) || recueIgnoree(x.link, x.link, list, [])) continue;
     let e={ ...x, id: rIds.has(x.id) ? newId() : x.id };
-    if(!shortId(x.link)){
+    if(!shortId(x.link) && !GRP_LINK.test(hashOf(x.link))){ // lien court ou de groupe : gardé tel quel
       let d; try{ d=await decodeData(linkData(x.link)); }catch(err){ skipped++; continue; }
       e={ ...recueEntry(d, x.link, x.created, e.id), ...Object.fromEntries(["rep","repAt","repSlot","ag"].filter(k=>x[k]!==undefined).map(k=>[k, x[k]])) };
     }
@@ -1881,4 +1885,4 @@ async function importHistory(file){
   toast(msg);
 }
 
-oseLoaded("creer", "171b04beca");
+oseLoaded("creer", "0b483ec526");

@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'sha256-AQkSRDf+gSweccppXUA940JP8SYgeZaaNXgZIzXdiw0=' 'sha256-UYEfJXhNOJXcxSuK89M4NSkPNFl0a0c7C9tSLdf+Gxw='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' https://ose-liens.osedemander.workers.dev; manifest-src 'self'; worker-src 'self'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'sha256-96qMPV3nyFHNIh1u5mWmel185wO6imvSjyly4VBT2bQ=' 'sha256-FZpNNdm3u4i/a5dxQtP6TiZNhaVslP6PgmsrBKWXBsM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' https://ose-liens.osedemander.workers.dev; manifest-src 'self'; worker-src 'self'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
 <title>Ose Demander — crée une invitation à laquelle on ne dit pas non</title>
@@ -35,7 +35,7 @@
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"WebApplication","name":"Ose Demander","url":"https://osedemander.fr/","description":"Crée gratuitement une invitation animée à envoyer par lien : rendez-vous, anniversaire, témoin, fêtes de l'année. Le bouton Non résiste, mais un vrai refus reste possible.","applicationCategory":"LifestyleApplication","operatingSystem":"Tous (navigateur web)","inLanguage":"fr","isAccessibleForFree":true,"offers":{"@type":"Offer","price":"0","priceCurrency":"EUR"}}</script>
 <link rel="preload" href="fonts/bricolage-grotesque.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="app/scenes.js?v=ad35c435a6" as="script">
-<script data-tete>if(!/^#(i|s)=|^#exemple$/.test(location.hash))for(const[h,a]of[["app/creer.js?v=171b04beca","script"],["app/creer.css?v=efe771ee77","style"]]){const l=document.createElement("link");l.rel="preload";l.as=a;l.href=h;document.head.appendChild(l)}</script>
+<script data-tete>if(!/^#(i|s)=|^#exemple$/.test(location.hash))for(const[h,a]of[["app/creer.js?v=0b483ec526","script"],["app/creer.css?v=efe771ee77","style"]]){const l=document.createElement("link");l.rel="preload";l.as=a;l.href=h;document.head.appendChild(l)}</script>
 <style>
 /* ---------- Polices (hébergées sur le site, aucun appel à Google) ---------- */
 @font-face{font-family:"Bricolage Grotesque";font-style:normal;font-display:swap;font-weight:200 800;font-stretch:75% 100%;
@@ -238,6 +238,9 @@ input.input[type=date],input.input[type=time]{min-width:0;max-width:100%}
 .rev-notif .check{margin:0}.rev-notif .check span{font-weight:700}.rev-notif .hint{margin:6px 0 0}
 .rev-agenda{margin:0;font-weight:700;text-align:center}
 .hist .rdv3{margin:10px 0 2px}
+.grp-form{text-align:left}.grp-form .occ,.grp-form .question,.grp-form .send-lead{text-align:center}
+.grp-choix{justify-content:flex-start}.grp-choix .chip{min-height:44px;min-width:88px;justify-content:center}
+.grp-etat{margin:8px 0 16px;font-weight:700}
 
 
 
@@ -1182,7 +1185,7 @@ const STEP_TITLES = ["Le modèle","Les prénoms","Quand et où","L'aperçu"];
    ancienne, fichier neuf), un seul rechargement complet (oseReload), puis un message. */
 // demo : la démo du premier lancement (app/demo.js), chargée seulement quand elle sert (demoAVoir, exemple)
 // groupeCommun : invitations de groupe, chiffrement et service (app/groupe-commun.js), chargé seulement pour un lien #g= ou #ga= ou la création d'un groupe
-const OSE_FILES = {creer:"171b04beca", scenes:"ad35c435a6", creerCss:"efe771ee77", demo:"def882fa95", groupeCommun:"59b52daeee"};
+const OSE_FILES = {creer:"0b483ec526", scenes:"ad35c435a6", creerCss:"efe771ee77", demo:"def882fa95", groupeCommun:"59b52daeee", groupeInvite:"bf8d66b5fc"};
 const oseGot = {}, oseNeeds = {};
 const oseLoaded = (name, v) => { oseGot[name]=v; };
 const oseUrl = name => `app/${name==="creerCss" ? "creer.css" : name.replace(/[A-Z]/g, c=>"-"+c.toLowerCase())+".js"}?v=${OSE_FILES[name]}`; // groupeCommun -> groupe-commun.js
@@ -1313,6 +1316,10 @@ const SHORT_ORIGIN = typeof location!=="undefined" && location.hostname==="local
 const SHORT_TIMEOUT=5000, SHORT_CT_MAX=16384;
 let shortFetch = (u, o) => fetch(u, o); // remplacé par le banc de test
 const SHORT_HASH = /^#s=([A-Za-z0-9_-]{22})\.([A-Za-z0-9_-]{22})$/;
+// Invitation de groupe, lien invités (voir app/groupe-commun.js) : même identifiant et même clé qu'un lien court
+const GRP_HASH = /^#g=([A-Za-z0-9_-]{22})\.([A-Za-z0-9_-]{22})$/;
+let GRP=null; // invitation de groupe ouverte : {id, key, ferme}
+let shortFerme=false; // dernière lecture d'un lien court : réponses d'un groupe clôturées
 const NOTIF_RE = /^[A-Za-z0-9_-]{22}\.[A-Za-z0-9_-]{22}$/; // champ nz / Z : identifiant de notification . clé de la réponse
 const GP_RE = /^[A-Za-z0-9_-]{87}$/; // champ gp / G : clé publique P-256 de l'organisateur d'une invitation de groupe
 const rndBytes = n => crypto.getRandomValues(new Uint8Array(n));
@@ -1362,6 +1369,7 @@ async function readShort(id, key){
   if(r.status!==200) throw shortErr("reseau");
   try{ x=await r.json(); }catch(e){ throw shortErr("reseau"); }
   if(!x || typeof x.ct!=="string" || x.ct.length>SHORT_CT_MAX || !/^[A-Za-z0-9_-]+$/.test(x.ct)) throw shortErr("incomplet");
+  shortFerme = x.ferme===true;
   let code; try{ code=await openShort(id, key, x.ct); }catch(e){ throw shortErr("incomplet"); }
   if(code.length>MAX_LINK || !/^[zpyx][A-Za-z0-9_-]+$/.test(code)) throw shortErr("incomplet");
   return code;
@@ -2002,7 +2010,7 @@ function noteRecue(d, code){
   recueLien="";
   if(EXAMPLE || d.vu || d.rv) return;
   try{
-    const base=location.origin+location.pathname, long=base+"#i="+code, link=SHORT_HASH.test(location.hash) ? base+location.hash : long;
+    const base=location.origin+location.pathname, long=base+"#i="+code, link=SHORT_HASH.test(location.hash) || GRP_HASH.test(location.hash) ? base+location.hash : long;
     if(recueIgnoree(link, long, lireListe("ose-historique"), lireListe(TESTEES_KEY))) return;
     const list=lireListe(RECUES_KEY);
     if(list.some(x=>x.link===link)){ recueLien=link; return; }
@@ -2599,6 +2607,7 @@ const refuseText = () => (refuseDrafts[refuseWhy] ?? refuseDefault(refuseWhy, D.
 function openRefuse(){
   if(yesDone) return;
   refused=true; clearTimeout(refuseTimer);
+  if(GRP){ $$(".no.flee").forEach(b=>b.remove()); afterMode="groupe"; groupeForm("n"); return; }
   noteReponse("n");
   if(EXAMPLE) document.dispatchEvent(new CustomEvent("ose:exemple", {detail:"non"}));
   $$(".no.flee").forEach(b=>b.remove());
@@ -2695,6 +2704,7 @@ function sayYes(e){
   if(src){ const r=src.getBoundingClientRect(); x=r.left+r.width/2; y=r.top+r.height/2; }
   $$(".no.flee").forEach(b=>b.remove());
   yesDone=true;
+  if(GRP){ Decor.burst(x, y, 150); Sound.yes(); buzz([40,60,40]); afterMode="groupe"; groupeForm("o"); return; }
   noteReponse("o");
   if(EXAMPLE) document.dispatchEvent(new CustomEvent("ose:exemple", {detail:"oui"})); // fin de l'exemple (app/demo.js)
   Decor.burst(x, y, 150); Sound.yes(); buzz([40,60,40]);
@@ -2705,6 +2715,16 @@ function sayYes(e){
   focusScreen("#main .question"); // le bouton Oui, qui avait le focus, a disparu
   prepReminder();
   startCountdowns(1300); // la mise en scène attend la fin de l'explosion du Oui
+}
+/* Invitation de groupe : le formulaire (app/groupe-invite.js) ; s'il n'a pas pu être chargé, un message et « Réessayer » */
+async function groupeForm(r){
+  try{ await Promise.all([need("groupeCommun"), need("groupeInvite")]); renderGroupeForm(r); }
+  catch(e){
+    $("#main").innerHTML=`<div class="pop-in"><h1 class="question" tabindex="-1">Ta réponse</h1>
+      <p role="alert">Le formulaire de réponse ne s'est pas chargé. Vérifie ta connexion, puis réessaie.</p>
+      <button type="button" class="btn primary" id="grpRetry">Réessayer</button></div>`;
+    $("#grpRetry").addEventListener("click",()=>groupeForm(r)); focusScreen("#main .question");
+  }
 }
 /* La carte de l'invitation (après le Oui, ou ouverte depuis le rappel d'agenda). title et sub : déjà échappés.
    Juste sous le titre : l'envoi de la réponse, seule action principale (le Oui n'est pas transmis tant qu'il n'est pas envoyé). */
@@ -3610,9 +3630,10 @@ function setNoindex(on){
 }
 async function route(){
   scenesReady().catch(()=>{}); // jamais bloquant ici
-  const ms=location.hash.match(SHORT_HASH), m=ms ? null : location.hash.match(/^#i=(.+)$/);
+  const mg=location.hash.match(GRP_HASH), ms=mg || location.hash.match(SHORT_HASH), m=ms ? null : location.hash.match(/^#i=(.+)$/);
+  GRP=null;
   EXAMPLE = location.hash==="#exemple";
-  setNoindex(!!(m || ms || EXAMPLE));
+  setNoindex(!!(m || ms || EXAMPLE)); // (ms comprend aussi le lien d'un groupe)
   if(!m && !ms && !EXAMPLE){ // côté créateur : le code de la création (app/creer.js) d'abord
     if(!await needCreer()) return;
     Sound.on=Sound.pref(); // le choix gardé sur cet appareil
@@ -3644,6 +3665,13 @@ async function route(){
       // Les scènes arrivent d'ordinaire avec la page : on les attend au plus 0,4 s, sinon l'écran s'affiche sans elles (sceneRefresh)
       await Promise.race([scenesReady().catch(()=>{}), new Promise(r=>setTimeout(r, 400))]);
       D = EXAMPLE ? demoData() : await decodeData(code); chosenSlot=null; yesDone=false; notifSent=""; // decodeData : sanitize, comme pour un lien long
+      // Invitation de groupe : seulement par son lien #g= et avec la clé publique de l'organisateur ; un lien #i= ou #s= qui la
+      // contiendrait s'ouvre comme une invitation ordinaire (sans formulaire de groupe)
+      if(mg){
+        if(!D.gp || D.vu || D.rv) throw shortErr("incomplet");
+        GRP={id:mg[1], key:mg[2], ferme:shortFerme};
+        Promise.all([need("groupeCommun"), need("groupeInvite")]).catch(()=>{}); // le formulaire, prêt pour le Oui
+      } else if(D.gp){ delete D.gp; }
       noteRecue(D, code); // onglet Reçues de « Mes invitations », sur cet appareil seulement
       Sound.on = D.so!==0; // côté destinataire : réglage de l'invitation, rien n'est lu ni enregistré
       noTries=0; refused=false; refuseOffered=false; refuseWhy="non"; refuseDrafts={}; clearTimeout(refuseTimer);
