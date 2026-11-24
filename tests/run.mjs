@@ -4903,9 +4903,62 @@ await test("Mentions légales : section « Invitations de groupe » (deux liens,
     "trois mois après la date de l'événement (six mois après la création s'il n'y a pas de date)", "Une invitation reçoit 100 réponses au plus",
     "au plus une notification toutes les 15 minutes", "Ouvrir le lien du groupe n'envoie qu'une demande", "« Me prévenir des nouvelles réponses »"])
     assert.ok(txt(ml).includes(t), t);
-  for(const t of ["Une invitation de groupe", "« Supprimer l'invitation »", "seule la personne qui organise peut la lire et la supprimer", "Invitation de groupe : l'invitation et les réponses sont chiffrées"])
+  for(const t of ["Une invitation de groupe", "« Supprimer l'invitation »", "touche « Supprimer ma réponse », dans l'invitation ou dans « Mes invitations », onglet Reçues", "Invitation de groupe : l'invitation et les réponses sont chiffrées"])
     assert.ok(txt(sup).includes(t), t);
   assert.ok(!/vous seul\b|organisateur seul\b/.test(ml), "formulations neutres");
+});
+
+/* =========================================================
+   57. Invitation de groupe : « Supprimer ma réponse » (personne invitée, avec son jeton)
+   ========================================================= */
+titre("57. Invitation de groupe : supprimer ma réponse");
+await essaiWorker("Worker : retirer avec le bon jeton seulement (temps constant), même clôturé ; jamais la réponse d'un autre groupe ; invitation supprimée : 410", async () => {
+  const env = ENV_N(); await creerGroupe(env); await repondreGroupe(env); await repondreGroupe(env, RPID(2));
+  const retirer = (jeton, rid = RPID(1), gid = GID, extra = {}) => appel(env, "POST", `/v1/groupes/${gid}/reponses/${rid}/retirer`, { jeton, ...extra });
+  assert.equal((await retirer("K".repeat(43))).status, 403, "mauvais jeton");
+  assert.equal((await retirer(JREP, RPID(1), GID, { blob: BLOB() })).status, 400, "champ en trop");
+  await gerer(env, "cloturer", { ferme: true });
+  assert.equal((await retirer(JREP)).status, 200, "même une fois les réponses closes");
+  assert.equal(env.DB.db.prepare("SELECT COUNT(*) AS n FROM reponses WHERE id = ?").get(RPID(1)).n, 0, "effacée en ligne");
+  assert.equal((await retirer(JREP)).status, 404, "déjà effacée");
+  await appel(env, "POST", "/v1/groupes", { id: "H".repeat(22), ct: "Q2hpZmZyZQ", gestion: await empreinteDe(GESTION), expire: Date.now() + 864e5 });
+  assert.equal((await retirer(JREP, RPID(2), "H".repeat(22))).status, 404, "pas dans ce groupe");
+  await gerer(env, "supprimer");
+  assert.equal((await retirer(JREP, RPID(2))).status, 410);
+  assert.ok(readFileSync(RACINE + "worker/src/groupes.js", "utf8").includes('if(actionRep === "retirer"){'));
+});
+await essaiWorker("Site : supprimer sa réponse l'efface en ligne et sur l'appareil (statut des Reçues compris) ; la suivante est une nouvelle réponse ; bouton seulement si cet appareil a répondu", async () => {
+  const g = await groupeDeTest(), P = await ouvrirGroupe(g);
+  await P.lire("groupeForm")("o");
+  assert.ok(!P.zones["#main"].innerHTML.includes("Supprimer ma réponse"), "pas avant d'avoir répondu");
+  assert.equal((await P.lire("grpEnvoyer")({ p: "Sam", r: "o" })).etat, "ok");
+  await P.lire("groupeForm")("o");
+  assert.ok(P.zones["#main"].innerHTML.includes('id="grpRetirer">Supprimer ma réponse'), "dans le formulaire");
+  P.lire("renderGroupeEnvoye")({ p: "Sam", r: "o", a: 0, m: "" });
+  assert.ok(P.zones["#main"].innerHTML.includes('id="grpRetirer">Supprimer ma réponse'), "après l'envoi");
+  assert.equal(await P.lire("grpRetirerMienne")(), "ok");
+  assert.equal(g.r.env.DB.db.prepare("SELECT COUNT(*) AS n FROM reponses").get().n, 0);
+  assert.equal(JSON.parse(P.stockage.get("ose-groupe-rep"))[g.id], undefined);
+  const recue = JSON.parse(P.stockage.get("ose-recues"))[0];
+  assert.deepEqual([recue.gr, recue.rep, recue.ag], [undefined, undefined, undefined], "plus de statut");
+  assert.ok(P.lire("validRecue")(recue));
+  assert.equal((await P.lire("grpEnvoyer")({ p: "Sam", r: "n" })).etat, "ok", "nouvelle réponse possible");
+  assert.equal(g.r.env.DB.db.prepare("SELECT COUNT(*) AS n FROM reponses").get().n, 1);
+  // Reçues : le bouton, avec confirmation
+  const it = JSON.parse(P.stockage.get("ose-recues"))[0];
+  assert.ok(P.lire("histCardRecue")(it).includes('data-act="retirer">Supprimer ma réponse'));
+  P.ecrire("confirmSheet", async () => true); P.ecrire("renderHistory", () => {});
+  await P.lire("retirerRecue")(it);
+  assert.equal(g.r.env.DB.db.prepare("SELECT COUNT(*) AS n FROM reponses").get().n, 0, "effacée depuis les Reçues");
+  const apres = JSON.parse(P.stockage.get("ose-recues"))[0];
+  assert.equal(apres.gr, undefined); assert.ok(!P.lire("histCardRecue")(apres).includes('data-act="retirer"'), "plus de bouton");
+  assert.ok(P.lire("retirerRecue").toString().includes("confirmSheet("), "toujours après une confirmation");
+  assert.ok(P.lire("grpRetirerUI").toString().includes("grpConfirmer("));
+});
+await test("Textes : mentions légales et « Supprimer mes données »", () => {
+  const ml = lireFichier("mentions-legales.html"), sup = FAB["supprimer-mes-donnees/index.html"].replace(/&#39;/g, "'").replace(/&nbsp;/g, " ");
+  assert.ok(ml.includes("La personne qui a répondu peut aussi supprimer sa réponse depuis l'appareil qui l'a envoyée (« Supprimer ma réponse »), même une fois les réponses closes"));
+  assert.ok(sup.includes("Depuis un autre appareil, seule la personne qui organise peut la supprimer"));
 });
 
 /* ---------- Bilan ---------- */

@@ -232,7 +232,7 @@ export default {
     const permise = o && origines(env).includes(o) ? o : null;
     if(o && !permise) return reponse(403, { erreur: "origine" }, null); // une page d'un autre site ne peut rien faire
     if(requete.method === "OPTIONS") return reponse(204, null, permise);
-    const gm = url.pathname.match(/^\/v1\/groupes(?:\/([^/]+)(?:\/reponses(?:\/([^/]+)\/(modifier|supprimer))?|\/(lire|cloturer|abo|supprimer))?)?$/);
+    const gm = url.pathname.match(/^\/v1\/groupes(?:\/([^/]+)(?:\/reponses(?:\/([^/]+)\/(modifier|retirer|supprimer))?|\/(lire|cloturer|abo|supprimer))?)?$/);
     if(gm){ try{ return await groupes(requete, env, permise, gm, { reponse, lireCorps, limite, egal, empreinte, aboValide }); }catch{ return reponse(503, { erreur: "indisponible" }, permise); } }
     const rv = url.pathname.match(/^\/v1\/rdv(?:\/([^/]+)\/supprimer)?$/);
     if(rv){ try{ return await rdv(requete, env, permise, rv[1]); }catch{ return reponse(503, { erreur: "indisponible" }, permise); } }

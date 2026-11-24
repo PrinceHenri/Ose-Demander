@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'sha256-euGU0BvPvXIEvqtqiTk/f1bn1iFd1AJZz4PL29y5L2w=' 'sha256-vdhaTPrD5uA6m1dFduEEFQtIUPicx8NIGbj/BsncQO8='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' https://ose-liens.osedemander.workers.dev; manifest-src 'self'; worker-src 'self'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'sha256-h8iznDd5KVw7k33O7G89PaV4NN+xixULn5YFU5N7IGU=' 'sha256-St1bGdzbj9Rc+O81p3SDiyMJNG3BshiFzmCaanQRsFw='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' https://ose-liens.osedemander.workers.dev; manifest-src 'self'; worker-src 'self'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
 <title>Ose Demander — crée une invitation à laquelle on ne dit pas non</title>
@@ -35,7 +35,7 @@
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"WebApplication","name":"Ose Demander","url":"https://osedemander.fr/","description":"Crée gratuitement une invitation animée à envoyer par lien : rendez-vous, anniversaire, témoin, fêtes de l'année. Le bouton Non résiste, mais un vrai refus reste possible.","applicationCategory":"LifestyleApplication","operatingSystem":"Tous (navigateur web)","inLanguage":"fr","isAccessibleForFree":true,"offers":{"@type":"Offer","price":"0","priceCurrency":"EUR"}}</script>
 <link rel="preload" href="fonts/bricolage-grotesque.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="app/scenes.js?v=ad35c435a6" as="script">
-<script data-tete>if(!/^#(i|s)=|^#exemple$/.test(location.hash))for(const[h,a]of[["app/creer.js?v=b6c6ceb14e","script"],["app/creer.css?v=efe771ee77","style"]]){const l=document.createElement("link");l.rel="preload";l.as=a;l.href=h;document.head.appendChild(l)}</script>
+<script data-tete>if(!/^#(i|s)=|^#exemple$/.test(location.hash))for(const[h,a]of[["app/creer.js?v=d2e4388666","script"],["app/creer.css?v=efe771ee77","style"]]){const l=document.createElement("link");l.rel="preload";l.as=a;l.href=h;document.head.appendChild(l)}</script>
 <style>
 /* ---------- Polices (hébergées sur le site, aucun appel à Google) ---------- */
 @font-face{font-family:"Bricolage Grotesque";font-style:normal;font-display:swap;font-weight:200 800;font-stretch:75% 100%;
@@ -1185,7 +1185,7 @@ const STEP_TITLES = ["Le modèle","Les prénoms","Quand et où","L'aperçu"];
    ancienne, fichier neuf), un seul rechargement complet (oseReload), puis un message. */
 // demo : la démo du premier lancement (app/demo.js), chargée seulement quand elle sert (demoAVoir, exemple)
 // groupeCommun : invitations de groupe, chiffrement et service (app/groupe-commun.js), chargé seulement pour un lien #g= ou #ga= ou la création d'un groupe
-const OSE_FILES = {creer:"b6c6ceb14e", scenes:"ad35c435a6", creerCss:"efe771ee77", demo:"def882fa95", groupeCommun:"d17fde3b5a", groupeInvite:"bf8d66b5fc", groupeOrga:"c8ae1c55a5"};
+const OSE_FILES = {creer:"d2e4388666", scenes:"ad35c435a6", creerCss:"efe771ee77", demo:"def882fa95", groupeCommun:"66e41f012b", groupeInvite:"3419a5a6a6", groupeOrga:"c8ae1c55a5"};
 const oseGot = {}, oseNeeds = {};
 const oseLoaded = (name, v) => { oseGot[name]=v; };
 const oseUrl = name => `app/${name==="creerCss" ? "creer.css" : name.replace(/[A-Z]/g, c=>"-"+c.toLowerCase())+".js"}?v=${OSE_FILES[name]}`; // groupeCommun -> groupe-commun.js

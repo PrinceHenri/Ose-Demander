@@ -1579,6 +1579,11 @@ function histCardGroupe(it){
           </div>
         </li>`;
 }
+// Réponse à un groupe envoyée depuis cet appareil (son identifiant et son jeton sont gardés : app/groupe-invite.js, GRP_REP_KEY)
+function aReponduGroupe(link){
+  const g=GRP_LINK.exec(hashOf(link)); if(!g) return "";
+  try{ const x=JSON.parse(localStorage.getItem("ose-groupe-rep")||"{}"); return x && typeof x==="object" && x[g[1]] ? g[1] : ""; }catch(e){ return ""; }
+}
 function histCardRecue(it){
   return `
         <li data-id="${esc(it.id)}">
@@ -1592,6 +1597,7 @@ function histCardRecue(it){
           <div class="acts">
             <button type="button" class="btn sm primary" data-act="open">Ouvrir</button>
             ${rdvSlot(it, true)!==null && !rdvPasse(it, rdvSlot(it, true)) ? agendaBtns() : ""}
+            ${aReponduGroupe(it.link) ? `<button type="button" class="btn sm" data-act="retirer">Supprimer ma réponse</button>` : ""}
             <button type="button" class="btn sm ghost" data-act="del">Retirer de l'historique</button>
           </div>
         </li>`;
@@ -1610,6 +1616,18 @@ async function syncRdv3Hist(list, recues){
     if(location.hash!=="#mes-invitations") return;
     rdv3Carte(cle);
   }
+}
+/* « Supprimer ma réponse » depuis les Reçues : confirmation, suppression en ligne avec le jeton gardé ici, puis la carte perd son statut */
+async function retirerRecue(it){
+  const gid=aReponduGroupe(it.link); if(!gid) return;
+  if(!await confirmSheet("Supprimer ta réponse ?", `Ta réponse sera effacée en ligne : ${it.from} ne la verra plus. Tu pourras en envoyer une nouvelle depuis le lien tant que les réponses sont ouvertes.`, "Supprimer ma réponse")) return;
+  try{ await Promise.all([need("groupeCommun"), need("groupeInvite")]); }catch(e){ toast("La suppression n'a pas abouti. Vérifie ta connexion, puis réessaie."); return; }
+  const mien=grpMesReponses()[gid], r = mien ? await grpRetirer(gid, mien.rid, mien.jeton) : "introuvable";
+  if(!["ok","introuvable","supprime","expire"].includes(r)){ toast("La suppression n'a pas abouti. Vérifie ta connexion, puis réessaie."); return; }
+  grpGarder(gid, null);
+  cancelRdv3("r:"+it.id); delete rdv3St["r:"+it.id];
+  storeRecues(loadRecuesBrutes().map(x=>{ if(x.id!==it.id) return x; const { rep, repAt, repSlot, ag, gr, ...reste }=x; return reste; }));
+  renderHistory(); toast("Ta réponse a été supprimée.");
 }
 /* Plusieurs invitations : une à la fois, en glissant de gauche à droite (défilement natif du navigateur, cartes calées),
    la suivante dépasse un peu ; « Précédente » / « Suivante » (44 px) et « 2 sur 7 » dessous, pour le clavier et les
@@ -1709,6 +1727,7 @@ function renderHistory(){
       if(!it){ renderHistory(); return; }
       if(b.dataset.act==="open") window.open(it.link,"_blank","noopener");
       if(b.dataset.act==="cal" || b.dataset.act==="gcal") agendaHist(eventRecue(it), b.dataset.act);
+      if(b.dataset.act==="retirer") retirerRecue(it);
       if(b.dataset.act==="del"){
         cancelRdv3("r:"+id);
         if(storeRecues(loadRecuesBrutes().filter(x=>x.id!==id))){ renderHistory(); toast("Invitation retirée de l'historique"); }
@@ -1915,4 +1934,4 @@ async function importHistory(file){
   toast(msg);
 }
 
-oseLoaded("creer", "b6c6ceb14e");
+oseLoaded("creer", "d2e4388666");

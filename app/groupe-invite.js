@@ -31,7 +31,13 @@ const GRP_TEXTES = {
   "grp.err.plein": "Cette invitation a déjà reçu 100 réponses : il n'est plus possible d'en ajouter.",
   "grp.err.limite": "Trop d'envois en peu de temps. Réessaie dans une minute.",
   "grp.err.retiree": "Ta réponse précédente a été retirée par {de}. Tu peux en envoyer une nouvelle.",
-  "grp.clos": "Les réponses sont closes : {de} ne prend plus de réponses pour cette invitation."
+  "grp.clos": "Les réponses sont closes : {de} ne prend plus de réponses pour cette invitation.",
+  "grp.retirer": "Supprimer ma réponse",
+  "grp.retirer.titre": "Supprimer ta réponse ?",
+  "grp.retirer.texte": "Ta réponse sera effacée en ligne : {de} ne la verra plus. Tu pourras en envoyer une nouvelle depuis le lien tant que les réponses sont ouvertes.",
+  "grp.retirer.annuler": "Annuler",
+  "grp.retirer.ok": "Ta réponse a été supprimée.",
+  "grp.retirer.err": "La suppression n'a pas abouti. Vérifie ta connexion, puis réessaie."
 };
 const grpT = (k, v={}) => GRP_TEXTES[k].replace(/\{(\w+)\}/g, (m, n) => v[n] ?? m);
 
@@ -55,7 +61,9 @@ function grpNoterRecue(r){
   if(!recueLien) return;
   try{
     const list=lireListe(RECUES_KEY), x=list.find(e=>e.link===recueLien); if(!x) return;
+    if(x.gr==="o" && r!=="o"){ delete rdv3St["r:"+x.id]; cancelRdv3("r:"+x.id); } // plus de Oui : plus de rappel 3 h avant
     for(const k of ["rep","repAt","repSlot","ag","gr"]) delete x[k];
+    if(!r){ localStorage.setItem(RECUES_KEY, JSON.stringify(list)); return; } // réponse supprimée : plus de statut
     x.gr=r; x.repAt=new Date().toISOString();
     if(r==="o"){ x.rep="o"; if(!D.sl) x.repSlot=0; const c=calInfo(); x.ag={t:c.title.slice(0,140), l:c.loc.slice(0,160), e:D.en||""}; }
     else if(r==="n") x.rep="n";
@@ -97,6 +105,7 @@ function renderGroupeForm(r){
       <div class="after-actions">
         <button type="button" class="btn primary" id="grpEnvoyer">${esc(grpT(deja ? "grp.modifier" : "grp.envoyer"))}</button>
         ${!deja && r==="n" ? `<button type="button" class="refuse" id="undoNo">Finalement, je reviens en arrière</button>` : ""}
+        ${deja ? `<button type="button" class="refuse" id="grpRetirer">${esc(grpT("grp.retirer"))}</button>` : ""}
       </div>
       <p class="hint">${esc(grpT("grp.prive"))}</p>
       ${D.m && r==="o" ? `<p class="handnote">${esc(D.m)}</p>` : ""}
@@ -110,6 +119,7 @@ function renderGroupeForm(r){
   }));
   $("#grpM").addEventListener("input", e=>{ $("#grpCnt").textContent=`${[...e.target.value].length} / ${GRP_MOT_MAX}`; });
   $("#undoNo")?.addEventListener("click",()=>{ renderInvite(); });
+  $("#grpRetirer")?.addEventListener("click",()=>grpRetirerUI(r));
   $("#grpEnvoyer").addEventListener("click", async e=>{
     const b=e.currentTarget, err=$("#grpErr");
     const rep={p:$("#grpP").value.trim(), r:choix, a:choix==="n" ? 0 : +$("#grpA").value, m:$("#grpM").value.trim()};
@@ -141,6 +151,35 @@ async function grpEnvoyer(rep){
   grpNoterRecue(c.r);
   return {etat:"ok", c};
 }
+/* Supprime la réponse de cet appareil : en ligne (avec le jeton), puis ici (réponse gardée, Reçues).
+   Déjà effacée en ligne (retirée, invitation supprimée ou expirée) : on l'oublie aussi ici. "ok" | "aucune" | erreur */
+async function grpRetirerMienne(){
+  const mien=grpMesReponses()[GRP.id]; if(!mien) return "aucune";
+  const r=await grpRetirer(GRP.id, mien.rid, mien.jeton);
+  if(!["ok","introuvable","supprime","expire"].includes(r)) return r;
+  grpGarder(GRP.id, null); grpNoterRecue(null);
+  return "ok";
+}
+/* Fenêtre de confirmation (côté personne invitée : la création n'est pas chargée) */
+function grpConfirmer(titre, texte, ok){
+  return new Promise(resolve=>{
+    const d=document.createElement("div"); d.className="sheet"; d.setAttribute("role","dialog"); d.setAttribute("aria-modal","true"); d.setAttribute("aria-label",titre);
+    d.innerHTML=`<div class="sheet-card"><h3>${esc(titre)}</h3><p>${esc(texte)}</p>
+      <div class="btns"><button type="button" class="btn" data-r="0">${esc(grpT("grp.retirer.annuler"))}</button><button type="button" class="btn primary" data-r="1">${esc(ok)}</button></div></div>`;
+    const onKey=e=>{ if(e.key==="Escape") fin(false); };
+    const fin=v=>{ d.remove(); document.removeEventListener("keydown",onKey); resolve(v); };
+    d.addEventListener("click",e=>{ if(e.target===d) return fin(false); const b=e.target.closest("[data-r]"); if(b) fin(b.dataset.r==="1"); });
+    document.addEventListener("keydown",onKey);
+    document.body.appendChild(d); $("[data-r='0']",d).focus();
+  });
+}
+async function grpRetirerUI(r){
+  if(!await grpConfirmer(grpT("grp.retirer.titre"), grpT("grp.retirer.texte", {de:D.f}), grpT("grp.retirer"))) return;
+  const res=await grpRetirerMienne();
+  if(res!=="ok" && res!=="aucune"){ toast(grpT("grp.retirer.err")); return; }
+  toast(grpT("grp.retirer.ok"));
+  renderGroupeForm(r==="n" ? "n" : "o");
+}
 /* Réponse partie : ce qui a été envoyé, et de quoi la modifier */
 function renderGroupeEnvoye(c){
   $("#main").innerHTML=`
@@ -153,11 +192,13 @@ function renderGroupeEnvoye(c){
       ${c.r!=="n" ? `<div class="details" id="details">${detailsHTML()}</div>` : ""}
       <div class="after-actions">
         <button type="button" class="btn" id="grpModif">${esc(grpT("grp.modifier"))}</button>
+        <button type="button" class="refuse" id="grpRetirer">${esc(grpT("grp.retirer"))}</button>
         <p class="cal-note">${esc(grpT("grp.ok.modif"))}</p>
       </div>
     </div>`;
   $("#grpModif").addEventListener("click",()=>renderGroupeForm(c.r));
+  $("#grpRetirer").addEventListener("click",()=>grpRetirerUI(c.r));
   focusScreen("#main .question");
 }
 
-oseLoaded("groupeInvite", "bf8d66b5fc");
+oseLoaded("groupeInvite", "3419a5a6a6");

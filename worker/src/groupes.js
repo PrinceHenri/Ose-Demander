@@ -10,6 +10,7 @@
      POST /v1/groupes                               {id, ct, gestion, expire} -> 201 {expire}   crée l'invitation (liens) et le groupe
      POST /v1/groupes/:id/reponses                   {rid, blob, edit}        -> 201 {ok}       423 clôturé, 410 expiré/supprimé, 429 {erreur:"plein"}
      POST /v1/groupes/:id/reponses/:rid/modifier     {blob, jeton}            -> 200 {ok}       403 jeton faux
+     POST /v1/groupes/:id/reponses/:rid/retirer      {jeton}                  -> 200 {ok}       la personne invitée supprime sa réponse (même clôturé)
      POST /v1/groupes/:id/reponses/:rid/supprimer    {gestion}                -> 200 {ok}
      POST /v1/groupes/:id/lire                       {gestion}                -> 200 {ferme, expire, reponses:[{rid, blob, maj}]}
      POST /v1/groupes/:id/cloturer                   {gestion, ferme}         -> 200 {ferme}    clôturer (true) ou rouvrir (false)
@@ -82,6 +83,20 @@ export async function groupes(requete, env, permise, m, o){
     if(g.ferme) return reponse(423, { erreur: "ferme" }, permise);
     await env.DB.prepare(SQL.reponseModifier).bind(x.blob, maintenant, rid).run();
     if(g.abo) await env.DB.prepare(SQL.groupeNouvelle).bind(id).run();
+    return reponse(200, { ok: true }, permise);
+  }
+
+  // Retirer sa réponse (personne invitée, avec son jeton) : effacée tout de suite, même si les réponses sont clôturées
+  if(actionRep === "retirer"){
+    if(!await limite(env.LIMITE_ENVOI, requete)) return reponse(429, { erreur: "limite" }, permise);
+    const { x, trop } = await lireCorps(requete, GROUPE_CORPS_MAX);
+    if(trop) return reponse(413, { erreur: "taille" }, permise);
+    if(!champs(x, ["jeton"]) || typeof x.jeton !== "string" || !JETON.test(x.jeton)) return reponse(400, { erreur: "contenu" }, permise);
+    const f = fini(); if(f) return f;
+    const r = await env.DB.prepare(SQL.reponseLire).bind(rid).first();
+    if(!r || r.groupe_id !== id) return reponse(404, { erreur: "introuvable" }, permise);
+    if(!egal(await empreinte(x.jeton), r.edit)) return reponse(403, { erreur: "jeton" }, permise);
+    await env.DB.prepare(SQL.reponseEffacer).bind(rid).run();
     return reponse(200, { ok: true }, permise);
   }
 

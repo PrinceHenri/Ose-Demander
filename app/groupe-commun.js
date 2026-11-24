@@ -147,6 +147,11 @@ async function grpRepondre(gid, rep, gp){
     return r.status===201 ? {etat:"ok", rid, jeton} : {etat:await grpErreur(r)};
   }catch(e){ return {etat: e && e.message==="reponse" ? "contenu" : "reseau"}; }
 }
+/* Personne invitée : supprime sa propre réponse (jeton gardé sur son appareil) : "ok" ou une erreur */
+async function grpRetirer(gid, rid, jeton){
+  try{ const r=await grpCall(`/${gid}/reponses/${rid}/retirer`, {jeton}); return r.status===200 ? "ok" : await grpErreur(r); }
+  catch(e){ return "reseau"; }
+}
 async function grpModifier(gid, rid, jeton, rep, gp){
   try{
     const r=await grpCall(`/${gid}/reponses/${rid}/modifier`, {blob:await grpSceller(gid, rid, rep, gp), jeton});
@@ -195,4 +200,4 @@ async function grpNotifCouper(gid, d){
 }
 async function grpNotifActive(gid){ try{ return !!(await notifStore("groupes","readonly",st=>st.get(gid))); }catch(e){ return false; } }
 
-oseLoaded("groupeCommun", "d17fde3b5a");
+oseLoaded("groupeCommun", "66e41f012b");
