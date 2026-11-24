@@ -44,7 +44,8 @@ export const FICHIERS = [
   { nom: "demo", chemin: "app/demo.js", marque: /oseLoaded\("demo", "[0-9a-f]*"\)/, pose: v => `oseLoaded("demo", "${v}")` },
   { nom: "groupeCommun", chemin: "app/groupe-commun.js", marque: /oseLoaded\("groupeCommun", "[0-9a-f]*"\)/, pose: v => `oseLoaded("groupeCommun", "${v}")` },
   { nom: "groupeInvite", chemin: "app/groupe-invite.js", marque: /oseLoaded\("groupeInvite", "[0-9a-f]*"\)/, pose: v => `oseLoaded("groupeInvite", "${v}")` },
-  { nom: "groupeOrga", chemin: "app/groupe-orga.js", marque: /oseLoaded\("groupeOrga", "[0-9a-f]*"\)/, pose: v => `oseLoaded("groupeOrga", "${v}")` }
+  { nom: "groupeOrga", chemin: "app/groupe-orga.js", marque: /oseLoaded\("groupeOrga", "[0-9a-f]*"\)/, pose: v => `oseLoaded("groupeOrga", "${v}")` },
+  { nom: "scanner", chemin: "app/scanner.js", marque: /oseLoaded\("scanner", "[0-9a-f]*"\)/, pose: v => `oseLoaded("scanner", "${v}")` }
 ];
 export function versionDe(f, contenu){
   const t = contenu.replace(/\r\n?/g, "\n");

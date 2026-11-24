@@ -184,9 +184,13 @@
 .img-btns .btn{flex:1 1 160px}
 .img-btns a.btn{display:block;text-align:center;text-decoration:none}
 .img-close{display:block;min-height:44px;margin:4px auto 0}
-:root{--ose-creer-css:"efe771ee77"}
+:root{--ose-creer-css:"700ca64c8e"}
 /* Invitation de groupe : lien organisateur à garder pour soi, pastille « Groupe » dans « Mes invitations » */
 .orga-box{margin:16px 0 6px;padding:12px 14px;border:2px dashed var(--ink);border-radius:14px;background:var(--surface)}
 .orga-box h4{margin:0 0 4px;font-size:16px}
 .orga-box .orga-warn{margin:0 0 10px;font-weight:700}
 .tag-groupe{display:inline-block;margin-left:6px;padding:1px 8px;border:2px solid var(--ink);border-radius:999px;font-size:12px;font-weight:700;vertical-align:2px}
+.scan-btn{display:inline-grid;place-items:center}.scan-btn svg{width:20px;height:20px;display:block}
+.hist-scan{display:flex;align-items:flex-start;gap:10px}.hist-scan .hint{flex:1;margin-top:0}
+.scan-discret{flex:none;width:44px;height:44px;display:grid;place-items:center;border:2px solid var(--line);border-radius:999px;background:none;color:var(--muted);cursor:pointer;padding:0}
+.scan-discret svg{width:20px;height:20px}.scan-discret:active{transform:translate(1px,1px)}
