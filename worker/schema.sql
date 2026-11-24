@@ -55,3 +55,33 @@ CREATE TABLE IF NOT EXISTS rdv (
 );
 CREATE INDEX IF NOT EXISTS rdv_prochain ON rdv (prochain);
 CREATE INDEX IF NOT EXISTS rdv_aboh ON rdv (aboh);
+
+-- Invitations de groupe : un lien partagé à plusieurs personnes, chacune répond ; seul l'organisateur peut lire les réponses.
+-- L'invitation elle-même est un lien court (table liens, même identifiant, contenu chiffré dans le navigateur).
+-- gestion : empreinte SHA-256 de la clé de gestion (tirée par l'organisateur de sa clé privée, jamais envoyée en clair ailleurs que
+--           dans le corps des requêtes de gestion) ; ferme : 1 = réponses clôturées ; expire : dernier créneau + 3 mois (sans date :
+--           création + 6 mois), un an au plus ; etat : NULL, 'expire' ou 'supprime' (identifiant gardé 30 jours, sans rien d'autre) ;
+-- abo : abonnement Web Push de l'organisateur, chiffré au repos (facultatif) ; notif_der / notif_n : regroupement des notifications.
+CREATE TABLE IF NOT EXISTS groupes (
+  id        TEXT PRIMARY KEY,
+  gestion   TEXT NOT NULL,
+  ferme     INTEGER NOT NULL DEFAULT 0,
+  expire    INTEGER NOT NULL,
+  cree      INTEGER NOT NULL,
+  etat      TEXT,
+  abo       TEXT,
+  notif_der INTEGER,
+  notif_n   INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS groupes_expire ON groupes (expire);
+CREATE INDEX IF NOT EXISTS groupes_notif ON groupes (notif_n) WHERE notif_n > 0;
+-- Réponses : blob = réponse chiffrée sur l'appareil de la personne invitée vers la clé publique de l'organisateur (prénom, réponse,
+-- accompagnants, petit mot : rien de lisible ici) ; edit : empreinte du jeton de modification gardé sur son appareil.
+CREATE TABLE IF NOT EXISTS reponses (
+  id        TEXT PRIMARY KEY,
+  groupe_id TEXT NOT NULL,
+  blob      TEXT NOT NULL,
+  edit      TEXT NOT NULL,
+  maj       INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS reponses_groupe ON reponses (groupe_id);

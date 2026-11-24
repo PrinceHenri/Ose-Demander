@@ -31,6 +31,7 @@
      POST /v1/rdv/:id/supprimer {jeton}              -> 200 {ok}   y renoncer (case décochée, invitation retirée) ; 404 déjà parti
    La tâche planifiée envoie {v:1, k:"rdv", i:id} à l'heure prévue, puis SUPPRIME la ligne ; 2 h après l'heure, supprimée sans envoi.
    L'appareil compose le texte (titre, heure, lieu) à partir de ce qu'il a gardé : rien de tout cela n'est envoyé.
+   Invitations de groupe : voir groupes.js (routes /v1/groupes…).
    Clés (secrets Cloudflare, jamais dans le dépôt) : VAPID_PRIVEE, CLE_STOCKAGE ; VAPID_PUBLIQUE est publique (wrangler.toml).
 
    Aucun journal : le Worker n'écrit jamais rien dans la console, et les journaux Cloudflare sont coupés (wrangler.toml).
@@ -40,6 +41,7 @@ import { CT_MAX, CORPS_MAX, DUREE, GARDE, ID, B64, EMPREINTE, SQL,
   NOTIF_MAX, NOTIF_GARDE, NOTIF_CORPS_MAX, REPONSE_MAX, HOTES_PUSH, P256, AUTH,
   RAPPEL_MAX, RAPPEL_LOT, RAPPEL_MIN, RAPPEL_GARDE, RAPPEL_REESSAI, RDV_PAR_ABO, RDV_GARDE, RDV_REESSAI } from "./regles.js";
 import { envoyerPush, scellerAbo, ouvrirAbo, deB64, empreinteAbo } from "./push.js";
+import { groupes, envoyerGroupes, nettoyerGroupes } from "./groupes.js";
 
 const origines = env => String(env.ORIGINES || "https://osedemander.fr").split(",").map(s => s.trim()).filter(Boolean);
 
@@ -230,6 +232,8 @@ export default {
     const permise = o && origines(env).includes(o) ? o : null;
     if(o && !permise) return reponse(403, { erreur: "origine" }, null); // une page d'un autre site ne peut rien faire
     if(requete.method === "OPTIONS") return reponse(204, null, permise);
+    const gm = url.pathname.match(/^\/v1\/groupes(?:\/([^/]+)(?:\/reponses(?:\/([^/]+)\/(modifier|supprimer))?|\/(lire|cloturer|abo|supprimer))?)?$/);
+    if(gm){ try{ return await groupes(requete, env, permise, gm, { reponse, lireCorps, limite, egal, empreinte, aboValide }); }catch{ return reponse(503, { erreur: "indisponible" }, permise); } }
     const rv = url.pathname.match(/^\/v1\/rdv(?:\/([^/]+)\/supprimer)?$/);
     if(rv){ try{ return await rdv(requete, env, permise, rv[1]); }catch{ return reponse(503, { erreur: "indisponible" }, permise); } }
     const rp = url.pathname.match(/^\/v1\/rappels(?:\/([^/]+)\/supprimer)?$/);
@@ -262,7 +266,9 @@ export default {
         if(!l) return reponse(404, { erreur: "introuvable" }, permise);
         if(l.etat === "supprime") return reponse(410, { raison: "supprime" }, permise);
         if(l.etat === "expire" || l.expire < Date.now() || !l.ct) return reponse(410, { raison: "expire" }, permise);
-        return reponse(200, { ct: l.ct }, permise);
+        // Invitation de groupe aux réponses clôturées : la personne invitée le voit avant de remplir le formulaire
+        const gf = await env.DB.prepare(SQL.groupeFerme).bind(id).first();
+        return reponse(200, gf && gf.ferme ? { ct: l.ct, ferme: true } : { ct: l.ct }, permise);
       }
       // Supprimer (seulement avec le jeton gardé par l'appareil qui a créé le lien)
       if(requete.method === "POST" && supprimer){
@@ -290,7 +296,8 @@ export default {
   async scheduled(evenement, env){
     const maintenant = Date.now(), h = evenement && evenement.scheduledTime ? new Date(evenement.scheduledTime) : null;
     const faits = await envoyerRappels(env, maintenant);
-    await envoyerRdv(env, maintenant, RAPPEL_LOT - faits);
+    const faitsRdv = await envoyerRdv(env, maintenant, RAPPEL_LOT - faits);
+    await envoyerGroupes(env, maintenant, RAPPEL_LOT - faits - faitsRdv);
     if(h && !(h.getUTCHours() === 3 && h.getUTCMinutes() === 17)) return;
     await env.DB.prepare(SQL.expirer).bind(maintenant).run();
     await env.DB.prepare(SQL.oublier).bind(maintenant - GARDE).run();
@@ -298,5 +305,6 @@ export default {
     await env.DB.prepare(SQL.notifOublier).bind(maintenant - NOTIF_GARDE).run();
     await env.DB.prepare(SQL.rappelOublier).bind(maintenant - RAPPEL_GARDE - NOTIF_GARDE).run();
     await env.DB.prepare(SQL.rdvOublier).bind(maintenant - RDV_GARDE).run();
+    await nettoyerGroupes(env, maintenant);
   }
 };

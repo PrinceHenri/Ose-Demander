@@ -4139,6 +4139,176 @@ await essaiWorker("Ouvrir une invitation n'appelle jamais le service des rappels
   assert.ok(!r.journal.some(q => q.url.includes("/v1/rdv")), "aucune demande à l'ouverture");
 });
 
+/* =========================================================
+   50. Invitation de groupe : le Worker (blocs chiffrés seulement, clé de gestion, jetons, clôture, limites, expiration, notifications regroupées)
+   ========================================================= */
+titre("50. Invitation de groupe : le Worker");
+const GID = "GGGGGGGGGGGGGGGGGGGGGG", GESTION = "M".repeat(43), JREP = "J".repeat(43);
+const RPID = i => String(i).padStart(22, "P");
+const BLOB = (c = "B") => c.repeat(300);
+const creerGroupe = async (env, extra = {}) => appel(env, "POST", "/v1/groupes", { id: GID, ct: "Q2hpZmZyZQ", gestion: await empreinteDe(GESTION), expire: Date.now() + 90 * 864e5, ...extra });
+const repondreGroupe = async (env, rid = RPID(1), blob = BLOB(), ip) => appel(env, "POST", `/v1/groupes/${GID}/reponses`, { rid, blob, edit: await empreinteDe(JREP) }, SITE, ip);
+const gerer = (env, action, corps = {}) => appel(env, "POST", `/v1/groupes/${GID}/${action}`, { gestion: GESTION, ...corps });
+
+await essaiWorker("Créer : l'invitation chiffrée (lien court) et le groupe, ni prénom ni contenu lisible ; un an au plus ; identifiant déjà pris refusé", async () => {
+  const env = ENV_N();
+  const r = await creerGroupe(env, { expire: Date.now() + 500 * 864e5 });
+  assert.equal(r.status, 201);
+  assert.ok((await r.json()).expire <= Date.now() + WORKER.GROUPE_DUREE_MAX, "un an au plus");
+  const g = env.DB.db.prepare("SELECT * FROM groupes").get();
+  assert.deepEqual(Object.keys(g).sort(), ["abo", "cree", "etat", "expire", "ferme", "gestion", "id", "notif_der", "notif_n"], "aucune colonne de contenu");
+  assert.equal(g.gestion, await empreinteDe(GESTION), "seulement l'empreinte de la clé de gestion");
+  assert.equal(env.DB.db.prepare("SELECT ct FROM liens WHERE id = ?").get(GID).ct, "Q2hpZmZyZQ", "invitation = lien court chiffré");
+  const l = await appel(env, "GET", `/v1/liens/${GID}`);
+  assert.deepEqual(await l.json(), { ct: "Q2hpZmZyZQ" }, "lue par la route des liens courts");
+  assert.equal((await creerGroupe(env)).status, 409);
+  assert.equal((await creerGroupe(ENV_N(), { expire: Date.now() - 1000 })).status, 400, "échéance passée");
+  assert.equal((await creerGroupe(ENV_N(), { nom: "Soirée" })).status, 400, "champ en trop");
+});
+await essaiWorker("Répondre : bloc chiffré gardé tel quel (2 Ko au plus), empreinte du jeton ; formats refusés ; même identifiant refusé", async () => {
+  const env = ENV_N(); await creerGroupe(env);
+  assert.equal((await repondreGroupe(env)).status, 201);
+  const r = env.DB.db.prepare("SELECT * FROM reponses").get();
+  assert.deepEqual(Object.keys(r).sort(), ["blob", "edit", "groupe_id", "id", "maj"]);
+  assert.equal(r.blob, BLOB()); assert.equal(r.edit, await empreinteDe(JREP), "seulement l'empreinte du jeton");
+  assert.equal((await repondreGroupe(env)).status, 409, "un identifiant de réponse ne sert qu'une fois");
+  assert.equal((await repondreGroupe(env, RPID(2), "B".repeat(WORKER.GROUPE_BLOB_MAX + 1))).status, 400, "plus de 2 Ko");
+  assert.equal((await repondreGroupe(env, RPID(2), "B".repeat(50))).status, 400, "trop court pour être chiffré");
+  assert.equal((await repondreGroupe(env, RPID(2), "B+/=".repeat(60))).status, 400, "pas du base64url");
+  assert.equal((await appel(env, "POST", `/v1/groupes/${GID}/reponses`, { rid: RPID(3), blob: BLOB(), edit: await empreinteDe(JREP), prenom: "Sam" })).status, 400, "jamais de prénom en clair");
+  assert.equal((await appel(env, "POST", `/v1/groupes/${"X".repeat(22)}/reponses`, { rid: RPID(4), blob: BLOB(), edit: await empreinteDe(JREP) })).status, 404);
+  assert.equal(WORKER.GROUPE_BLOB_MAX, 2048);
+});
+await essaiWorker("Modifier sa réponse : bon jeton seulement (comparaison en temps constant), jamais la réponse d'un autre groupe", async () => {
+  const env = ENV_N(); await creerGroupe(env); await repondreGroupe(env);
+  const modifier = (jeton, blob = BLOB("C"), gid = GID) => appel(env, "POST", `/v1/groupes/${gid}/reponses/${RPID(1)}/modifier`, { blob, jeton });
+  assert.equal((await modifier("K".repeat(43))).status, 403, "mauvais jeton");
+  assert.equal(env.DB.db.prepare("SELECT blob FROM reponses").get().blob, BLOB(), "rien n'a changé");
+  assert.equal((await modifier(JREP)).status, 200);
+  assert.equal(env.DB.db.prepare("SELECT blob FROM reponses").get().blob, BLOB("C"));
+  assert.equal(env.DB.db.prepare("SELECT COUNT(*) AS n FROM reponses").get().n, 1, "modifiée, pas ajoutée");
+  await appel(env, "POST", "/v1/groupes", { id: "H".repeat(22), ct: "Q2hpZmZyZQ", gestion: await empreinteDe(GESTION), expire: Date.now() + 864e5 });
+  assert.equal((await modifier(JREP, BLOB("D"), "H".repeat(22))).status, 404, "la réponse n'appartient pas à ce groupe");
+  assert.ok(readFileSync(RACINE + "worker/src/groupes.js", "utf8").includes("egal(await empreinte(x.jeton), r.edit)"));
+});
+await essaiWorker("Organisateur : lire, clôturer, rouvrir, supprimer une réponse, seulement avec la clé de gestion (dans le corps, jamais dans l'adresse)", async () => {
+  const env = ENV_N(); await creerGroupe(env); await repondreGroupe(env); await repondreGroupe(env, RPID(2), BLOB("C"));
+  assert.equal((await appel(env, "POST", `/v1/groupes/${GID}/lire`, { gestion: "N".repeat(43) })).status, 403, "mauvaise clé");
+  assert.equal((await appel(env, "POST", `/v1/groupes/${GID}/lire`, {})).status, 400);
+  const l = await gerer(env, "lire"); assert.equal(l.status, 200);
+  const x = await l.json();
+  assert.equal(x.ferme, false); assert.deepEqual(x.reponses.map(r => [r.rid, r.blob]).sort(), [[RPID(1), BLOB()], [RPID(2), BLOB("C")]]);
+  for(const r of x.reponses) assert.deepEqual(Object.keys(r).sort(), ["blob", "maj", "rid"]);
+  // Clôturer : plus de réponse ni de modification, et la personne invitée le voit à l'ouverture
+  assert.deepEqual(await (await gerer(env, "cloturer", { ferme: true })).json(), { ferme: true });
+  assert.equal((await repondreGroupe(env, RPID(3))).status, 423);
+  assert.equal((await appel(env, "POST", `/v1/groupes/${GID}/reponses/${RPID(1)}/modifier`, { blob: BLOB("E"), jeton: JREP })).status, 423);
+  assert.deepEqual(await (await appel(env, "GET", `/v1/liens/${GID}`)).json(), { ct: "Q2hpZmZyZQ", ferme: true });
+  assert.equal((await (await gerer(env, "lire")).json()).ferme, true);
+  assert.equal((await gerer(env, "cloturer", { ferme: "oui" })).status, 400);
+  // Rouvrir
+  await gerer(env, "cloturer", { ferme: false });
+  assert.equal((await repondreGroupe(env, RPID(3))).status, 201, "rouvert");
+  // Supprimer une réponse
+  assert.equal((await appel(env, "POST", `/v1/groupes/${GID}/reponses/${RPID(2)}/supprimer`, { gestion: "N".repeat(43) })).status, 403);
+  assert.equal((await appel(env, "POST", `/v1/groupes/${GID}/reponses/${RPID(2)}/supprimer`, { gestion: GESTION })).status, 200);
+  assert.deepEqual((await (await gerer(env, "lire")).json()).reponses.map(r => r.rid).sort(), [RPID(1), RPID(3)]);
+  assert.equal((await appel(env, "GET", `/v1/groupes/${GID}/lire`)).status, 405, "aucune lecture par GET (la clé ne passe jamais dans l'adresse)");
+});
+await essaiWorker(`${WORKER.GROUPE_REP_MAX} réponses au plus par groupe (429 « plein »)`, async () => {
+  const env = ENV_N(); await creerGroupe(env);
+  const edit = await empreinteDe(JREP), maintenant = Date.now();
+  for(let i = 0; i < WORKER.GROUPE_REP_MAX; i++) env.DB.db.prepare("INSERT INTO reponses (id, groupe_id, blob, edit, maj) VALUES (?, ?, ?, ?, ?)").run(RPID(1000 + i), GID, BLOB(), edit, maintenant);
+  const r = await repondreGroupe(env, RPID(1));
+  assert.equal(r.status, 429); assert.deepEqual(await r.json(), { erreur: "plein" });
+  assert.equal(WORKER.GROUPE_REP_MAX, 100);
+});
+await essaiWorker("Supprimer l'invitation : réponses, contenu chiffré et abonnement effacés ; ensuite « supprimée » partout ; identifiant oublié 30 jours plus tard", async () => {
+  const env = ENV_N(); await creerGroupe(env); await repondreGroupe(env);
+  await gerer(env, "abo", { abo: { endpoint: ENDPOINT_EX, keys: WP.appareil().keys } });
+  assert.equal((await appel(env, "POST", `/v1/groupes/${GID}/supprimer`, { gestion: "N".repeat(43) })).status, 403);
+  assert.equal((await gerer(env, "supprimer")).status, 200);
+  assert.equal(env.DB.db.prepare("SELECT COUNT(*) AS n FROM reponses").get().n, 0, "réponses effacées");
+  assert.deepEqual({ ...env.DB.db.prepare("SELECT ct, etat FROM liens").get() }, { ct: null, etat: "supprime" }, "invitation effacée");
+  assert.deepEqual({ ...env.DB.db.prepare("SELECT abo, etat FROM groupes").get() }, { abo: null, etat: "supprime" });
+  assert.deepEqual(await (await appel(env, "GET", `/v1/liens/${GID}`)).json(), { raison: "supprime" });
+  assert.deepEqual(await (await repondreGroupe(env, RPID(2))).json(), { raison: "supprime" });
+  assert.equal((await gerer(env, "lire")).status, 410);
+  env.DB.db.prepare("UPDATE groupes SET expire = ?").run(Date.now() - WORKER.GROUPE_GARDE - 60e3);
+  await WORKER.default.scheduled({}, env);
+  assert.equal(env.DB.db.prepare("SELECT COUNT(*) AS n FROM groupes").get().n, 0, "oublié");
+});
+await essaiWorker("Expiration : réponses refusées dès l'échéance (410), puis réponses et abonnement effacés par la tâche quotidienne", async () => {
+  const env = ENV_N(); await creerGroupe(env); await repondreGroupe(env);
+  env.DB.db.prepare("UPDATE groupes SET expire = ?").run(Date.now() - 1000);
+  env.DB.db.prepare("UPDATE liens SET expire = ?").run(Date.now() - 1000);
+  assert.deepEqual(await (await repondreGroupe(env, RPID(2))).json(), { raison: "expire" });
+  assert.equal((await appel(env, "POST", `/v1/groupes/${GID}/reponses/${RPID(1)}/modifier`, { blob: BLOB("C"), jeton: JREP })).status, 410);
+  assert.equal((await gerer(env, "lire")).status, 410);
+  await passage(env, Date.UTC(2026, 10, 24, 12, 0));
+  assert.equal(env.DB.db.prepare("SELECT COUNT(*) AS n FROM reponses").get().n, 1, "pas de nettoyage à midi");
+  await passage(env, Date.UTC(2026, 10, 24, 3, 17));
+  assert.equal(env.DB.db.prepare("SELECT COUNT(*) AS n FROM reponses").get().n, 0, "réponses effacées");
+  assert.equal(env.DB.db.prepare("SELECT etat FROM groupes").get().etat, "expire");
+  assert.equal(env.DB.db.prepare("SELECT ct FROM liens").get().ct, null, "invitation effacée");
+});
+await essaiWorker("Notifications regroupées : rien sans abonnement ; « n » réponses nouvelles ou modifiées en un envoi, au plus un toutes les 15 minutes ; appareil désabonné : effacé", async () => {
+  await avecPush(async () => {
+    const env = ENV_N(), app = WP.appareil(); await creerGroupe(env);
+    await repondreGroupe(env, RPID(1)); await passage(env);
+    assert.equal(envois.length, 0, "sans abonnement : rien");
+    assert.equal(env.DB.db.prepare("SELECT notif_n FROM groupes").get().notif_n, 0);
+    assert.equal((await gerer(env, "abo", { abo: { endpoint: "https://exemple.com/x", keys: app.keys } })).status, 400);
+    assert.equal((await gerer(env, "abo", { abo: { endpoint: ENDPOINT_EX, keys: app.keys } })).status, 200);
+    assert.ok(!env.DB.db.prepare("SELECT abo FROM groupes").get().abo.includes("fcm.googleapis.com"), "abonnement chiffré");
+    await repondreGroupe(env, RPID(2)); await repondreGroupe(env, RPID(3));
+    await appel(env, "POST", `/v1/groupes/${GID}/reponses/${RPID(1)}/modifier`, { blob: BLOB("C"), jeton: JREP });
+    await passage(env);
+    assert.equal(envois.length, 1);
+    WP.verifierVapid(envois[0].headers.Authorization, ENDPOINT_EX, VAPID_TEST.pub);
+    assert.deepEqual(JSON.parse(WP.dechiffrer(app, envois[0].corps)), { v: 1, k: "grp", i: GID, n: 3 }, "rien que l'identifiant et le nombre");
+    await repondreGroupe(env, RPID(4)); await passage(env);
+    assert.equal(envois.length, 1, "pas avant 15 minutes");
+    env.DB.db.prepare("UPDATE groupes SET notif_der = ?").run(Date.now() - WORKER.GROUPE_NOTIF_ECART - 1000);
+    await passage(env);
+    assert.equal(envois.length, 2); assert.equal(JSON.parse(WP.dechiffrer(app, envois[1].corps)).n, 1);
+    // Appareil désabonné
+    codePush = 410; await repondreGroupe(env, RPID(5));
+    env.DB.db.prepare("UPDATE groupes SET notif_der = ?").run(Date.now() - WORKER.GROUPE_NOTIF_ECART - 1000);
+    await passage(env);
+    assert.equal(env.DB.db.prepare("SELECT abo FROM groupes").get().abo, null);
+    // Couper les notifications
+    await gerer(env, "abo", { abo: { endpoint: ENDPOINT_EX, keys: app.keys } }); await gerer(env, "abo", { abo: null });
+    assert.equal(env.DB.db.prepare("SELECT abo FROM groupes").get().abo, null);
+    assert.equal(WORKER.GROUPE_NOTIF_ECART, 15 * 60e3);
+  });
+});
+await essaiWorker("Budget partagé : révélations, rappels et groupes, RAPPEL_LOT envois au plus par passage en tout", async () => {
+  await avecPush(async () => {
+    const env = ENV_N(), app = WP.appareil();
+    for(let i = 0; i < WORKER.RAPPEL_LOT; i++){ await programmerRdv(env, app, DID(i), Date.now() + 3600e3); rdvDu(env, DID(i), 1000); }
+    await creerGroupe(env); await gerer(env, "abo", { abo: { endpoint: ENDPOINT_EX, keys: app.keys } }); await repondreGroupe(env);
+    await passage(env);
+    assert.equal(envois.length, WORKER.RAPPEL_LOT, "budget du passage respecté");
+    await passage(env);
+    assert.equal(envois.length, WORKER.RAPPEL_LOT + 1, "le groupe part au passage suivant");
+    assert.equal(JSON.parse(WP.dechiffrer(app, envois.at(-1).corps)).k, "grp");
+  });
+});
+await essaiWorker("Limites par adresse IP, CORS limité au site, routes inconnues", async () => {
+  const comptes = new Map(), limiteur = { limit: async ({ key }) => { const n = (comptes.get(key) || 0) + 1; comptes.set(key, n); return { success: n <= 2 }; } };
+  const env = ENV_N({ LIMITE_ENVOI: limiteur }); await creerGroupe(env);
+  const st = []; for(let i = 0; i < 3; i++) st.push((await repondreGroupe(env, RPID(10 + i))).status);
+  assert.deepEqual(st, [201, 201, 429]);
+  assert.equal((await appel(ENV_N(), "POST", "/v1/groupes", {}, "https://pirate.example")).status, 403);
+  assert.equal((await appel(env, "POST", `/v1/groupes/${GID}/autre`, { gestion: GESTION })).status, 404);
+  assert.equal((await appel(env, "POST", `/v1/groupes/${GID}`, { gestion: GESTION })).status, 404);
+  const env2 = ENV_N(); await creerGroupe(env2);
+  assert.equal((await appel(env2, "POST", `/v1/groupes/${GID}/reponses`, "x".repeat(WORKER.GROUPE_CORPS_MAX + 1))).status, 413);
+  const src = readFileSync(RACINE + "worker/src/index.js", "utf8");
+  assert.ok(src.includes("await envoyerGroupes(env, maintenant, RAPPEL_LOT - faits - faitsRdv);") && src.includes("await nettoyerGroupes(env, maintenant);"));
+});
+
 /* ---------- Bilan ---------- */
 console.log(`\n${ko ? "❌" : "✅"} ${ok} tests réussis, ${ko} en échec (graine ${GRAINE}${ko ? ` — pour rejouer : node tests/run.mjs --graine=${GRAINE}` : ""})`);
 if(ko){ console.log(echecs.map(e => "  - " + e).join("\n")); process.exitCode = 1; }

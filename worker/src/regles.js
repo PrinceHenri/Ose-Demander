@@ -32,6 +32,15 @@ export const RDV_PAR_ABO = 10;                        // rappels en attente au p
 export const RDV_GARDE = 2 * 3600 * 1000;             // pas encore parti 2 h après l'heure prévue : supprimé sans envoi (il ne sert plus à rien)
 export const RDV_REESSAI = 5 * 60 * 1000;             // erreur passagère du service de notification : nouvel essai 5 minutes plus tard
 
+/* Invitations de groupe */
+export const GROUPE_REP_MAX = 100;                    // réponses par groupe
+export const GROUPE_BLOB_MIN = 140;                   // réponse chiffrée : version, clé éphémère, IV, contenu et étiquette (base64url)
+export const GROUPE_BLOB_MAX = 2048;                  // 2 Ko au plus par réponse chiffrée
+export const GROUPE_CORPS_MAX = 4096;                 // taille maximale d'une requête de réponse ou de gestion
+export const GROUPE_DUREE_MAX = 365 * 24 * 3600 * 1000; // un an au plus (le site calcule : dernier créneau + 3 mois, sans date : 6 mois)
+export const GROUPE_GARDE = 30 * 24 * 3600 * 1000;    // expiré ou supprimé : identifiant gardé 30 jours (sans réponse ni abonnement)
+export const GROUPE_NOTIF_ECART = 15 * 60 * 1000;     // au plus une notification toutes les 15 minutes par groupe
+
 /* Requêtes SQL (les seules utilisées ; le banc de test les reconnaît) */
 export const SQL = {
   rappelCreer:    "INSERT INTO rappels (id, abo, del, heure, prochain, etat) VALUES (?1, ?2, ?3, ?4, ?5, NULL)",
@@ -47,6 +56,25 @@ export const SQL = {
   rdvEffacer:     "DELETE FROM rdv WHERE id = ?1",
   rdvReessai:     "UPDATE rdv SET prochain = ?1 WHERE id = ?2",
   rdvOublier:     "DELETE FROM rdv WHERE heure < ?1",
+  groupeCreer:    "INSERT INTO groupes (id, gestion, ferme, expire, cree, etat, abo, notif_der, notif_n) VALUES (?1, ?2, 0, ?3, ?4, NULL, NULL, NULL, 0)",
+  groupeLire:     "SELECT gestion, ferme, expire, etat, abo FROM groupes WHERE id = ?1",
+  groupeFerme:    "SELECT ferme FROM groupes WHERE id = ?1 AND etat IS NULL",
+  groupeFermer:   "UPDATE groupes SET ferme = ?1 WHERE id = ?2",
+  groupeAbo:      "UPDATE groupes SET abo = ?1, notif_n = 0 WHERE id = ?2",
+  groupeNouvelle: "UPDATE groupes SET notif_n = notif_n + 1 WHERE id = ?1",
+  groupeSignale:  "UPDATE groupes SET notif_der = ?1, notif_n = ?2 WHERE id = ?3",
+  groupeFin:      "UPDATE groupes SET etat = ?1, expire = MIN(expire, ?2), abo = NULL, notif_n = 0 WHERE id = ?3",
+  groupesASignaler: "SELECT id, abo, notif_n FROM groupes WHERE notif_n > 0 AND abo IS NOT NULL AND etat IS NULL AND (notif_der IS NULL OR notif_der <= ?1) AND expire > ?2 ORDER BY notif_der LIMIT ?3",
+  groupesExpirer: "UPDATE groupes SET etat = 'expire', abo = NULL, notif_n = 0 WHERE expire < ?1 AND etat IS NULL",
+  groupesOublier: "DELETE FROM groupes WHERE expire < ?1 AND etat IS NOT NULL",
+  reponseCreer:   "INSERT INTO reponses (id, groupe_id, blob, edit, maj) VALUES (?1, ?2, ?3, ?4, ?5)",
+  reponseLire:    "SELECT groupe_id, edit FROM reponses WHERE id = ?1",
+  reponseModifier: "UPDATE reponses SET blob = ?1, maj = ?2 WHERE id = ?3",
+  reponseEffacer: "DELETE FROM reponses WHERE id = ?1",
+  reponsesCompter: "SELECT COUNT(*) AS n FROM reponses WHERE groupe_id = ?1",
+  reponsesLire:   "SELECT id, blob, maj FROM reponses WHERE groupe_id = ?1 ORDER BY maj",
+  reponsesEffacerGroupe: "DELETE FROM reponses WHERE groupe_id = ?1",
+  reponsesOrphelines: "DELETE FROM reponses WHERE groupe_id IN (SELECT id FROM groupes WHERE etat IS NOT NULL)",
   notifCreer:     "INSERT INTO notifs (id, abo, del, expire, etat) VALUES (?1, ?2, ?3, ?4, NULL)",
   notifLire:      "SELECT abo, del, expire, etat FROM notifs WHERE id = ?1",
   notifFin:       "UPDATE notifs SET abo = NULL, etat = ?1 WHERE id = ?2 AND etat IS NULL",
