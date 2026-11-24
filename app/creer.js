@@ -1226,7 +1226,8 @@ async function buildLink(nz, gp){
    (localStorage). Jamais envoyé nulle part, jamais lu côté destinataire.
    ========================================================= */
 const HIST_KEY="ose-historique", HIST_MAX=200, SITE_HOST="osedemander.fr";
-const HIST_FIELDS=["id","from","to","occ","occFree","when","link","created","long","jeton","gone","img","imgJeton","nid","njeton","rep","repAt","repSlot","ok","okSlot","orga"];
+const HIST_FIELDS=["id","from","to","occ","occFree","when","link","created","long","jeton","gone","img","imgJeton","nid","njeton","rep","repAt","repSlot","ok","okSlot","orga","grs"];
+// grs : résumé des réponses d'un groupe, gardé à chaque lecture du tableau de bord ({o, p, n, pers} : des nombres, jamais de prénom)
 // Invitation de groupe : link = lien invités (#g=ID.CLÉ), orga = lien organisateur (#ga=ID.CLÉ.D, la clé privée : lit les réponses)
 const GRP_LINK=/^#g=([A-Za-z0-9_-]{22})\.([A-Za-z0-9_-]{22})$/, GRP_ORGA_LINK=/^#ga=([A-Za-z0-9_-]{22})\.([A-Za-z0-9_-]{22})\.([A-Za-z0-9_-]{43})$/;
 const hashOf = link => { try{ return new URL(link).hash; }catch(e){ return ""; } };
@@ -1278,7 +1279,10 @@ function validEntry(x){
   const g=GRP_LINK.exec(hashOf(x.link));
   if(g || x.orga!==undefined){
     const o=isOrgaLink(x.orga) ? GRP_ORGA_LINK.exec(hashOf(x.orga)) : null;
-    return !!g && !!o && o[1]===g[1] && o[2]===g[2] && new URL(x.orga).origin===new URL(x.link).origin
+    const n=v=>Number.isInteger(v) && v>=0 && v<=600, grs=x.grs;
+    const okGrs = grs===undefined || (grs && typeof grs==="object" && !Array.isArray(grs) && Object.keys(grs).sort().join()==="n,o,p,pers"
+      && n(grs.o) && n(grs.p) && n(grs.n) && n(grs.pers) && grs.o+grs.p+grs.n<=100);
+    return !!g && !!o && okGrs && o[1]===g[1] && o[2]===g[2] && new URL(x.orga).origin===new URL(x.link).origin
       && ["long","jeton","gone","img","imgJeton","nid","njeton","rep","repAt","repSlot","ok","okSlot"].every(k=>x[k]===undefined);
   }
   // Acceptation notée à la main : une date, et le créneau s'il y en a plusieurs
@@ -1536,15 +1540,19 @@ function histCardEnv(it){
         </li>`;
 }
 /* Invitation de groupe : pastille « Groupe » ; les réponses se lisent avec le lien organisateur (tableau de bord) */
+// « 8 oui, 3 peut-être, 2 non » (le dernier relevé du tableau de bord)
+const grsTexte = g => `${g.o} oui, ${g.p} peut-être, ${g.n} non`;
 function histCardGroupe(it){
   return `
         <li data-id="${esc(it.id)}">
           <p class="who">Pour ${esc(it.to)} <span class="tag-groupe">Groupe</span></p>
+          ${it.grs ? `<p class="rep">${grsTexte(it.grs)}</p>` : ""}
           <p class="meta">De ${esc(it.from)} · ${esc(histOcc(it))}</p>
           <p class="meta">${esc(histWhen(it))}</p>
           <p class="meta">Créée le ${esc(new Date(it.created).toLocaleDateString("fr-FR",{day:"numeric",month:"long",year:"numeric"}))}</p>
           <div class="acts">
-            <button type="button" class="btn sm primary" data-act="copy">Copier le lien</button>
+            <button type="button" class="btn sm primary" data-act="voir">Voir les réponses</button>
+            <button type="button" class="btn sm" data-act="copy">Copier le lien</button>
             <button type="button" class="btn sm" data-act="orga">Copier le lien organisateur</button>
             <button type="button" class="btn sm ghost" data-act="del">Retirer de l'historique</button>
           </div>
@@ -1691,6 +1699,7 @@ function renderHistory(){
     if(!it){ renderHistory(); return; }
     switch(b.dataset.act){
       case "orga": toast(await copyText(it.orga) ? "Lien organisateur copié : garde-le pour toi" : "Copie impossible"); break;
+      case "voir": location.hash="#groupe="+GRP_LINK.exec(hashOf(it.link))[1]; break;
       case "copy": { const l=it.gone ? it.long : it.link; toast(await copyText(l) ? (it.gone ? "Lien complet copié (le lien court a été supprimé)" : "Lien copié") : "Copie impossible"); break; }
       case "open": window.open(invLink(it),"_blank","noopener"); break;
       case "dup": duplicateInvitation(it); break;
@@ -1885,4 +1894,4 @@ async function importHistory(file){
   toast(msg);
 }
 
-oseLoaded("creer", "0b483ec526");
+oseLoaded("creer", "882f407d45");

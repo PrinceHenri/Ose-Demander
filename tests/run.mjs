@@ -4565,7 +4565,7 @@ await test("Mes invitations : entrée de groupe validée strictement (deux liens
   const carte = P.lire("histCardEnv")(e);
   assert.ok(carte.includes('<span class="tag-groupe">Groupe</span>') && carte.includes('data-act="orga"'));
   assert.equal((carte.match(/class="btn sm primary"/g) || []).length, 1, "une seule action principale");
-  assert.ok(carte.includes('class="btn sm primary" data-act="copy">Copier le lien'));
+  assert.ok(carte.includes('class="btn sm primary" data-act="voir">Voir les réponses'));
   for(const non of ['data-act="ok"', 'data-act="cal"', 'data-act="dup"', 'data-act="unpub"', "hist-rebours"]) assert.ok(!carte.includes(non), non);
   // Export puis import sur un autre appareil : l'entrée de groupe revient telle quelle, clé comprise
   const stockage = new Map([["ose-historique", JSON.stringify([e])]]), A = chargerPage({ stockage });
@@ -4716,6 +4716,90 @@ await test("Fichier à part : chargé au Oui (préparé à l'ouverture), version
   assert.ok(/"grp\.[a-z.0-9]+": "/.test(textes));
   assert.ok(!/·e\b|accompagné|seul\b|prévenu/.test(textes), "textes neutres");
   assert.ok(gzipSync(f).length < 5000, `${gzipSync(f).length} octets compressés`);
+});
+
+/* =========================================================
+   54. Invitation de groupe : le tableau de bord de l'organisateur (#ga=, #groupe=, compteurs, liste, résumé)
+   ========================================================= */
+titre("54. Invitation de groupe : le tableau de bord");
+const FICH_ORGA = ["scenes", "creer", "groupe-commun", "groupe-orga"];
+async function tableauDeTest(g, arg, stockage = new Map()){
+  const P = chargerPage({ fichiers: FICH_ORGA, stockage }); P.ecrire("shortFetch", g.r.f);
+  await P.lire("renderTableau")(arg);
+  return P;
+}
+async function repondreA(g, reps){
+  const P = chargerPage({ fichiers: ["scenes", "creer", "groupe-commun"] }); P.ecrire("shortFetch", g.r.f);
+  for(const rep of reps) assert.equal((await P.lire("grpRepondre")(g.id, rep, g.gp)).etat, "ok");
+}
+await essaiWorker("Lien organisateur sur un autre appareil : réponses déchiffrées, compteurs, personnes attendues ; l'invitation rejoint les Envoyées ; la clé quitte l'adresse", async () => {
+  const g = await groupeDeTest();
+  await repondreA(g, [{ p: "Sam", r: "o", a: 2, m: "Avec plaisir" }, { p: "Lou", r: "p", a: 1 }, { p: "Zoé", r: "o" }, { p: "Max", r: "n" }]);
+  const stockage = new Map(), P = await tableauDeTest(g, { id: g.id, key: g.key, d: g.d }, stockage);
+  const h = P.zones["#app"].innerHTML;
+  assert.ok(h.includes("Les réponses") && h.includes("Pour La bande, de Alex"));
+  assert.ok(/grp-cpt-o"><b>2<\/b>/.test(h) && /grp-cpt-p"><b>1<\/b>/.test(h) && /grp-cpt-n"><b>1<\/b>/.test(h), "2 oui, 1 peut-être, 1 non");
+  assert.ok(h.includes("4 personnes attendues, accompagnants compris.") && h.includes("Et 2 peut-être."), "Oui avec accompagnants : 3 + 1");
+  for(const t of ["<b>Sam</b>", "avec 2 personnes", "Avec plaisir", "<b>Lou</b>", "avec 1 personne<", "<b>Zoé</b>", "<b>Max</b>"]) assert.ok(h.includes(t), t);
+  assert.ok(h.indexOf("<b>Sam</b>") < h.indexOf("<b>Lou</b>") && h.indexOf("<b>Lou</b>") < h.indexOf("<b>Max</b>"), "Oui, puis Peut-être, puis Non");
+  assert.equal((h.match(/class="btn sm primary"/g) || []).length, 1); assert.ok(h.includes('id="orgaMaj">Actualiser'));
+  for(const t of ["Copier le lien du groupe", "Clôturer les réponses", "Supprimer l&#39;invitation", 'data-suppr="']) assert.ok(h.includes(t), t);
+  assert.ok(h.includes("Réponses ouvertes"));
+  const hist = JSON.parse(stockage.get("ose-historique"));
+  assert.equal(hist.length, 1, "ajoutée aux Envoyées de cet appareil");
+  assert.ok(hist[0].orga.endsWith(`#ga=${g.id}.${g.key}.${g.d}`));
+  assert.deepEqual(hist[0].grs, { o: 2, p: 1, n: 1, pers: 4 }, "résumé gardé (des nombres seulement)");
+  assert.ok(!P.location.hash.includes(g.d), "la clé privée ne reste pas dans l'adresse");
+  assert.ok(P.lire("renderTableau").toString().includes('history.replaceState(null, "", location.pathname+"#groupe="+id)'));
+  // Rouvert par #groupe=ID : relu dans « Mes invitations »
+  const Q = await tableauDeTest(g, { id: g.id }, stockage);
+  assert.ok(/grp-cpt-o"><b>2<\/b>/.test(Q.zones["#app"].innerHTML));
+  // Carte des Envoyées : le résumé et « Voir les réponses »
+  const carte = Q.lire("histCardEnv")(hist[0]);
+  assert.ok(carte.includes("2 oui, 1 peut-être, 1 non") && carte.includes('class="btn sm primary" data-act="voir">Voir les réponses'));
+});
+await essaiWorker("Lien organisateur invalide (clé d'un autre groupe) : message clair, rien n'est ajouté ; #groupe= inconnu sur cet appareil ; invitation supprimée", async () => {
+  const g = await groupeDeTest(), autre = await chargerPage({ fichiers: FICH_ORGA }).lire("grpCles")();
+  const stockage = new Map(), P = await tableauDeTest(g, { id: g.id, key: g.key, d: autre.d }, stockage);
+  assert.ok(P.zones["#app"].innerHTML.includes("Lien organisateur invalide") && P.zones["#app"].innerHTML.includes("Ce lien ne permet pas de lire les réponses de cette invitation."));
+  assert.equal(stockage.get("ose-historique"), undefined, "rien n'est ajouté");
+  const Q = await tableauDeTest(g, { id: g.id });
+  assert.ok(Q.zones["#app"].innerHTML.includes("n&#39;est pas dans « Mes invitations » sur cet appareil"));
+  const R0 = chargerPage({ fichiers: FICH_ORGA }); R0.ecrire("shortFetch", g.r.f); await R0.lire("grpSupprimer")(g.id, g.d);
+  const R = await tableauDeTest(g, { id: g.id, key: g.key, d: g.d });
+  assert.ok(R.zones["#app"].innerHTML.includes("Cette invitation a été supprimée : ses réponses ont été effacées."));
+});
+await essaiWorker("Réponses closes, liste vide, réponse illisible écartée et comptée", async () => {
+  const g = await groupeDeTest();
+  const P0 = chargerPage({ fichiers: FICH_ORGA }); P0.ecrire("shortFetch", g.r.f);
+  let P = await tableauDeTest(g, { id: g.id, key: g.key, d: g.d });
+  assert.ok(P.zones["#app"].innerHTML.includes("Aucune réponse pour l&#39;instant."));
+  await P0.lire("grpCloturer")(g.id, g.d, true);
+  // Une réponse chiffrée vers une autre clé publique (illisible pour cet organisateur)
+  g.r.env.DB.db.prepare("INSERT INTO reponses (id, groupe_id, blob, edit, maj) VALUES (?, ?, ?, ?, ?)").run("X".repeat(22), g.id,
+    await P0.lire("grpSceller")(g.id, "X".repeat(22), { p: "Intrus", r: "o" }, (await P0.lire("grpCles")()).gp), "E".repeat(43), Date.now());
+  P = await tableauDeTest(g, { id: g.id, key: g.key, d: g.d });
+  const h = P.zones["#app"].innerHTML;
+  assert.ok(h.includes("Réponses closes") && h.includes('id="orgaClos">Rouvrir les réponses'));
+  assert.ok(h.includes("1 réponse illisible écartée.") && !h.includes("Intrus"));
+});
+await test("Envoyées : résumé validé strictement (des nombres, 100 réponses au plus)", () => {
+  const P = chargerPage(), v = P.lire("validEntry"), base = LOCAL + "/", id = "I".repeat(22), key = "K".repeat(22);
+  const e = { id: "abc123def", from: "Alex", to: "La bande", occ: "soiree", when: [["2027-02-13", "20:00"]], link: base + `#g=${id}.${key}`, orga: base + `#ga=${id}.${key}.${"D".repeat(43)}`, created: new Date().toISOString() };
+  assert.ok(v({ ...e, grs: { o: 8, p: 3, n: 2, pers: 14 } }));
+  for(const grs of [{ o: 1, p: 0, n: 0 }, { o: 1, p: 0, n: 0, pers: 1, x: 1 }, { o: -1, p: 0, n: 0, pers: 0 }, { o: 90, p: 10, n: 1, pers: 1 }, { o: "1", p: 0, n: 0, pers: 1 }, [1]])
+    assert.ok(!v({ ...e, grs }), JSON.stringify(grs));
+  assert.ok(!v({ ...e, link: base + "#s=" + id + "." + key, orga: undefined, grs: { o: 1, p: 0, n: 0, pers: 1 } }), "résumé seulement pour un groupe");
+});
+await test("Fichier à part : chargé pour #ga= et #groupe=, versionné, précaché ; textes regroupés ; route", () => {
+  const f = readFileSync(RACINE + "app/groupe-orga.js", "utf8"), sw = readFileSync(RACINE + "sw.js", "utf8"), html = readFileSync(RACINE + "index.html", "utf8");
+  const v = (f.match(/oseLoaded\("groupeOrga", "([0-9a-f]{10})"\)/) || [])[1];
+  assert.ok(v && sw.includes(`"./app/groupe-orga.js?v=${v}"`) && html.includes(`groupeOrga:"${v}"`));
+  assert.ok(CSP.FICHIERS.some(x => x.chemin === "app/groupe-orga.js"));
+  assert.ok(html.includes('renderTableau(mga ? {id:mga[1], key:mga[2], d:mga[3]} : {id:mgt[1]})'));
+  assert.ok(/"orga\.[a-z.]+": "/.test(f.slice(f.indexOf("const ORGA_TEXTES"), f.indexOf("};", f.indexOf("const ORGA_TEXTES")))));
+  assert.ok(gzipSync(f).length < 5000, `${gzipSync(f).length} octets compressés`);
+  assert.ok(!html.includes("renderTableau(") || html.indexOf("renderTableau(") > html.indexOf("CRÉATEUR"), "le tableau de bord n'est pas dans la partie de la personne invitée");
 });
 
 /* ---------- Bilan ---------- */
