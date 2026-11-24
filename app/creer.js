@@ -430,6 +430,7 @@ function readyGroupeHTML(share){
         ${share ? `<button type="button" class="btn primary" id="share">Partager le lien</button>
         <button type="button" class="btn" id="copy">Copier le lien</button>`
         : `<button type="button" class="btn primary" id="copy">Copier le lien</button>`}
+        <button type="button" class="btn" id="imgOpen">Partager en image</button>
       </div>
       <div class="linkbox one" id="linkbox">${esc(S.link)}</div>
       <button type="button" class="linkbtn" id="showLink" aria-expanded="false" aria-controls="linkbox">Afficher le lien en entier</button>
@@ -891,7 +892,7 @@ function bindCreator(){
   $("#copy")?.addEventListener("click",async()=>{ toast(await copyText(S.link)?"Lien copié":"Copie impossible, sélectionne le lien à la main"); });
   $("#orgaCopy")?.addEventListener("click",async()=>{ toast(await copyText(S.orgaLink)?"Lien organisateur copié : garde-le pour toi":"Copie impossible"); });
   $("#orgaShare")?.addEventListener("click",()=>navigator.share({title:"Ose Demander", text:`Mon lien organisateur pour « ${S.to} » (à garder pour moi, il permet de lire les réponses)`, url:S.orgaLink}).catch(()=>{}));
-  $("#imgOpen")?.addEventListener("click", e=>openImageSheet(e.currentTarget));
+  $("#imgOpen")?.addEventListener("click", e=>openImageSheet(e.currentTarget, S.groupe ? grpImageDeS() : null));
   $("#share")?.addEventListener("click",()=>navigator.share({title:"Ose Demander",text:shareText(),url:S.link}).catch(()=>{}));
   $("#showLink")?.addEventListener("click",e=>{
     const open=$("#linkbox").classList.toggle("one")===false;
@@ -1118,8 +1119,9 @@ async function drawInviteImage(fmt, o, canvas=document.createElement("canvas")){
   canvas.width=w; canvas.height=h;
   const x=canvas.getContext("2d"), font=(weight, px)=>`${weight} ${px}px "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif`;
   try{ await Promise.all([font(800, 64), font(600, 34), `700 90px "Caveat"`].map(f=>document.fonts.load(f))); }catch(e){}
-  const court=o.link.includes("#s="), q=qrEncode(o.link, court ? "Q" : "M"), dense=q.size>61, logo=court && !dense;
-  const texte=`${o.to}, j'ai une question pour toi\u00A0💌`, seed=[...o.to].reduce((a, c)=>a*31+c.charCodeAt(0), 7);
+  if(String(o.link).includes("#ga=")) throw new Error("lien organisateur"); // jamais dans une image (il permet de lire les réponses)
+  const court=/#[sg]=/.test(o.link), q=qrEncode(o.link, court ? "Q" : "M"), dense=q.size>61, logo=court && !dense;
+  const texte=`${o.to}, j'ai une question pour ${o.groupe ? "vous" : "toi"}\u00A0💌`, seed=[...o.to].reduce((a, c)=>a*31+c.charCodeAt(0), 7);
   // Disposition. Code dense (lien complet, en repli seulement) : enveloppe et banderole plus petites, code plus grand
   const L = story
     ? (dense ? {env:300, envX:w/2-150, envY:40, ban:[60, 270, w-120, 190], tk:[70, 540, w-140, 1330], stub:150, qr:900}
@@ -1149,8 +1151,18 @@ function imageWhoNote(group, hasId, hasNz){
   if(group) return `L'image ouvre une version ${hasId && hasNz ? "sans tes coordonnées ni la notification de réponse" : hasId ? "sans ton numéro ni ton nom d'utilisateur" : "sans la notification de réponse"} : elle peut circuler sans risque. La réponse se fera par le partage du téléphone.`;
   return `L'image ouvre l'invitation comme le lien direct${hasId ? ", avec tes coordonnées" : ""}${hasNz ? (hasId ? " et la notification de réponse" : ", avec la notification de réponse") : ""}. Envoie-la seulement à ${to}.`;
 }
-function openImageSheet(opener){
-  const hasId=!!S.chId, hasNz=!!S.nz, ask=hasId||hasNz, st={fmt:"story", strip:true, file:null, url:"", job:0};
+/* Invitation de groupe : l'image porte UNIQUEMENT le lien invités (#g=), jamais le lien organisateur (#ga=) */
+function grpImageLien(link){ return typeof link==="string" && !link.includes("#ga=") && GRP_LINK.test(hashOf(link)) ? link : null; }
+// Ce que le dessin reçoit pour un groupe, relu depuis l'invitation chiffrée (Envoyées) : prénoms, thème, occasion, lien invités
+async function grpImageCtx(it){
+  const g=GRP_LINK.exec(hashOf(it.link)); if(!g) return null;
+  const d=await decodeData(await readShort(g[1], g[2]));
+  return {link:it.link, to:d.t, th:d.th, ac:d.ac||"", occ:d.o, em:d.em||"", from:d.f};
+}
+const grpImageDeS = () => ({link:S.link, to:S.to, th:S.theme, ac:S.ac, occ:S.occ, em:S.em, from:S.from});
+/* grp : contexte d'une invitation de groupe ({link, to, th, ac, occ, em, from}), sinon l'invitation en cours de création (S) */
+function openImageSheet(opener, grp=null){
+  const hasId=!grp && !!S.chId, hasNz=!grp && !!S.nz, ask=hasId||hasNz, st={fmt:"story", strip:true, file:null, url:"", job:0};
   const d=document.createElement("div"); d.className="sheet img-sheet"; d.setAttribute("role","dialog"); d.setAttribute("aria-modal","true"); d.setAttribute("aria-labelledby","imgTitle");
   d.innerHTML=`<div class="sheet-card">
     <h3 id="imgTitle" tabindex="-1">Partager en image</h3>
@@ -1162,7 +1174,8 @@ function openImageSheet(opener){
     </div>
     <p class="hint" id="imgWhoNote" aria-live="polite">${imageWhoNote(true, hasId, hasNz)}</p>` : ""}
     <div class="img-prev" id="imgPrevBox"><p class="img-wait" role="status">Préparation de l'image…</p></div>
-    <p class="hint">Toute personne qui scanne ce code peut ouvrir l'invitation, avec son lieu et sa date. Pour une story publique, pense à qui pourra la voir.</p>
+    <p class="hint">${grp ? "Toute personne qui scanne ce code peut ouvrir l'invitation et y répondre. Le lien organisateur n'est jamais dans l'image. Pour une story publique, pense à qui pourra la voir."
+      : "Toute personne qui scanne ce code peut ouvrir l'invitation, avec son lieu et sa date. Pour une story publique, pense à qui pourra la voir."}</p>
     <div class="btns img-btns" id="imgBtns" hidden>
       <button type="button" class="btn primary" id="imgSend">Partager l'image</button>
       <a class="btn" id="imgSave" href="#" download="invitation-ose-demander.png">Enregistrer l'image</a>
@@ -1174,16 +1187,17 @@ function openImageSheet(opener){
   const box=$("#imgPrevBox", d), btns=$("#imgBtns", d), send=$("#imgSend", d), save=$("#imgSave", d);
   const prepare=async()=>{
     const job=++st.job; btns.hidden=true; box.innerHTML=`<p class="img-wait" role="status">Préparation de l'image…</p>`;
-    let link=null; try{ link=await imageLink(st.strip); }catch(e){}
+    let link=null; try{ link = grp ? grpImageLien(grp.link) : await imageLink(st.strip); }catch(e){}
     if(job!==st.job) return;
     if(!link){ box.innerHTML=`<p class="img-wait" role="status">${IMG_UNAVAILABLE}</p>`; return; }
-    const {canvas}=await drawInviteImage(st.fmt, {to:S.to, th:S.theme, ac:S.ac, occ:S.occ, em:S.em, initial:(S.from||"?").trim().charAt(0).toUpperCase(), link});
+    const {canvas}=await drawInviteImage(st.fmt, grp ? {to:grp.to, th:grp.th, ac:grp.ac, occ:grp.occ, em:grp.em, initial:(grp.from||"?").trim().charAt(0).toUpperCase(), link, groupe:true}
+      : {to:S.to, th:S.theme, ac:S.ac, occ:S.occ, em:S.em, initial:(S.from||"?").trim().charAt(0).toUpperCase(), link});
     const blob=await new Promise(r=>canvas.toBlob(r, "image/png"));
     if(job!==st.job || !blob) return;
     if(st.url) URL.revokeObjectURL(st.url);
     st.url=URL.createObjectURL(blob);
     st.file=new File([blob], `invitation-ose-demander-${st.fmt}.png`, {type:"image/png"});
-    box.innerHTML=`<img src="${st.url}" alt="Image à partager : « ${esc(S.to)}, j'ai une question pour toi », avec un QR code qui ouvre l'invitation">`;
+    box.innerHTML=`<img src="${st.url}" alt="Image à partager : « ${esc(grp ? grp.to : S.to)}, j'ai une question pour ${grp ? "vous" : "toi"} », avec un QR code qui ouvre l'invitation">`;
     save.href=st.url; save.download=st.file.name;
     const canShare=!!(navigator.canShare && navigator.canShare({files:[st.file]}));
     send.hidden=!canShare; save.classList.toggle("primary", !canShare); // une seule action principale
@@ -1201,7 +1215,7 @@ function openImageSheet(opener){
       prepare();
     }
   });
-  send.addEventListener("click", ()=>{ if(st.file) navigator.share({files:[st.file], title:"Ose Demander", text:shareText()}).catch(()=>{}); });
+  send.addEventListener("click", ()=>{ if(st.file) navigator.share({files:[st.file], title:"Ose Demander", text: grp ? `${grp.to}, j'ai une question pour vous 💌` : shareText()}).catch(()=>{}); });
   $("#imgClose", d).addEventListener("click", close);
   document.addEventListener("keydown", onKey);
   document.body.appendChild(d); focusScreen("#imgTitle");
@@ -1574,6 +1588,7 @@ function histCardGroupe(it){
           <div class="acts">
             <button type="button" class="btn sm primary" data-act="voir">Voir les réponses</button>
             <button type="button" class="btn sm" data-act="copy">Copier le lien</button>
+            <button type="button" class="btn sm" data-act="qr">QR code du lien invités</button>
             <button type="button" class="btn sm" data-act="orga">Copier le lien organisateur</button>
             <button type="button" class="btn sm ghost" data-act="del">Retirer de l'historique</button>
           </div>
@@ -1740,6 +1755,7 @@ function renderHistory(){
     switch(b.dataset.act){
       case "orga": toast(await copyText(it.orga) ? "Lien organisateur copié : garde-le pour toi" : "Copie impossible"); break;
       case "voir": location.hash="#groupe="+GRP_LINK.exec(hashOf(it.link))[1]; break;
+      case "qr": { let ctx=null; try{ ctx=await grpImageCtx(it); }catch(err){} if(ctx) openImageSheet(b, ctx); else toast(IMG_UNAVAILABLE); break; }
       case "copy": { const l=it.gone ? it.long : it.link; toast(await copyText(l) ? (it.gone ? "Lien complet copié (le lien court a été supprimé)" : "Lien copié") : "Copie impossible"); break; }
       case "open": window.open(invLink(it),"_blank","noopener"); break;
       case "dup": duplicateInvitation(it); break;
@@ -1934,4 +1950,4 @@ async function importHistory(file){
   toast(msg);
 }
 
-oseLoaded("creer", "d2e4388666");
+oseLoaded("creer", "d98f3d167f");
