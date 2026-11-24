@@ -326,6 +326,10 @@ Ouvrir une invitation depuis son QR code (`app/scanner.js`, chargé au toucher d
 - **Vue plein écran** (`.scan-vue`, fond `--ink`, texte `--bg`) : cadre carré (`.scan-cadre`) dont le voile `color-mix(--ink 72 %)` assombrit le reste, coins arrondis à l'`--accent` qui pulsent doucement ; « Place le QR code dans le cadre » ; Fermer rond 48 px en haut ; « Choisir une image » en bas. Réussite : dernière image figée, coins qui se resserrent avec rebond, vibration courte, puis fondu vers l'enveloppe. Refus : secousse du cadre et bulle (`.scan-bulle`, ombre décalée à l'accent) « Ce QR code ne vient pas d'Ose Demander » avec « Réessayer » ; le contenu lu n'est JAMAIS affiché. Image choisie : vignette dans le cadre et ligne de lecture qui balaie.
 - **Moins de mouvement** : ni pulsation, ni secousse, ni rebond, ni vibration ; fondus seulement. Espaces insécables devant « ? ! : ; » dans les textes.
 
+## 2 unvicies. Accès à l'accueil après la réponse
+
+Pastille « Accueil » (icône maison `HOME_ICONE` + texte, `.home-lien`, `lienAccueil()`), fixée **en haut à gauche**, pendant exact du bouton « Son » en haut à droite : même style (contour 2px encre, fond `--surface`, sans ombre, 14px), zone touchable de 44 px (`::after`), `aria-label="Aller à l'accueil"`, lien `./`. Elle n'apparaît **qu'après la réponse** : après le Oui, le vrai refus, dans le formulaire d'un groupe (et « Réponse envoyée »), sur la carte du rappel d'agenda. Jamais sur l'enveloppe ni la question (rien ne détourne du Oui ou du Non), jamais dans l'exemple (bannière « Retour »). Ce n'est pas une action principale.
+
 ## 3. Typographie : deux polices, pas une de plus
 
 Polices **hébergées dans `fonts/`** (licence SIL OFL, aucun appel à Google Fonts — RGPD).

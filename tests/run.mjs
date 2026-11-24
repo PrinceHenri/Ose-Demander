@@ -5106,6 +5106,29 @@ await test("Fichier à part : chargé au toucher, versionné, précaché ; jsQR 
   assert.ok(gzipSync(f).length < 9000, `${gzipSync(f).length} octets compressés`);
 });
 
+/* =========================================================
+   60. Après la réponse : accès discret à l'accueil (en haut à gauche, pendant du bouton « Son »)
+   ========================================================= */
+titre("60. Accès à l'accueil après la réponse");
+await test("Lien « Accueil » : après le Oui, le vrai refus, le formulaire de groupe et le rappel d'agenda ; jamais sur la question ni dans l'exemple ; 44 px, libellé accessible", () => {
+  const src = n => PAGE.lire(n).toString();
+  const lien = src("lienAccueil");
+  assert.ok(lien.includes('if(EXAMPLE || document.getElementById("homeLink")) return;'), "pas dans l'exemple, jamais en double");
+  assert.ok(lien.includes('<a class="home-lien" id="homeLink" href="./" aria-label="Aller à l\'accueil">${HOME_ICONE}<span>Accueil</span></a>'));
+  assert.equal(PAGE.lire("HOME_ICONE").replace(/<[^>]+>/g, "").trim(), "", "icône sans texte (aria-hidden)");
+  assert.ok(PAGE.lire("HOME_ICONE").includes('aria-hidden="true"'));
+  const oui = src("sayYes"), refus = src("openRefuse");
+  assert.ok(oui.includes("bindAfter(); lienAccueil();") && oui.includes('afterMode="groupe"; lienAccueil(); groupeForm("o")'), "après le Oui (invitation simple et groupe)");
+  assert.ok(refus.includes("lienAccueil();\n  $(\"#replyNo\").focus();") || /lienAccueil\(\);\s*\$\("#replyNo"\)\.focus\(\)/.test(refus), "après le vrai refus");
+  assert.ok(refus.includes('afterMode="groupe"; lienAccueil(); groupeForm("n")'), "après le vrai refus d'un groupe");
+  assert.ok(src("renderReminder").includes("bindAfter(); lienAccueil();"), "carte du rappel d'agenda");
+  assert.ok(!src("renderInvite").includes("lienAccueil") && !src("renderEnvelope").includes("lienAccueil"), "jamais sur l'enveloppe ni la question");
+  const css = readFileSync(RACINE + "index.html", "utf8");
+  assert.ok(css.includes(".home-lien{position:fixed;top:calc(12px + env(safe-area-inset-top,0px));left:12px;"), "en haut à gauche");
+  assert.ok(css.includes('.home-lien::after{content:"";position:absolute;inset:-5px -2px}'), "zone touchable de 44 px");
+  assert.ok(/\.home-lien\{[^}]*border:2px solid var\(--ink\);background:var\(--surface\);color:var\(--ink\)/.test(css), "même style que « Son » (variables du thème)");
+});
+
 /* ---------- Bilan ---------- */
 console.log(`\n${ko ? "❌" : "✅"} ${ok} tests réussis, ${ko} en échec (graine ${GRAINE}${ko ? ` — pour rejouer : node tests/run.mjs --graine=${GRAINE}` : ""})`);
 if(ko){ console.log(echecs.map(e => "  - " + e).join("\n")); process.exitCode = 1; }
