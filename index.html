@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'sha256-k3AR/Xmm/PsrlzbhaWbwc9XXtfXT2NHn/wMA/m5lvh0=' 'sha256-Ghd6BWgdHHkFZst6PnFcRWXn2vpc8Wv4UI5cHrLjHTg='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' https://ose-liens.osedemander.workers.dev; manifest-src 'self'; worker-src 'self'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'sha256-80V0heUArES1zWJQRIyiixdGFiBP6qUiQnpVrIN+1Do=' 'sha256-Ghd6BWgdHHkFZst6PnFcRWXn2vpc8Wv4UI5cHrLjHTg='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' https://ose-liens.osedemander.workers.dev; manifest-src 'self'; worker-src 'self'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
 <title>Ose Demander — crée une invitation à laquelle on ne dit pas non</title>
@@ -451,6 +451,8 @@ input.input[type=date],input.input[type=time]{min-width:0;max-width:100%}
 #decor{position:fixed;inset:0;pointer-events:none;z-index:0}
 .wrap,.inv{position:relative;z-index:1}
 .ticket{transition:transform .3s ease-out}
+.home-lien{position:fixed;top:calc(12px + env(safe-area-inset-top,0px));left:12px;z-index:30;display:inline-flex;align-items:center;gap:6px;border:2px solid var(--ink);background:var(--surface);color:var(--ink);border-radius:999px;padding:6px 12px 6px 9px;font-size:14px;font-weight:600;text-decoration:none}
+.home-lien svg{width:18px;height:18px;flex:none}.home-lien::after{content:"";position:absolute;inset:-5px -2px} /* zone touchable de 44 px */
 .snd{position:fixed;top:calc(12px + env(safe-area-inset-top,0px));right:12px;z-index:30;border:2px solid var(--ink);background:var(--surface);color:var(--ink);border-radius:999px;padding:6px 12px;font-size:14px;font-weight:600;cursor:pointer}
 .install{border:2px solid var(--ink);background:var(--accent-btn);color:var(--accent-ink);border-radius:999px;padding:7px 14px;font-weight:700;font-size:14px;cursor:pointer;box-shadow:2px 2px 0 var(--ink)}
 .sheet{position:fixed;inset:0;z-index:60;background:rgba(20,14,50,.45);display:flex;align-items:flex-end;justify-content:center;padding:16px}
@@ -2611,7 +2613,7 @@ const refuseText = () => (refuseDrafts[refuseWhy] ?? refuseDefault(refuseWhy, D.
 function openRefuse(){
   if(yesDone) return;
   refused=true; clearTimeout(refuseTimer);
-  if(GRP){ $$(".no.flee").forEach(b=>b.remove()); afterMode="groupe"; groupeForm("n"); return; }
+  if(GRP){ $$(".no.flee").forEach(b=>b.remove()); afterMode="groupe"; lienAccueil(); groupeForm("n"); return; }
   noteReponse("n");
   if(EXAMPLE) document.dispatchEvent(new CustomEvent("ose:exemple", {detail:"non"}));
   $$(".no.flee").forEach(b=>b.remove());
@@ -2648,6 +2650,7 @@ function openRefuse(){
   $("#copyNo").addEventListener("click",withText(async t=>toast(await copyText(t)?"Réponse copiée":"Copie impossible")));
   $("#notifR")?.addEventListener("click",()=>notifyReply("n"));
   $("#undoNo").addEventListener("click",()=>{ noteReponse(""); renderInvite(); });
+  lienAccueil();
   $("#replyNo").focus();
 }
 
@@ -2700,6 +2703,13 @@ function bindNo(){
   }
 }
 
+/* Après la réponse : un accès discret à l'accueil, en haut à gauche (pendant du bouton « Son » en haut à droite).
+   Jamais avant la réponse (rien ne détourne de la question), ni dans l'exemple (il a sa propre bannière « Retour »). */
+const HOME_ICONE = `<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 11.5 12 5l8 6.5M6.5 10v8.5a1 1 0 0 0 1 1H10v-5h4v5h2.5a1 1 0 0 0 1-1V10" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+function lienAccueil(){
+  if(EXAMPLE || document.getElementById("homeLink")) return;
+  $("#app").insertAdjacentHTML("beforeend", `<a class="home-lien" id="homeLink" href="./" aria-label="Aller à l'accueil">${HOME_ICONE}<span>Accueil</span></a>`);
+}
 function sayYes(e){
   if(yesDone || refused) return;
   clearTimeout(refuseTimer);
@@ -2708,14 +2718,14 @@ function sayYes(e){
   if(src){ const r=src.getBoundingClientRect(); x=r.left+r.width/2; y=r.top+r.height/2; }
   $$(".no.flee").forEach(b=>b.remove());
   yesDone=true;
-  if(GRP){ Decor.burst(x, y, 150); Sound.yes(); buzz([40,60,40]); afterMode="groupe"; groupeForm("o"); return; }
+  if(GRP){ Decor.burst(x, y, 150); Sound.yes(); buzz([40,60,40]); afterMode="groupe"; lienAccueil(); groupeForm("o"); return; }
   noteReponse("o");
   if(EXAMPLE) document.dispatchEvent(new CustomEvent("ose:exemple", {detail:"oui"})); // fin de l'exemple (app/demo.js)
   Decor.burst(x, y, 150); Sound.yes(); buzz([40,60,40]);
   initReveals();
   afterMode="yes";
   $("#main").innerHTML = afterHTML("C'est un oui !", "");
-  bindAfter();
+  bindAfter(); lienAccueil();
   focusScreen("#main .question"); // le bouton Oui, qui avait le focus, a disparu
   prepReminder();
   startCountdowns(1300); // la mise en scène attend la fin de l'explosion du Oui
@@ -2790,7 +2800,7 @@ function renderReminder(){
   afterMode="reminder";
   $("#app").innerHTML = ticketHTML(afterHTML("Ton invitation", `Avec ${esc(D.f)}`));
   bindSound();
-  bindAfter();
+  bindAfter(); lienAccueil();
   enableTilt();
   focusScreen(".question");
   prepReminder();
