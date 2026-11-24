@@ -184,7 +184,7 @@ const S = {
   date:"", time:"", choose:false, slots:[{d:"",t:""},{d:"",t:""}],
   q:"", qEdited:false, msg:"", hidden:false,
   no:"fuit", tone:"taquin", ch:"any", chId:"", link:"",
-  ac:"", em:"", sg:"", snd:true, intro:false, share:true,
+  ac:"", em:"", sg:"", snd:true, intro:false, share:true, groupe:false, orgaLink:"",
   moreOpen:false, open:new Set(), err:"", errSec:""
 };
 
@@ -336,9 +336,15 @@ function screenHTML(){
   }
   case 2: return `
     <h2 tabindex="-1">Qui invite qui ?</h2>
-    <p class="lead">Un prénom ou un surnom, celui que vous utilisez entre vous.</p>
+    <div class="seg" role="group" aria-label="Pour combien de personnes ?">
+      <button type="button" data-groupe="0" aria-pressed="${!S.groupe}">Une personne</button>
+      <button type="button" data-groupe="1" aria-pressed="${S.groupe}">Plusieurs personnes</button>
+    </div>
+    <p class="lead">${S.groupe ? "Un seul lien pour tout le groupe : chaque personne répondra avec son prénom." : "Un prénom ou un surnom, celui que vous utilisez entre vous."}</p>
     <div class="row2">
-      <label class="field"><span>Son prénom</span><input class="input" id="to" maxlength="30" placeholder="Ex. Loulou" value="${esc(S.to)}" autocomplete="off"></label>
+      ${S.groupe
+        ? `<label class="field"><span>Pour qui ?</span><input class="input" id="to" maxlength="30" placeholder="Ex. La bande" value="${esc(S.to)}" autocomplete="off"></label>`
+        : `<label class="field"><span>Son prénom</span><input class="input" id="to" maxlength="30" placeholder="Ex. Loulou" value="${esc(S.to)}" autocomplete="off"></label>`}
       <label class="field"><span>Ton prénom</span><input class="input" id="from" maxlength="30" placeholder="Ex. Keke" value="${esc(S.from)}" autocomplete="off"></label>
     </div>`;
   case 3: return `
@@ -366,8 +372,9 @@ function screenHTML(){
       ${INTRO_OCC[S.occ] ? recapRow("Introduction", introCode() ? introRecap(introCode()) : "<em>Aucune</em>", 'data-goto="words"') : ""}
       ${recapRow("Style", styleRecap(), 'data-goto="style"')}
       ${recapRow("Le Non", esc(NO_MODES.find(m=>m.id===S.no).t)+" · ton "+esc(noTone(S.tone).t.toLowerCase()), 'data-goto="no"')}
-      ${recapRow("Réponse via", esc(CHANNELS.find(c=>c.id===S.ch).t)+(S.chId?" ("+esc(S.chId)+")":""), 'data-goto="reply"')}
-      ${recapRow("Partage", S.share ? "Autorisé, sans le lieu ni les surprises" : "<em>Non autorisé</em>", 'data-goto="reply"')}
+      ${S.groupe ? recapRow("Réponses", "Chaque personne répond depuis le lien", 'data-edit="2"')
+        : recapRow("Réponse via", esc(CHANNELS.find(c=>c.id===S.ch).t)+(S.chId?" ("+esc(S.chId)+")":""), 'data-goto="reply"')
+          + recapRow("Partage", S.share ? "Autorisé, sans le lieu ni les surprises" : "<em>Non autorisé</em>", 'data-goto="reply"')}
     </ul>
     <details class="more" id="more" ${S.moreOpen?"open":""}>
       <summary>Personnaliser davantage</summary>
@@ -390,6 +397,17 @@ function screenHTML(){
    et un refus bloque le site durablement), mais déjà cochée si l'autorisation a été accordée auparavant */
 function notifHTML(){
   const st=notifSupport();
+  if(S.groupe){
+    if(S.notif===undefined) S.notif = st==="ok" && Notification.permission==="granted";
+    const note = st==="ios" ? "Sur iPhone, ajoute d'abord Ose Demander à ton écran d'accueil (bouton Partager, puis « Sur l'écran d'accueil »), puis crée ton invitation depuis l'appli."
+      : st==="refuse" ? "Les notifications sont bloquées pour ce site. Autorise-les dans les réglages de ton navigateur pour utiliser cette option."
+      : st==="non" || st==="integre" ? "Ce navigateur ne permet pas les notifications : ouvre « Mes invitations » pour voir les réponses."
+      : "Au plus une notification toutes les 15 minutes, avec le nombre de nouvelles réponses. La question reste sur cet appareil.";
+    return `<div class="notif-opt ${S.link?"hidden":""}">
+      <label class="check"><input type="checkbox" id="notifMe" ${st==="ok"&&S.notif?"checked":""} ${st==="ok"?"":"disabled"}><span>🔔 Me prévenir des nouvelles réponses</span></label>
+      <p class="hint" id="notifNote">${note}</p>
+    </div>`;
+  }
   if(S.notif===undefined) S.notif = st==="ok" && Notification.permission==="granted";
   const to=esc(S.to||"la personne invitée");
   const note = st==="ios" ? "Sur iPhone, ajoute d'abord Ose Demander à ton écran d'accueil (bouton Partager, puis « Sur l'écran d'accueil »), puis crée ton invitation depuis l'appli."
@@ -403,11 +421,39 @@ function notifHTML(){
     </div>`;
 }
 const whenList = () => S.choose ? S.slots.filter(s=>s.d&&s.t).map(s=>[s.d,s.t]) : [[S.date,S.time]];
+/* Invitation de groupe : le lien invités (à partager) et, à part, le lien organisateur (à garder pour soi) */
+function readyGroupeHTML(share){
+  return `<div id="result" class="ready ${S.link?"":"hidden"}">
+      <h3 class="ready-title" tabindex="-1">Ton lien est prêt 💌</h3>
+      <p class="ready-lead">Partage-le dans ton groupe : chaque personne pourra répondre${share ? `, avec le message «&nbsp;${esc(shareText())}&nbsp;»` : ""}.</p>
+      <div class="ready-btns">
+        ${share ? `<button type="button" class="btn primary" id="share">Partager le lien</button>
+        <button type="button" class="btn" id="copy">Copier le lien</button>`
+        : `<button type="button" class="btn primary" id="copy">Copier le lien</button>`}
+      </div>
+      <div class="linkbox one" id="linkbox">${esc(S.link)}</div>
+      <button type="button" class="linkbtn" id="showLink" aria-expanded="false" aria-controls="linkbox">Afficher le lien en entier</button>
+      <p class="hint" id="shortNote"></p>
+      <p class="hint" id="notifDone"></p>
+      <div class="orga-box">
+        <h4>Ton lien organisateur</h4>
+        <p class="orga-warn">🔑 Garde ce lien pour toi : il permet de lire les réponses.</p>
+        <div class="ready-btns">
+          <button type="button" class="btn" id="orgaCopy">Copier mon lien organisateur</button>
+          ${share ? `<button type="button" class="btn" id="orgaShare">M'envoyer ce lien</button>` : ""}
+        </div>
+        <p class="hint">Il est aussi gardé dans « Mes invitations », sur cet appareil. Avec lui, tu retrouves les réponses sur un autre appareil.</p>
+      </div>
+      <p class="hint" id="savedNote"></p>
+      <p class="hint">Toute personne qui a le lien du groupe peut lire l'invitation et y répondre.</p>
+    </div>`;
+}
 /* Le lien est prêt : une seule action principale (Partager si le téléphone le permet, sinon Copier),
    le message qui part avec le lien, et l'adresse repliée sur une ligne (elle est longue et intimidante) */
-const shareText = () => `${S.to}, j'ai une question pour toi 💌`;
+const shareText = () => S.groupe ? `${S.to}, j'ai une question pour vous 💌` : `${S.to}, j'ai une question pour toi 💌`;
 function readyHTML(){
   const share=!!navigator.share;
+  if(S.groupe) return readyGroupeHTML(share);
   return `<div id="result" class="ready ${S.link?"":"hidden"}">
       <h3 class="ready-title" tabindex="-1">Ton lien est prêt 💌</h3>
       <p class="ready-lead">${share
@@ -479,7 +525,8 @@ function dateTimeHTML(){
 }
 /* Écran « Quand et où » : une date et une heure, ou 2 à 3 créneaux au choix */
 function whenHTML(){
-  return `<label class="check"><input type="checkbox" id="choose" ${S.choose?"checked":""}><span>Lui laisser choisir parmi plusieurs créneaux</span></label>
+  if(S.groupe) S.choose=false; // invitation de groupe : un seul créneau
+  return `${S.groupe ? "" : `<label class="check"><input type="checkbox" id="choose" ${S.choose?"checked":""}><span>Lui laisser choisir parmi plusieurs créneaux</span></label>`}
     ${!S.choose ? dateTimeHTML() : `
       <p class="hint" style="margin:0 0 12px">Propose 2 ou 3 créneaux : le choix se fera après le Oui.</p>
       ${S.slots.map((sl,i)=>`<div class="slot-box" data-slot="${i}">
@@ -601,6 +648,7 @@ function secNo(){
     <p class="hint">Quel que soit le mode, un lien discret permet toujours de répondre non pour de vrai.</p>`;
 }
 function secReply(){
+  if(S.groupe) return `<p class="hint">Chaque personne répond depuis le lien, avec son prénom. Les réponses ne se lisent qu'avec ton lien organisateur.</p>`;
   const ch=CHANNELS.find(c=>c.id===S.ch), tel=S.ch==="wa"||S.ch==="sms";
   return `<div class="field"><span>Comment veux-tu recevoir la réponse ?</span>
       <div class="chips">${CHANNELS.map(c=>`<button type="button" class="chip" data-ch="${c.id}" aria-pressed="${S.ch===c.id}">${c.t}</button>`).join("")}</div>
@@ -781,6 +829,7 @@ function bindCreator(){
   on("[data-no]", b=>{ S.no=b.dataset.no; });
   on("[data-tone]", b=>{ S.tone=b.dataset.tone; });
   on("[data-ch]", b=>{ if(S.ch!==b.dataset.ch) S.chId=""; S.ch=b.dataset.ch; });
+  on("[data-groupe]", b=>{ S.groupe = b.dataset.groupe==="1"; });
 
   // Aperçu en direct pendant la saisie
   const pv=(id,txt,show)=>{ const el=$("#"+id); if(el){ el.textContent=txt; el.hidden=!show; } };
@@ -808,6 +857,7 @@ function bindCreator(){
   $("#notifMe")?.addEventListener("change",e=>{ S.notif=e.target.checked; });
   $("#make")?.addEventListener("click",async()=>{
     if(!ready()) return;
+    if(S.groupe) return makeGroupe(); // (sans attente avant la demande d'autorisation des notifications : Safari)
     // Notification : l'autorisation est demandée ICI, pendant le toucher (Safari l'exige), et seulement si la case est cochée
     const wantNotif = S.notif && notifSupport()==="ok";
     const perm = !wantNotif ? null : Notification.permission==="granted" ? Promise.resolve("granted")
@@ -839,6 +889,8 @@ function bindCreator(){
     $("#result").scrollIntoView({block:"nearest"});
   });
   $("#copy")?.addEventListener("click",async()=>{ toast(await copyText(S.link)?"Lien copié":"Copie impossible, sélectionne le lien à la main"); });
+  $("#orgaCopy")?.addEventListener("click",async()=>{ toast(await copyText(S.orgaLink)?"Lien organisateur copié : garde-le pour toi":"Copie impossible"); });
+  $("#orgaShare")?.addEventListener("click",()=>navigator.share({title:"Ose Demander", text:`Mon lien organisateur pour « ${S.to} » (à garder pour moi, il permet de lire les réponses)`, url:S.orgaLink}).catch(()=>{}));
   $("#imgOpen")?.addEventListener("click", e=>openImageSheet(e.currentTarget));
   $("#share")?.addEventListener("click",()=>navigator.share({title:"Ose Demander",text:shareText(),url:S.link}).catch(()=>{}));
   $("#showLink")?.addEventListener("click",e=>{
@@ -846,6 +898,44 @@ function bindCreator(){
     e.currentTarget.setAttribute("aria-expanded",open); e.currentTarget.textContent = open ? "Replier le lien" : "Afficher le lien en entier";
   });
 }
+
+/* Invitation de groupe : paire de clés, invitation chiffrée déposée (avec la clé publique), puis les deux liens.
+   Sans le service, pas de lien complet de repli : une invitation de groupe ne fonctionne qu'avec lui. */
+async function makeGroupe(){
+  // Notifications : l'autorisation est demandée ICI, pendant le toucher, avant toute attente (Safari l'exige)
+  const wantNotif = S.notif && notifSupport()==="ok";
+  const perm = !wantNotif ? null : Notification.permission==="granted" ? Promise.resolve("granted")
+    : (()=>{ try{ return Promise.resolve(Notification.requestPermission()).catch(()=>"denied"); }catch(e){ return Promise.resolve("denied"); } })();
+  $$(".sec-body .error").forEach(el=>el.remove());
+  const mk=$("#make"); mk.disabled=true; mk.textContent="Création du lien…";
+  let r={etat:"reseau"}, d=null, notif="";
+  try{
+    await need("groupeCommun");
+    const cles=await grpCles(), long=await buildLink("", cles.gp);
+    d=await decodeData(linkData(long));
+    r=await grpCreer(linkData(long), cles.d, grpExpire(whenList()), location.origin+location.pathname);
+    if(r.etat==="ok" && perm) notif = (await perm)==="granted" ? await grpNotifActiver(r.id, cles.d, {q:d.q, t:d.t}) : "refuse";
+  }catch(e){}
+  mk.disabled=false; mk.textContent="Créer mon lien";
+  if(r.etat!=="ok"){ const el=$("#err"); el.textContent=GROUPE_ERREUR; el.classList.remove("hidden"); el.scrollIntoView({block:"center"}); return; }
+  $("#err")?.classList.add("hidden");
+  S.link=r.invite; S.orgaLink=r.orga;
+  $("#linkbox").textContent=S.link; $("#result").classList.remove("hidden"); Sound.done();
+  $("#shortNote").textContent=`Invitation chiffrée, gardée en ligne sans pouvoir y être lue jusqu'au ${frDate(new Date(grpExpire(whenList())).toISOString().slice(0,10))}, puis effacée.`;
+  $("#make").classList.add("hidden");
+  $(".notif-opt")?.classList.add("hidden");
+  $("#notifDone").textContent = !wantNotif ? ""
+    : notif==="ok" ? "🔔 Notifications activées : tu en recevras sur cet appareil quand des réponses arrivent."
+    : notif==="refuse" ? "Notifications non autorisées : ouvre « Mes invitations » pour voir les réponses."
+    : "Les notifications n'ont pas pu être activées. Tu pourras réessayer depuis le tableau des réponses.";
+  focusScreen(".ready-title");
+  const saved=addGroupeToHistory(d, r.invite, r.orga);
+  $("#savedNote").textContent = saved ? "Ajoutée à « Mes invitations ». Ton historique reste uniquement sur cet appareil." : "";
+  const n=loadHistory().length, badge=$("#histBadge");
+  if(badge){ badge.textContent=n; badge.classList.toggle("hidden",!n); }
+  $("#result").scrollIntoView({block:"nearest"});
+}
+const GROUPE_ERREUR = "Le service des invitations de groupe ne répond pas. Réessaie dans un instant.";
 
 /* ---------- Partager en image : QR code et enveloppe de l'occasion, dessinés ici (rien n'est envoyé pour fabriquer l'image) ----------
    L'image ne contient que le prénom de la personne invitée, les couleurs du thème, l'enveloppe de l'occasion, le cachet et le lien.
@@ -1123,11 +1213,12 @@ function packItem(it){
   if(it.v==="r") return {v:"r", h:it.h||undefined, at:it.at, e:scramble(it.x)};
   return it.x ? {v:"v", x:it.x} : undefined;
 }
-async function buildLink(nz){
-  const d={ f:S.from, t:S.to, o:S.occ, th:S.theme, q:S.q, n:S.no, c:S.ch };
+async function buildLink(nz, gp){
+  const d={ f:S.from, t:S.to, o:S.occ, th:S.theme, q:S.q, n:S.no, c:gp ? "any" : S.ch };
+  if(gp){ d.gp=gp; nz=""; } // groupe : chacun répond depuis le lien, ni canal ni notification individuelle
   if(S.occ==="libre") d.of=S.occFree;
   if(S.tone!=="taquin") d.tn=S.tone;
-  if(S.chId) d.ci=S.chId;
+  if(S.chId && !gp) d.ci=S.chId;
   if(S.anim!=="n") d.an=S.anim;
   if(S.ac) d.ac=S.ac; if(S.em) d.em=S.em; if(S.sg) d.sg=S.sg;
   if(!S.snd) d.so=0;
@@ -1156,7 +1247,11 @@ async function buildLink(nz){
    (localStorage). Jamais envoyé nulle part, jamais lu côté destinataire.
    ========================================================= */
 const HIST_KEY="ose-historique", HIST_MAX=200, SITE_HOST="osedemander.fr";
-const HIST_FIELDS=["id","from","to","occ","occFree","when","link","created","long","jeton","gone","img","imgJeton","nid","njeton","rep","repAt","repSlot","ok","okSlot"];
+const HIST_FIELDS=["id","from","to","occ","occFree","when","link","created","long","jeton","gone","img","imgJeton","nid","njeton","rep","repAt","repSlot","ok","okSlot","orga","grs"];
+// grs : résumé des réponses d'un groupe, gardé à chaque lecture du tableau de bord ({o, p, n, pers} : des nombres, jamais de prénom)
+// Invitation de groupe : link = lien invités (#g=ID.CLÉ), orga = lien organisateur (#ga=ID.CLÉ.D, la clé privée : lit les réponses)
+const GRP_LINK=/^#g=([A-Za-z0-9_-]{22})\.([A-Za-z0-9_-]{22})$/, GRP_ORGA_LINK=/^#ga=([A-Za-z0-9_-]{22})\.([A-Za-z0-9_-]{22})\.([A-Za-z0-9_-]{43})$/;
+const hashOf = link => { try{ return new URL(link).hash; }catch(e){ return ""; } };
 // ok, okSlot : acceptation notée à la main (« Marquer comme acceptée »), quand aucune notification n'est arrivée
 // Notification : nid = identifiant (dans le lien), njeton = pour y renoncer ; rep = "o" ou "n", repAt = date de réception, repSlot = créneau choisi
 // Lien court : link = #s=…, long = le lien complet (#i=…, l'historique fonctionne même sans le service), jeton = pour supprimer le lien en ligne
@@ -1167,13 +1262,20 @@ const linkData=link=>link.slice(link.indexOf("#i=")+3);
 const shortId=link=>(String(link).match(/#s=([A-Za-z0-9_-]{22})\./)||[])[1]||"";
 
 /* Seuls les liens d'invitation d'Ose Demander sont acceptés */
+/* Lien organisateur d'une invitation de groupe : même adresse que le site, #ga=ID.CLÉ.D */
+function isOrgaLink(link){
+  if(typeof link!=="string" || link.length>200) return false;
+  let u; try{ u=new URL(link); }catch(e){ return false; }
+  const prod = u.protocol==="https:" && u.hostname===SITE_HOST && !u.port, dev = location.hostname==="localhost" && u.origin===location.origin;
+  return (prod||dev) && u.href===link && !u.username && !u.password && !u.search && (u.pathname==="/" || u.pathname==="/index.html") && GRP_ORGA_LINK.test(u.hash);
+}
 function isOwnLink(link){
   if(typeof link!=="string" || link.length>MAX_LINK+60) return false;
   let u; try{ u=new URL(link); }catch(e){ return false; }
   const prod = u.protocol==="https:" && u.hostname===SITE_HOST && !u.port;
   const dev = location.hostname==="localhost" && u.origin===location.origin; // test en local uniquement
   return (prod||dev) && u.href===link && !u.username && !u.password && !u.search
-    && (u.pathname==="/" || u.pathname==="/index.html") && (/^#i=[zpyx][A-Za-z0-9_-]+$/.test(u.hash) || SHORT_HASH.test(u.hash));
+    && (u.pathname==="/" || u.pathname==="/index.html") && (/^#i=[zpyx][A-Za-z0-9_-]+$/.test(u.hash) || SHORT_HASH.test(u.hash) || GRP_LINK.test(u.hash));
 }
 /* Champs communs à une invitation envoyée ou reçue : identifiant, prénoms, occasion, dates, date d'ajout, lien d'Ose Demander */
 function validCommun(x){
@@ -1194,6 +1296,16 @@ function validEntry(x){
   if(!x || typeof x!=="object" || Array.isArray(x)) return false;
   if(Object.keys(x).some(k=>!HIST_FIELDS.includes(k))) return false;
   if(!validCommun(x)) return false;
+  // Invitation de groupe : le lien invités et le lien organisateur du même groupe, rien d'autre (ni lien long, ni notification, ni « acceptée »)
+  const g=GRP_LINK.exec(hashOf(x.link));
+  if(g || x.orga!==undefined){
+    const o=isOrgaLink(x.orga) ? GRP_ORGA_LINK.exec(hashOf(x.orga)) : null;
+    const n=v=>Number.isInteger(v) && v>=0 && v<=600, grs=x.grs;
+    const okGrs = grs===undefined || (grs && typeof grs==="object" && !Array.isArray(grs) && Object.keys(grs).sort().join()==="n,o,p,pers"
+      && n(grs.o) && n(grs.p) && n(grs.n) && n(grs.pers) && grs.o+grs.p+grs.n<=100);
+    return !!g && !!o && okGrs && o[1]===g[1] && o[2]===g[2] && new URL(x.orga).origin===new URL(x.link).origin
+      && ["long","jeton","gone","img","imgJeton","nid","njeton","rep","repAt","repSlot","ok","okSlot"].every(k=>x[k]===undefined);
+  }
   // Acceptation notée à la main : une date, et le créneau s'il y en a plusieurs
   if(x.ok===undefined ? x.okSlot!==undefined : !(typeof x.ok==="string" && x.ok.length<=30 && !isNaN(Date.parse(x.ok))
     && (x.okSlot===undefined || (Number.isInteger(x.okSlot) && x.okSlot>=0 && x.okSlot<x.when.length)))) return false;
@@ -1216,9 +1328,11 @@ function validEntry(x){
 // l'invitation ne s'ouvre plus, ici non plus (ce que la personne qui l'a créée attend)
 // rep : "o" (Acceptée, au Oui) ou "n" (Refusée, au vrai refus), repAt : date ; repSlot : créneau choisi ;
 // ag : titre et lieu tels qu'affichés à la personne invitée, heure de fin (pour l'agenda, sans rouvrir le lien)
-const RECUE_FIELDS=["id","from","to","occ","occFree","when","link","created","rep","repAt","repSlot","ag"];
+const RECUE_FIELDS=["id","from","to","occ","occFree","when","link","created","rep","repAt","repSlot","ag","gr"];
+// gr : réponse envoyée à une invitation de groupe (« o », « p » ou « n ») ; Oui = Acceptée, Non = Refusée, Peut-être = « Peut-être »
 function validRecue(x){
   if(!x || typeof x!=="object" || Array.isArray(x) || Object.keys(x).some(k=>!RECUE_FIELDS.includes(k)) || !validCommun(x)) return false;
+  if(x.gr!==undefined && (!GRP_LINK.test(hashOf(x.link)) || !["o","p","n"].includes(x.gr) || (x.gr==="p" ? x.rep!==undefined : x.rep!==x.gr))) return false;
   if(x.rep===undefined) return x.repAt===undefined && x.repSlot===undefined && x.ag===undefined;
   const ag=x.ag, okAg = ag && typeof ag==="object" && !Array.isArray(ag) && Object.keys(ag).every(k=>["t","l","e"].includes(k))
     && typeof ag.t==="string" && ag.t.trim()!=="" && ag.t.length<=140 && typeof ag.l==="string" && ag.l.length<=160
@@ -1300,6 +1414,18 @@ function histReply(it){
 function askPersist(){
   try{ navigator.storage?.persisted?.().then(p=>{ if(!p) return navigator.storage.persist(); }).catch(()=>{}); }catch(e){}
 }
+/* Invitation de groupe : l'entrée est bâtie à partir de l'invitation décodée et validée, avec ses deux liens */
+function addGroupeToHistory(d, invite, orga){
+  try{
+    const e=entryFrom(d, invite); e.orga=orga;
+    if(!validEntry(e)) return false;
+    const list=loadHistory().filter(x=>x.link!==invite);
+    list.unshift(e);
+    if(!storeHistory(list)) return false;
+    askPersist();
+    return true;
+  }catch(e){ return false; }
+}
 async function addToHistory(link, sh=null, notif=null){
   try{
     const e=entryFrom(await decodeData(linkData(link)), sh ? sh.link : link, undefined, undefined, {...(sh ? {long:link, jeton:sh.jeton} : {}), ...(notif ? {njeton:notif.jeton} : {})});
@@ -1338,6 +1464,7 @@ function rdvSlot(it, recue){
 const rdvPasse = (it, s) => rebours(it.when[s][0], it.when[s][1]).etat==="passe";
 const rdvQuand = (it, s) => `${frDate(it.when[s][0])} à ${frTime(it.when[s][1]).replace(/ /g, " ")}`;
 function statutRecue(it){
+  if(it.gr==="p") return `<p class="rep rep-n">Peut-être</p>`;
   if(it.rep==="n") return `<p class="rep rep-n">Refusée</p>`;
   if(it.rep!=="o") return "";
   const s=rdvSlot(it, true);
@@ -1406,6 +1533,7 @@ function startRebours(){
 // « Ajouter à mon agenda » : fichier .ics (alerte 3 h avant) ; sur Android, Google Agenda en plus (sans l'alerte, qu'un lien ne peut pas fixer)
 const agendaBtns = () => `<button type="button" class="btn sm" data-act="cal">Ajouter à mon agenda</button>${isAndroid() ? `<button type="button" class="linkbtn" data-act="gcal">Google Agenda</button>` : ""}`;
 function histCardEnv(it){
+  if(it.orga) return histCardGroupe(it);
   const s=rdvSlot(it, false);
   return `
         <li data-id="${esc(it.id)}">
@@ -1432,6 +1560,30 @@ function histCardEnv(it){
           </div>` : ""}
         </li>`;
 }
+/* Invitation de groupe : pastille « Groupe » ; les réponses se lisent avec le lien organisateur (tableau de bord) */
+// « 8 oui, 3 peut-être, 2 non » (le dernier relevé du tableau de bord)
+const grsTexte = g => `${g.o} oui, ${g.p} peut-être, ${g.n} non`;
+function histCardGroupe(it){
+  return `
+        <li data-id="${esc(it.id)}">
+          <p class="who">Pour ${esc(it.to)} <span class="tag-groupe">Groupe</span></p>
+          ${it.grs ? `<p class="rep">${grsTexte(it.grs)}</p>` : ""}
+          <p class="meta">De ${esc(it.from)} · ${esc(histOcc(it))}</p>
+          <p class="meta">${esc(histWhen(it))}</p>
+          <p class="meta">Créée le ${esc(new Date(it.created).toLocaleDateString("fr-FR",{day:"numeric",month:"long",year:"numeric"}))}</p>
+          <div class="acts">
+            <button type="button" class="btn sm primary" data-act="voir">Voir les réponses</button>
+            <button type="button" class="btn sm" data-act="copy">Copier le lien</button>
+            <button type="button" class="btn sm" data-act="orga">Copier le lien organisateur</button>
+            <button type="button" class="btn sm ghost" data-act="del">Retirer de l'historique</button>
+          </div>
+        </li>`;
+}
+// Réponse à un groupe envoyée depuis cet appareil (son identifiant et son jeton sont gardés : app/groupe-invite.js, GRP_REP_KEY)
+function aReponduGroupe(link){
+  const g=GRP_LINK.exec(hashOf(link)); if(!g) return "";
+  try{ const x=JSON.parse(localStorage.getItem("ose-groupe-rep")||"{}"); return x && typeof x==="object" && x[g[1]] ? g[1] : ""; }catch(e){ return ""; }
+}
 function histCardRecue(it){
   return `
         <li data-id="${esc(it.id)}">
@@ -1445,6 +1597,7 @@ function histCardRecue(it){
           <div class="acts">
             <button type="button" class="btn sm primary" data-act="open">Ouvrir</button>
             ${rdvSlot(it, true)!==null && !rdvPasse(it, rdvSlot(it, true)) ? agendaBtns() : ""}
+            ${aReponduGroupe(it.link) ? `<button type="button" class="btn sm" data-act="retirer">Supprimer ma réponse</button>` : ""}
             <button type="button" class="btn sm ghost" data-act="del">Retirer de l'historique</button>
           </div>
         </li>`;
@@ -1463,6 +1616,18 @@ async function syncRdv3Hist(list, recues){
     if(location.hash!=="#mes-invitations") return;
     rdv3Carte(cle);
   }
+}
+/* « Supprimer ma réponse » depuis les Reçues : confirmation, suppression en ligne avec le jeton gardé ici, puis la carte perd son statut */
+async function retirerRecue(it){
+  const gid=aReponduGroupe(it.link); if(!gid) return;
+  if(!await confirmSheet("Supprimer ta réponse ?", `Ta réponse sera effacée en ligne : ${it.from} ne la verra plus. Tu pourras en envoyer une nouvelle depuis le lien tant que les réponses sont ouvertes.`, "Supprimer ma réponse")) return;
+  try{ await Promise.all([need("groupeCommun"), need("groupeInvite")]); }catch(e){ toast("La suppression n'a pas abouti. Vérifie ta connexion, puis réessaie."); return; }
+  const mien=grpMesReponses()[gid], r = mien ? await grpRetirer(gid, mien.rid, mien.jeton) : "introuvable";
+  if(!["ok","introuvable","supprime","expire"].includes(r)){ toast("La suppression n'a pas abouti. Vérifie ta connexion, puis réessaie."); return; }
+  grpGarder(gid, null);
+  cancelRdv3("r:"+it.id); delete rdv3St["r:"+it.id];
+  storeRecues(loadRecuesBrutes().map(x=>{ if(x.id!==it.id) return x; const { rep, repAt, repSlot, ag, gr, ...reste }=x; return reste; }));
+  renderHistory(); toast("Ta réponse a été supprimée.");
 }
 /* Plusieurs invitations : une à la fois, en glissant de gauche à droite (défilement natif du navigateur, cartes calées),
    la suivante dépasse un peu ; « Précédente » / « Suivante » (44 px) et « 2 sur 7 » dessous, pour le clavier et les
@@ -1562,6 +1727,7 @@ function renderHistory(){
       if(!it){ renderHistory(); return; }
       if(b.dataset.act==="open") window.open(it.link,"_blank","noopener");
       if(b.dataset.act==="cal" || b.dataset.act==="gcal") agendaHist(eventRecue(it), b.dataset.act);
+      if(b.dataset.act==="retirer") retirerRecue(it);
       if(b.dataset.act==="del"){
         cancelRdv3("r:"+id);
         if(storeRecues(loadRecuesBrutes().filter(x=>x.id!==id))){ renderHistory(); toast("Invitation retirée de l'historique"); }
@@ -1572,6 +1738,8 @@ function renderHistory(){
     const it=loadHistory().find(x=>x.id===id);
     if(!it){ renderHistory(); return; }
     switch(b.dataset.act){
+      case "orga": toast(await copyText(it.orga) ? "Lien organisateur copié : garde-le pour toi" : "Copie impossible"); break;
+      case "voir": location.hash="#groupe="+GRP_LINK.exec(hashOf(it.link))[1]; break;
       case "copy": { const l=it.gone ? it.long : it.link; toast(await copyText(l) ? (it.gone ? "Lien complet copié (le lien court a été supprimé)" : "Lien copié") : "Copie impossible"); break; }
       case "open": window.open(invLink(it),"_blank","noopener"); break;
       case "dup": duplicateInvitation(it); break;
@@ -1734,6 +1902,7 @@ async function importHistory(file){
   for(const x of data.items){
     if(!validEntry(x)){ skipped++; continue; }
     if(links.has(x.link)) continue; // déjà dans l'historique
+    if(x.orga){ const e={...x, id: ids.has(x.id) ? newId() : x.id}; list.push(e); links.add(e.link); ids.add(e.id); added++; continue; } // groupe : validée telle quelle
     let d; try{ d=await decodeData(linkData(invLink(x))); }catch(e){ skipped++; continue; }
     const e=entryFrom(d, x.link, x.created, ids.has(x.id) ? newId() : x.id, x);
     if(!validEntry(e)){ skipped++; continue; }
@@ -1748,7 +1917,7 @@ async function importHistory(file){
     if(!validRecue(x)){ skipped++; continue; }
     if(rLinks.has(x.link) || recueIgnoree(x.link, x.link, list, [])) continue;
     let e={ ...x, id: rIds.has(x.id) ? newId() : x.id };
-    if(!shortId(x.link)){
+    if(!shortId(x.link) && !GRP_LINK.test(hashOf(x.link))){ // lien court ou de groupe : gardé tel quel
       let d; try{ d=await decodeData(linkData(x.link)); }catch(err){ skipped++; continue; }
       e={ ...recueEntry(d, x.link, x.created, e.id), ...Object.fromEntries(["rep","repAt","repSlot","ag"].filter(k=>x[k]!==undefined).map(k=>[k, x[k]])) };
     }
@@ -1765,4 +1934,4 @@ async function importHistory(file){
   toast(msg);
 }
 
-oseLoaded("creer", "cd6d9cf7cd");
+oseLoaded("creer", "d2e4388666");

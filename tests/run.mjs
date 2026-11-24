@@ -3080,14 +3080,15 @@ await test("iPhone hors de l'appli, navigateurs intégrés : pas de case désact
   for(const u of ["Mozilla/5.0 (Linux; Android 14) Chrome/130.0 Mobile Safari/537.36", "Mozilla/5.0 (iPhone) Version/18.0 Mobile Safari/604.1"]) assert.ok(!ua(u), u);
   assert.equal((P.navigator.userAgent = "Instagram", P.lire("notifSupport")()), "integre");
 });
-await test("sw.js : « 🔓 Ta surprise est prête ! », rien de la surprise, aucune requête, le lien rangé sur l'appareil (même site) ; IndexedDB version 3 des deux côtés", () => {
+await test("sw.js : « 🔓 Ta surprise est prête ! », rien de la surprise, aucune requête, le lien rangé sur l'appareil (même site) ; IndexedDB version 4 des deux côtés", () => {
   const sw = readFileSync(RACINE + "sw.js", "utf8"), rv = sw.slice(sw.indexOf("async function onReveal"), sw.indexOf("async function onPush"));
   assert.ok(rv.includes('showNotification("🔓 Ta surprise est prête !", { body: "Touche pour la découvrir."'));
   assert.ok(!/\bfetch\(/.test(rv), "aucune requête");
   assert.ok(rv.includes("new URL(x.lien).origin === self.location.origin"), "n'ouvre qu'une page du site");
   assert.ok(sw.includes('if (m && m.k === "rv") return onReveal(String(m.i || ""));'));
   const idx = readFileSync(RACINE + "index.html", "utf8");
-  assert.ok(idx.includes("indexedDB.open(NOTIF_DB,3)") && sw.includes("indexedDB.open(NOTIF_DB, 3)"), "même version de la base");
+  assert.ok(idx.includes("indexedDB.open(NOTIF_DB,4)") && sw.includes("indexedDB.open(NOTIF_DB, 4)"), "même version de la base");
+  assert.ok(idx.includes('mk("groupes","id")') && sw.includes('mk("groupes", "id")'), "magasin des groupes");
   assert.ok(idx.includes('mk("revelations","id")') && sw.includes('mk("revelations", "id")'));
   assert.ok(idx.includes('mk("rdv","id")') && sw.includes('mk("rdv", "id")'), "magasin des rappels 3 h avant");
 });
@@ -4137,6 +4138,827 @@ await essaiWorker("Ouvrir une invitation n'appelle jamais le service des rappels
   const r = reseau(); brancher(r);
   await ouvrirLien(LOCAL + "/#i=" + await L.encodeData(INV()));
   assert.ok(!r.journal.some(q => q.url.includes("/v1/rdv")), "aucune demande à l'ouverture");
+});
+
+/* =========================================================
+   50. Invitation de groupe : le Worker (blocs chiffrés seulement, clé de gestion, jetons, clôture, limites, expiration, notifications regroupées)
+   ========================================================= */
+titre("50. Invitation de groupe : le Worker");
+const GID = "GGGGGGGGGGGGGGGGGGGGGG", GESTION = "M".repeat(43), JREP = "J".repeat(43);
+const RPID = i => String(i).padStart(22, "P");
+const BLOB = (c = "B") => c.repeat(300);
+const creerGroupe = async (env, extra = {}) => appel(env, "POST", "/v1/groupes", { id: GID, ct: "Q2hpZmZyZQ", gestion: await empreinteDe(GESTION), expire: Date.now() + 90 * 864e5, ...extra });
+const repondreGroupe = async (env, rid = RPID(1), blob = BLOB(), ip) => appel(env, "POST", `/v1/groupes/${GID}/reponses`, { rid, blob, edit: await empreinteDe(JREP) }, SITE, ip);
+const gerer = (env, action, corps = {}) => appel(env, "POST", `/v1/groupes/${GID}/${action}`, { gestion: GESTION, ...corps });
+
+await essaiWorker("Créer : l'invitation chiffrée (lien court) et le groupe, ni prénom ni contenu lisible ; un an au plus ; identifiant déjà pris refusé", async () => {
+  const env = ENV_N();
+  const r = await creerGroupe(env, { expire: Date.now() + 500 * 864e5 });
+  assert.equal(r.status, 201);
+  assert.ok((await r.json()).expire <= Date.now() + WORKER.GROUPE_DUREE_MAX, "un an au plus");
+  const g = env.DB.db.prepare("SELECT * FROM groupes").get();
+  assert.deepEqual(Object.keys(g).sort(), ["abo", "cree", "etat", "expire", "ferme", "gestion", "id", "notif_der", "notif_n"], "aucune colonne de contenu");
+  assert.equal(g.gestion, await empreinteDe(GESTION), "seulement l'empreinte de la clé de gestion");
+  assert.equal(env.DB.db.prepare("SELECT ct FROM liens WHERE id = ?").get(GID).ct, "Q2hpZmZyZQ", "invitation = lien court chiffré");
+  const l = await appel(env, "GET", `/v1/liens/${GID}`);
+  assert.deepEqual(await l.json(), { ct: "Q2hpZmZyZQ" }, "lue par la route des liens courts");
+  assert.equal((await creerGroupe(env)).status, 409);
+  assert.equal((await creerGroupe(ENV_N(), { expire: Date.now() - 1000 })).status, 400, "échéance passée");
+  assert.equal((await creerGroupe(ENV_N(), { nom: "Soirée" })).status, 400, "champ en trop");
+});
+await essaiWorker("Répondre : bloc chiffré gardé tel quel (2 Ko au plus), empreinte du jeton ; formats refusés ; même identifiant refusé", async () => {
+  const env = ENV_N(); await creerGroupe(env);
+  assert.equal((await repondreGroupe(env)).status, 201);
+  const r = env.DB.db.prepare("SELECT * FROM reponses").get();
+  assert.deepEqual(Object.keys(r).sort(), ["blob", "edit", "groupe_id", "id", "maj"]);
+  assert.equal(r.blob, BLOB()); assert.equal(r.edit, await empreinteDe(JREP), "seulement l'empreinte du jeton");
+  assert.equal((await repondreGroupe(env)).status, 409, "un identifiant de réponse ne sert qu'une fois");
+  assert.equal((await repondreGroupe(env, RPID(2), "B".repeat(WORKER.GROUPE_BLOB_MAX + 1))).status, 400, "plus de 2 Ko");
+  assert.equal((await repondreGroupe(env, RPID(2), "B".repeat(50))).status, 400, "trop court pour être chiffré");
+  assert.equal((await repondreGroupe(env, RPID(2), "B+/=".repeat(60))).status, 400, "pas du base64url");
+  assert.equal((await appel(env, "POST", `/v1/groupes/${GID}/reponses`, { rid: RPID(3), blob: BLOB(), edit: await empreinteDe(JREP), prenom: "Sam" })).status, 400, "jamais de prénom en clair");
+  assert.equal((await appel(env, "POST", `/v1/groupes/${"X".repeat(22)}/reponses`, { rid: RPID(4), blob: BLOB(), edit: await empreinteDe(JREP) })).status, 404);
+  assert.equal(WORKER.GROUPE_BLOB_MAX, 2048);
+});
+await essaiWorker("Modifier sa réponse : bon jeton seulement (comparaison en temps constant), jamais la réponse d'un autre groupe", async () => {
+  const env = ENV_N(); await creerGroupe(env); await repondreGroupe(env);
+  const modifier = (jeton, blob = BLOB("C"), gid = GID) => appel(env, "POST", `/v1/groupes/${gid}/reponses/${RPID(1)}/modifier`, { blob, jeton });
+  assert.equal((await modifier("K".repeat(43))).status, 403, "mauvais jeton");
+  assert.equal(env.DB.db.prepare("SELECT blob FROM reponses").get().blob, BLOB(), "rien n'a changé");
+  assert.equal((await modifier(JREP)).status, 200);
+  assert.equal(env.DB.db.prepare("SELECT blob FROM reponses").get().blob, BLOB("C"));
+  assert.equal(env.DB.db.prepare("SELECT COUNT(*) AS n FROM reponses").get().n, 1, "modifiée, pas ajoutée");
+  await appel(env, "POST", "/v1/groupes", { id: "H".repeat(22), ct: "Q2hpZmZyZQ", gestion: await empreinteDe(GESTION), expire: Date.now() + 864e5 });
+  assert.equal((await modifier(JREP, BLOB("D"), "H".repeat(22))).status, 404, "la réponse n'appartient pas à ce groupe");
+  assert.ok(readFileSync(RACINE + "worker/src/groupes.js", "utf8").includes("egal(await empreinte(x.jeton), r.edit)"));
+});
+await essaiWorker("Organisateur : lire, clôturer, rouvrir, supprimer une réponse, seulement avec la clé de gestion (dans le corps, jamais dans l'adresse)", async () => {
+  const env = ENV_N(); await creerGroupe(env); await repondreGroupe(env); await repondreGroupe(env, RPID(2), BLOB("C"));
+  assert.equal((await appel(env, "POST", `/v1/groupes/${GID}/lire`, { gestion: "N".repeat(43) })).status, 403, "mauvaise clé");
+  assert.equal((await appel(env, "POST", `/v1/groupes/${GID}/lire`, {})).status, 400);
+  const l = await gerer(env, "lire"); assert.equal(l.status, 200);
+  const x = await l.json();
+  assert.equal(x.ferme, false); assert.deepEqual(x.reponses.map(r => [r.rid, r.blob]).sort(), [[RPID(1), BLOB()], [RPID(2), BLOB("C")]]);
+  for(const r of x.reponses) assert.deepEqual(Object.keys(r).sort(), ["blob", "maj", "rid"]);
+  // Clôturer : plus de réponse ni de modification, et la personne invitée le voit à l'ouverture
+  assert.deepEqual(await (await gerer(env, "cloturer", { ferme: true })).json(), { ferme: true });
+  assert.equal((await repondreGroupe(env, RPID(3))).status, 423);
+  assert.equal((await appel(env, "POST", `/v1/groupes/${GID}/reponses/${RPID(1)}/modifier`, { blob: BLOB("E"), jeton: JREP })).status, 423);
+  assert.deepEqual(await (await appel(env, "GET", `/v1/liens/${GID}`)).json(), { ct: "Q2hpZmZyZQ", ferme: true });
+  assert.equal((await (await gerer(env, "lire")).json()).ferme, true);
+  assert.equal((await gerer(env, "cloturer", { ferme: "oui" })).status, 400);
+  // Rouvrir
+  await gerer(env, "cloturer", { ferme: false });
+  assert.equal((await repondreGroupe(env, RPID(3))).status, 201, "rouvert");
+  // Supprimer une réponse
+  assert.equal((await appel(env, "POST", `/v1/groupes/${GID}/reponses/${RPID(2)}/supprimer`, { gestion: "N".repeat(43) })).status, 403);
+  assert.equal((await appel(env, "POST", `/v1/groupes/${GID}/reponses/${RPID(2)}/supprimer`, { gestion: GESTION })).status, 200);
+  assert.deepEqual((await (await gerer(env, "lire")).json()).reponses.map(r => r.rid).sort(), [RPID(1), RPID(3)]);
+  assert.equal((await appel(env, "GET", `/v1/groupes/${GID}/lire`)).status, 405, "aucune lecture par GET (la clé ne passe jamais dans l'adresse)");
+});
+await essaiWorker(`${WORKER.GROUPE_REP_MAX} réponses au plus par groupe (429 « plein »)`, async () => {
+  const env = ENV_N(); await creerGroupe(env);
+  const edit = await empreinteDe(JREP), maintenant = Date.now();
+  for(let i = 0; i < WORKER.GROUPE_REP_MAX; i++) env.DB.db.prepare("INSERT INTO reponses (id, groupe_id, blob, edit, maj) VALUES (?, ?, ?, ?, ?)").run(RPID(1000 + i), GID, BLOB(), edit, maintenant);
+  const r = await repondreGroupe(env, RPID(1));
+  assert.equal(r.status, 429); assert.deepEqual(await r.json(), { erreur: "plein" });
+  assert.equal(WORKER.GROUPE_REP_MAX, 100);
+});
+await essaiWorker("Supprimer l'invitation : réponses, contenu chiffré et abonnement effacés ; ensuite « supprimée » partout ; identifiant oublié 30 jours plus tard", async () => {
+  const env = ENV_N(); await creerGroupe(env); await repondreGroupe(env);
+  await gerer(env, "abo", { abo: { endpoint: ENDPOINT_EX, keys: WP.appareil().keys } });
+  assert.equal((await appel(env, "POST", `/v1/groupes/${GID}/supprimer`, { gestion: "N".repeat(43) })).status, 403);
+  assert.equal((await gerer(env, "supprimer")).status, 200);
+  assert.equal(env.DB.db.prepare("SELECT COUNT(*) AS n FROM reponses").get().n, 0, "réponses effacées");
+  assert.deepEqual({ ...env.DB.db.prepare("SELECT ct, etat FROM liens").get() }, { ct: null, etat: "supprime" }, "invitation effacée");
+  assert.deepEqual({ ...env.DB.db.prepare("SELECT abo, etat FROM groupes").get() }, { abo: null, etat: "supprime" });
+  assert.deepEqual(await (await appel(env, "GET", `/v1/liens/${GID}`)).json(), { raison: "supprime" });
+  assert.deepEqual(await (await repondreGroupe(env, RPID(2))).json(), { raison: "supprime" });
+  assert.equal((await gerer(env, "lire")).status, 410);
+  env.DB.db.prepare("UPDATE groupes SET expire = ?").run(Date.now() - WORKER.GROUPE_GARDE - 60e3);
+  await WORKER.default.scheduled({}, env);
+  assert.equal(env.DB.db.prepare("SELECT COUNT(*) AS n FROM groupes").get().n, 0, "oublié");
+});
+await essaiWorker("Expiration : réponses refusées dès l'échéance (410), puis réponses et abonnement effacés par la tâche quotidienne", async () => {
+  const env = ENV_N(); await creerGroupe(env); await repondreGroupe(env);
+  env.DB.db.prepare("UPDATE groupes SET expire = ?").run(Date.now() - 1000);
+  env.DB.db.prepare("UPDATE liens SET expire = ?").run(Date.now() - 1000);
+  assert.deepEqual(await (await repondreGroupe(env, RPID(2))).json(), { raison: "expire" });
+  assert.equal((await appel(env, "POST", `/v1/groupes/${GID}/reponses/${RPID(1)}/modifier`, { blob: BLOB("C"), jeton: JREP })).status, 410);
+  assert.equal((await gerer(env, "lire")).status, 410);
+  await passage(env, Date.UTC(2026, 10, 24, 12, 0));
+  assert.equal(env.DB.db.prepare("SELECT COUNT(*) AS n FROM reponses").get().n, 1, "pas de nettoyage à midi");
+  await passage(env, Date.UTC(2026, 10, 24, 3, 17));
+  assert.equal(env.DB.db.prepare("SELECT COUNT(*) AS n FROM reponses").get().n, 0, "réponses effacées");
+  assert.equal(env.DB.db.prepare("SELECT etat FROM groupes").get().etat, "expire");
+  assert.equal(env.DB.db.prepare("SELECT ct FROM liens").get().ct, null, "invitation effacée");
+});
+await essaiWorker("Notifications regroupées : rien sans abonnement ; « n » réponses nouvelles ou modifiées en un envoi, au plus un toutes les 15 minutes ; appareil désabonné : effacé", async () => {
+  await avecPush(async () => {
+    const env = ENV_N(), app = WP.appareil(); await creerGroupe(env);
+    await repondreGroupe(env, RPID(1)); await passage(env);
+    assert.equal(envois.length, 0, "sans abonnement : rien");
+    assert.equal(env.DB.db.prepare("SELECT notif_n FROM groupes").get().notif_n, 0);
+    assert.equal((await gerer(env, "abo", { abo: { endpoint: "https://exemple.com/x", keys: app.keys } })).status, 400);
+    assert.equal((await gerer(env, "abo", { abo: { endpoint: ENDPOINT_EX, keys: app.keys } })).status, 200);
+    assert.ok(!env.DB.db.prepare("SELECT abo FROM groupes").get().abo.includes("fcm.googleapis.com"), "abonnement chiffré");
+    await repondreGroupe(env, RPID(2)); await repondreGroupe(env, RPID(3));
+    await appel(env, "POST", `/v1/groupes/${GID}/reponses/${RPID(1)}/modifier`, { blob: BLOB("C"), jeton: JREP });
+    await passage(env);
+    assert.equal(envois.length, 1);
+    WP.verifierVapid(envois[0].headers.Authorization, ENDPOINT_EX, VAPID_TEST.pub);
+    assert.deepEqual(JSON.parse(WP.dechiffrer(app, envois[0].corps)), { v: 1, k: "grp", i: GID, n: 3 }, "rien que l'identifiant et le nombre");
+    await repondreGroupe(env, RPID(4)); await passage(env);
+    assert.equal(envois.length, 1, "pas avant 15 minutes");
+    env.DB.db.prepare("UPDATE groupes SET notif_der = ?").run(Date.now() - WORKER.GROUPE_NOTIF_ECART - 1000);
+    await passage(env);
+    assert.equal(envois.length, 2); assert.equal(JSON.parse(WP.dechiffrer(app, envois[1].corps)).n, 1);
+    // Appareil désabonné
+    codePush = 410; await repondreGroupe(env, RPID(5));
+    env.DB.db.prepare("UPDATE groupes SET notif_der = ?").run(Date.now() - WORKER.GROUPE_NOTIF_ECART - 1000);
+    await passage(env);
+    assert.equal(env.DB.db.prepare("SELECT abo FROM groupes").get().abo, null);
+    // Couper les notifications
+    await gerer(env, "abo", { abo: { endpoint: ENDPOINT_EX, keys: app.keys } }); await gerer(env, "abo", { abo: null });
+    assert.equal(env.DB.db.prepare("SELECT abo FROM groupes").get().abo, null);
+    assert.equal(WORKER.GROUPE_NOTIF_ECART, 15 * 60e3);
+  });
+});
+await essaiWorker("Budget partagé : révélations, rappels et groupes, RAPPEL_LOT envois au plus par passage en tout", async () => {
+  await avecPush(async () => {
+    const env = ENV_N(), app = WP.appareil();
+    for(let i = 0; i < WORKER.RAPPEL_LOT; i++){ await programmerRdv(env, app, DID(i), Date.now() + 3600e3); rdvDu(env, DID(i), 1000); }
+    await creerGroupe(env); await gerer(env, "abo", { abo: { endpoint: ENDPOINT_EX, keys: app.keys } }); await repondreGroupe(env);
+    await passage(env);
+    assert.equal(envois.length, WORKER.RAPPEL_LOT, "budget du passage respecté");
+    await passage(env);
+    assert.equal(envois.length, WORKER.RAPPEL_LOT + 1, "le groupe part au passage suivant");
+    assert.equal(JSON.parse(WP.dechiffrer(app, envois.at(-1).corps)).k, "grp");
+  });
+});
+await essaiWorker("Limites par adresse IP, CORS limité au site, routes inconnues", async () => {
+  const comptes = new Map(), limiteur = { limit: async ({ key }) => { const n = (comptes.get(key) || 0) + 1; comptes.set(key, n); return { success: n <= 2 }; } };
+  const env = ENV_N({ LIMITE_ENVOI: limiteur }); await creerGroupe(env);
+  const st = []; for(let i = 0; i < 3; i++) st.push((await repondreGroupe(env, RPID(10 + i))).status);
+  assert.deepEqual(st, [201, 201, 429]);
+  assert.equal((await appel(ENV_N(), "POST", "/v1/groupes", {}, "https://pirate.example")).status, 403);
+  assert.equal((await appel(env, "POST", `/v1/groupes/${GID}/autre`, { gestion: GESTION })).status, 404);
+  assert.equal((await appel(env, "POST", `/v1/groupes/${GID}`, { gestion: GESTION })).status, 404);
+  const env2 = ENV_N(); await creerGroupe(env2);
+  assert.equal((await appel(env2, "POST", `/v1/groupes/${GID}/reponses`, "x".repeat(WORKER.GROUPE_CORPS_MAX + 1))).status, 413);
+  const src = readFileSync(RACINE + "worker/src/index.js", "utf8");
+  assert.ok(src.includes("await envoyerGroupes(env, maintenant, RAPPEL_LOT - faits - faitsRdv);") && src.includes("await nettoyerGroupes(env, maintenant);"));
+});
+
+/* =========================================================
+   51. Invitation de groupe : le chiffrement (app/groupe-commun.js)
+   ========================================================= */
+titre("51. Invitation de groupe : le chiffrement");
+const PG = chargerPage({ fichiers: ["scenes", "creer", "groupe-commun"] });
+const G = nom => PG.lire(nom);
+const GSUB = crypto.subtle, GB64 = b => Buffer.from(b).toString("base64url");
+// Chiffrement écrit à part (d'après la description du format), pour vérifier le format et la validation après déchiffrement
+async function scellerAPart(gid, rid, contenu, gp){
+  const pub = await GSUB.importKey("raw", Buffer.from(gp, "base64url"), { name: "ECDH", namedCurve: "P-256" }, false, []);
+  const eph = await GSUB.generateKey({ name: "ECDH", namedCurve: "P-256" }, true, ["deriveBits"]);
+  const s = await GSUB.deriveBits({ name: "ECDH", public: pub }, eph.privateKey, 256);
+  const k = await GSUB.importKey("raw", await GSUB.deriveBits({ name: "HKDF", hash: "SHA-256", salt: new TextEncoder().encode(gid), info: new TextEncoder().encode("ose-reponse") },
+    await GSUB.importKey("raw", s, "HKDF", false, ["deriveBits"]), 128), "AES-GCM", false, ["encrypt"]);
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const c = new Uint8Array(await GSUB.encrypt({ name: "AES-GCM", iv, additionalData: new TextEncoder().encode(gid + "." + rid) }, k, new TextEncoder().encode(contenu)));
+  const e = new Uint8Array(await GSUB.exportKey("raw", eph.publicKey));
+  return GB64(Buffer.concat([Buffer.from([1]), e, iv, c]));
+}
+const GID2 = "GGGGGGGGGGGGGGGGGGGGGG", RID_A = "AAAAAAAAAAAAAAAAAAAAAA", RID_B = "BBBBBBBBBBBBBBBBBBBBBB";
+
+await test("Liens : #g=ID.CLÉ (48 caractères) et #ga=ID.CLÉ.D ; tout autre format refusé", () => {
+  const lire = G("grpLireHash"), id = "I".repeat(22), key = "K".repeat(22), d = "D".repeat(43);
+  const inv = G("grpLienInvite")("https://osedemander.fr/", id, key), orga = G("grpLienOrga")("https://osedemander.fr/", id, key, d);
+  assert.equal(inv.slice(inv.indexOf("#")).length, 48, "lien invités aussi court qu'un lien court");
+  assert.deepEqual(lire(inv.slice(inv.indexOf("#"))), { mode: "invite", id, key });
+  assert.deepEqual(lire(orga.slice(orga.indexOf("#"))), { mode: "orga", id, key, d });
+  for(const h of ["#g=" + id, "#g=" + id + "." + key + ".x", "#ga=" + id + "." + key, "#ga=" + id + "." + key + "." + d + "x", "#s=" + id + "." + key, "#i=yAAA", "", "#g=" + id + "." + key + "+"])
+    assert.equal(lire(h), null, h);
+});
+await test("Paire de clés WebCrypto : d (43) et gp (87, point non compressé) ; clé de gestion tirée de d, stable, 43 caractères", async () => {
+  const { d, gp } = await G("grpCles")(), autre = await G("grpCles")();
+  assert.match(d, /^[A-Za-z0-9_-]{43}$/); assert.match(gp, /^[A-Za-z0-9_-]{87}$/);
+  assert.equal(Buffer.from(gp, "base64url")[0], 4);
+  const g1 = await G("grpGestion")(d);
+  assert.match(g1, /^[A-Za-z0-9_-]{43}$/);
+  assert.equal(await G("grpGestion")(d), g1, "toujours la même pour un même d");
+  assert.notEqual(await G("grpGestion")(autre.d), g1);
+  // Calcul indépendant : HKDF-SHA-256(d, sel vide, « ose-gestion »)
+  const ref = GB64(await GSUB.deriveBits({ name: "HKDF", hash: "SHA-256", salt: new Uint8Array(0), info: new TextEncoder().encode("ose-gestion") },
+    await GSUB.importKey("raw", Buffer.from(d, "base64url"), "HKDF", false, ["deriveBits"]), 256));
+  assert.equal(g1, ref);
+  assert.notEqual(g1, d, "la clé de gestion n'est pas d");
+  await assert.rejects(G("grpGestion")("court"));
+  assert.ok(!readFileSync(RACINE + "app/groupe-commun.js", "utf8").match(/BigInt|modPow|\bn\s*\*\*/), "aucun calcul elliptique maison");
+});
+await test("Aller-retour : une réponse chiffrée vers gp se déchiffre avec la clé rebâtie depuis le lien #ga= (d) ; mauvaise clé, autre place, autre groupe, bloc altéré : refusés", async () => {
+  const { d, gp } = await G("grpCles")(), autre = await G("grpCles")();
+  const rep = { p: "Sam", r: "o", a: 2, m: "Avec plaisir !" };
+  const blob = await G("grpSceller")(GID2, RID_A, rep, gp);
+  const priv = await G("grpClePrivee")(d, gp);
+  assert.deepEqual(await G("grpOuvrir")(GID2, RID_A, blob, priv), rep);
+  assert.equal(await G("grpOuvrir")(GID2, RID_A, blob, await G("grpClePrivee")(autre.d, autre.gp)), null, "mauvaise clé");
+  assert.equal(await G("grpOuvrir")(GID2, RID_B, blob, priv), null, "recopiée à une autre place");
+  assert.equal(await G("grpOuvrir")("HHHHHHHHHHHHHHHHHHHHHH", RID_A, blob, priv), null, "recopiée dans un autre groupe");
+  const b = Buffer.from(blob, "base64url"); b[90] ^= 1;
+  assert.equal(await G("grpOuvrir")(GID2, RID_A, GB64(b), priv), null, "bloc altéré");
+  assert.equal(await G("grpOuvrir")(GID2, RID_A, "x", priv), null);
+  // Format vérifié par un chiffrement écrit à part
+  assert.deepEqual(await G("grpOuvrir")(GID2, RID_A, await scellerAPart(GID2, RID_A, JSON.stringify(rep), gp), priv), rep);
+  assert.equal(Buffer.from(blob, "base64url")[0], 1, "version 1");
+  // Chaque envoi tire une nouvelle clé éphémère : deux fois la même réponse donne deux blocs différents
+  assert.notEqual(await G("grpSceller")(GID2, RID_A, rep, gp), blob);
+});
+await test("Lien organisateur : d qui ne correspond pas à gp, ou mal formé, refusé (« lien organisateur invalide ») ; le bon d est accepté", async () => {
+  const { d, gp } = await G("grpCles")(), autre = await G("grpCles")(), verifier = G("grpVerifierOrga");
+  const priv = await verifier(GID2, d, gp);
+  assert.deepEqual(await G("grpOuvrir")(GID2, RID_A, await G("grpSceller")(GID2, RID_A, { p: "Lou", r: "p", a: 0 }, gp), priv), { p: "Lou", r: "p", a: 0, m: "" });
+  for(const mauvais of [autre.d, "A".repeat(43), "court"])
+    await assert.rejects(verifier(GID2, mauvais, gp), e => e.kind === "orga-invalide", mauvais.slice(0, 6));
+  await assert.rejects(verifier(GID2, d, "x".repeat(87)), e => e.kind === "orga-invalide", "gp invalide");
+});
+await test("Validation stricte des réponses, à l'envoi et après déchiffrement : prénom obligatoire (Non compris), 40 caractères, Oui/Peut-être/Non, 0 à 5 accompagnants (0 pour un Non), petit mot de 200", async () => {
+  const v = G("grpValider");
+  assert.deepEqual(v({ p: "  Sam ", r: "n" }), { p: "Sam", r: "n", a: 0, m: "" });
+  assert.deepEqual(v({ p: "Zoé", r: "p", a: 5, m: "À bientôt\nbises" }), { p: "Zoé", r: "p", a: 5, m: "À bientôt\nbises" });
+  assert.equal(v({ p: "😀".repeat(40), r: "o" }).p.length, 80, "40 caractères (emojis compris)");
+  for(const [x, pourquoi] of [[{ r: "o" }, "sans prénom"], [{ p: "  ", r: "n" }, "prénom vide, même pour un Non"], [{ p: "a".repeat(41), r: "o" }, "41 caractères"],
+    [{ p: "Sam", r: "x" }, "réponse inconnue"], [{ p: "Sam", r: "o", a: 6 }, "6 accompagnants"], [{ p: "Sam", r: "o", a: -1 }, "négatif"], [{ p: "Sam", r: "o", a: 1.5 }, "pas entier"],
+    [{ p: "Sam", r: "n", a: 1 }, "accompagnant avec un Non"], [{ p: "Sam", r: "o", m: "x".repeat(201) }, "petit mot trop long"], [{ p: "Sam", r: "o", lien: "x" }, "champ inconnu"],
+    [{ p: "Sa\u0000m", r: "o" }, "caractère de contrôle"], [{ p: 3, r: "o" }, "type"], [[], "tableau"], [null, "vide"]])
+    assert.equal(v(x), null, pourquoi);
+  // Après déchiffrement : un contenu bien chiffré mais invalide est écarté
+  const { d, gp } = await G("grpCles")(), priv = await G("grpClePrivee")(d, gp);
+  for(const c of ['{"p":"Sam","r":"o","a":9}', '{"p":"","r":"n"}', '{"p":"Sam","r":"o","x":1}', "pas du JSON", '"Sam"'])
+    assert.equal(await G("grpOuvrir")(GID2, RID_A, await scellerAPart(GID2, RID_A, c, gp), priv), null, c);
+  await assert.rejects(G("grpSceller")(GID2, RID_A, { p: "", r: "n" }, gp), "rien n'est chiffré sans prénom");
+});
+await test("Taille : réponse la plus longue sous 2 Ko ; longueur du prénom et du petit mot masquée (contenu complété)", async () => {
+  const { gp } = await G("grpCles")(), sc = (rep) => G("grpSceller")(GID2, RID_A, rep, gp);
+  const max = await sc({ p: "😀".repeat(40), r: "o", a: 5, m: "\"".repeat(100) + "😀".repeat(100) });
+  assert.ok(max.length <= 2048, `${max.length} caractères`);
+  assert.equal((await sc({ p: "Al", r: "o" })).length, (await sc({ p: "Maximilienne", r: "n", m: "On sera là" })).length, "même taille");
+});
+await test("Échéance : dernier créneau + 3 mois ; sans date, 6 mois après la création ; un an au plus", () => {
+  const e = G("grpExpire"), now = new Date(2026, 10, 24, 12).getTime();
+  const mois = (t, n) => { const x = new Date(t); x.setMonth(x.getMonth() + n); return x.getTime(); };
+  assert.equal(e([["2026-12-24", "20:00"], ["2026-12-31", "21:00"]], now), mois(new Date(2026, 11, 31, 21).getTime(), 3), "dernier créneau + 3 mois");
+  assert.equal(e([], now), mois(now, 6), "sans date : 6 mois");
+  assert.equal(e([["", ""]], now), mois(now, 6));
+  assert.equal(e([["2027-11-01", "20:00"]], now), now + 365 * 864e5, "un an au plus");
+  assert.equal(e([["2020-01-01", "20:00"]], now), now + 864e5, "date passée : un jour");
+});
+await test("Résumé : Oui, Peut-être, Non, personnes attendues avec les accompagnants", () => {
+  assert.deepEqual(G("grpResume")([{ r: "o", a: 2 }, { r: "o", a: 0 }, { r: "p", a: 1 }, { r: "n", a: 0 }]), { o: 2, p: 1, n: 1, personnes: 4, peutEtre: 2 });
+});
+await essaiWorker("Avec le service : créer, répondre, modifier (mauvais jeton refusé), lire et déchiffrer, clôturer, supprimer ; ni prénom ni d n'est envoyé", async () => {
+  const r = reseau(ENV_N({ ORIGINES: LOCAL })), avant = PG.lire("shortFetch"); PG.ecrire("shortFetch", r.f);
+  try{
+    const { d, gp } = await G("grpCles")(), code = await L.encodeData(INV());
+    const c = await G("grpCreer")(code, d, Date.now() + 90 * 864e5, LOCAL + "/");
+    assert.equal(c.etat, "ok");
+    assert.ok(c.invite.endsWith(`#g=${c.id}.${c.key}`) && c.orga.endsWith(`#ga=${c.id}.${c.key}.${d}`));
+    const priv = await G("grpVerifierOrga")(c.id, d, gp);
+    const a = await G("grpRepondre")(c.id, { p: "Sam", r: "o", a: 1, m: "Super" }, gp);
+    const b = await G("grpRepondre")(c.id, { p: "Alex", r: "n" }, gp);
+    assert.equal(a.etat, "ok"); assert.equal(b.etat, "ok");
+    assert.equal((await G("grpRepondre")(c.id, { p: "", r: "n" }, gp)).etat, "contenu", "prénom obligatoire");
+    assert.equal((await G("grpModifier")(c.id, a.rid, b.jeton, { p: "Sam", r: "n" }, gp)).etat, "jeton", "jeton d'une autre réponse");
+    assert.equal((await G("grpModifier")(c.id, a.rid, a.jeton, { p: "Sam", r: "p", a: 0 }, gp)).etat, "ok");
+    let l = await G("grpLire")(c.id, d, priv);
+    assert.equal(l.etat, "ok"); assert.equal(l.ignorees, 0);
+    assert.deepEqual(l.reponses.map(x => [x.p, x.r, x.a]).sort(), [["Alex", "n", 0], ["Sam", "p", 0]]);
+    assert.equal((await G("grpLire")(c.id, (await G("grpCles")()).d, priv)).etat, "jeton", "mauvaise clé de gestion");
+    // Ce qui a circulé : jamais un prénom, un petit mot, ni d ; à la création, seulement l'empreinte de la clé de gestion
+    const tout = r.journal.map(q => q.body).join("\n");
+    for(const s of ["Sam", "Alex", "Super", d]) assert.ok(!tout.includes(s), `envoyé : ${s}`);
+    assert.ok(!r.journal[0].body.includes(await G("grpGestion")(d)), "création : empreinte seulement");
+    for(const ligne of r.env.DB.db.prepare("SELECT blob FROM reponses").all()) assert.ok(!/Sam|Alex/.test(ligne.blob));
+    // Clôturer, rouvrir, supprimer
+    assert.equal(await G("grpCloturer")(c.id, d, true), "ok");
+    assert.equal((await G("grpRepondre")(c.id, { p: "Lou", r: "o" }, gp)).etat, "ferme");
+    assert.equal((await G("grpModifier")(c.id, a.rid, a.jeton, { p: "Sam", r: "o" }, gp)).etat, "ferme");
+    assert.equal(await G("grpCloturer")(c.id, d, false), "ok");
+    assert.equal(await G("grpSupprimerReponse")(c.id, d, b.rid), "ok");
+    assert.equal((await G("grpLire")(c.id, d, priv)).reponses.length, 1);
+    assert.equal(await G("grpSupprimer")(c.id, d), "ok");
+    assert.equal((await G("grpLire")(c.id, d, priv)).etat, "supprime");
+    assert.equal((await G("grpRepondre")(c.id, { p: "Lou", r: "o" }, gp)).etat, "supprime");
+    // Une réponse déposée avec une autre clé publique (invitation falsifiée ailleurs) est écartée et comptée
+    const c2 = await G("grpCreer")(code, d, Date.now() + 864e5 * 30, LOCAL + "/");
+    await G("grpRepondre")(c2.id, { p: "Zoé", r: "o" }, (await G("grpCles")()).gp);
+    l = await G("grpLire")(c2.id, d, priv);
+    assert.deepEqual([l.reponses.length, l.ignorees], [0, 1]);
+  } finally { PG.ecrire("shortFetch", avant); }
+});
+await test("Fichier à part : chargé à la demande, versionné, précaché par sw.js ; index.html ne fait que le déclarer", () => {
+  const f = readFileSync(RACINE + "app/groupe-commun.js", "utf8"), sw = readFileSync(RACINE + "sw.js", "utf8"), html = readFileSync(RACINE + "index.html", "utf8");
+  const v = (f.match(/oseLoaded\("groupeCommun", "([0-9a-f]{10})"\)/) || [])[1];
+  assert.ok(v && sw.includes(`"./app/groupe-commun.js?v=${v}"`) && html.includes(`groupeCommun:"${v}"`), "même version partout");
+  assert.equal(PG.lire("oseUrl")("groupeCommun"), `app/groupe-commun.js?v=${v}`);
+  assert.ok(CSP.FICHIERS.some(x => x.chemin === "app/groupe-commun.js"));
+  assert.ok(!html.includes("grpSceller") && !html.includes("grpOuvrir"), "le chiffrement des groupes n'est pas dans index.html");
+  assert.ok(gzipSync(f).length < 6000, `${gzipSync(f).length} octets compressés`);
+});
+
+/* =========================================================
+   52. Invitation de groupe : la création (champ gp, « Plusieurs personnes », deux liens, Mes invitations, export et import)
+   ========================================================= */
+titre("52. Invitation de groupe : la création");
+const GP_EX = "BAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
+await test("Lien : gp gardé (format compact G et ancien format) ; il impose la réponse par le lien (ni canal, ni coordonnées, ni notification individuelle)", async () => {
+  const d = await L.decodeData(await L.encodeData(INV({ gp: GP_EX, c: "wa", ci: "06 00 00 00 01", nz: "QUJDREVGR0hJSktMTU5PUA.ZXhlbXBsZS1kZS1jbGUxMg" })));
+  assert.equal(d.gp, GP_EX); assert.equal(d.c, "any"); assert.equal(d.ci, undefined); assert.equal(d.nz, undefined);
+  assert.equal(L.sanitize(INV({ gp: "court" })).gp, undefined, "clé mal formée : ignorée");
+  assert.equal(L.sanitize(INV({ gp: GP_EX, rv: 1 })).gp, undefined, "jamais dans un rappel d'agenda");
+  assert.equal(L.sanitize(INV({ gp: GP_EX, vu: 1 })).gp, undefined, "jamais dans une version partagée");
+  assert.ok(L.LINK_KEYS.includes("G") && FIGE.LINK_KEYS.includes("G"));
+  const pack = L.packLink(L.sanitize(INV({ gp: GP_EX })));
+  assert.equal(pack.G, GP_EX);
+  for(const autre of [{ Z: "QUJDREVGR0hJSktMTU5PUA.ZXhlbXBsZS1kZS1jbGUxMg" }, { c: 1, i: "06 00 00 00 01" }, {}]){
+    const c = { ...pack, ...autre }; if(!Object.keys(autre).length) c.G = "x";
+    assert.throws(() => L.unpackLink(c), JSON.stringify(autre));
+  }
+  const PP = chargerPage();
+  assert.equal(PP.lire("reminderData")({ ...L.sanitize(INV({ gp: GP_EX })) }, 0).gp, undefined, "rappel d'agenda : sans groupe");
+  assert.equal(PP.lire("shareData")({ ...L.sanitize(INV({ gp: GP_EX })) }, 0).gp, undefined, "version partagée : sans groupe");
+});
+await test("Étape 2 : « Une personne » ou « Plusieurs personnes » ; en groupe, « Pour qui ? » (le nom du groupe s'affiche sur l'enveloppe)", () => {
+  const P = chargerPage(), S = P.lire("S");
+  Object.assign(S, { step: 2, groupe: false, to: "", from: "" }); P.lire("renderCreator")();
+  let h = P.zones["#app"].innerHTML;
+  assert.ok(h.includes('data-groupe="0" aria-pressed="true">Une personne') && h.includes('data-groupe="1" aria-pressed="false">Plusieurs personnes'));
+  assert.ok(h.includes("<span>Son prénom</span>"));
+  S.groupe = true; P.lire("renderCreator")(); h = P.zones["#app"].innerHTML;
+  assert.ok(h.includes("<span>Pour qui ?</span>") && h.includes('placeholder="Ex. La bande"') && h.includes("chaque personne répondra avec son prénom"));
+  assert.ok(!/·e\b|·s\b/.test(h), "pas de point médian");
+});
+await test("Étape 4 en groupe : ni canal ni partage de la surprise ni notification individuelle ; récapitulatif « Chaque personne répond depuis le lien »", () => {
+  const P = chargerPage(), S = P.lire("S");
+  Object.assign(S, { step: 4, occ: "soiree", tpl: "soiree", from: "Alex", to: "La bande", groupe: true, link: "", moreOpen: true, open: new Set(["reply"]), date: "2027-02-13", time: "20:00" });
+  P.lire("renderCreator")();
+  const h = P.zones["#app"].innerHTML;
+  assert.ok(h.includes("Chaque personne répond depuis le lien") && h.includes("Les réponses ne se lisent qu'avec ton lien organisateur."));
+  assert.ok(!h.includes("Comment veux-tu recevoir la réponse ?") && !h.includes("allowShare") && !h.includes("Me prévenir dès que"));
+  assert.ok(h.includes("🔔 Me prévenir des nouvelles réponses"), "notification de groupe à la place (étape 6)");
+  assert.deepEqual(principales(h.replace(/<[^>]*class="[^"]*hidden[^"]*"[\s\S]*?<\/div>/g, "")).filter(t => t === "Créer mon lien"), ["Créer mon lien"]);
+});
+await essaiWorker("Créer en groupe : paire de clés, invitation chiffrée avec la clé publique, lien invités #g= et lien organisateur #ga= ; rangée dans les Envoyées ; rien de lisible en ligne", async () => {
+  const stockage = new Map(), P = chargerPage({ fichiers: ["scenes", "creer", "groupe-commun"], stockage });
+  const r = reseau(ENV_N({ ORIGINES: LOCAL })); P.ecrire("shortFetch", r.f);
+  const S = P.lire("S");
+  Object.assign(S, { step: 4, occ: "soiree", tpl: "soiree", theme: "soiree", from: "Alex", to: "La bande", groupe: true, q: "Tu viens à ma soirée ?", date: "2027-02-13", time: "20:00",
+    act: { v: "v", x: "Soirée chez Alex", h: "", at: "" }, lieu: { v: "v", x: "Salle de l'Exemple", h: "", at: "" } });
+  await P.lire("makeGroupe")();
+  assert.match(S.link, /^http:\/\/localhost:8000\/#g=[A-Za-z0-9_-]{22}\.[A-Za-z0-9_-]{22}$/);
+  assert.match(S.orgaLink, /^http:\/\/localhost:8000\/#ga=[A-Za-z0-9_-]{22}\.[A-Za-z0-9_-]{22}\.[A-Za-z0-9_-]{43}$/);
+  const [, id, key] = S.link.match(/#g=(.{22})\.(.{22})/), d = S.orgaLink.slice(-43);
+  assert.ok(S.orgaLink.includes(`#ga=${id}.${key}.`), "même groupe, même clé");
+  // En ligne : l'invitation chiffrée (avec la clé publique dedans), l'empreinte de la clé de gestion ; ni prénom ni d
+  const q = r.journal.find(x => x.url.endsWith("/v1/groupes"));
+  for(const s of ["Alex", "La bande", "Exemple", d, key]) assert.ok(!q.body.includes(s), `envoyé : ${s}`);
+  const code = await P.lire("openShort")(id, key, r.env.DB.db.prepare("SELECT ct FROM liens WHERE id = ?").get(id).ct);
+  const inv = await L.decodeData(code);
+  assert.equal(inv.t, "La bande"); assert.match(inv.gp, /^[A-Za-z0-9_-]{87}$/); assert.equal(inv.c, "any");
+  await P.lire("grpVerifierOrga")(id, d, inv.gp); // le lien organisateur lit bien les réponses de ce groupe
+  // Échéance : dernier créneau + 3 mois
+  const g = r.env.DB.db.prepare("SELECT expire FROM groupes WHERE id = ?").get(id);
+  assert.equal(g.expire, P.lire("grpExpire")([["2027-02-13", "20:00"]]));
+  // Mes invitations
+  const hist = JSON.parse(stockage.get("ose-historique"));
+  assert.equal(hist.length, 1);
+  assert.deepEqual({ link: hist[0].link, orga: hist[0].orga, to: hist[0].to, occ: hist[0].occ }, { link: S.link, orga: S.orgaLink, to: "La bande", occ: "soiree" });
+  for(const k of ["long", "jeton", "nid", "ok"]) assert.equal(hist[0][k], undefined);
+  // Service muet : un message clair, pas de lien
+  const P2 = chargerPage({ fichiers: ["scenes", "creer", "groupe-commun"] }); P2.ecrire("shortFetch", async () => { throw new TypeError("Failed to fetch"); });
+  Object.assign(P2.lire("S"), { ...S, link: "", orgaLink: "" });
+  await P2.lire("makeGroupe")();
+  assert.equal(P2.lire("S").link, ""); assert.equal(P2.lire("GROUPE_ERREUR"), "Le service des invitations de groupe ne répond pas. Réessaie dans un instant.");
+});
+await test("Carte « Ton lien est prêt » en groupe : une seule action principale, le lien organisateur à part avec l'avertissement, pas d'image", () => {
+  const P = chargerPage({ share: true }), S = P.lire("S");
+  Object.assign(S, { groupe: true, to: "La bande", link: LOCAL + "/#g=" + "A".repeat(22) + "." + "B".repeat(22), orgaLink: "x" });
+  const h = P.lire("readyHTML")();
+  assert.deepEqual(principales(h), ["Partager le lien"]);
+  assert.ok(h.includes("Ton lien organisateur") && h.includes("🔑 Garde ce lien pour toi : il permet de lire les réponses."));
+  assert.ok(h.includes("Copier mon lien organisateur") && h.includes("M'envoyer ce lien"));
+  assert.ok(h.includes("«&nbsp;La bande, j&#39;ai une question pour vous 💌&nbsp;»"));
+  assert.ok(!h.includes("imgOpen"), "pas d'image pour un groupe (pour l'instant)");
+  assert.ok(!h.includes("#ga="), "le lien organisateur n'est jamais affiché en clair sur la carte");
+  const sans = chargerPage(); Object.assign(sans.lire("S"), { groupe: true, to: "La bande", link: "x" });
+  assert.deepEqual(principales(sans.lire("readyHTML")()), ["Copier le lien"], "sans partage natif : Copier");
+});
+await test("Mes invitations : entrée de groupe validée strictement (deux liens du même groupe, rien d'autre) ; pastille « Groupe » ; export et import", async () => {
+  const P = chargerPage(), v = P.lire("validEntry");
+  const id = "I".repeat(22), key = "K".repeat(22), d = "D".repeat(43), base = "http://localhost:8000/";
+  const e = { id: "abc123def", from: "Alex", to: "La bande", occ: "soiree", when: [["2027-02-13", "20:00"]], link: base + `#g=${id}.${key}`, orga: base + `#ga=${id}.${key}.${d}`, created: new Date().toISOString() };
+  assert.ok(v(e));
+  assert.ok(!v({ ...e, orga: base + `#ga=${"J".repeat(22)}.${key}.${d}` }), "lien organisateur d'un autre groupe");
+  assert.ok(!v({ ...e, orga: base + `#ga=${id}.${"L".repeat(22)}.${d}` }), "autre clé");
+  assert.ok(!v({ ...e, orga: "https://exemple.com/#ga=" + `${id}.${key}.${d}` }), "autre site");
+  assert.ok(!v({ ...e, orga: undefined }), "lien organisateur manquant");
+  assert.ok(!v({ ...e, link: base + "#s=" + id + "." + key }), "pas un lien de groupe");
+  for(const k of ["nid", "ok", "jeton", "long"]) assert.ok(!v({ ...e, [k]: k === "ok" ? new Date().toISOString() : "x".repeat(k === "jeton" ? 43 : 22) }), `champ ${k}`);
+  const carte = P.lire("histCardEnv")(e);
+  assert.ok(carte.includes('<span class="tag-groupe">Groupe</span>') && carte.includes('data-act="orga"'));
+  assert.equal((carte.match(/class="btn sm primary"/g) || []).length, 1, "une seule action principale");
+  assert.ok(carte.includes('class="btn sm primary" data-act="voir">Voir les réponses'));
+  for(const non of ['data-act="ok"', 'data-act="cal"', 'data-act="dup"', 'data-act="unpub"', "hist-rebours"]) assert.ok(!carte.includes(non), non);
+  // Export puis import sur un autre appareil : l'entrée de groupe revient telle quelle, clé comprise
+  const stockage = new Map([["ose-historique", JSON.stringify([e])]]), A = chargerPage({ stockage });
+  const items = A.lire("loadHistory")();
+  assert.equal(items.length, 1);
+  const fichier = JSON.stringify({ app: "ose-demander", version: 2, exported: new Date().toISOString(), items, recues: [] });
+  const stockage2 = new Map(), B = chargerPage({ stockage: stockage2 });
+  await B.lire("importHistory")({ size: fichier.length, text: async () => fichier });
+  const apres = JSON.parse(stockage2.get("ose-historique"));
+  assert.equal(apres.length, 1); assert.equal(apres[0].orga, e.orga); assert.equal(apres[0].link, e.link);
+  const faux = JSON.stringify({ app: "ose-demander", version: 2, items: [{ ...e, orga: base + `#ga=${"J".repeat(22)}.${key}.${d}` }], recues: [] }), stockage3 = new Map();
+  await chargerPage({ stockage: stockage3 }).lire("importHistory")({ size: faux.length, text: async () => faux });
+  assert.equal(stockage3.get("ose-historique"), undefined, "entrée incohérente refusée à l'import");
+});
+
+/* =========================================================
+   53. Invitation de groupe : la personne invitée (lien #g=, formulaire, envoi, modification, messages, Reçues)
+   ========================================================= */
+titre("53. Invitation de groupe : la personne invitée");
+const FICH_GRP = ["scenes", "creer", "groupe-commun", "groupe-invite"];
+// Un groupe créé pour de bon auprès du Worker du banc : {r, id, key, d, gp, lien}
+async function groupeDeTest(extra = {}){
+  const r = reseau(ENV_N({ ORIGINES: LOCAL })), P = chargerPage({ fichiers: FICH_GRP }); P.ecrire("shortFetch", r.f);
+  const { d, gp } = await P.lire("grpCles")(), code = await L.encodeData(INV({ gp, t: "La bande", ...extra }));
+  const c = await P.lire("grpCreer")(code, d, Date.now() + 60 * 864e5, LOCAL + "/");
+  return { r, id: c.id, key: c.key, d, gp, lien: c.invite };
+}
+// Ouvre un lien dans une page neuve (stockage local fourni), branchée sur le même Worker
+async function ouvrirGroupe(g, lien = g.lien, stockage = new Map()){
+  const P = chargerPage({ fichiers: FICH_GRP, stockage }); P.ecrire("shortFetch", g.r.f);
+  P.location.hash = lien.slice(lien.indexOf("#")); await P.lire("route")();
+  return P;
+}
+await essaiWorker("Ouvrir #g= : l'invitation habituelle (enveloppe), en mode groupe ; rangée dans les Reçues avec son lien de groupe ; aucune demande en dehors de la lecture", async () => {
+  const g = await groupeDeTest(), stockage = new Map(), avant = g.r.journal.length;
+  const P = await ouvrirGroupe(g, g.lien, stockage);
+  assert.ok(P.zones["#app"].innerHTML.includes('class="envelope'), "même enveloppe animée");
+  assert.deepEqual(P.lire("GRP"), { id: g.id, key: g.key, ferme: false });
+  assert.equal(P.lire("D").gp, g.gp);
+  const r = JSON.parse(stockage.get("ose-recues"));
+  assert.equal(r.length, 1); assert.ok(r[0].link.endsWith(`#g=${g.id}.${g.key}`), "lien de groupe gardé tel quel");
+  assert.deepEqual(g.r.journal.slice(avant).map(q => q.url.replace(/^.*\/v1\//, "")), [`liens/${g.id}`], "une seule demande : lire l'invitation");
+});
+await essaiWorker("Le même contenu ouvert par #s= reste une invitation ordinaire ; un #g= sans clé publique est refusé", async () => {
+  const g = await groupeDeTest();
+  const P = await ouvrirGroupe(g, LOCAL + `/#s=${g.id}.${g.key}`);
+  assert.equal(P.lire("GRP"), null); assert.equal(P.lire("D").gp, undefined, "clé publique retirée hors #g=");
+  // Un lien court ordinaire (sans gp) ouvert comme un groupe
+  const sh = await P.lire("createShort")(await CODE_EX(), LOCAL + "/");
+  const id = sh.link.match(/#s=(.{22})\.(.{22})/);
+  const Q = await ouvrirGroupe(g, LOCAL + `/#g=${id[1]}.${id[2]}`);
+  assert.equal(Q.lire("GRP"), null);
+  assert.ok(/Ce lien est incomplet/.test(Q.zones["#app"].innerHTML), "lien refusé, message d'erreur");
+});
+await essaiWorker("Oui : le formulaire (prénom, Oui / Peut-être / Non, personnes avec toi, petit mot), une seule action principale ; vrai refus : Non choisi, sans personnes", async () => {
+  const g = await groupeDeTest(), P = await ouvrirGroupe(g);
+  P.lire("renderInvite")(); P.lire("sayYes")(); await new Promise(r => setTimeout(r, 0)); await P.lire("groupeForm")("o");
+  let h = P.zones["#main"].innerHTML;
+  assert.ok(h.includes("C&#39;est un oui !") && h.includes("Ton prénom") && h.includes('autocomplete="given-name"'));
+  assert.ok(h.includes('data-grp-r="o" aria-pressed="true">Oui') && h.includes('data-grp-r="p" aria-pressed="false">Peut-être') && h.includes('data-grp-r="n" aria-pressed="false">Non'));
+  assert.ok(h.includes("Combien de personnes viennent avec toi ?") && h.includes(">Aucune</option>") && h.includes('<option value="5"'));
+  assert.ok(h.includes("Un petit mot (facultatif)") && h.includes('maxlength="200"') && h.includes('maxlength="40"'));
+  assert.deepEqual(principales(h), ["Envoyer ma réponse"]);
+  assert.ok(h.includes("<strong>Dernière étape :</strong> envoie ta réponse à Alex."));
+  assert.ok(h.includes("Seule la personne qui organise pourra lire ta réponse"));
+  assert.ok(!h.includes('id="reply"') && !h.includes("Copier ma réponse"), "pas d'envoi par message pour un groupe");
+  await P.lire("groupeForm")("n"); h = P.zones["#main"].innerHTML;
+  assert.ok(h.includes("Répondre non") && h.includes('data-grp-r="n" aria-pressed="true"') && /grp-avec hidden/.test(h));
+  assert.ok(h.includes("Finalement, je reviens en arrière"));
+  assert.equal(JSON.parse(P.stockage.get("ose-recues"))[0].rep, undefined, "rien n'est noté avant l'envoi");
+});
+await essaiWorker("Envoyer puis modifier depuis le même appareil : une seule réponse en ligne, lisible par l'organisateur ; Reçues : Acceptée, puis Peut-être", async () => {
+  const g = await groupeDeTest(), P = await ouvrirGroupe(g), env = P.lire("grpEnvoyer");
+  assert.deepEqual(await env({ p: "", r: "o" }), { etat: "contenu" }, "prénom obligatoire");
+  let x = await env({ p: "Sam", r: "o", a: 2, m: "Avec plaisir" });
+  assert.equal(x.etat, "ok");
+  const lire = async () => (await P.lire("grpLire")(g.id, g.d, await P.lire("grpClePrivee")(g.d, g.gp))).reponses.map(r => [r.p, r.r, r.a, r.m]);
+  assert.deepEqual(await lire(), [["Sam", "o", 2, "Avec plaisir"]]);
+  let recue = JSON.parse(P.stockage.get("ose-recues"))[0];
+  assert.deepEqual([recue.gr, recue.rep, recue.repSlot, !!recue.ag], ["o", "o", 0, true], "Acceptée, avec l'agenda");
+  assert.ok(P.lire("validRecue")(recue));
+  const garde = JSON.parse(P.stockage.get("ose-groupe-rep"))[g.id];
+  assert.match(garde.rid, /^[A-Za-z0-9_-]{22}$/); assert.match(garde.jeton, /^[A-Za-z0-9_-]{43}$/);
+  x = await env({ p: "Sam", r: "p", a: 1, m: "" });
+  assert.equal(x.etat, "ok");
+  assert.deepEqual(await lire(), [["Sam", "p", 1, ""]], "modifiée, jamais en double");
+  assert.equal(g.r.env.DB.db.prepare("SELECT COUNT(*) AS n FROM reponses").get().n, 1);
+  recue = JSON.parse(P.stockage.get("ose-recues"))[0];
+  assert.deepEqual([recue.gr, recue.rep], ["p", undefined]);
+  assert.ok(P.lire("validRecue")(recue)); assert.ok(P.lire("statutRecue")(recue).includes("Peut-être"));
+  // Rouvrir le lien sur le même appareil : le formulaire est prérempli, « Modifier ma réponse »
+  const Q = await ouvrirGroupe(g, g.lien, P.stockage);
+  await Q.lire("groupeForm")("o");
+  const h = Q.zones["#main"].innerHTML;
+  assert.ok(h.includes('value="Sam"') && h.includes('data-grp-r="p" aria-pressed="true"') && h.includes('<option value="1" selected>'));
+  assert.deepEqual(principales(h), ["Modifier ma réponse"]);
+  // Écran après l'envoi
+  Q.lire("renderGroupeEnvoye")({ p: "Sam", r: "o", a: 2, m: "" });
+  assert.ok(Q.zones["#main"].innerHTML.includes("Alex a bien reçu ta réponse : oui, avec 2 personnes."));
+});
+await essaiWorker("Messages : réponses clôturées (dès l'ouverture), réponse retirée par l'organisateur, invitation supprimée, groupe complet, service muet", async () => {
+  const g = await groupeDeTest(), P = await ouvrirGroupe(g), env = P.lire("grpEnvoyer"), T = P.lire("GRP_TEXTES");
+  await env({ p: "Sam", r: "o" });
+  const rid = JSON.parse(P.stockage.get("ose-groupe-rep"))[g.id].rid;
+  // Retirée par l'organisateur : l'appareil l'oublie, la suivante est une nouvelle réponse
+  await P.lire("grpSupprimerReponse")(g.id, g.d, rid);
+  assert.deepEqual(await env({ p: "Sam", r: "n" }), { etat: "retiree" });
+  assert.equal(JSON.parse(P.stockage.get("ose-groupe-rep"))[g.id], undefined);
+  assert.equal((await env({ p: "Sam", r: "n" })).etat, "ok");
+  // Clôturées : à l'ouverture, pas de formulaire pour une première réponse
+  await P.lire("grpCloturer")(g.id, g.d, true);
+  const Q = await ouvrirGroupe(g);
+  assert.equal(Q.lire("GRP").ferme, true, "le lien court signale la clôture");
+  await Q.lire("groupeForm")("o");
+  assert.ok(Q.zones["#main"].innerHTML.includes("Les réponses sont closes : Alex ne prend plus de réponses pour cette invitation.") && !Q.zones["#main"].innerHTML.includes("grpEnvoyer"));
+  assert.equal((await env({ p: "Sam", r: "o" })).etat, "ferme", "modification refusée aussi");
+  await P.lire("grpCloturer")(g.id, g.d, false);
+  // Supprimée, complète, service muet : messages prévus
+  await P.lire("grpSupprimer")(g.id, g.d);
+  assert.equal((await env({ p: "Sam", r: "o" })).etat, "supprime");
+  for(const k of ["ferme", "expire", "supprime", "plein", "limite", "reseau", "retiree"]) assert.ok(T["grp.err." + k], k);
+  assert.equal(P.lire("grpT")("grp.err.plein"), "Cette invitation a déjà reçu 100 réponses : il n'est plus possible d'en ajouter.");
+  const R = chargerPage({ fichiers: FICH_GRP }); R.ecrire("shortFetch", async () => { throw new TypeError("Failed to fetch"); });
+  R.ecrire("GRP", { id: g.id, key: g.key, ferme: false }); R.ecrire("D", L.sanitize(INV({ gp: g.gp })));
+  assert.equal((await R.lire("grpEnvoyer")({ p: "Sam", r: "o" })).etat, "reseau");
+});
+await test("Reçues : réponse de groupe validée strictement, gardée à l'import ; création en groupe : un seul créneau", async () => {
+  const P = chargerPage(), v = P.lire("validRecue"), base = LOCAL + "/", id = "I".repeat(22), key = "K".repeat(22);
+  const e = { id: "abc123def", from: "Alex", to: "La bande", occ: "soiree", when: [["2027-02-13", "20:00"]], link: base + `#g=${id}.${key}`, created: new Date().toISOString() };
+  assert.ok(v(e)); assert.ok(v({ ...e, gr: "p" }));
+  assert.ok(v({ ...e, gr: "o", rep: "o", repAt: new Date().toISOString(), repSlot: 0, ag: { t: "Soirée avec Alex", l: "", e: "" } }));
+  assert.ok(!v({ ...e, gr: "x" }), "réponse inconnue");
+  assert.ok(!v({ ...e, gr: "p", rep: "o", repAt: new Date().toISOString(), ag: { t: "x", l: "", e: "" } }), "Peut-être n'est pas Acceptée");
+  assert.ok(!v({ ...e, link: base + "#s=" + id + "." + key, gr: "p" }), "gr seulement pour un groupe");
+  const f = JSON.stringify({ app: "ose-demander", version: 2, items: [], recues: [{ ...e, gr: "p" }] }), st = new Map();
+  await chargerPage({ stockage: st }).lire("importHistory")({ size: f.length, text: async () => f });
+  assert.equal(JSON.parse(st.get("ose-recues"))[0].gr, "p", "lien de groupe gardé tel quel à l'import");
+  const C = chargerPage(), S = C.lire("S");
+  Object.assign(S, { step: 3, groupe: true, choose: true, mode: "one" }); C.lire("renderCreator")();
+  assert.ok(!C.zones["#app"].innerHTML.includes('id="choose"') && S.choose === false, "pas de choix de créneau pour un groupe");
+});
+await test("Fichier à part : chargé au Oui (préparé à l'ouverture), versionné, précaché ; textes regroupés, neutres", () => {
+  const f = readFileSync(RACINE + "app/groupe-invite.js", "utf8"), sw = readFileSync(RACINE + "sw.js", "utf8"), html = readFileSync(RACINE + "index.html", "utf8");
+  const v = (f.match(/oseLoaded\("groupeInvite", "([0-9a-f]{10})"\)/) || [])[1];
+  assert.ok(v && sw.includes(`"./app/groupe-invite.js?v=${v}"`) && html.includes(`groupeInvite:"${v}"`));
+  assert.ok(CSP.FICHIERS.some(x => x.chemin === "app/groupe-invite.js"));
+  const textes = f.slice(f.indexOf("const GRP_TEXTES"), f.indexOf("};", f.indexOf("const GRP_TEXTES")));
+  assert.ok(/"grp\.[a-z.0-9]+": "/.test(textes));
+  assert.ok(!/·e\b|accompagné|seul\b|prévenu/.test(textes), "textes neutres");
+  assert.ok(gzipSync(f).length < 5000, `${gzipSync(f).length} octets compressés`);
+});
+
+/* =========================================================
+   54. Invitation de groupe : le tableau de bord de l'organisateur (#ga=, #groupe=, compteurs, liste, résumé)
+   ========================================================= */
+titre("54. Invitation de groupe : le tableau de bord");
+const FICH_ORGA = ["scenes", "creer", "groupe-commun", "groupe-orga"];
+async function tableauDeTest(g, arg, stockage = new Map()){
+  const P = chargerPage({ fichiers: FICH_ORGA, stockage }); P.ecrire("shortFetch", g.r.f);
+  await P.lire("renderTableau")(arg);
+  return P;
+}
+async function repondreA(g, reps){
+  const P = chargerPage({ fichiers: ["scenes", "creer", "groupe-commun"] }); P.ecrire("shortFetch", g.r.f);
+  for(const rep of reps) assert.equal((await P.lire("grpRepondre")(g.id, rep, g.gp)).etat, "ok");
+}
+await essaiWorker("Lien organisateur sur un autre appareil : réponses déchiffrées, compteurs, personnes attendues ; l'invitation rejoint les Envoyées ; la clé quitte l'adresse", async () => {
+  const g = await groupeDeTest();
+  await repondreA(g, [{ p: "Sam", r: "o", a: 2, m: "Avec plaisir" }, { p: "Lou", r: "p", a: 1 }, { p: "Zoé", r: "o" }, { p: "Max", r: "n" }]);
+  const stockage = new Map(), P = await tableauDeTest(g, { id: g.id, key: g.key, d: g.d }, stockage);
+  const h = P.zones["#app"].innerHTML;
+  assert.ok(h.includes("Les réponses") && h.includes("Pour La bande, de Alex"));
+  assert.ok(/grp-cpt-o"><b>2<\/b>/.test(h) && /grp-cpt-p"><b>1<\/b>/.test(h) && /grp-cpt-n"><b>1<\/b>/.test(h), "2 oui, 1 peut-être, 1 non");
+  assert.ok(h.includes("4 personnes attendues, accompagnants compris.") && h.includes("Et 2 peut-être."), "Oui avec accompagnants : 3 + 1");
+  for(const t of ["<b>Sam</b>", "avec 2 personnes", "Avec plaisir", "<b>Lou</b>", "avec 1 personne<", "<b>Zoé</b>", "<b>Max</b>"]) assert.ok(h.includes(t), t);
+  assert.ok(h.indexOf("<b>Sam</b>") < h.indexOf("<b>Lou</b>") && h.indexOf("<b>Lou</b>") < h.indexOf("<b>Max</b>"), "Oui, puis Peut-être, puis Non");
+  assert.equal((h.match(/class="btn sm primary"/g) || []).length, 1); assert.ok(h.includes('id="orgaMaj">Actualiser'));
+  for(const t of ["Copier le lien du groupe", "Clôturer les réponses", "Supprimer l&#39;invitation", 'data-suppr="']) assert.ok(h.includes(t), t);
+  assert.ok(h.includes("Réponses ouvertes"));
+  const hist = JSON.parse(stockage.get("ose-historique"));
+  assert.equal(hist.length, 1, "ajoutée aux Envoyées de cet appareil");
+  assert.ok(hist[0].orga.endsWith(`#ga=${g.id}.${g.key}.${g.d}`));
+  assert.deepEqual(hist[0].grs, { o: 2, p: 1, n: 1, pers: 4 }, "résumé gardé (des nombres seulement)");
+  assert.ok(!P.location.hash.includes(g.d), "la clé privée ne reste pas dans l'adresse");
+  assert.ok(P.lire("renderTableau").toString().includes('history.replaceState(null, "", location.pathname+"#groupe="+id)'));
+  // Rouvert par #groupe=ID : relu dans « Mes invitations »
+  const Q = await tableauDeTest(g, { id: g.id }, stockage);
+  assert.ok(/grp-cpt-o"><b>2<\/b>/.test(Q.zones["#app"].innerHTML));
+  // Carte des Envoyées : le résumé et « Voir les réponses »
+  const carte = Q.lire("histCardEnv")(hist[0]);
+  assert.ok(carte.includes("2 oui, 1 peut-être, 1 non") && carte.includes('class="btn sm primary" data-act="voir">Voir les réponses'));
+});
+await essaiWorker("Lien organisateur invalide (clé d'un autre groupe) : message clair, rien n'est ajouté ; #groupe= inconnu sur cet appareil ; invitation supprimée", async () => {
+  const g = await groupeDeTest(), autre = await chargerPage({ fichiers: FICH_ORGA }).lire("grpCles")();
+  const stockage = new Map(), P = await tableauDeTest(g, { id: g.id, key: g.key, d: autre.d }, stockage);
+  assert.ok(P.zones["#app"].innerHTML.includes("Lien organisateur invalide") && P.zones["#app"].innerHTML.includes("Ce lien ne permet pas de lire les réponses de cette invitation."));
+  assert.equal(stockage.get("ose-historique"), undefined, "rien n'est ajouté");
+  const Q = await tableauDeTest(g, { id: g.id });
+  assert.ok(Q.zones["#app"].innerHTML.includes("n&#39;est pas dans « Mes invitations » sur cet appareil"));
+  const R0 = chargerPage({ fichiers: FICH_ORGA }); R0.ecrire("shortFetch", g.r.f); await R0.lire("grpSupprimer")(g.id, g.d);
+  const R = await tableauDeTest(g, { id: g.id, key: g.key, d: g.d });
+  assert.ok(R.zones["#app"].innerHTML.includes("Cette invitation a été supprimée : ses réponses ont été effacées."));
+});
+await essaiWorker("Réponses closes, liste vide, réponse illisible écartée et comptée", async () => {
+  const g = await groupeDeTest();
+  const P0 = chargerPage({ fichiers: FICH_ORGA }); P0.ecrire("shortFetch", g.r.f);
+  let P = await tableauDeTest(g, { id: g.id, key: g.key, d: g.d });
+  assert.ok(P.zones["#app"].innerHTML.includes("Aucune réponse pour l&#39;instant."));
+  await P0.lire("grpCloturer")(g.id, g.d, true);
+  // Une réponse chiffrée vers une autre clé publique (illisible pour cet organisateur)
+  g.r.env.DB.db.prepare("INSERT INTO reponses (id, groupe_id, blob, edit, maj) VALUES (?, ?, ?, ?, ?)").run("X".repeat(22), g.id,
+    await P0.lire("grpSceller")(g.id, "X".repeat(22), { p: "Intrus", r: "o" }, (await P0.lire("grpCles")()).gp), "E".repeat(43), Date.now());
+  P = await tableauDeTest(g, { id: g.id, key: g.key, d: g.d });
+  const h = P.zones["#app"].innerHTML;
+  assert.ok(h.includes("Réponses closes") && h.includes('id="orgaClos">Rouvrir les réponses'));
+  assert.ok(h.includes("1 réponse illisible écartée.") && !h.includes("Intrus"));
+});
+await test("Envoyées : résumé validé strictement (des nombres, 100 réponses au plus)", () => {
+  const P = chargerPage(), v = P.lire("validEntry"), base = LOCAL + "/", id = "I".repeat(22), key = "K".repeat(22);
+  const e = { id: "abc123def", from: "Alex", to: "La bande", occ: "soiree", when: [["2027-02-13", "20:00"]], link: base + `#g=${id}.${key}`, orga: base + `#ga=${id}.${key}.${"D".repeat(43)}`, created: new Date().toISOString() };
+  assert.ok(v({ ...e, grs: { o: 8, p: 3, n: 2, pers: 14 } }));
+  for(const grs of [{ o: 1, p: 0, n: 0 }, { o: 1, p: 0, n: 0, pers: 1, x: 1 }, { o: -1, p: 0, n: 0, pers: 0 }, { o: 90, p: 10, n: 1, pers: 1 }, { o: "1", p: 0, n: 0, pers: 1 }, [1]])
+    assert.ok(!v({ ...e, grs }), JSON.stringify(grs));
+  assert.ok(!v({ ...e, link: base + "#s=" + id + "." + key, orga: undefined, grs: { o: 1, p: 0, n: 0, pers: 1 } }), "résumé seulement pour un groupe");
+});
+await test("Fichier à part : chargé pour #ga= et #groupe=, versionné, précaché ; textes regroupés ; route", () => {
+  const f = readFileSync(RACINE + "app/groupe-orga.js", "utf8"), sw = readFileSync(RACINE + "sw.js", "utf8"), html = readFileSync(RACINE + "index.html", "utf8");
+  const v = (f.match(/oseLoaded\("groupeOrga", "([0-9a-f]{10})"\)/) || [])[1];
+  assert.ok(v && sw.includes(`"./app/groupe-orga.js?v=${v}"`) && html.includes(`groupeOrga:"${v}"`));
+  assert.ok(CSP.FICHIERS.some(x => x.chemin === "app/groupe-orga.js"));
+  assert.ok(html.includes('renderTableau(mga ? {id:mga[1], key:mga[2], d:mga[3]} : {id:mgt[1]})'));
+  assert.ok(/"orga\.[a-z.]+": "/.test(f.slice(f.indexOf("const ORGA_TEXTES"), f.indexOf("};", f.indexOf("const ORGA_TEXTES")))));
+  assert.ok(gzipSync(f).length < 5000, `${gzipSync(f).length} octets compressés`);
+  assert.ok(!html.includes("renderTableau(") || html.indexOf("renderTableau(") > html.indexOf("CRÉATEUR"), "le tableau de bord n'est pas dans la partie de la personne invitée");
+});
+
+/* =========================================================
+   55. Invitation de groupe : notifications des nouvelles réponses (abonnement avec la clé de gestion, texte composé sur l'appareil)
+   ========================================================= */
+titre("55. Invitation de groupe : notifications");
+// Page de l'organisateur avec un IndexedDB simulé et un abonnement Web Push de test
+function pageNotif(g, app, stockage = new Map()){
+  const P = chargerPage({ fichiers: ["scenes", "creer", "groupe-commun", "groupe-orga"], stockage }), local = new Map();
+  P.ecrire("shortFetch", g.r.f);
+  P.ecrire("notifStore", async (store, mode, fn) => { if(store !== "groupes") return undefined;
+    const st = { put: x => local.set(x.id, x), get: id => ({ result: local.get(id) }), delete: id => local.delete(id), getAll: () => ({ result: [...local.values()] }) }; const q = fn(st); return q && q.result; });
+  P.ecrire("pushAbo", async () => ({ endpoint: ENDPOINT_EX, keys: app.keys }));
+  return { P, local };
+}
+await essaiWorker("Activer : l'abonnement part au service avec la clé de gestion ; la question et le nom du groupe restent sur l'appareil ; une réponse = une notification « grp » avec le nombre", async () => {
+  await avecPush(async () => {
+    const g = await groupeDeTest({ q: "Tu viens à ma soirée ?" }), app = WP.appareil(), { P, local } = pageNotif(g, app);
+    const avant = g.r.journal.length;
+    assert.equal(await P.lire("grpNotifActiver")(g.id, g.d, { q: "Tu viens à ma soirée ?", t: "La bande" }), "ok");
+    const q = g.r.journal.slice(avant).find(x => x.url.endsWith(`/v1/groupes/${g.id}/abo`));
+    assert.ok(q, "une demande vers /abo");
+    for(const s of ["soirée", "La bande", g.d]) assert.ok(!q.body.includes(s), `envoyé : ${s}`);
+    assert.deepEqual(local.get(g.id), { id: g.id, q: "Tu viens à ma soirée ?", t: "La bande" }, "rangé sur l'appareil");
+    assert.equal(await P.lire("grpNotifActive")(g.id), true);
+    const ligne = g.r.env.DB.db.prepare("SELECT abo FROM groupes WHERE id = ?").get(g.id);
+    assert.ok(ligne.abo && !ligne.abo.includes("fcm.googleapis.com"), "abonnement chiffré au repos");
+    // Deux réponses, un passage de la tâche planifiée : une seule notification, avec le nombre
+    await repondreA(g, [{ p: "Sam", r: "o" }, { p: "Lou", r: "n" }]);
+    await WORKER.default.scheduled({ scheduledTime: Date.now() }, g.r.env);
+    assert.equal(envois.length, 1);
+    assert.deepEqual(JSON.parse(WP.dechiffrer(app, envois[0].corps)), { v: 1, k: "grp", i: g.id, n: 2 }, "rien que l'identifiant et le nombre");
+    // Couper : abonnement effacé en ligne et sur l'appareil
+    assert.equal(await P.lire("grpNotifCouper")(g.id, g.d), "ok");
+    assert.equal(g.r.env.DB.db.prepare("SELECT abo FROM groupes WHERE id = ?").get(g.id).abo, null);
+    assert.equal(local.size, 0); assert.equal(await P.lire("grpNotifActive")(g.id), false);
+    await repondreA(g, [{ p: "Zoé", r: "o" }]);
+    g.r.env.DB.db.prepare("UPDATE groupes SET notif_der = ?").run(Date.now() - 16 * 60e3);
+    await WORKER.default.scheduled({ scheduledTime: Date.now() }, g.r.env);
+    assert.equal(envois.length, 1, "plus rien après avoir coupé");
+  });
+});
+await test("sw.js : « 3 nouvelles réponses à « … » », « Pour {groupe}. Touche pour les voir. » ; générique sans données ; ouvre les réponses ; aucune requête", () => {
+  const sw = readFileSync(RACINE + "sw.js", "utf8");
+  const bloc = sw.slice(sw.indexOf("function grpTexte"), sw.indexOf("async function onGroupe"));
+  const t = new Function(bloc + "\nreturn grpTexte;")(), x = { q: "Tu viens à ma soirée ?", t: "La bande" };
+  assert.deepEqual(t(x, 3), { title: "3 nouvelles réponses à « Tu viens à ma soirée ? »", body: "Pour La bande. Touche pour les voir." });
+  assert.equal(t(x, 1).title, "Nouvelle réponse à « Tu viens à ma soirée ? »");
+  assert.equal(t(x, "9").title, "Nouvelle réponse à « Tu viens à ma soirée ? »", "nombre invalide : ignoré");
+  assert.deepEqual(t(null, 2), { title: "2 nouvelles réponses à ton invitation", body: "Touche pour les voir dans « Mes invitations »." });
+  const on = sw.slice(sw.indexOf("async function onGroupe"), sw.indexOf("async function onPush"));
+  assert.ok(!/\bfetch\(/.test(bloc + on), "aucune requête");
+  assert.ok(on.includes('tag: "grp-" + id') && on.includes('url: x ? "./#groupe=" + id : "./#mes-invitations"'));
+  assert.ok(sw.includes('if (m && m.k === "grp") return onGroupe(String(m.i || ""), m.n);'));
+});
+await essaiWorker("Création : la case « Me prévenir des nouvelles réponses » ; autorisation demandée pendant le toucher, avant toute attente ; l'abonnement suit la création", async () => {
+  await avecPush(async () => {
+    const C = chargerPage(), S = C.lire("S");
+    globalThis.Notification = { permission: "default", requestPermission: async () => "granted" };
+    C.ecrire("notifSupport", () => "ok");
+    Object.assign(S, { groupe: true, to: "La bande", link: "", notif: true });
+    const h = C.lire("notifHTML")();
+    assert.ok(h.includes("🔔 Me prévenir des nouvelles réponses") && h.includes("Au plus une notification toutes les 15 minutes"));
+    C.ecrire("notifSupport", () => "non"); S.notif = undefined;
+    assert.ok(C.lire("notifHTML")().includes("ouvre « Mes invitations » pour voir les réponses") && /disabled/.test(C.lire("notifHTML")()));
+    const src = C.lire("makeGroupe").toString();
+    assert.ok(src.indexOf("Notification.requestPermission()") < src.indexOf("await "), "autorisation avant toute attente (Safari)");
+    // Création réelle avec notification
+    const r = reseau(ENV_N({ ORIGINES: LOCAL })), app = WP.appareil(), stockage = new Map();
+    const { P, local } = pageNotif({ r }, app, stockage);
+    P.ecrire("notifSupport", () => "ok"); globalThis.Notification = { permission: "granted" };
+    Object.assign(P.lire("S"), { step: 4, occ: "soiree", tpl: "soiree", theme: "soiree", from: "Alex", to: "La bande", groupe: true, notif: true, q: "Tu viens à ma soirée ?",
+      date: "2027-02-13", time: "20:00", act: { v: "v", x: "Soirée", h: "", at: "" }, lieu: { v: "v", x: "", h: "", at: "" } });
+    await P.lire("makeGroupe")();
+    const id = P.lire("S").link.match(/#g=(.{22})/)[1];
+    assert.ok(r.env.DB.db.prepare("SELECT abo FROM groupes WHERE id = ?").get(id).abo, "abonné dès la création");
+    assert.deepEqual(local.get(id), { id, q: "Tu viens à ma soirée ?", t: "La bande" });
+    delete globalThis.Notification;
+  });
+});
+await test("Tableau de bord : la case (comme la révélation), pas de case sans notifications ; abonnement local oublié quand l'invitation est supprimée", () => {
+  const f = readFileSync(RACINE + "app/groupe-orga.js", "utf8");
+  assert.ok(f.includes('if(!["ok","refuse"].includes(st)){ box.innerHTML=""; return; }'), "iPhone hors appli, navigateurs intégrés : pas de case");
+  assert.ok(f.includes('class="rev-notif"') && f.includes('id="orgaNotif"'));
+  assert.ok(f.includes('await notifStore("groupes","readwrite",st=>st.delete(g.id))'));
+  const T = chargerPage({ fichiers: ["scenes", "creer", "groupe-commun", "groupe-orga"] }).lire("ORGA_TEXTES");
+  assert.equal(T["orga.notif"], "🔔 Me prévenir des nouvelles réponses");
+});
+
+/* =========================================================
+   56. Invitation de groupe : mentions légales et « Supprimer mes données »
+   ========================================================= */
+titre("56. Invitation de groupe : textes légaux");
+await test("Mentions légales : section « Invitations de groupe » (deux liens, chiffrement, durées, notifications) ; page de suppression à jour", () => {
+  const ml = lireFichier("mentions-legales.html"), sup = FAB["supprimer-mes-donnees/index.html"];
+  const txt = h => h.replace(/<[^>]+>/g, " ").replace(/&nbsp;/g, " ").replace(/&#39;/g, "'").replace(/\s+/g, " ");
+  assert.ok(ml.includes('<h3 id="groupes">Invitations de groupe</h3>'));
+  for(const t of ["Le lien organisateur (osedemander.fr/#ga=…) est à garder pour vous", "Cette clé n'est jamais envoyée au service",
+    "trois mois après la date de l'événement (six mois après la création s'il n'y a pas de date)", "Une invitation reçoit 100 réponses au plus",
+    "au plus une notification toutes les 15 minutes", "Ouvrir le lien du groupe n'envoie qu'une demande", "« Me prévenir des nouvelles réponses »"])
+    assert.ok(txt(ml).includes(t), t);
+  for(const t of ["Une invitation de groupe", "« Supprimer l'invitation »", "touche « Supprimer ma réponse », dans l'invitation ou dans « Mes invitations », onglet Reçues", "Invitation de groupe : l'invitation et les réponses sont chiffrées"])
+    assert.ok(txt(sup).includes(t), t);
+  assert.ok(!/vous seul\b|organisateur seul\b/.test(ml), "formulations neutres");
+});
+
+/* =========================================================
+   57. Invitation de groupe : « Supprimer ma réponse » (personne invitée, avec son jeton)
+   ========================================================= */
+titre("57. Invitation de groupe : supprimer ma réponse");
+await essaiWorker("Worker : retirer avec le bon jeton seulement (temps constant), même clôturé ; jamais la réponse d'un autre groupe ; invitation supprimée : 410", async () => {
+  const env = ENV_N(); await creerGroupe(env); await repondreGroupe(env); await repondreGroupe(env, RPID(2));
+  const retirer = (jeton, rid = RPID(1), gid = GID, extra = {}) => appel(env, "POST", `/v1/groupes/${gid}/reponses/${rid}/retirer`, { jeton, ...extra });
+  assert.equal((await retirer("K".repeat(43))).status, 403, "mauvais jeton");
+  assert.equal((await retirer(JREP, RPID(1), GID, { blob: BLOB() })).status, 400, "champ en trop");
+  await gerer(env, "cloturer", { ferme: true });
+  assert.equal((await retirer(JREP)).status, 200, "même une fois les réponses closes");
+  assert.equal(env.DB.db.prepare("SELECT COUNT(*) AS n FROM reponses WHERE id = ?").get(RPID(1)).n, 0, "effacée en ligne");
+  assert.equal((await retirer(JREP)).status, 404, "déjà effacée");
+  await appel(env, "POST", "/v1/groupes", { id: "H".repeat(22), ct: "Q2hpZmZyZQ", gestion: await empreinteDe(GESTION), expire: Date.now() + 864e5 });
+  assert.equal((await retirer(JREP, RPID(2), "H".repeat(22))).status, 404, "pas dans ce groupe");
+  await gerer(env, "supprimer");
+  assert.equal((await retirer(JREP, RPID(2))).status, 410);
+  assert.ok(readFileSync(RACINE + "worker/src/groupes.js", "utf8").includes('if(actionRep === "retirer"){'));
+});
+await essaiWorker("Site : supprimer sa réponse l'efface en ligne et sur l'appareil (statut des Reçues compris) ; la suivante est une nouvelle réponse ; bouton seulement si cet appareil a répondu", async () => {
+  const g = await groupeDeTest(), P = await ouvrirGroupe(g);
+  await P.lire("groupeForm")("o");
+  assert.ok(!P.zones["#main"].innerHTML.includes("Supprimer ma réponse"), "pas avant d'avoir répondu");
+  assert.equal((await P.lire("grpEnvoyer")({ p: "Sam", r: "o" })).etat, "ok");
+  await P.lire("groupeForm")("o");
+  assert.ok(P.zones["#main"].innerHTML.includes('id="grpRetirer">Supprimer ma réponse'), "dans le formulaire");
+  P.lire("renderGroupeEnvoye")({ p: "Sam", r: "o", a: 0, m: "" });
+  assert.ok(P.zones["#main"].innerHTML.includes('id="grpRetirer">Supprimer ma réponse'), "après l'envoi");
+  assert.equal(await P.lire("grpRetirerMienne")(), "ok");
+  assert.equal(g.r.env.DB.db.prepare("SELECT COUNT(*) AS n FROM reponses").get().n, 0);
+  assert.equal(JSON.parse(P.stockage.get("ose-groupe-rep"))[g.id], undefined);
+  const recue = JSON.parse(P.stockage.get("ose-recues"))[0];
+  assert.deepEqual([recue.gr, recue.rep, recue.ag], [undefined, undefined, undefined], "plus de statut");
+  assert.ok(P.lire("validRecue")(recue));
+  assert.equal((await P.lire("grpEnvoyer")({ p: "Sam", r: "n" })).etat, "ok", "nouvelle réponse possible");
+  assert.equal(g.r.env.DB.db.prepare("SELECT COUNT(*) AS n FROM reponses").get().n, 1);
+  // Reçues : le bouton, avec confirmation
+  const it = JSON.parse(P.stockage.get("ose-recues"))[0];
+  assert.ok(P.lire("histCardRecue")(it).includes('data-act="retirer">Supprimer ma réponse'));
+  P.ecrire("confirmSheet", async () => true); P.ecrire("renderHistory", () => {});
+  await P.lire("retirerRecue")(it);
+  assert.equal(g.r.env.DB.db.prepare("SELECT COUNT(*) AS n FROM reponses").get().n, 0, "effacée depuis les Reçues");
+  const apres = JSON.parse(P.stockage.get("ose-recues"))[0];
+  assert.equal(apres.gr, undefined); assert.ok(!P.lire("histCardRecue")(apres).includes('data-act="retirer"'), "plus de bouton");
+  assert.ok(P.lire("retirerRecue").toString().includes("confirmSheet("), "toujours après une confirmation");
+  assert.ok(P.lire("grpRetirerUI").toString().includes("grpConfirmer("));
+});
+await test("Textes : mentions légales et « Supprimer mes données »", () => {
+  const ml = lireFichier("mentions-legales.html"), sup = FAB["supprimer-mes-donnees/index.html"].replace(/&#39;/g, "'").replace(/&nbsp;/g, " ");
+  assert.ok(ml.includes("La personne qui a répondu peut aussi supprimer sa réponse depuis l'appareil qui l'a envoyée (« Supprimer ma réponse »), même une fois les réponses closes"));
+  assert.ok(sup.includes("Depuis un autre appareil, seule la personne qui organise peut la supprimer"));
 });
 
 /* ---------- Bilan ---------- */
