@@ -16,10 +16,10 @@ const CORE = [
   // Fichiers chargés à part par index.html : l'empreinte de leur contenu (?v=) est écrite par node outils/csp.mjs.
   // Gardés dès l'installation : une invitation ouverte une fois s'affiche sans réseau, scènes comprises.
   "./app/scenes.js?v=ad35c435a6",
-  "./app/creer.js?v=cd6d9cf7cd",
+  "./app/creer.js?v=171b04beca",
   "./app/demo.js?v=def882fa95",
   "./app/groupe-commun.js?v=59b52daeee",
-  "./app/creer.css?v=1548b0ea7d"
+  "./app/creer.css?v=efe771ee77"
 ];
 
 self.addEventListener("install", event => {

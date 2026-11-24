@@ -184,4 +184,9 @@
 .img-btns .btn{flex:1 1 160px}
 .img-btns a.btn{display:block;text-align:center;text-decoration:none}
 .img-close{display:block;min-height:44px;margin:4px auto 0}
-:root{--ose-creer-css:"1548b0ea7d"}
+:root{--ose-creer-css:"efe771ee77"}
+/* Invitation de groupe : lien organisateur à garder pour soi, pastille « Groupe » dans « Mes invitations » */
+.orga-box{margin:16px 0 6px;padding:12px 14px;border:2px dashed var(--ink);border-radius:14px;background:var(--surface)}
+.orga-box h4{margin:0 0 4px;font-size:16px}
+.orga-box .orga-warn{margin:0 0 10px;font-weight:700}
+.tag-groupe{display:inline-block;margin-left:6px;padding:1px 8px;border:2px solid var(--ink);border-radius:999px;font-size:12px;font-weight:700;vertical-align:2px}

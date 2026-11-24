@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'sha256-eoiH9k1lR1thmSUryD+cAkNWioArfAQSeo3aE2hjwIw=' 'sha256-1CH4xLnRJF7yfaXBnLleOu0SB7FJxTVAcDlcUqyJCYM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' https://ose-liens.osedemander.workers.dev; manifest-src 'self'; worker-src 'self'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'sha256-AQkSRDf+gSweccppXUA940JP8SYgeZaaNXgZIzXdiw0=' 'sha256-UYEfJXhNOJXcxSuK89M4NSkPNFl0a0c7C9tSLdf+Gxw='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' https://ose-liens.osedemander.workers.dev; manifest-src 'self'; worker-src 'self'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
 <title>Ose Demander — crée une invitation à laquelle on ne dit pas non</title>
@@ -35,7 +35,7 @@
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"WebApplication","name":"Ose Demander","url":"https://osedemander.fr/","description":"Crée gratuitement une invitation animée à envoyer par lien : rendez-vous, anniversaire, témoin, fêtes de l'année. Le bouton Non résiste, mais un vrai refus reste possible.","applicationCategory":"LifestyleApplication","operatingSystem":"Tous (navigateur web)","inLanguage":"fr","isAccessibleForFree":true,"offers":{"@type":"Offer","price":"0","priceCurrency":"EUR"}}</script>
 <link rel="preload" href="fonts/bricolage-grotesque.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="app/scenes.js?v=ad35c435a6" as="script">
-<script data-tete>if(!/^#(i|s)=|^#exemple$/.test(location.hash))for(const[h,a]of[["app/creer.js?v=cd6d9cf7cd","script"],["app/creer.css?v=1548b0ea7d","style"]]){const l=document.createElement("link");l.rel="preload";l.as=a;l.href=h;document.head.appendChild(l)}</script>
+<script data-tete>if(!/^#(i|s)=|^#exemple$/.test(location.hash))for(const[h,a]of[["app/creer.js?v=171b04beca","script"],["app/creer.css?v=efe771ee77","style"]]){const l=document.createElement("link");l.rel="preload";l.as=a;l.href=h;document.head.appendChild(l)}</script>
 <style>
 /* ---------- Polices (hébergées sur le site, aucun appel à Google) ---------- */
 @font-face{font-family:"Bricolage Grotesque";font-style:normal;font-display:swap;font-weight:200 800;font-stretch:75% 100%;
@@ -1182,7 +1182,7 @@ const STEP_TITLES = ["Le modèle","Les prénoms","Quand et où","L'aperçu"];
    ancienne, fichier neuf), un seul rechargement complet (oseReload), puis un message. */
 // demo : la démo du premier lancement (app/demo.js), chargée seulement quand elle sert (demoAVoir, exemple)
 // groupeCommun : invitations de groupe, chiffrement et service (app/groupe-commun.js), chargé seulement pour un lien #g= ou #ga= ou la création d'un groupe
-const OSE_FILES = {creer:"cd6d9cf7cd", scenes:"ad35c435a6", creerCss:"1548b0ea7d", demo:"def882fa95", groupeCommun:"59b52daeee"};
+const OSE_FILES = {creer:"171b04beca", scenes:"ad35c435a6", creerCss:"efe771ee77", demo:"def882fa95", groupeCommun:"59b52daeee"};
 const oseGot = {}, oseNeeds = {};
 const oseLoaded = (name, v) => { oseGot[name]=v; };
 const oseUrl = name => `app/${name==="creerCss" ? "creer.css" : name.replace(/[A-Z]/g, c=>"-"+c.toLowerCase())+".js"}?v=${OSE_FILES[name]}`; // groupeCommun -> groupe-commun.js
@@ -1314,6 +1314,7 @@ const SHORT_TIMEOUT=5000, SHORT_CT_MAX=16384;
 let shortFetch = (u, o) => fetch(u, o); // remplacé par le banc de test
 const SHORT_HASH = /^#s=([A-Za-z0-9_-]{22})\.([A-Za-z0-9_-]{22})$/;
 const NOTIF_RE = /^[A-Za-z0-9_-]{22}\.[A-Za-z0-9_-]{22}$/; // champ nz / Z : identifiant de notification . clé de la réponse
+const GP_RE = /^[A-Za-z0-9_-]{87}$/; // champ gp / G : clé publique P-256 de l'organisateur d'une invitation de groupe
 const rndBytes = n => crypto.getRandomValues(new Uint8Array(n));
 const utf8 = s => new TextEncoder().encode(s);
 const aesKey = (raw, use) => crypto.subtle.importKey("raw", raw, "AES-GCM", false, [use]);
@@ -1678,6 +1679,9 @@ function sanitize(x){
   if(Number.isInteger(x.ix) && own(LINK_INTRO, x.ix)) d.ix=x.ix; // introduction (absente = directement la question)
   // Notification de réponse demandée par le créateur (absente = pas de notification) ; jamais dans un rappel ni une version partagée
   if(typeof x.nz==="string" && NOTIF_RE.test(x.nz) && !d.rv && !d.vu) d.nz=x.nz;
+  // Invitation de groupe (clé publique de l'organisateur, voir app/groupe-commun.js) : chacun répond depuis le lien #g=,
+  // donc ni canal ni coordonnées ni notification individuelle ; jamais dans un rappel ni une version partagée
+  if(typeof x.gp==="string" && GP_RE.test(x.gp) && !d.rv && !d.vu){ d.gp=x.gp; d.c="any"; delete d.ci; delete d.nz; }
   return d;
 }
 /* Brouillage des infos à révélation programmée (pas lisibles en clair dans le lien) */
@@ -1763,7 +1767,7 @@ const LINK_INTRO = {
   26:["Tu as tant fait pour moi…","À mon tour, maman."], 27:["Tu as toujours été là pour moi…","À mon tour, papa."],
   28:["Tu entends ce son au loin ?","C'est la fête qui commence."]
 };
-const LINK_KEYS = ["f","t","o","F","q","T","n","N","A","C","E","s","S","c","i","m","H","a","l","D","p","e","M","b","w","L","R","I","V","P","Z"];
+const LINK_KEYS = ["f","t","o","F","q","T","n","N","A","C","E","s","S","c","i","m","H","a","l","D","p","e","M","b","w","L","R","I","V","P","Z","G"];
 /* Dates : minutes depuis le 1er janvier 2026 (heure locale de l'invitation, sans fuseau) */
 const LINK_T0 = Date.UTC(2026,0,1), LINK_TMAX = 60*24*366*100;
 const own = (o,k) => Object.prototype.hasOwnProperty.call(o,k);
@@ -1806,6 +1810,7 @@ function packLink(d){
   if(d.vu) c.V=1;
   if(d.pa===0) c.P=0;
   if(d.nz) c.Z=d.nz;
+  if(d.gp) c.G=d.gp;
   return c;
 }
 /* Objet compact -> ancien format, puis sanitize. Strict : clé inconnue, mauvais type ou code inconnu = lien refusé */
@@ -1864,6 +1869,7 @@ function unpackLink(c){
   if(has("V")){ if(c.V!==1) bad(); x.vu=1; }
   if(has("P")){ if(c.P!==0) bad(); x.pa=0; }
   if(has("Z")){ if(typeof c.Z!=="string" || !NOTIF_RE.test(c.Z)) bad(); x.nz=c.Z; }
+  if(has("G")){ if(typeof c.G!=="string" || !GP_RE.test(c.G) || has("Z") || has("i")) bad(); x.gp=c.G; }
   return x;
 }
 
@@ -1873,7 +1879,7 @@ function unpackLink(c){
    Créneaux au choix : seul le créneau choisi est gardé. */
 function reminderData(d, slot){
   const x={...d, c:"any", rv:1};
-  delete x.ci; delete x.nz; // ni notification : le rappel est dans l'agenda, la réponse est déjà faite
+  delete x.ci; delete x.nz; delete x.gp; // ni notification ni groupe : le rappel est dans l'agenda, la réponse est déjà faite
   if(x.sl){ const s=x.sl[slot] || x.sl[0]; delete x.sl; x.d=s[0]; x.h=s[1]; }
   return sanitize(JSON.parse(JSON.stringify(x)));
 }
@@ -1883,7 +1889,7 @@ function reminderData(d, slot){
    contenir une adresse) ; l'écran affiche « Lieu : gardé secret 🤫 ». Créneaux au choix : seul le créneau choisi est gardé. */
 function shareData(d, slot){
   const x={...d, c:"any", vu:1};
-  for(const k of ["ci","rv","ix","pa","l","dt","me","nz"]) delete x[k];
+  for(const k of ["ci","rv","ix","pa","l","dt","me","nz","gp"]) delete x[k];
   if(x.mh){ delete x.m; delete x.mh; }
   if(x.sl){ const s=x.sl[slot] || x.sl[0]; delete x.sl; x.d=s[0]; x.h=s[1]; }
   if(x.a && x.a.v==="r") x.a={v:"s", h:x.a.h};

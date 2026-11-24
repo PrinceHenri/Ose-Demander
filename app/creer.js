@@ -184,7 +184,7 @@ const S = {
   date:"", time:"", choose:false, slots:[{d:"",t:""},{d:"",t:""}],
   q:"", qEdited:false, msg:"", hidden:false,
   no:"fuit", tone:"taquin", ch:"any", chId:"", link:"",
-  ac:"", em:"", sg:"", snd:true, intro:false, share:true,
+  ac:"", em:"", sg:"", snd:true, intro:false, share:true, groupe:false, orgaLink:"",
   moreOpen:false, open:new Set(), err:"", errSec:""
 };
 
@@ -336,9 +336,15 @@ function screenHTML(){
   }
   case 2: return `
     <h2 tabindex="-1">Qui invite qui ?</h2>
-    <p class="lead">Un prénom ou un surnom, celui que vous utilisez entre vous.</p>
+    <div class="seg" role="group" aria-label="Pour combien de personnes ?">
+      <button type="button" data-groupe="0" aria-pressed="${!S.groupe}">Une personne</button>
+      <button type="button" data-groupe="1" aria-pressed="${S.groupe}">Plusieurs personnes</button>
+    </div>
+    <p class="lead">${S.groupe ? "Un seul lien pour tout le groupe : chaque personne répondra avec son prénom." : "Un prénom ou un surnom, celui que vous utilisez entre vous."}</p>
     <div class="row2">
-      <label class="field"><span>Son prénom</span><input class="input" id="to" maxlength="30" placeholder="Ex. Loulou" value="${esc(S.to)}" autocomplete="off"></label>
+      ${S.groupe
+        ? `<label class="field"><span>Pour qui ?</span><input class="input" id="to" maxlength="30" placeholder="Ex. La bande" value="${esc(S.to)}" autocomplete="off"></label>`
+        : `<label class="field"><span>Son prénom</span><input class="input" id="to" maxlength="30" placeholder="Ex. Loulou" value="${esc(S.to)}" autocomplete="off"></label>`}
       <label class="field"><span>Ton prénom</span><input class="input" id="from" maxlength="30" placeholder="Ex. Keke" value="${esc(S.from)}" autocomplete="off"></label>
     </div>`;
   case 3: return `
@@ -366,8 +372,9 @@ function screenHTML(){
       ${INTRO_OCC[S.occ] ? recapRow("Introduction", introCode() ? introRecap(introCode()) : "<em>Aucune</em>", 'data-goto="words"') : ""}
       ${recapRow("Style", styleRecap(), 'data-goto="style"')}
       ${recapRow("Le Non", esc(NO_MODES.find(m=>m.id===S.no).t)+" · ton "+esc(noTone(S.tone).t.toLowerCase()), 'data-goto="no"')}
-      ${recapRow("Réponse via", esc(CHANNELS.find(c=>c.id===S.ch).t)+(S.chId?" ("+esc(S.chId)+")":""), 'data-goto="reply"')}
-      ${recapRow("Partage", S.share ? "Autorisé, sans le lieu ni les surprises" : "<em>Non autorisé</em>", 'data-goto="reply"')}
+      ${S.groupe ? recapRow("Réponses", "Chaque personne répond depuis le lien", 'data-edit="2"')
+        : recapRow("Réponse via", esc(CHANNELS.find(c=>c.id===S.ch).t)+(S.chId?" ("+esc(S.chId)+")":""), 'data-goto="reply"')
+          + recapRow("Partage", S.share ? "Autorisé, sans le lieu ni les surprises" : "<em>Non autorisé</em>", 'data-goto="reply"')}
     </ul>
     <details class="more" id="more" ${S.moreOpen?"open":""}>
       <summary>Personnaliser davantage</summary>
@@ -389,6 +396,7 @@ function screenHTML(){
 /* Notifications de réponse : case décochée par défaut (une demande d'autorisation non sollicitée est souvent refusée,
    et un refus bloque le site durablement), mais déjà cochée si l'autorisation a été accordée auparavant */
 function notifHTML(){
+  if(S.groupe) return "";
   const st=notifSupport();
   if(S.notif===undefined) S.notif = st==="ok" && Notification.permission==="granted";
   const to=esc(S.to||"la personne invitée");
@@ -403,11 +411,38 @@ function notifHTML(){
     </div>`;
 }
 const whenList = () => S.choose ? S.slots.filter(s=>s.d&&s.t).map(s=>[s.d,s.t]) : [[S.date,S.time]];
+/* Invitation de groupe : le lien invités (à partager) et, à part, le lien organisateur (à garder pour soi) */
+function readyGroupeHTML(share){
+  return `<div id="result" class="ready ${S.link?"":"hidden"}">
+      <h3 class="ready-title" tabindex="-1">Ton lien est prêt 💌</h3>
+      <p class="ready-lead">Partage-le dans ton groupe : chaque personne pourra répondre${share ? `, avec le message «&nbsp;${esc(shareText())}&nbsp;»` : ""}.</p>
+      <div class="ready-btns">
+        ${share ? `<button type="button" class="btn primary" id="share">Partager le lien</button>
+        <button type="button" class="btn" id="copy">Copier le lien</button>`
+        : `<button type="button" class="btn primary" id="copy">Copier le lien</button>`}
+      </div>
+      <div class="linkbox one" id="linkbox">${esc(S.link)}</div>
+      <button type="button" class="linkbtn" id="showLink" aria-expanded="false" aria-controls="linkbox">Afficher le lien en entier</button>
+      <p class="hint" id="shortNote"></p>
+      <div class="orga-box">
+        <h4>Ton lien organisateur</h4>
+        <p class="orga-warn">🔑 Garde ce lien pour toi : il permet de lire les réponses.</p>
+        <div class="ready-btns">
+          <button type="button" class="btn" id="orgaCopy">Copier mon lien organisateur</button>
+          ${share ? `<button type="button" class="btn" id="orgaShare">M'envoyer ce lien</button>` : ""}
+        </div>
+        <p class="hint">Il est aussi gardé dans « Mes invitations », sur cet appareil. Avec lui, tu retrouves les réponses sur un autre appareil.</p>
+      </div>
+      <p class="hint" id="savedNote"></p>
+      <p class="hint">Toute personne qui a le lien du groupe peut lire l'invitation et y répondre.</p>
+    </div>`;
+}
 /* Le lien est prêt : une seule action principale (Partager si le téléphone le permet, sinon Copier),
    le message qui part avec le lien, et l'adresse repliée sur une ligne (elle est longue et intimidante) */
-const shareText = () => `${S.to}, j'ai une question pour toi 💌`;
+const shareText = () => S.groupe ? `${S.to}, j'ai une question pour vous 💌` : `${S.to}, j'ai une question pour toi 💌`;
 function readyHTML(){
   const share=!!navigator.share;
+  if(S.groupe) return readyGroupeHTML(share);
   return `<div id="result" class="ready ${S.link?"":"hidden"}">
       <h3 class="ready-title" tabindex="-1">Ton lien est prêt 💌</h3>
       <p class="ready-lead">${share
@@ -601,6 +636,7 @@ function secNo(){
     <p class="hint">Quel que soit le mode, un lien discret permet toujours de répondre non pour de vrai.</p>`;
 }
 function secReply(){
+  if(S.groupe) return `<p class="hint">Chaque personne répond depuis le lien, avec son prénom. Les réponses ne se lisent qu'avec ton lien organisateur.</p>`;
   const ch=CHANNELS.find(c=>c.id===S.ch), tel=S.ch==="wa"||S.ch==="sms";
   return `<div class="field"><span>Comment veux-tu recevoir la réponse ?</span>
       <div class="chips">${CHANNELS.map(c=>`<button type="button" class="chip" data-ch="${c.id}" aria-pressed="${S.ch===c.id}">${c.t}</button>`).join("")}</div>
@@ -781,6 +817,7 @@ function bindCreator(){
   on("[data-no]", b=>{ S.no=b.dataset.no; });
   on("[data-tone]", b=>{ S.tone=b.dataset.tone; });
   on("[data-ch]", b=>{ if(S.ch!==b.dataset.ch) S.chId=""; S.ch=b.dataset.ch; });
+  on("[data-groupe]", b=>{ S.groupe = b.dataset.groupe==="1"; });
 
   // Aperçu en direct pendant la saisie
   const pv=(id,txt,show)=>{ const el=$("#"+id); if(el){ el.textContent=txt; el.hidden=!show; } };
@@ -808,6 +845,7 @@ function bindCreator(){
   $("#notifMe")?.addEventListener("change",e=>{ S.notif=e.target.checked; });
   $("#make")?.addEventListener("click",async()=>{
     if(!ready()) return;
+    if(S.groupe) return makeGroupe(); // (sans attente avant la demande d'autorisation des notifications : Safari)
     // Notification : l'autorisation est demandée ICI, pendant le toucher (Safari l'exige), et seulement si la case est cochée
     const wantNotif = S.notif && notifSupport()==="ok";
     const perm = !wantNotif ? null : Notification.permission==="granted" ? Promise.resolve("granted")
@@ -839,6 +877,8 @@ function bindCreator(){
     $("#result").scrollIntoView({block:"nearest"});
   });
   $("#copy")?.addEventListener("click",async()=>{ toast(await copyText(S.link)?"Lien copié":"Copie impossible, sélectionne le lien à la main"); });
+  $("#orgaCopy")?.addEventListener("click",async()=>{ toast(await copyText(S.orgaLink)?"Lien organisateur copié : garde-le pour toi":"Copie impossible"); });
+  $("#orgaShare")?.addEventListener("click",()=>navigator.share({title:"Ose Demander", text:`Mon lien organisateur pour « ${S.to} » (à garder pour moi, il permet de lire les réponses)`, url:S.orgaLink}).catch(()=>{}));
   $("#imgOpen")?.addEventListener("click", e=>openImageSheet(e.currentTarget));
   $("#share")?.addEventListener("click",()=>navigator.share({title:"Ose Demander",text:shareText(),url:S.link}).catch(()=>{}));
   $("#showLink")?.addEventListener("click",e=>{
@@ -846,6 +886,34 @@ function bindCreator(){
     e.currentTarget.setAttribute("aria-expanded",open); e.currentTarget.textContent = open ? "Replier le lien" : "Afficher le lien en entier";
   });
 }
+
+/* Invitation de groupe : paire de clés, invitation chiffrée déposée (avec la clé publique), puis les deux liens.
+   Sans le service, pas de lien complet de repli : une invitation de groupe ne fonctionne qu'avec lui. */
+async function makeGroupe(){
+  $$(".sec-body .error").forEach(el=>el.remove());
+  const mk=$("#make"); mk.disabled=true; mk.textContent="Création du lien…";
+  let r={etat:"reseau"}, d=null;
+  try{
+    await need("groupeCommun");
+    const cles=await grpCles(), long=await buildLink("", cles.gp);
+    d=await decodeData(linkData(long));
+    r=await grpCreer(linkData(long), cles.d, grpExpire(whenList()), location.origin+location.pathname);
+  }catch(e){}
+  mk.disabled=false; mk.textContent="Créer mon lien";
+  if(r.etat!=="ok"){ const el=$("#err"); el.textContent=GROUPE_ERREUR; el.classList.remove("hidden"); el.scrollIntoView({block:"center"}); return; }
+  $("#err")?.classList.add("hidden");
+  S.link=r.invite; S.orgaLink=r.orga;
+  $("#linkbox").textContent=S.link; $("#result").classList.remove("hidden"); Sound.done();
+  $("#shortNote").textContent=`Invitation chiffrée, gardée en ligne sans pouvoir y être lue jusqu'au ${frDate(new Date(grpExpire(whenList())).toISOString().slice(0,10))}, puis effacée.`;
+  $("#make").classList.add("hidden");
+  focusScreen(".ready-title");
+  const saved=addGroupeToHistory(d, r.invite, r.orga);
+  $("#savedNote").textContent = saved ? "Ajoutée à « Mes invitations ». Ton historique reste uniquement sur cet appareil." : "";
+  const n=loadHistory().length, badge=$("#histBadge");
+  if(badge){ badge.textContent=n; badge.classList.toggle("hidden",!n); }
+  $("#result").scrollIntoView({block:"nearest"});
+}
+const GROUPE_ERREUR = "Le service des invitations de groupe ne répond pas. Réessaie dans un instant.";
 
 /* ---------- Partager en image : QR code et enveloppe de l'occasion, dessinés ici (rien n'est envoyé pour fabriquer l'image) ----------
    L'image ne contient que le prénom de la personne invitée, les couleurs du thème, l'enveloppe de l'occasion, le cachet et le lien.
@@ -1123,11 +1191,12 @@ function packItem(it){
   if(it.v==="r") return {v:"r", h:it.h||undefined, at:it.at, e:scramble(it.x)};
   return it.x ? {v:"v", x:it.x} : undefined;
 }
-async function buildLink(nz){
-  const d={ f:S.from, t:S.to, o:S.occ, th:S.theme, q:S.q, n:S.no, c:S.ch };
+async function buildLink(nz, gp){
+  const d={ f:S.from, t:S.to, o:S.occ, th:S.theme, q:S.q, n:S.no, c:gp ? "any" : S.ch };
+  if(gp){ d.gp=gp; nz=""; } // groupe : chacun répond depuis le lien, ni canal ni notification individuelle
   if(S.occ==="libre") d.of=S.occFree;
   if(S.tone!=="taquin") d.tn=S.tone;
-  if(S.chId) d.ci=S.chId;
+  if(S.chId && !gp) d.ci=S.chId;
   if(S.anim!=="n") d.an=S.anim;
   if(S.ac) d.ac=S.ac; if(S.em) d.em=S.em; if(S.sg) d.sg=S.sg;
   if(!S.snd) d.so=0;
@@ -1156,7 +1225,10 @@ async function buildLink(nz){
    (localStorage). Jamais envoyé nulle part, jamais lu côté destinataire.
    ========================================================= */
 const HIST_KEY="ose-historique", HIST_MAX=200, SITE_HOST="osedemander.fr";
-const HIST_FIELDS=["id","from","to","occ","occFree","when","link","created","long","jeton","gone","img","imgJeton","nid","njeton","rep","repAt","repSlot","ok","okSlot"];
+const HIST_FIELDS=["id","from","to","occ","occFree","when","link","created","long","jeton","gone","img","imgJeton","nid","njeton","rep","repAt","repSlot","ok","okSlot","orga"];
+// Invitation de groupe : link = lien invités (#g=ID.CLÉ), orga = lien organisateur (#ga=ID.CLÉ.D, la clé privée : lit les réponses)
+const GRP_LINK=/^#g=([A-Za-z0-9_-]{22})\.([A-Za-z0-9_-]{22})$/, GRP_ORGA_LINK=/^#ga=([A-Za-z0-9_-]{22})\.([A-Za-z0-9_-]{22})\.([A-Za-z0-9_-]{43})$/;
+const hashOf = link => { try{ return new URL(link).hash; }catch(e){ return ""; } };
 // ok, okSlot : acceptation notée à la main (« Marquer comme acceptée »), quand aucune notification n'est arrivée
 // Notification : nid = identifiant (dans le lien), njeton = pour y renoncer ; rep = "o" ou "n", repAt = date de réception, repSlot = créneau choisi
 // Lien court : link = #s=…, long = le lien complet (#i=…, l'historique fonctionne même sans le service), jeton = pour supprimer le lien en ligne
@@ -1167,13 +1239,20 @@ const linkData=link=>link.slice(link.indexOf("#i=")+3);
 const shortId=link=>(String(link).match(/#s=([A-Za-z0-9_-]{22})\./)||[])[1]||"";
 
 /* Seuls les liens d'invitation d'Ose Demander sont acceptés */
+/* Lien organisateur d'une invitation de groupe : même adresse que le site, #ga=ID.CLÉ.D */
+function isOrgaLink(link){
+  if(typeof link!=="string" || link.length>200) return false;
+  let u; try{ u=new URL(link); }catch(e){ return false; }
+  const prod = u.protocol==="https:" && u.hostname===SITE_HOST && !u.port, dev = location.hostname==="localhost" && u.origin===location.origin;
+  return (prod||dev) && u.href===link && !u.username && !u.password && !u.search && (u.pathname==="/" || u.pathname==="/index.html") && GRP_ORGA_LINK.test(u.hash);
+}
 function isOwnLink(link){
   if(typeof link!=="string" || link.length>MAX_LINK+60) return false;
   let u; try{ u=new URL(link); }catch(e){ return false; }
   const prod = u.protocol==="https:" && u.hostname===SITE_HOST && !u.port;
   const dev = location.hostname==="localhost" && u.origin===location.origin; // test en local uniquement
   return (prod||dev) && u.href===link && !u.username && !u.password && !u.search
-    && (u.pathname==="/" || u.pathname==="/index.html") && (/^#i=[zpyx][A-Za-z0-9_-]+$/.test(u.hash) || SHORT_HASH.test(u.hash));
+    && (u.pathname==="/" || u.pathname==="/index.html") && (/^#i=[zpyx][A-Za-z0-9_-]+$/.test(u.hash) || SHORT_HASH.test(u.hash) || GRP_LINK.test(u.hash));
 }
 /* Champs communs à une invitation envoyée ou reçue : identifiant, prénoms, occasion, dates, date d'ajout, lien d'Ose Demander */
 function validCommun(x){
@@ -1194,6 +1273,13 @@ function validEntry(x){
   if(!x || typeof x!=="object" || Array.isArray(x)) return false;
   if(Object.keys(x).some(k=>!HIST_FIELDS.includes(k))) return false;
   if(!validCommun(x)) return false;
+  // Invitation de groupe : le lien invités et le lien organisateur du même groupe, rien d'autre (ni lien long, ni notification, ni « acceptée »)
+  const g=GRP_LINK.exec(hashOf(x.link));
+  if(g || x.orga!==undefined){
+    const o=isOrgaLink(x.orga) ? GRP_ORGA_LINK.exec(hashOf(x.orga)) : null;
+    return !!g && !!o && o[1]===g[1] && o[2]===g[2] && new URL(x.orga).origin===new URL(x.link).origin
+      && ["long","jeton","gone","img","imgJeton","nid","njeton","rep","repAt","repSlot","ok","okSlot"].every(k=>x[k]===undefined);
+  }
   // Acceptation notée à la main : une date, et le créneau s'il y en a plusieurs
   if(x.ok===undefined ? x.okSlot!==undefined : !(typeof x.ok==="string" && x.ok.length<=30 && !isNaN(Date.parse(x.ok))
     && (x.okSlot===undefined || (Number.isInteger(x.okSlot) && x.okSlot>=0 && x.okSlot<x.when.length)))) return false;
@@ -1299,6 +1385,18 @@ function histReply(it){
 /* Demande au navigateur de ne pas effacer l'historique automatiquement */
 function askPersist(){
   try{ navigator.storage?.persisted?.().then(p=>{ if(!p) return navigator.storage.persist(); }).catch(()=>{}); }catch(e){}
+}
+/* Invitation de groupe : l'entrée est bâtie à partir de l'invitation décodée et validée, avec ses deux liens */
+function addGroupeToHistory(d, invite, orga){
+  try{
+    const e=entryFrom(d, invite); e.orga=orga;
+    if(!validEntry(e)) return false;
+    const list=loadHistory().filter(x=>x.link!==invite);
+    list.unshift(e);
+    if(!storeHistory(list)) return false;
+    askPersist();
+    return true;
+  }catch(e){ return false; }
 }
 async function addToHistory(link, sh=null, notif=null){
   try{
@@ -1406,6 +1504,7 @@ function startRebours(){
 // « Ajouter à mon agenda » : fichier .ics (alerte 3 h avant) ; sur Android, Google Agenda en plus (sans l'alerte, qu'un lien ne peut pas fixer)
 const agendaBtns = () => `<button type="button" class="btn sm" data-act="cal">Ajouter à mon agenda</button>${isAndroid() ? `<button type="button" class="linkbtn" data-act="gcal">Google Agenda</button>` : ""}`;
 function histCardEnv(it){
+  if(it.orga) return histCardGroupe(it);
   const s=rdvSlot(it, false);
   return `
         <li data-id="${esc(it.id)}">
@@ -1430,6 +1529,21 @@ function histCardEnv(it){
             ${!it.rep && !it.ok ? `<button type="button" class="btn sm" data-act="ok">Marquer comme acceptée</button>` : ""}
             ${!it.rep && it.ok ? `<button type="button" class="linkbtn" data-act="unok">Annuler « acceptée »</button>` : ""}
           </div>` : ""}
+        </li>`;
+}
+/* Invitation de groupe : pastille « Groupe » ; les réponses se lisent avec le lien organisateur (tableau de bord) */
+function histCardGroupe(it){
+  return `
+        <li data-id="${esc(it.id)}">
+          <p class="who">Pour ${esc(it.to)} <span class="tag-groupe">Groupe</span></p>
+          <p class="meta">De ${esc(it.from)} · ${esc(histOcc(it))}</p>
+          <p class="meta">${esc(histWhen(it))}</p>
+          <p class="meta">Créée le ${esc(new Date(it.created).toLocaleDateString("fr-FR",{day:"numeric",month:"long",year:"numeric"}))}</p>
+          <div class="acts">
+            <button type="button" class="btn sm primary" data-act="copy">Copier le lien</button>
+            <button type="button" class="btn sm" data-act="orga">Copier le lien organisateur</button>
+            <button type="button" class="btn sm ghost" data-act="del">Retirer de l'historique</button>
+          </div>
         </li>`;
 }
 function histCardRecue(it){
@@ -1572,6 +1686,7 @@ function renderHistory(){
     const it=loadHistory().find(x=>x.id===id);
     if(!it){ renderHistory(); return; }
     switch(b.dataset.act){
+      case "orga": toast(await copyText(it.orga) ? "Lien organisateur copié : garde-le pour toi" : "Copie impossible"); break;
       case "copy": { const l=it.gone ? it.long : it.link; toast(await copyText(l) ? (it.gone ? "Lien complet copié (le lien court a été supprimé)" : "Lien copié") : "Copie impossible"); break; }
       case "open": window.open(invLink(it),"_blank","noopener"); break;
       case "dup": duplicateInvitation(it); break;
@@ -1734,6 +1849,7 @@ async function importHistory(file){
   for(const x of data.items){
     if(!validEntry(x)){ skipped++; continue; }
     if(links.has(x.link)) continue; // déjà dans l'historique
+    if(x.orga){ const e={...x, id: ids.has(x.id) ? newId() : x.id}; list.push(e); links.add(e.link); ids.add(e.id); added++; continue; } // groupe : validée telle quelle
     let d; try{ d=await decodeData(linkData(invLink(x))); }catch(e){ skipped++; continue; }
     const e=entryFrom(d, x.link, x.created, ids.has(x.id) ? newId() : x.id, x);
     if(!validEntry(e)){ skipped++; continue; }
@@ -1765,4 +1881,4 @@ async function importHistory(file){
   toast(msg);
 }
 
-oseLoaded("creer", "cd6d9cf7cd");
+oseLoaded("creer", "171b04beca");

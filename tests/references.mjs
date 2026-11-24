@@ -1259,5 +1259,55 @@ export const REFERENCES = [
       "h": "20:00",
       "nz": "QUJDREVGR0hJSktMTU5PUA.ZXhlbXBsZS1kZS1jbGUxMg"
     }
+  },
+  {
+    "nom": "Invitation de groupe : clé publique de l'organisateur (format compact y)",
+    "lien": "yq1ZKU7JScsxJrVDSUSpRslLySVRISsxLSVXSUcpXsjI21lEqVLIyM9NRSlSyUgrOzyw6vDJVITkjtUoBqikHJJ6Yk5OqkJKqkKPuWpGaW5AD0l6uZGVqYWFuZKCj5K5kpeTkSBOgVAsA",
+    "attendu": {
+      "f": "Alex",
+      "t": "La bande",
+      "q": "Tu viens à ma soirée ?",
+      "o": "soiree",
+      "th": "soiree",
+      "n": "fuit",
+      "an": "n",
+      "c": "any",
+      "a": {
+        "v": "v",
+        "x": "Soirée chez Alex"
+      },
+      "l": {
+        "v": "v",
+        "x": "Salle de l'Exemple"
+      },
+      "d": "2027-02-13",
+      "h": "20:00",
+      "gp": "BAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+    }
+  },
+  {
+    "nom": "Invitation de groupe : clé publique de l'organisateur (ancien format p)",
+    "lien": "peyJmIjoiQWxleCIsInQiOiJMYSBiYW5kZSIsIm8iOiJzb2lyZWUiLCJ0aCI6InNvaXJlZSIsInEiOiJUdSB2aWVucyDDoCBtYSBzb2lyw6llID8iLCJuIjoiZnVpdCIsImFuIjoibiIsImMiOiJhbnkiLCJhIjp7InYiOiJ2IiwieCI6IlNvaXLDqWUgY2hleiBBbGV4In0sImwiOnsidiI6InYiLCJ4IjoiU2FsbGUgZGUgbCdFeGVtcGxlIn0sImQiOiIyMDI3LTAyLTEzIiwiaCI6IjIwOjAwIiwiZ3AiOiJCQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUEifQ",
+    "attendu": {
+      "f": "Alex",
+      "t": "La bande",
+      "q": "Tu viens à ma soirée ?",
+      "o": "soiree",
+      "th": "soiree",
+      "n": "fuit",
+      "an": "n",
+      "c": "any",
+      "a": {
+        "v": "v",
+        "x": "Soirée chez Alex"
+      },
+      "l": {
+        "v": "v",
+        "x": "Salle de l'Exemple"
+      },
+      "d": "2027-02-13",
+      "h": "20:00",
+      "gp": "BAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+    }
   }
 ];

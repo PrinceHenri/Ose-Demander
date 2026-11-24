@@ -4465,6 +4465,122 @@ await test("Fichier à part : chargé à la demande, versionné, précaché par 
   assert.ok(gzipSync(f).length < 6000, `${gzipSync(f).length} octets compressés`);
 });
 
+/* =========================================================
+   52. Invitation de groupe : la création (champ gp, « Plusieurs personnes », deux liens, Mes invitations, export et import)
+   ========================================================= */
+titre("52. Invitation de groupe : la création");
+const GP_EX = "BAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
+await test("Lien : gp gardé (format compact G et ancien format) ; il impose la réponse par le lien (ni canal, ni coordonnées, ni notification individuelle)", async () => {
+  const d = await L.decodeData(await L.encodeData(INV({ gp: GP_EX, c: "wa", ci: "06 00 00 00 01", nz: "QUJDREVGR0hJSktMTU5PUA.ZXhlbXBsZS1kZS1jbGUxMg" })));
+  assert.equal(d.gp, GP_EX); assert.equal(d.c, "any"); assert.equal(d.ci, undefined); assert.equal(d.nz, undefined);
+  assert.equal(L.sanitize(INV({ gp: "court" })).gp, undefined, "clé mal formée : ignorée");
+  assert.equal(L.sanitize(INV({ gp: GP_EX, rv: 1 })).gp, undefined, "jamais dans un rappel d'agenda");
+  assert.equal(L.sanitize(INV({ gp: GP_EX, vu: 1 })).gp, undefined, "jamais dans une version partagée");
+  assert.ok(L.LINK_KEYS.includes("G") && FIGE.LINK_KEYS.includes("G"));
+  const pack = L.packLink(L.sanitize(INV({ gp: GP_EX })));
+  assert.equal(pack.G, GP_EX);
+  for(const autre of [{ Z: "QUJDREVGR0hJSktMTU5PUA.ZXhlbXBsZS1kZS1jbGUxMg" }, { c: 1, i: "06 00 00 00 01" }, {}]){
+    const c = { ...pack, ...autre }; if(!Object.keys(autre).length) c.G = "x";
+    assert.throws(() => L.unpackLink(c), JSON.stringify(autre));
+  }
+  const PP = chargerPage();
+  assert.equal(PP.lire("reminderData")({ ...L.sanitize(INV({ gp: GP_EX })) }, 0).gp, undefined, "rappel d'agenda : sans groupe");
+  assert.equal(PP.lire("shareData")({ ...L.sanitize(INV({ gp: GP_EX })) }, 0).gp, undefined, "version partagée : sans groupe");
+});
+await test("Étape 2 : « Une personne » ou « Plusieurs personnes » ; en groupe, « Pour qui ? » (le nom du groupe s'affiche sur l'enveloppe)", () => {
+  const P = chargerPage(), S = P.lire("S");
+  Object.assign(S, { step: 2, groupe: false, to: "", from: "" }); P.lire("renderCreator")();
+  let h = P.zones["#app"].innerHTML;
+  assert.ok(h.includes('data-groupe="0" aria-pressed="true">Une personne') && h.includes('data-groupe="1" aria-pressed="false">Plusieurs personnes'));
+  assert.ok(h.includes("<span>Son prénom</span>"));
+  S.groupe = true; P.lire("renderCreator")(); h = P.zones["#app"].innerHTML;
+  assert.ok(h.includes("<span>Pour qui ?</span>") && h.includes('placeholder="Ex. La bande"') && h.includes("chaque personne répondra avec son prénom"));
+  assert.ok(!/·e\b|·s\b/.test(h), "pas de point médian");
+});
+await test("Étape 4 en groupe : ni canal ni partage de la surprise ni notification individuelle ; récapitulatif « Chaque personne répond depuis le lien »", () => {
+  const P = chargerPage(), S = P.lire("S");
+  Object.assign(S, { step: 4, occ: "soiree", tpl: "soiree", from: "Alex", to: "La bande", groupe: true, link: "", moreOpen: true, open: new Set(["reply"]), date: "2027-02-13", time: "20:00" });
+  P.lire("renderCreator")();
+  const h = P.zones["#app"].innerHTML;
+  assert.ok(h.includes("Chaque personne répond depuis le lien") && h.includes("Les réponses ne se lisent qu'avec ton lien organisateur."));
+  assert.ok(!h.includes("Comment veux-tu recevoir la réponse ?") && !h.includes("allowShare") && !h.includes("notifMe"));
+  assert.deepEqual(principales(h.replace(/<[^>]*class="[^"]*hidden[^"]*"[\s\S]*?<\/div>/g, "")).filter(t => t === "Créer mon lien"), ["Créer mon lien"]);
+});
+await essaiWorker("Créer en groupe : paire de clés, invitation chiffrée avec la clé publique, lien invités #g= et lien organisateur #ga= ; rangée dans les Envoyées ; rien de lisible en ligne", async () => {
+  const stockage = new Map(), P = chargerPage({ fichiers: ["scenes", "creer", "groupe-commun"], stockage });
+  const r = reseau(ENV_N({ ORIGINES: LOCAL })); P.ecrire("shortFetch", r.f);
+  const S = P.lire("S");
+  Object.assign(S, { step: 4, occ: "soiree", tpl: "soiree", theme: "soiree", from: "Alex", to: "La bande", groupe: true, q: "Tu viens à ma soirée ?", date: "2027-02-13", time: "20:00",
+    act: { v: "v", x: "Soirée chez Alex", h: "", at: "" }, lieu: { v: "v", x: "Salle de l'Exemple", h: "", at: "" } });
+  await P.lire("makeGroupe")();
+  assert.match(S.link, /^http:\/\/localhost:8000\/#g=[A-Za-z0-9_-]{22}\.[A-Za-z0-9_-]{22}$/);
+  assert.match(S.orgaLink, /^http:\/\/localhost:8000\/#ga=[A-Za-z0-9_-]{22}\.[A-Za-z0-9_-]{22}\.[A-Za-z0-9_-]{43}$/);
+  const [, id, key] = S.link.match(/#g=(.{22})\.(.{22})/), d = S.orgaLink.slice(-43);
+  assert.ok(S.orgaLink.includes(`#ga=${id}.${key}.`), "même groupe, même clé");
+  // En ligne : l'invitation chiffrée (avec la clé publique dedans), l'empreinte de la clé de gestion ; ni prénom ni d
+  const q = r.journal.find(x => x.url.endsWith("/v1/groupes"));
+  for(const s of ["Alex", "La bande", "Exemple", d, key]) assert.ok(!q.body.includes(s), `envoyé : ${s}`);
+  const code = await P.lire("openShort")(id, key, r.env.DB.db.prepare("SELECT ct FROM liens WHERE id = ?").get(id).ct);
+  const inv = await L.decodeData(code);
+  assert.equal(inv.t, "La bande"); assert.match(inv.gp, /^[A-Za-z0-9_-]{87}$/); assert.equal(inv.c, "any");
+  await P.lire("grpVerifierOrga")(id, d, inv.gp); // le lien organisateur lit bien les réponses de ce groupe
+  // Échéance : dernier créneau + 3 mois
+  const g = r.env.DB.db.prepare("SELECT expire FROM groupes WHERE id = ?").get(id);
+  assert.equal(g.expire, P.lire("grpExpire")([["2027-02-13", "20:00"]]));
+  // Mes invitations
+  const hist = JSON.parse(stockage.get("ose-historique"));
+  assert.equal(hist.length, 1);
+  assert.deepEqual({ link: hist[0].link, orga: hist[0].orga, to: hist[0].to, occ: hist[0].occ }, { link: S.link, orga: S.orgaLink, to: "La bande", occ: "soiree" });
+  for(const k of ["long", "jeton", "nid", "ok"]) assert.equal(hist[0][k], undefined);
+  // Service muet : un message clair, pas de lien
+  const P2 = chargerPage({ fichiers: ["scenes", "creer", "groupe-commun"] }); P2.ecrire("shortFetch", async () => { throw new TypeError("Failed to fetch"); });
+  Object.assign(P2.lire("S"), { ...S, link: "", orgaLink: "" });
+  await P2.lire("makeGroupe")();
+  assert.equal(P2.lire("S").link, ""); assert.equal(P2.lire("GROUPE_ERREUR"), "Le service des invitations de groupe ne répond pas. Réessaie dans un instant.");
+});
+await test("Carte « Ton lien est prêt » en groupe : une seule action principale, le lien organisateur à part avec l'avertissement, pas d'image", () => {
+  const P = chargerPage({ share: true }), S = P.lire("S");
+  Object.assign(S, { groupe: true, to: "La bande", link: LOCAL + "/#g=" + "A".repeat(22) + "." + "B".repeat(22), orgaLink: "x" });
+  const h = P.lire("readyHTML")();
+  assert.deepEqual(principales(h), ["Partager le lien"]);
+  assert.ok(h.includes("Ton lien organisateur") && h.includes("🔑 Garde ce lien pour toi : il permet de lire les réponses."));
+  assert.ok(h.includes("Copier mon lien organisateur") && h.includes("M'envoyer ce lien"));
+  assert.ok(h.includes("«&nbsp;La bande, j&#39;ai une question pour vous 💌&nbsp;»"));
+  assert.ok(!h.includes("imgOpen"), "pas d'image pour un groupe (pour l'instant)");
+  assert.ok(!h.includes("#ga="), "le lien organisateur n'est jamais affiché en clair sur la carte");
+  const sans = chargerPage(); Object.assign(sans.lire("S"), { groupe: true, to: "La bande", link: "x" });
+  assert.deepEqual(principales(sans.lire("readyHTML")()), ["Copier le lien"], "sans partage natif : Copier");
+});
+await test("Mes invitations : entrée de groupe validée strictement (deux liens du même groupe, rien d'autre) ; pastille « Groupe » ; export et import", async () => {
+  const P = chargerPage(), v = P.lire("validEntry");
+  const id = "I".repeat(22), key = "K".repeat(22), d = "D".repeat(43), base = "http://localhost:8000/";
+  const e = { id: "abc123def", from: "Alex", to: "La bande", occ: "soiree", when: [["2027-02-13", "20:00"]], link: base + `#g=${id}.${key}`, orga: base + `#ga=${id}.${key}.${d}`, created: new Date().toISOString() };
+  assert.ok(v(e));
+  assert.ok(!v({ ...e, orga: base + `#ga=${"J".repeat(22)}.${key}.${d}` }), "lien organisateur d'un autre groupe");
+  assert.ok(!v({ ...e, orga: base + `#ga=${id}.${"L".repeat(22)}.${d}` }), "autre clé");
+  assert.ok(!v({ ...e, orga: "https://exemple.com/#ga=" + `${id}.${key}.${d}` }), "autre site");
+  assert.ok(!v({ ...e, orga: undefined }), "lien organisateur manquant");
+  assert.ok(!v({ ...e, link: base + "#s=" + id + "." + key }), "pas un lien de groupe");
+  for(const k of ["nid", "ok", "jeton", "long"]) assert.ok(!v({ ...e, [k]: k === "ok" ? new Date().toISOString() : "x".repeat(k === "jeton" ? 43 : 22) }), `champ ${k}`);
+  const carte = P.lire("histCardEnv")(e);
+  assert.ok(carte.includes('<span class="tag-groupe">Groupe</span>') && carte.includes('data-act="orga"'));
+  assert.equal((carte.match(/class="btn sm primary"/g) || []).length, 1, "une seule action principale");
+  assert.ok(carte.includes('class="btn sm primary" data-act="copy">Copier le lien'));
+  for(const non of ['data-act="ok"', 'data-act="cal"', 'data-act="dup"', 'data-act="unpub"', "hist-rebours"]) assert.ok(!carte.includes(non), non);
+  // Export puis import sur un autre appareil : l'entrée de groupe revient telle quelle, clé comprise
+  const stockage = new Map([["ose-historique", JSON.stringify([e])]]), A = chargerPage({ stockage });
+  const items = A.lire("loadHistory")();
+  assert.equal(items.length, 1);
+  const fichier = JSON.stringify({ app: "ose-demander", version: 2, exported: new Date().toISOString(), items, recues: [] });
+  const stockage2 = new Map(), B = chargerPage({ stockage: stockage2 });
+  await B.lire("importHistory")({ size: fichier.length, text: async () => fichier });
+  const apres = JSON.parse(stockage2.get("ose-historique"));
+  assert.equal(apres.length, 1); assert.equal(apres[0].orga, e.orga); assert.equal(apres[0].link, e.link);
+  const faux = JSON.stringify({ app: "ose-demander", version: 2, items: [{ ...e, orga: base + `#ga=${"J".repeat(22)}.${key}.${d}` }], recues: [] }), stockage3 = new Map();
+  await chargerPage({ stockage: stockage3 }).lire("importHistory")({ size: faux.length, text: async () => faux });
+  assert.equal(stockage3.get("ose-historique"), undefined, "entrée incohérente refusée à l'import");
+});
+
 /* ---------- Bilan ---------- */
 console.log(`\n${ko ? "❌" : "✅"} ${ok} tests réussis, ${ko} en échec (graine ${GRAINE}${ko ? ` — pour rejouer : node tests/run.mjs --graine=${GRAINE}` : ""})`);
 if(ko){ console.log(echecs.map(e => "  - " + e).join("\n")); process.exitCode = 1; }
