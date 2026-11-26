@@ -22,9 +22,10 @@ const CORE = [
   "./app/groupe-orga.js?v=b0a718225b",
   "./app/groupe-invite.js?v=3419a5a6a6",
   "./app/groupe-commun.js?v=66e41f012b",
-  "./app/mascotte.js?v=f9b63ed54c",
-  "./app/mascotte-amour.js?v=32b32c9a66",
-  "./app/mascotte-noel.js?v=1b570c3612",
+  "./app/mascotte.js?v=b4e3b0e44c",
+  "./app/mascotte-amour.js?v=1a0b341c7f",
+  "./app/mascotte-neutre.js?v=639426aca2",
+  "./app/mascotte-noel.js?v=333cca8d65",
   "./app/creer.css?v=de1fe39325"
 ];
 

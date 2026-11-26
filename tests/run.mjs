@@ -3419,7 +3419,7 @@ await test("Chaque fichier à part existe, porte la version attendue par index.h
   assert.ok(sw.includes("c.addAll(CORE)"), "la liste CORE est gardée à l'installation");
   for(const f of CSP.FICHIERS){
     const t = lireFichier(f.chemin), v = versions[f.nom];
-    assert.ok(t.length > 1000 && f.marque.test(t) && t.includes(f.pose(v)), `${f.chemin} : version déclarée`);
+    assert.ok(t.length > 300 && f.marque.test(t) && t.includes(f.pose(v)), `${f.chemin} : version déclarée`); // (une famille de mascottes peut être très courte)
     assert.ok(html.includes(`${f.nom}:"${v}"`), `index.html attend ${f.chemin} en ${v}`);
     assert.ok(core.includes(`"./${f.chemin}?v=${v}"`), `sw.js : ${f.chemin}?v=${v} dans CORE`);
   }
@@ -5133,10 +5133,11 @@ await test("Lien « Accueil » : après le Oui, le vrai refus, le formulaire de 
    61. Mascottes Lilas et Praline : moteur, dessins, familles (app/mascotte*.js)
    ========================================================= */
 titre("61. Mascottes");
+const MC_FICHIERS = readdirSync(RACINE + "app").filter(f => /^mascotte-[a-z]+[.]js$/.test(f)).sort().map(f => "app/" + f);
 const MASCOTTE = (() => {
   // Le moteur est évalué ici, avec un faux document (aucun navigateur)
   const env = { window: {}, document: { addEventListener(){}, head: { insertAdjacentHTML(){} } }, matchMedia: () => ({ matches: false }), oseLoaded(){} };
-  const code = ["app/mascotte.js", "app/mascotte-amour.js", "app/mascotte-noel.js"].map(f => readFileSync(RACINE + f, "utf8")).join("\n;var Mascotte = window.Mascotte;\n");
+  const code = ["app/mascotte.js", ...MC_FICHIERS].map(f => readFileSync(RACINE + f, "utf8")).join("\n;var Mascotte = window.Mascotte;\n");
   new Function("window", "document", "matchMedia", "oseLoaded", code)(env.window, env.document, env.matchMedia, env.oseLoaded);
   return env.window.Mascotte;
 })();
@@ -5165,9 +5166,14 @@ await test("Mascottes : immobiles avec « moins de mouvement » et en animations
 await test("Mascottes : fichiers légers, aucune adresse externe, familles Amour et Noël (particules connues du décor animé), atelier jamais publié", () => {
   const poids = f => gzipSync(readFileSync(RACINE + f), { level: 6 }).length;
   assert.ok(poids("app/mascotte.js") < 10000, `mascotte.js : ${poids("app/mascotte.js")} octets compressés`);
-  for(const f of ["app/mascotte-amour.js", "app/mascotte-noel.js"]) assert.ok(poids(f) < 3000, `${f} : ${poids(f)} octets compressés`);
-  for(const f of ["app/mascotte.js", "app/mascotte-amour.js", "app/mascotte-noel.js"]) assert.ok(!/https?:\/\//.test(readFileSync(RACINE + f, "utf8").replace(/\/\*[\s\S]*?\*\//g, "")), f + " : aucune adresse");
-  assert.deepEqual(MASCOTTE.familles().sort(), ["amour", "noel"]);
+  for(const f of MC_FICHIERS) assert.ok(poids(f) < 3000, `${f} : ${poids(f)} octets compressés`);
+  for(const f of ["app/mascotte.js", ...MC_FICHIERS]) assert.ok(!/https?:\/\//.test(readFileSync(RACINE + f, "utf8").replace(/\/\*[\s\S]*?\*\//g, "")), f + " : aucune adresse");
+  assert.deepEqual(MASCOTTE.familles().sort(), MC_FICHIERS.map(f => f.slice(13, -3)).sort(), "un fichier par famille, au nom de la famille");
+  for(const id of MASCOTTE.familles()){ // chaque famille déclare accessoires, particules, attente et Oui
+    const f = MASCOTTE._famille(id);
+    assert.ok(f.acc && typeof f.acc === "object" && Array.isArray(f.particules) && f.particules.length, id + " : accessoires et particules");
+    assert.equal(typeof f.attente, "function", id + " : attente"); assert.equal(typeof f.oui, "function", id + " : Oui");
+  }
   const formes = readFileSync(RACINE + "index.html", "utf8");
   for(const id of MASCOTTE.familles()) for(const f of MASCOTTE.particules(id)) assert.ok(formes.includes(`"${f}"`), `${id} : forme ${f} connue du décor animé`);
   assert.ok(/^exclude:\n  - android\n  - atelier$/m.test(lireFichier("_config.yml")), "atelier/ exclu du site");
@@ -5199,12 +5205,18 @@ await test("Anciens liens sans le champ : aucune mascotte (mcFamille nulle), exa
   assert.equal(REFERENCES.filter(r => r.attendu.mc === 1).length, 2, "deux références avec chatons (formats y et p)");
 });
 await test("Familles prêtes : Amour (rendez-vous, Saint-Valentin, anniversaire de mon amour, de couple, week-end en amoureux, dîner) et Noël ; jamais mariage ni les autres occasions", () => {
-  assert.deepEqual({ ...L.MC_FAMILLES }, { date: "amour", valentin: "amour", annivamour: "amour", couple: "amour", weekend: "amour", dinerspecial: "amour", noel: "noel" });
-  for(const o of Object.keys(L.MC_FAMILLES)) assert.ok(L.OCC[o] && !L.OCC[o].old, `${o} : occasion proposée à la création`);
+  for(const [o, f] of Object.entries(L.MC_FAMILLES)){
+    assert.ok(L.OCC[o], o + " : occasion connue");
+    assert.ok(!L.OCC[o].old || ["annivami", "grands", "sortie"].includes(o), `${o} : occasion masquée non prévue`);
+    assert.ok(MC_FICHIERS.includes(`app/mascotte-${f}.js`), `${o} : fichier de la famille ${f}`);
+  }
+  assert.ok(!("mariage" in L.MC_FAMILLES) && !("pardon" in L.MC_FAMILLES), "mariage et pardon : aucune famille");
+  for(const [o, f] of [["date", "amour"], ["valentin", "amour"], ["annivamour", "amour"], ["couple", "amour"], ["weekend", "amour"], ["dinerspecial", "amour"], ["noel", "noel"]]) assert.equal(L.MC_FAMILLES[o], f, o);
   assert.equal(L.mcFamille({ ...MC_BASE, mc: 1 }), "amour");
   assert.equal(L.mcFamille({ ...MC_BASE, o: "noel", mc: 1 }), "noel");
   assert.equal(L.mcFamille(MC_BASE), null, "case décochée : pas de chatons");
-  for(const o of ["mariage", "soiree", "temoin", "juste", "libre", "halloween"]) assert.equal(L.mcFamille({ ...MC_BASE, o, mc: 1 }), null, o);
+  for(const o of ["mariage", "pardon"]) assert.equal(L.mcFamille({ ...MC_BASE, o, mc: 1 }), null, o);
+  for(const o of Object.keys(L.OCC).filter(o => !(o in L.MC_FAMILLES))) assert.equal(L.mcFamille({ ...MC_BASE, o, mc: 1 }), null, o + " : pas encore de famille, pas de chatons");
 });
 await test("Création : case « Afficher les chatons » cochée par défaut, proposée seulement pour une occasion qui a sa famille, écrite dans le lien seulement alors, récapitulatif, duplication", () => {
   const cr = readFileSync(RACINE + "app/creer.js", "utf8").replace(/\r\n/g, "\n");
@@ -5261,7 +5273,7 @@ await test("Accroches du parcours : enveloppe, ouverture, question, Oui (groupe 
   assert.ok(init.includes('mcEv(mcLast[0], {...mcLast[1], rejoue:true})'), "fichier arrivé après l'écran : l'état final est posé");
   assert.ok(!src("renderReminder").includes("mcEv") && !src("renderShared").includes("mcEv") && !src("renderIntro").includes("mcEv"), "rappel, version partagée, introduction : pas dans le lot 1");
   const m = readFileSync(RACINE + "app/mascotte.js", "utf8").replace(/\r\n/g, "\n");
-  assert.ok(m.includes("if(info.groupe) return; // groupe : le saut seul, puis le formulaire"));
+  assert.ok(m.includes("if(info.groupe || !f.oui){ o.saut(); if(!info.groupe) o.calin(); return; } // groupe : le saut seul, puis le formulaire"));
   assert.ok(m.includes('Decor.burst(r.left + r.width / 2, r.top + r.height / 2, 36, true, f && f.particules);'), "particules de la famille");
   assert.ok(lireFichier("index.html").includes("burst(x,y,n,small,formes){") && lireFichier("index.html").includes("kinds=formes||c.burst||[c.shape]"));
 });

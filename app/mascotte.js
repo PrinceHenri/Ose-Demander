@@ -178,6 +178,7 @@ ${["sourire","ouverte","boude"].map(x => `.mc-chat[data-bouche="${x}"] [data-p="
 .mc-z-billet{right:14px;bottom:100%;margin-bottom:-6px}
 .mc-z-billet .mc-chat{width:60px;height:70px;margin:0 -5px}
 .mc-touchable [data-p="tete"]{pointer-events:auto;cursor:pointer}
+.mc-objet{position:absolute;pointer-events:none}.mc-objet svg{display:block;overflow:visible}
 @media (prefers-reduced-motion:reduce){.mc-chat,.mc-chat *{animation:none!important;transition:opacity .25s!important}}
 `;
 let styleMis = false;
@@ -291,12 +292,22 @@ function chat(qui, o = {}){
 let zone = null, duo = [], minuteurs = [];
 const ensuite = (fn, ms) => { minuteurs.push(setTimeout(fn, ms)); };
 function vider(){ minuteurs.forEach(clearTimeout); minuteurs = []; duo.forEach(c => c.detruire()); duo = []; if(zone) zone.remove(); zone = null; }
+const fam = info => FAMILLES[info.famille] || {};
+/* Outils des familles : objets posés dans la zone (gâteau, pancarte, boîte…), minuteurs annulés avec l'écran, saut et câlin habituels */
+function outils(info){
+  const [l, p] = duo;
+  return {info, ensuite,
+    objet(svg, cls){ const o = document.createElement("div"); o.className = "mc-objet " + (cls || ""); o.innerHTML = svg; zone.appendChild(o); return o; },
+    saut(){ l.jouer("saut"); if(p) ensuite(() => p.jouer("saut"), 90); ensuite(() => eclat(info), 300); },
+    calin(){ ensuite(() => duo.forEach(c => c.etat("calin")), 1000); ensuite(() => { l.etat("attente", {yeux: "fermes"}); if(p) p.etat("timide"); }, 3400); }};
+}
 function poser(parent, cls, qui, info){
   vider();
   zone = document.createElement("div");
   zone.className = "mc-zone " + cls;
   zone.setAttribute("aria-hidden", "true");
-  duo = qui.map((q, i) => chat(q, {energie: info.anim, famille: info.famille, sens: i ? -1 : 1}));
+  const e = fam(info).energie === "d" && info.anim === "n" ? "d" : info.anim;
+  duo = qui.map((q, i) => chat(q, {energie: e, famille: info.famille, sens: i ? -1 : 1}));
   duo.forEach(c => zone.appendChild(c.el));
   zone.addEventListener("click", e => { const c = duo.find(x => x.el.contains(e.target)); if(c) c.toucher(); });
   parent.appendChild(zone);
@@ -343,6 +354,7 @@ function parcours(ev, info = {}){
     const [lilas, praline] = poser(t, "mc-z-billet" + (ev === "question" ? " mc-touchable" : ""), ["lilas", "praline"], info);
     lilas.etat(refus ? "attentif" : "attente"); praline.etat("timide");
     if(ev === "question" && !info.rejoue) praline.jouer("glisse");
+    if(fam(info).attente) fam(info).attente(duo, outils(ev === "apercu" ? {...info, rejoue: true} : info));
   }
   else if(ev === "non"){
     if(!l) return;
@@ -372,11 +384,9 @@ function parcours(ev, info = {}){
     duo.forEach(c => c.arreter()); l.deplacer(0);
     duo.forEach(c => c.etat("joie"));
     if(info.rejoue) return;
-    l.jouer("saut"); if(p) ensuite(() => p.jouer("saut"), 90);
-    ensuite(() => eclat(info), 300);
-    if(info.groupe) return; // groupe : le saut seul, puis le formulaire
-    ensuite(() => duo.forEach(c => c.etat("calin")), 1000);
-    ensuite(() => { l.etat("attente", {yeux: "fermes"}); if(p) p.etat("timide"); }, 3400);
+    const o = outils(info), f = fam(info);
+    if(info.groupe || !f.oui){ o.saut(); if(!info.groupe) o.calin(); return; } // groupe : le saut seul, puis le formulaire
+    f.oui(duo, o);
   }
   else if(ev === "refus"){
     if(!l) return;
@@ -391,8 +401,9 @@ function parcours(ev, info = {}){
 
 window.Mascotte = {
   chat,
-  famille: (id, def) => { FAMILLES[id] = def; },
+  famille: (id, def) => { FAMILLES[id] = def; if(def.css){ styles(); document.head.insertAdjacentHTML("beforeend", `<style>${def.css}</style>`); } },
   familles: () => Object.keys(FAMILLES),
+  _famille: id => FAMILLES[id],
   particules: id => (FAMILLES[id] && FAMILLES[id].particules) || null,
   pieces: ["tout","souffle","queue","pattes-ar","pieds","corps","patte-av-g","patte-av-d","acc-main","acc-main-g","bras-croises","collier","acc-cou","tete","oreille-g","oreille-d","crane","joues","nez","yeux","regard","larme","bouche","acc-tete","effets"],
   expressions: ["ouverts","fermes","coeur","etoile","plisses"],
@@ -405,4 +416,4 @@ window.Mascotte = {
 };
 })();
 
-oseLoaded("mascotte", "f9b63ed54c");
+oseLoaded("mascotte", "b4e3b0e44c");
