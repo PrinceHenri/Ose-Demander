@@ -5129,6 +5129,50 @@ await test("Lien « Accueil » : après le Oui, le vrai refus, le formulaire de 
   assert.ok(/\.home-lien\{[^}]*border:2px solid var\(--ink\);background:var\(--surface\);color:var\(--ink\)/.test(css), "même style que « Son » (variables du thème)");
 });
 
+/* =========================================================
+   61. Mascottes Lilas et Praline : moteur, dessins, familles (app/mascotte*.js)
+   ========================================================= */
+titre("61. Mascottes");
+const MASCOTTE = (() => {
+  // Le moteur est évalué ici, avec un faux document (aucun navigateur)
+  const env = { window: {}, document: { addEventListener(){}, head: { insertAdjacentHTML(){} } }, matchMedia: () => ({ matches: false }), oseLoaded(){} };
+  const code = ["app/mascotte.js", "app/mascotte-amour.js", "app/mascotte-noel.js"].map(f => readFileSync(RACINE + f, "utf8")).join("\n;var Mascotte = window.Mascotte;\n");
+  new Function("window", "document", "matchMedia", "oseLoaded", code)(env.window, env.document, env.matchMedia, env.oseLoaded);
+  return env.window.Mascotte;
+})();
+await test("Mascottes : chaque chaton a toutes ses pièces nommées, ancrages dans le dessin, expressions et variantes de bouche, aria-hidden", () => {
+  for(const qui of ["lilas", "praline"]){
+    const svg = MASCOTTE._dessin(qui);
+    assert.ok(svg.startsWith(`<svg class="mc-chat mc-${qui}" viewBox="0 0 120 140" aria-hidden="true" focusable="false"`), qui + " : décoratif");
+    for(const p of MASCOTTE.pieces) assert.ok(svg.includes(`data-p="${p}"`), `${qui} : pièce ${p}`);
+    for(const x of MASCOTTE.expressions) assert.ok(svg.includes(`data-p="yeux" data-a="60 63" data-x="${x}"`), `${qui} : yeux ${x}`);
+    for(const x of ["sourire", "ouverte", "boude"]) assert.ok(svg.includes(`data-x="${x}"`), `${qui} : bouche ${x}`);
+    for(const [, x, y] of svg.matchAll(/data-a="([\d.]+) ([\d.]+)"/g)) assert.ok(+x >= 0 && +x <= 120 && +y >= 0 && +y <= 140, `${qui} : ancrage ${x} ${y}`);
+    assert.ok(!/\sid=/.test(svg), qui + " : aucun identifiant (plusieurs chatons dans une page)");
+    assert.ok(!/<text|<title/.test(svg), qui + " : aucun texte");
+  }
+});
+await test("Mascottes : immobiles avec « moins de mouvement » et en animations « Aucune » (fondus seulement), pause hors écran, animations par transform et opacity", () => {
+  const src = readFileSync(RACINE + "app/mascotte.js", "utf8");
+  assert.ok(src.includes("@media (prefers-reduced-motion:reduce){.mc-chat,.mc-chat *{animation:none!important;transition:opacity .25s!important}}"));
+  assert.ok(src.includes(".mc-e-0,.mc-e-0 *{animation:none!important;transition:opacity .25s!important}"));
+  assert.ok(src.includes(".mc-pause,.mc-pause *{animation-play-state:paused!important}"));
+  assert.ok(src.includes("IntersectionObserver") && src.includes('document.addEventListener("visibilitychange"'), "pause hors écran ou onglet caché");
+  assert.ok(/const immobile = \(\) => energie === "0" \|\| reduit\(\);/.test(src) && src.includes("if(immobile() || !DUREES[nom]){ geste = null; fin(); return; }"), "aucun geste en mouvement quand immobile");
+  for(const [, corps] of src.matchAll(/@keyframes [\w-]+\{([\s\S]*?)\}\n/g)) assert.ok(!/(?:^|[{;])\s*(?:left|top|width|height|margin)\s*:/.test(corps), "keyframes : transform et opacity seulement");
+  assert.ok(src.includes(".mc-chat{display:block;overflow:visible;pointer-events:none;"), "ne capte aucun toucher par défaut (jamais devant un bouton)");
+});
+await test("Mascottes : fichiers légers, aucune adresse externe, familles Amour et Noël (particules connues du décor animé), atelier jamais publié", () => {
+  const poids = f => gzipSync(readFileSync(RACINE + f), { level: 6 }).length;
+  assert.ok(poids("app/mascotte.js") < 10000, `mascotte.js : ${poids("app/mascotte.js")} octets compressés`);
+  for(const f of ["app/mascotte-amour.js", "app/mascotte-noel.js"]) assert.ok(poids(f) < 3000, `${f} : ${poids(f)} octets compressés`);
+  for(const f of ["app/mascotte.js", "app/mascotte-amour.js", "app/mascotte-noel.js"]) assert.ok(!/https?:\/\//.test(readFileSync(RACINE + f, "utf8").replace(/\/\*[\s\S]*?\*\//g, "")), f + " : aucune adresse");
+  assert.deepEqual(MASCOTTE.familles().sort(), ["amour", "noel"]);
+  const formes = readFileSync(RACINE + "index.html", "utf8");
+  for(const id of MASCOTTE.familles()) for(const f of MASCOTTE.particules(id)) assert.ok(formes.includes(`"${f}"`), `${id} : forme ${f} connue du décor animé`);
+  assert.ok(/^exclude:\n  - android\n  - atelier$/m.test(lireFichier("_config.yml")), "atelier/ exclu du site");
+});
+
 /* ---------- Bilan ---------- */
 console.log(`\n${ko ? "❌" : "✅"} ${ok} tests réussis, ${ko} en échec (graine ${GRAINE}${ko ? ` — pour rejouer : node tests/run.mjs --graine=${GRAINE}` : ""})`);
 if(ko){ console.log(echecs.map(e => "  - " + e).join("\n")); process.exitCode = 1; }
