@@ -5155,7 +5155,8 @@ await test("Mascottes : chaque chaton a toutes ses pièces nommées, ancrages da
 });
 await test("Mascottes : immobiles avec « moins de mouvement » et en animations « Aucune » (fondus seulement), pause hors écran, animations par transform et opacity", () => {
   const src = readFileSync(RACINE + "app/mascotte.js", "utf8");
-  assert.ok(src.includes("@media (prefers-reduced-motion:reduce){.mc-chat,.mc-chat *{animation:none!important;transition:opacity .25s!important}}"));
+  assert.ok(src.includes("@media (prefers-reduced-motion:reduce){.mc-objet *,.mc-chat,.mc-chat *{animation:none!important;transition:opacity .25s!important}}"), "chatons et objets des familles");
+  assert.ok(src.includes('const fige = info.anim === "0" || reduit();') && src.includes(".mc-fige,.mc-fige *{animation:none!important}"), "objets des familles figés en « Aucune », avec moins de mouvement et à l'état final");
   assert.ok(src.includes(".mc-e-0,.mc-e-0 *{animation:none!important;transition:opacity .25s!important}"));
   assert.ok(src.includes(".mc-pause,.mc-pause *{animation-play-state:paused!important}"));
   assert.ok(src.includes("IntersectionObserver") && src.includes('document.addEventListener("visibilitychange"'), "pause hors écran ou onglet caché");

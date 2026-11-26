@@ -179,7 +179,8 @@ ${["sourire","ouverte","boude"].map(x => `.mc-chat[data-bouche="${x}"] [data-p="
 .mc-z-billet .mc-chat{width:60px;height:70px;margin:0 -5px}
 .mc-touchable [data-p="tete"]{pointer-events:auto;cursor:pointer}
 .mc-objet{position:absolute;pointer-events:none}.mc-objet svg{display:block;overflow:visible}
-@media (prefers-reduced-motion:reduce){.mc-chat,.mc-chat *{animation:none!important;transition:opacity .25s!important}}
+.mc-fige,.mc-fige *{animation:none!important}
+@media (prefers-reduced-motion:reduce){.mc-objet *,.mc-chat,.mc-chat *{animation:none!important;transition:opacity .25s!important}}
 `;
 let styleMis = false;
 function styles(){
@@ -296,8 +297,9 @@ const fam = info => FAMILLES[info.famille] || {};
 /* Outils des familles : objets posés dans la zone (gâteau, pancarte, boîte…), minuteurs annulés avec l'écran, saut et câlin habituels */
 function outils(info){
   const [l, p] = duo;
-  return {info, ensuite,
-    objet(svg, cls){ const o = document.createElement("div"); o.className = "mc-objet " + (cls || ""); o.innerHTML = svg; zone.appendChild(o); return o; },
+  const fige = info.anim === "0" || reduit();
+  return {info, ensuite, fige,
+    objet(svg, cls){ const o = document.createElement("div"); o.className = "mc-objet " + (cls || "") + (fige ? " mc-fige" : ""); o.innerHTML = svg; zone.appendChild(o); return o; },
     saut(){ l.jouer("saut"); if(p) ensuite(() => p.jouer("saut"), 90); ensuite(() => eclat(info), 300); },
     calin(){ ensuite(() => duo.forEach(c => c.etat("calin")), 1000); ensuite(() => { l.etat("attente", {yeux: "fermes"}); if(p) p.etat("timide"); }, 3400); }};
 }
@@ -416,4 +418,4 @@ window.Mascotte = {
 };
 })();
 
-oseLoaded("mascotte", "b4e3b0e44c");
+oseLoaded("mascotte", "2a0d05d102");
