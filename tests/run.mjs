@@ -5292,7 +5292,7 @@ await test("Aperçu de la création : chatons sur le billet si la case est coch�
   const cr = readFileSync(RACINE + "app/creer.js", "utf8").replace(/\r\n/g, "\n");
   assert.ok(cr.includes("  refreshInstall();\n  mcApercu();\n"));
   assert.ok(cr.includes('const f = S.step===4 && S.chatons && own(MC_FAMILLES, S.occ) ? MC_FAMILLES[S.occ] : null;'));
-  assert.ok(cr.includes('Mascotte.parcours("apercu", {famille:f, anim:REDUCED ? "0" : S.anim, conteneur:t});'));
+  assert.ok(cr.includes('Mascotte.parcours("apercu", {famille:f, o:S.occ, anim:REDUCED ? "0" : S.anim, conteneur:t});'), "l'occasion est transmise (ex. fête surprise)");
   assert.ok(cr.includes('<div class="pv-stage${S.chatons && own(MC_FAMILLES, S.occ) ? " mc-on" : ""}">') && readFileSync(RACINE + "app/creer.css", "utf8").includes(".pv-stage.mc-on .ticket{margin-top:68px}"), "place réservée dans l'aperçu");
 });
 

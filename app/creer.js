@@ -327,7 +327,7 @@ function mcApercu(){
   if(!f){ if(window.Mascotte) Mascotte.parcours("quitter"); return; }
   need("mascotte").then(()=>need(mcFichier(f))).then(()=>{
     const t=$(".pv-stage .ticket");
-    if(t && S.step===4) Mascotte.parcours("apercu", {famille:f, anim:REDUCED ? "0" : S.anim, conteneur:t});
+    if(t && S.step===4) Mascotte.parcours("apercu", {famille:f, o:S.occ, anim:REDUCED ? "0" : S.anim, conteneur:t});
   }).catch(()=>{});
 }
 
@@ -2014,4 +2014,4 @@ async function importHistory(file){
   toast(msg);
 }
 
-oseLoaded("creer", "4a182b6814");
+oseLoaded("creer", "663423755c");
