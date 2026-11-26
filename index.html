@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'sha256-80V0heUArES1zWJQRIyiixdGFiBP6qUiQnpVrIN+1Do=' 'sha256-Ghd6BWgdHHkFZst6PnFcRWXn2vpc8Wv4UI5cHrLjHTg='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' https://ose-liens.osedemander.workers.dev; manifest-src 'self'; worker-src 'self'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'sha256-l62gBDK92/+4plb7JMmJ/qtVevIPL/u3+w7/OE2ROf8=' 'sha256-lps9tjuevCOTFALC36NKz190B4lwrNZXlH40s3c8aqw='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' https://ose-liens.osedemander.workers.dev; manifest-src 'self'; worker-src 'self'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
 <title>Ose Demander — crée une invitation à laquelle on ne dit pas non</title>
@@ -35,7 +35,7 @@
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"WebApplication","name":"Ose Demander","url":"https://osedemander.fr/","description":"Crée gratuitement une invitation animée à envoyer par lien : rendez-vous, anniversaire, témoin, fêtes de l'année. Le bouton Non résiste, mais un vrai refus reste possible.","applicationCategory":"LifestyleApplication","operatingSystem":"Tous (navigateur web)","inLanguage":"fr","isAccessibleForFree":true,"offers":{"@type":"Offer","price":"0","priceCurrency":"EUR"}}</script>
 <link rel="preload" href="fonts/bricolage-grotesque.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="app/scenes.js?v=ad35c435a6" as="script">
-<script data-tete>if(!/^#(i|s)=|^#exemple$/.test(location.hash))for(const[h,a]of[["app/creer.js?v=d58f180930","script"],["app/creer.css?v=700ca64c8e","style"]]){const l=document.createElement("link");l.rel="preload";l.as=a;l.href=h;document.head.appendChild(l)}</script>
+<script data-tete>if(!/^#(i|s)=|^#exemple$/.test(location.hash))for(const[h,a]of[["app/creer.js?v=cad67643fb","script"],["app/creer.css?v=700ca64c8e","style"]]){const l=document.createElement("link");l.rel="preload";l.as=a;l.href=h;document.head.appendChild(l)}</script>
 <style>
 /* ---------- Polices (hébergées sur le site, aucun appel à Google) ---------- */
 @font-face{font-family:"Bricolage Grotesque";font-style:normal;font-display:swap;font-weight:200 800;font-stretch:75% 100%;
@@ -1189,7 +1189,7 @@ const STEP_TITLES = ["Le modèle","Les prénoms","Quand et où","L'aperçu"];
 // demo : la démo du premier lancement (app/demo.js), chargée seulement quand elle sert (demoAVoir, exemple)
 // scanner : scanner une invitation depuis un QR code (app/scanner.js), chargé au toucher de l'icône
 // groupeCommun : invitations de groupe, chiffrement et service (app/groupe-commun.js), chargé seulement pour un lien #g= ou #ga= ou la création d'un groupe
-const OSE_FILES = {creer:"d58f180930", scenes:"ad35c435a6", creerCss:"700ca64c8e", demo:"def882fa95", groupeCommun:"66e41f012b", groupeInvite:"3419a5a6a6", groupeOrga:"b0a718225b", scanner:"37e73826ea"};
+const OSE_FILES = {creer:"cad67643fb", scenes:"ad35c435a6", creerCss:"700ca64c8e", demo:"def882fa95", groupeCommun:"66e41f012b", groupeInvite:"3419a5a6a6", groupeOrga:"b0a718225b", scanner:"37e73826ea"};
 const oseGot = {}, oseNeeds = {};
 const oseLoaded = (name, v) => { oseGot[name]=v; };
 const oseUrl = name => `app/${name==="creerCss" ? "creer.css" : name.replace(/[A-Z]/g, c=>"-"+c.toLowerCase())+".js"}?v=${OSE_FILES[name]}`; // groupeCommun -> groupe-commun.js
@@ -1632,6 +1632,11 @@ function inflate(src, max){
   return out.slice(0,n);
 }
 /* Validation stricte : on ne garde que les champs connus, avec le bon type et la bonne longueur */
+/* Mascottes Lilas et Praline (app/mascotte.js) : famille de chaque occasion qui en a une. Les chatons ne s'affichent
+   (et la case « Afficher les chatons » n'est proposée) que pour ces occasions ; une nouvelle famille ouvre ses occasions ici.
+   « mariage » n'en a volontairement aucune (occasion retirée de la création) : anciens liens sans chatons. */
+const MC_FAMILLES = {date:"amour", valentin:"amour", annivamour:"amour", couple:"amour", weekend:"amour", dinerspecial:"amour", noel:"noel"};
+const mcFamille = d => (d && d.mc===1 && own(MC_FAMILLES, d.o)) ? MC_FAMILLES[d.o] : null;
 function sanitize(x){
   if(!x || typeof x!=="object" || Array.isArray(x)) throw new Error("bad data");
   const str=(v,max)=>typeof v==="string" ? v.slice(0,max).trim() : "";
@@ -1690,6 +1695,7 @@ function sanitize(x){
   if(x.rv===1) d.rv=1; // ouverture depuis le rappel d'agenda (absent = lien normal)
   if(x.vu===1) d.vu=1; // version partagée par la personne invitée, en lecture seule (voir shareData)
   if(x.pa===0) d.pa=0; // partage de la surprise refusé par le créateur (absent = autorisé)
+  if(x.mc===1) d.mc=1; // chatons demandés par le créateur (absent = sans chatons, comme les anciens liens)
   if(Number.isInteger(x.ix) && own(LINK_INTRO, x.ix)) d.ix=x.ix; // introduction (absente = directement la question)
   // Notification de réponse demandée par le créateur (absente = pas de notification) ; jamais dans un rappel ni une version partagée
   if(typeof x.nz==="string" && NOTIF_RE.test(x.nz) && !d.rv && !d.vu) d.nz=x.nz;
@@ -1781,7 +1787,7 @@ const LINK_INTRO = {
   26:["Tu as tant fait pour moi…","À mon tour, maman."], 27:["Tu as toujours été là pour moi…","À mon tour, papa."],
   28:["Tu entends ce son au loin ?","C'est la fête qui commence."]
 };
-const LINK_KEYS = ["f","t","o","F","q","T","n","N","A","C","E","s","S","c","i","m","H","a","l","D","p","e","M","b","w","L","R","I","V","P","Z","G"];
+const LINK_KEYS = ["f","t","o","F","q","T","n","N","A","C","E","s","S","c","i","m","H","a","l","D","p","e","M","b","w","L","R","I","V","P","Z","G","K"];
 /* Dates : minutes depuis le 1er janvier 2026 (heure locale de l'invitation, sans fuseau) */
 const LINK_T0 = Date.UTC(2026,0,1), LINK_TMAX = 60*24*366*100;
 const own = (o,k) => Object.prototype.hasOwnProperty.call(o,k);
@@ -1823,6 +1829,7 @@ function packLink(d){
   if(d.ix) c.I=d.ix;
   if(d.vu) c.V=1;
   if(d.pa===0) c.P=0;
+  if(d.mc===1) c.K=1;
   if(d.nz) c.Z=d.nz;
   if(d.gp) c.G=d.gp;
   return c;
@@ -1882,6 +1889,7 @@ function unpackLink(c){
   if(has("I")){ dec(LINK_INTRO,c.I); x.ix=c.I; }
   if(has("V")){ if(c.V!==1) bad(); x.vu=1; }
   if(has("P")){ if(c.P!==0) bad(); x.pa=0; }
+  if(has("K")){ if(c.K!==1) bad(); x.mc=1; }
   if(has("Z")){ if(typeof c.Z!=="string" || !NOTIF_RE.test(c.Z)) bad(); x.nz=c.Z; }
   if(has("G")){ if(typeof c.G!=="string" || !GP_RE.test(c.G) || has("Z") || has("i")) bad(); x.gp=c.G; }
   return x;

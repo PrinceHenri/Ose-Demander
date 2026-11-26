@@ -15,7 +15,8 @@ const NOMS = [
   "LINK_TONE", "LINK_INTRO", "LINK_KEYS", "LINK_T0", "LINK_TMAX",
   "reminderData", "revealKeys", "revealPlan", "REVEAL_FRESH",
   "revealEvents", "icsText", "calFmt", "REVEAL_ALARMS", "REVEAL_EVENT_MIN",
-  "contrast", "accentOk", "accentInk", "readable", "accentVars"
+  "contrast", "accentOk", "accentInk", "readable", "accentVars",
+  "MC_FAMILLES", "mcFamille"
 ];
 
 export function codeDeLaPage(){

@@ -5173,6 +5173,49 @@ await test("Mascottes : fichiers légers, aucune adresse externe, familles Amour
   assert.ok(/^exclude:\n  - android\n  - atelier$/m.test(lireFichier("_config.yml")), "atelier/ exclu du site");
 });
 
+/* =========================================================
+   62. Mascottes : champ du lien (mc / K) et case « Afficher les chatons »
+   ========================================================= */
+titre("62. Mascottes : champ du lien et option");
+const MC_BASE = { f: "Alex", t: "Sam", o: "date", th: "date", q: "Ça te dit un rendez-vous ?", n: "fuit", an: "n", c: "any", a: { v: "v", x: "Dîner" }, d: "2027-02-14", h: "20:00" };
+await test("Champ mc / K : seule la valeur 1 est acceptée (ancien format : autre valeur ignorée ; format compact : lien refusé), aller-retour exact", async () => {
+  assert.equal(L.sanitize({ ...MC_BASE, mc: 1 }).mc, 1);
+  for(const v of [0, 2, "1", true, null, [1]]) assert.ok(!("mc" in L.sanitize({ ...MC_BASE, mc: v })), `mc=${JSON.stringify(v)} ignoré`);
+  const d = L.sanitize({ ...MC_BASE, mc: 1 }), c = L.packLink(d);
+  assert.equal(c.K, 1);
+  assert.deepEqual(L.sanitize(L.unpackLink(c)), d);
+  assert.ok(!("K" in L.packLink(L.sanitize(MC_BASE))), "sans chatons : rien dans le lien");
+  for(const v of [0, 2, "1", true]) assert.throws(() => L.unpackLink({ ...L.packLink(L.sanitize(MC_BASE)), K: v }), undefined, `K=${JSON.stringify(v)} refusé`);
+  assert.deepEqual(await L.decodeData(await L.encodeData(d)), d);
+  assert.ok(L.LINK_KEYS.includes("K") && FIGE.LINK_KEYS.includes("K"), "clé K figée");
+  assert.equal(L.reminderData(d, null).mc, 1, "gardé dans le rappel d'agenda (lots suivants)");
+});
+await test("Anciens liens sans le champ : aucune mascotte (mcFamille nulle), exactement comme avant", async () => {
+  for(const r of REFERENCES.filter(r => !("mc" in r.attendu))){
+    const d = await L.decodeData(r.lien);
+    assert.ok(!("mc" in d), r.nom);
+    assert.equal(L.mcFamille(d), null, r.nom);
+  }
+  assert.equal(REFERENCES.filter(r => r.attendu.mc === 1).length, 2, "deux références avec chatons (formats y et p)");
+});
+await test("Familles prêtes : Amour (rendez-vous, Saint-Valentin, anniversaire de mon amour, de couple, week-end en amoureux, dîner) et Noël ; jamais mariage ni les autres occasions", () => {
+  assert.deepEqual({ ...L.MC_FAMILLES }, { date: "amour", valentin: "amour", annivamour: "amour", couple: "amour", weekend: "amour", dinerspecial: "amour", noel: "noel" });
+  for(const o of Object.keys(L.MC_FAMILLES)) assert.ok(L.OCC[o] && !L.OCC[o].old, `${o} : occasion proposée à la création`);
+  assert.equal(L.mcFamille({ ...MC_BASE, mc: 1 }), "amour");
+  assert.equal(L.mcFamille({ ...MC_BASE, o: "noel", mc: 1 }), "noel");
+  assert.equal(L.mcFamille(MC_BASE), null, "case décochée : pas de chatons");
+  for(const o of ["mariage", "soiree", "temoin", "juste", "libre", "halloween"]) assert.equal(L.mcFamille({ ...MC_BASE, o, mc: 1 }), null, o);
+});
+await test("Création : case « Afficher les chatons » cochée par défaut, proposée seulement pour une occasion qui a sa famille, écrite dans le lien seulement alors, récapitulatif, duplication", () => {
+  const cr = readFileSync(RACINE + "app/creer.js", "utf8").replace(/\r\n/g, "\n");
+  assert.ok(cr.includes("share:true, chatons:true, groupe:false,"), "cochée par défaut");
+  assert.ok(cr.includes('${own(MC_FAMILLES, S.occ) ? `<label class="check" style="margin-top:14px"><input type="checkbox" id="mcInv" ${S.chatons?"checked":""}><span>Afficher les chatons '), "seulement pour une famille prête");
+  assert.ok(cr.includes("if(S.chatons && own(MC_FAMILLES, S.occ)) d.mc=1;"), "dans le lien seulement pour une famille prête");
+  assert.ok(cr.includes('if($("#mcInv")) S.chatons=$("#mcInv").checked;') && cr.includes('$("#mcInv")?.addEventListener("change"'), "relue, aperçu refait");
+  assert.ok(cr.includes('own(MC_FAMILLES, S.occ) ? recapRow("Chatons", '), "ligne du récapitulatif");
+  assert.ok(cr.includes("share:d.pa!==0, chatons:d.mc===1"), "duplication : réglage repris du lien");
+});
+
 /* ---------- Bilan ---------- */
 console.log(`\n${ko ? "❌" : "✅"} ${ok} tests réussis, ${ko} en échec (graine ${GRAINE}${ko ? ` — pour rejouer : node tests/run.mjs --graine=${GRAINE}` : ""})`);
 if(ko){ console.log(echecs.map(e => "  - " + e).join("\n")); process.exitCode = 1; }
