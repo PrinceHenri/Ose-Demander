@@ -5129,6 +5129,197 @@ await test("Lien « Accueil » : après le Oui, le vrai refus, le formulaire de 
   assert.ok(/\.home-lien\{[^}]*border:2px solid var\(--ink\);background:var\(--surface\);color:var\(--ink\)/.test(css), "même style que « Son » (variables du thème)");
 });
 
+/* =========================================================
+   61. Mascottes Lilas et Praline : moteur, dessins, familles (app/mascotte*.js)
+   ========================================================= */
+titre("61. Mascottes");
+const MASCOTTE = (() => {
+  // Le moteur est évalué ici, avec un faux document (aucun navigateur)
+  const env = { window: {}, document: { addEventListener(){}, head: { insertAdjacentHTML(){} } }, matchMedia: () => ({ matches: false }), oseLoaded(){} };
+  const code = ["app/mascotte.js", "app/mascotte-amour.js", "app/mascotte-noel.js"].map(f => readFileSync(RACINE + f, "utf8")).join("\n;var Mascotte = window.Mascotte;\n");
+  new Function("window", "document", "matchMedia", "oseLoaded", code)(env.window, env.document, env.matchMedia, env.oseLoaded);
+  return env.window.Mascotte;
+})();
+await test("Mascottes : chaque chaton a toutes ses pièces nommées, ancrages dans le dessin, expressions et variantes de bouche, aria-hidden", () => {
+  for(const qui of ["lilas", "praline"]){
+    const svg = MASCOTTE._dessin(qui);
+    assert.ok(svg.startsWith(`<svg class="mc-chat mc-${qui}" viewBox="0 0 120 140" aria-hidden="true" focusable="false"`), qui + " : décoratif");
+    for(const p of MASCOTTE.pieces) assert.ok(svg.includes(`data-p="${p}"`), `${qui} : pièce ${p}`);
+    for(const x of MASCOTTE.expressions) assert.ok(svg.includes(`data-p="yeux" data-a="60 63" data-x="${x}"`), `${qui} : yeux ${x}`);
+    for(const x of ["sourire", "ouverte", "boude"]) assert.ok(svg.includes(`data-x="${x}"`), `${qui} : bouche ${x}`);
+    for(const [, x, y] of svg.matchAll(/data-a="([\d.]+) ([\d.]+)"/g)) assert.ok(+x >= 0 && +x <= 120 && +y >= 0 && +y <= 140, `${qui} : ancrage ${x} ${y}`);
+    assert.ok(!/\sid=/.test(svg), qui + " : aucun identifiant (plusieurs chatons dans une page)");
+    assert.ok(!/<text|<title/.test(svg), qui + " : aucun texte");
+  }
+});
+await test("Mascottes : immobiles avec « moins de mouvement » et en animations « Aucune » (fondus seulement), pause hors écran, animations par transform et opacity", () => {
+  const src = readFileSync(RACINE + "app/mascotte.js", "utf8");
+  assert.ok(src.includes("@media (prefers-reduced-motion:reduce){.mc-chat,.mc-chat *{animation:none!important;transition:opacity .25s!important}}"));
+  assert.ok(src.includes(".mc-e-0,.mc-e-0 *{animation:none!important;transition:opacity .25s!important}"));
+  assert.ok(src.includes(".mc-pause,.mc-pause *{animation-play-state:paused!important}"));
+  assert.ok(src.includes("IntersectionObserver") && src.includes('document.addEventListener("visibilitychange"'), "pause hors écran ou onglet caché");
+  assert.ok(/const immobile = \(\) => energie === "0" \|\| reduit\(\);/.test(src) && src.includes("if(immobile() || !DUREES[nom]){ geste = null; fin(); return; }"), "aucun geste en mouvement quand immobile");
+  for(const [, corps] of src.matchAll(/@keyframes [\w-]+\{([\s\S]*?)\}\n/g)) assert.ok(!/(?:^|[{;])\s*(?:left|top|width|height|margin)\s*:/.test(corps), "keyframes : transform et opacity seulement");
+  assert.ok(src.includes(".mc-chat{display:block;overflow:visible;pointer-events:none;"), "ne capte aucun toucher par défaut (jamais devant un bouton)");
+});
+await test("Mascottes : fichiers légers, aucune adresse externe, familles Amour et Noël (particules connues du décor animé), atelier jamais publié", () => {
+  const poids = f => gzipSync(readFileSync(RACINE + f), { level: 6 }).length;
+  assert.ok(poids("app/mascotte.js") < 10000, `mascotte.js : ${poids("app/mascotte.js")} octets compressés`);
+  for(const f of ["app/mascotte-amour.js", "app/mascotte-noel.js"]) assert.ok(poids(f) < 3000, `${f} : ${poids(f)} octets compressés`);
+  for(const f of ["app/mascotte.js", "app/mascotte-amour.js", "app/mascotte-noel.js"]) assert.ok(!/https?:\/\//.test(readFileSync(RACINE + f, "utf8").replace(/\/\*[\s\S]*?\*\//g, "")), f + " : aucune adresse");
+  assert.deepEqual(MASCOTTE.familles().sort(), ["amour", "noel"]);
+  const formes = readFileSync(RACINE + "index.html", "utf8");
+  for(const id of MASCOTTE.familles()) for(const f of MASCOTTE.particules(id)) assert.ok(formes.includes(`"${f}"`), `${id} : forme ${f} connue du décor animé`);
+  assert.ok(/^exclude:\n  - android\n  - atelier$/m.test(lireFichier("_config.yml")), "atelier/ exclu du site");
+});
+
+/* =========================================================
+   62. Mascottes : champ du lien (mc / K) et case « Afficher les chatons »
+   ========================================================= */
+titre("62. Mascottes : champ du lien et option");
+const MC_BASE = { f: "Alex", t: "Sam", o: "date", th: "date", q: "Ça te dit un rendez-vous ?", n: "fuit", an: "n", c: "any", a: { v: "v", x: "Dîner" }, d: "2027-02-14", h: "20:00" };
+await test("Champ mc / K : seule la valeur 1 est acceptée (ancien format : autre valeur ignorée ; format compact : lien refusé), aller-retour exact", async () => {
+  assert.equal(L.sanitize({ ...MC_BASE, mc: 1 }).mc, 1);
+  for(const v of [0, 2, "1", true, null, [1]]) assert.ok(!("mc" in L.sanitize({ ...MC_BASE, mc: v })), `mc=${JSON.stringify(v)} ignoré`);
+  const d = L.sanitize({ ...MC_BASE, mc: 1 }), c = L.packLink(d);
+  assert.equal(c.K, 1);
+  assert.deepEqual(L.sanitize(L.unpackLink(c)), d);
+  assert.ok(!("K" in L.packLink(L.sanitize(MC_BASE))), "sans chatons : rien dans le lien");
+  for(const v of [0, 2, "1", true]) assert.throws(() => L.unpackLink({ ...L.packLink(L.sanitize(MC_BASE)), K: v }), undefined, `K=${JSON.stringify(v)} refusé`);
+  assert.deepEqual(await L.decodeData(await L.encodeData(d)), d);
+  assert.ok(L.LINK_KEYS.includes("K") && FIGE.LINK_KEYS.includes("K"), "clé K figée");
+  assert.equal(L.reminderData(d, null).mc, 1, "gardé dans le rappel d'agenda (lots suivants)");
+});
+await test("Anciens liens sans le champ : aucune mascotte (mcFamille nulle), exactement comme avant", async () => {
+  for(const r of REFERENCES.filter(r => !("mc" in r.attendu))){
+    const d = await L.decodeData(r.lien);
+    assert.ok(!("mc" in d), r.nom);
+    assert.equal(L.mcFamille(d), null, r.nom);
+  }
+  assert.equal(REFERENCES.filter(r => r.attendu.mc === 1).length, 2, "deux références avec chatons (formats y et p)");
+});
+await test("Familles prêtes : Amour (rendez-vous, Saint-Valentin, anniversaire de mon amour, de couple, week-end en amoureux, dîner) et Noël ; jamais mariage ni les autres occasions", () => {
+  assert.deepEqual({ ...L.MC_FAMILLES }, { date: "amour", valentin: "amour", annivamour: "amour", couple: "amour", weekend: "amour", dinerspecial: "amour", noel: "noel" });
+  for(const o of Object.keys(L.MC_FAMILLES)) assert.ok(L.OCC[o] && !L.OCC[o].old, `${o} : occasion proposée à la création`);
+  assert.equal(L.mcFamille({ ...MC_BASE, mc: 1 }), "amour");
+  assert.equal(L.mcFamille({ ...MC_BASE, o: "noel", mc: 1 }), "noel");
+  assert.equal(L.mcFamille(MC_BASE), null, "case décochée : pas de chatons");
+  for(const o of ["mariage", "soiree", "temoin", "juste", "libre", "halloween"]) assert.equal(L.mcFamille({ ...MC_BASE, o, mc: 1 }), null, o);
+});
+await test("Création : case « Afficher les chatons » cochée par défaut, proposée seulement pour une occasion qui a sa famille, écrite dans le lien seulement alors, récapitulatif, duplication", () => {
+  const cr = readFileSync(RACINE + "app/creer.js", "utf8").replace(/\r\n/g, "\n");
+  assert.ok(cr.includes("share:true, chatons:true, groupe:false,"), "cochée par défaut");
+  assert.ok(cr.includes('${own(MC_FAMILLES, S.occ) ? `<label class="check" style="margin-top:14px"><input type="checkbox" id="mcInv" ${S.chatons?"checked":""}><span>Afficher les chatons '), "seulement pour une famille prête");
+  assert.ok(cr.includes("if(S.chatons && own(MC_FAMILLES, S.occ)) d.mc=1;"), "dans le lien seulement pour une famille prête");
+  assert.ok(cr.includes('if($("#mcInv")) S.chatons=$("#mcInv").checked;') && cr.includes('$("#mcInv")?.addEventListener("change"'), "relue, aperçu refait");
+  assert.ok(cr.includes('own(MC_FAMILLES, S.occ) ? recapRow("Chatons", '), "ligne du récapitulatif");
+  assert.ok(cr.includes("share:d.pa!==0, chatons:d.mc===1"), "duplication : réglage repris du lien");
+});
+
+/* =========================================================
+   63. Mascottes : parcours de la personne invitée (enveloppe, question, Non, Oui, vrai refus), aperçu, chargement
+   ========================================================= */
+titre("63. Mascottes : parcours de la personne invitée");
+await test("Fichiers des mascottes versionnés, chargés à la demande et précachés (sw.js)", () => {
+  const sw = lireFichier("sw.js"), html = lireFichier("index.html");
+  for(const [nom, chemin] of [["mascotte", "app/mascotte.js"], ["mascotteAmour", "app/mascotte-amour.js"], ["mascotteNoel", "app/mascotte-noel.js"]]){
+    const f = CSP.FICHIERS.find(x => x.nom === nom);
+    assert.ok(f && f.chemin === chemin, nom + " dans outils/csp.mjs");
+    const v = CSP.versionDe(f, lireFichier(chemin));
+    assert.ok(sw.includes(`"./${chemin}?v=${v}"`), nom + " précaché à sa version");
+    assert.ok(html.includes(`${nom}:"${v}"`), nom + " dans OSE_FILES");
+  }
+  assert.ok(html.includes('const mcFichier = f => "mascotte" + f[0].toUpperCase() + f.slice(1);'));
+});
+await test("Vrai refus visible (3 essais ou 10 s) : jamais de bouderie ni de tristesse, Lilas suit seulement des yeux ; sinon Non 1 = regard puis course, 2 = bouderie brève", () => {
+  for(let n = 0; n < 8; n++) assert.equal(MASCOTTE.reactionNon(n, true), "suit", `essai ${n}, vrai refus visible`);
+  assert.equal(MASCOTTE.reactionNon(1, false), "retient");
+  assert.equal(MASCOTTE.reactionNon(2, false), "boude");
+  assert.equal(MASCOTTE.reactionNon(2, true), "suit", "vrai refus déjà proposé par le délai de 10 s : pas de bouderie au 2e essai");
+  assert.equal(MASCOTTE.reactionNon(3, false), "suit");
+  const m = readFileSync(RACINE + "app/mascotte.js", "utf8").replace(/\r\n/g, "\n");
+  assert.ok(m.includes('if(refus) calmer(); else { minuteurs.forEach(clearTimeout); minuteurs = []; }'), "vrai refus visible : tout geste en cours s'arrête d'abord");
+  assert.ok(m.includes('ensuite(() => l.etat(refus ? "attentif" : "attente"), 1900);'), "puis pose attentive");
+  assert.ok(m.includes('else if(ev === "refusLien") calmer();'), "le vrai refus apparaît : tout s'arrête");
+  assert.ok(/function calmer\(\)\{\n  minuteurs\.forEach\(clearTimeout\); minuteurs = \[\];[\s\S]*?duo\.forEach\(c => c\.arreter\(\)\);\n  l\.deplacer\(0\)\.etat\("attentif"\); if\(p\) p\.etat\("attente"\);/.test(m), "calmer : gestes arrêtés (plus de tapote), Lilas attentif, Praline neutre");
+  assert.ok(m.includes('lilas.etat(refus ? "attentif" : "attente")'), "question réaffichée avec le vrai refus déjà proposé : attentif");
+  assert.ok(m.includes('ensuite(() => l.etat("attentif"), 1500);'), "bouderie brève (1,5 s)");
+  // Dans la page : le vrai refus est posé AVANT la réaction au Non (au 3e essai, la mascotte voit donc le vrai refus)
+  assert.ok(PAGE.lire("bindNo").toString().includes('if(++noTries>=REFUSE_TRIES) showRefuseLink(); mcEv("non", {n:noTries});'));
+  assert.ok(PAGE.lire("showRefuseLink").toString().includes('mcEv("refusLien");'));
+});
+await test("Accroches du parcours : enveloppe, ouverture, question, Oui (groupe : le saut seul), vrai refus ; rien sans chatons demandés, ni dans l'exemple ; jamais attendus", () => {
+  const src = n => PAGE.lire(n).toString();
+  assert.ok(src("renderEnvelope").includes('mcEv("ouvre");') && src("renderEnvelope").includes('mcEv("enveloppe");'));
+  assert.ok(src("renderInvite").includes('mcEv("question");'));
+  assert.ok(src("sayYes").includes('yesDone=true;\n  mcEv("oui");\n  if(GRP){'), "Oui, aussi pour un groupe");
+  assert.ok(src("openRefuse").includes('mcEv("refus");\n  if(GRP){'), "vrai refus, aussi pour un groupe");
+  const init = src("mcInit"), ev = src("mcEv");
+  assert.ok(init.includes("MCF = EXAMPLE ? null : mcFamille(D);") && init.includes("if(!MCF) return;\n  need(\"mascotte\")"), "rien n'est chargé sans chatons demandés (anciens liens)");
+  assert.ok(ev.startsWith("function mcEv(ev, info={}){\n  if(!MCF) return;"), "aucun effet sans chatons");
+  assert.ok(ev.includes("if(window.Mascotte && oseHas(mcFichier(MCF)))"), "jamais attendu : rien tant que le fichier n'est pas arrivé");
+  assert.ok(init.includes('mcEv(mcLast[0], {...mcLast[1], rejoue:true})'), "fichier arrivé après l'écran : l'état final est posé");
+  assert.ok(!src("renderReminder").includes("mcEv") && !src("renderShared").includes("mcEv") && !src("renderIntro").includes("mcEv"), "rappel, version partagée, introduction : pas dans le lot 1");
+  const m = readFileSync(RACINE + "app/mascotte.js", "utf8").replace(/\r\n/g, "\n");
+  assert.ok(m.includes("if(info.groupe) return; // groupe : le saut seul, puis le formulaire"));
+  assert.ok(m.includes('Decor.burst(r.left + r.width / 2, r.top + r.height / 2, 36, true, f && f.particules);'), "particules de la famille");
+  assert.ok(lireFichier("index.html").includes("burst(x,y,n,small,formes){") && lireFichier("index.html").includes("kinds=formes||c.burst||[c.shape]"));
+});
+await test("Placement : une seule zone, aria-hidden, au-dessus du bord du billet ou de l'enveloppe (place réservée, jamais sur l'élément de scène ni un bouton), seule la tête est touchable", () => {
+  const m = readFileSync(RACINE + "app/mascotte.js", "utf8").replace(/\r\n/g, "\n");
+  assert.ok(m.includes("function poser(parent, cls, qui, info){\n  vider();"), "une seule zone à la fois");
+  assert.ok(m.includes('zone.setAttribute("aria-hidden", "true");'));
+  assert.ok(m.includes(".mc-zone{position:absolute;display:flex;align-items:flex-end;pointer-events:none;z-index:4}"));
+  assert.ok(m.includes(".mc-z-billet{right:14px;bottom:100%;margin-bottom:-6px}") && m.includes(".mc-z-env{right:-5%;bottom:100%;margin-bottom:-7px}"), "au-dessus d'un bord");
+  assert.ok(m.includes('.mc-touchable [data-p="tete"]{pointer-events:auto;cursor:pointer}'));
+  const html = lireFichier("index.html");
+  assert.ok(html.includes(".inv.mc-on .ticket{margin-top:68px}") && PAGE.lire("mcEv").toString().includes('if(ev==="question") $(".inv")?.classList.add("mc-on");'), "place réservée dès l'affichage");
+});
+await test("Aperçu de la création : chatons sur le billet si la case est cochée et que l'occasion a sa famille", () => {
+  const cr = readFileSync(RACINE + "app/creer.js", "utf8").replace(/\r\n/g, "\n");
+  assert.ok(cr.includes("  refreshInstall();\n  mcApercu();\n"));
+  assert.ok(cr.includes('const f = S.step===4 && S.chatons && own(MC_FAMILLES, S.occ) ? MC_FAMILLES[S.occ] : null;'));
+  assert.ok(cr.includes('Mascotte.parcours("apercu", {famille:f, anim:REDUCED ? "0" : S.anim, conteneur:t});'));
+  assert.ok(cr.includes('<div class="pv-stage${S.chatons && own(MC_FAMILLES, S.occ) ? " mc-on" : ""}">') && readFileSync(RACINE + "app/creer.css", "utf8").includes(".pv-stage.mc-on .ticket{margin-top:68px}"), "place réservée dans l'aperçu");
+});
+
+/* =========================================================
+   64. Mascottes : accueil (Lilas sur le bord du mini-billet, course après le Non, Oui, accessoire de saison)
+   ========================================================= */
+titre("64. Mascottes : accueil");
+await test("Accueil : Lilas sur le bord du mini-billet (place réservée), aria-hidden, court vers le Non sans passer dessous, détruit en quittant l'accueil", () => {
+  const cr = readFileSync(RACINE + "app/creer.js", "utf8").replace(/\r\n/g, "\n");
+  assert.ok(cr.includes('mcAccueilVider(); if(S.step==="home") mcAccueilPoser();'), "posé sur l'accueil seulement, retiré ailleurs");
+  assert.ok(cr.includes('z.className="mc-zone mc-z-billet mc-touchable"; z.setAttribute("aria-hidden","true");'));
+  assert.ok(readFileSync(RACINE + "app/creer.css", "utf8").includes(".demo-ticket{margin:56px 0 24px}"), "place réservée au-dessus du billet");
+  assert.ok(cr.includes("    mcAccueilNon(no);\n  };"), "la course suit chaque esquive du Non");
+  assert.ok(cr.includes("const cible=Math.max(b.left+34, Math.min(b.right-34, r.left+r.width/2));"), "reste sur le bord du billet");
+  assert.ok(cr.includes('const mcEnergie = () => REDUCED || S.anim==="0" ? "0" : S.anim;'), "immobile avec « moins de mouvement » ou « Aucune »");
+});
+await test("Accueil, Oui : Praline arrive et petit saut de joie (0,8 s), puis la création comme avant, sans autre délai ; rien à attendre si immobile", () => {
+  const cr = readFileSync(RACINE + "app/creer.js", "utf8").replace(/\r\n/g, "\n");
+  assert.ok(cr.includes('S.tplCat="Amour"; setTimeout(()=>go(1), still() ? 0 : Math.max(450, mcAccueilOui()));'));
+  assert.ok(cr.includes('if(!mcAcc || mcEnergie()==="0") return 0;') && cr.includes("  return 800;\n}"), "0,8 s au plus");
+  assert.ok(cr.includes('p.etat("joie"); p.jouer("glisse"); l.etat("joie");') && cr.includes('l.jouer("saut"); p.jouer("saut");'));
+});
+await test("Accessoire de saison de Lilas calé sur le logo de saison : bonnet à Noël, nœud à la Saint-Valentin, aucun le reste de l'année", () => {
+  const cr = readFileSync(RACINE + "app/creer.js", "utf8").replace(/\r\n/g, "\n");
+  assert.ok(cr.includes('const MC_SAISON = {noel:["noel", "lilas"], valentin:["amour", "praline"]};'));
+  assert.ok(cr.includes("const saison=logoAt(seasonToday()).find(id=>own(MC_SAISON, id))"), "mêmes périodes que le logo");
+  assert.ok(MASCOTTE.accessoire("noel", "lilas", "tete").includes("<path"), "bonnet de Noël de Lilas");
+  assert.ok(MASCOTTE.accessoire("amour", "praline", "tete").includes("<path"), "nœud (celui de Praline, posé sur Lilas)");
+  assert.equal(MASCOTTE.accessoire("amour", "lilas", "tete"), "", "aucun accessoire inventé");
+  const idx = readFileSync(RACINE + "index.html", "utf8");
+  for(const id of ["noel", "valentin"]) assert.ok(new RegExp(`\\n  ${id}: +\\{name:`).test(idx), `période ${id} du logo de saison`);
+});
+
+await test("Skill ose-design : section des mascottes (format des pièces, règle du vrai refus, poids, fichiers séparés pour les lots suivants)", () => {
+  const sk = readFileSync(RACINE + ".claude/skills/ose-design/SKILL.md", "utf8");
+  assert.ok(sk.includes("## 2 duovicies. Mascottes Lilas et Praline"));
+  for(const p of MASCOTTE.pieces.filter(p => p !== "regard" && p !== "effets")) assert.ok(sk.includes("`" + p + "`"), `pièce ${p} documentée`);
+  assert.ok(sk.includes("jamais de bouderie ni de tristesse") && sk.includes("sous 10 Ko compressés") && sk.includes("fichiers séparés"));
+});
+
 /* ---------- Bilan ---------- */
 console.log(`\n${ko ? "❌" : "✅"} ${ok} tests réussis, ${ko} en échec (graine ${GRAINE}${ko ? ` — pour rejouer : node tests/run.mjs --graine=${GRAINE}` : ""})`);
 if(ko){ console.log(echecs.map(e => "  - " + e).join("\n")); process.exitCode = 1; }

@@ -6,3 +6,4 @@ include:
 # Le projet Android local n'a rien à faire sur le site
 exclude:
   - android
+  - atelier

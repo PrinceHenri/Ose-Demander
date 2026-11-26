@@ -1309,5 +1309,51 @@ export const REFERENCES = [
       "h": "20:00",
       "gp": "BAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
     }
+  },
+  {
+    "nom": "Chatons demandés (format compact y, K:1)",
+    "lien": "yDcsxCsJAEEDRqwy_sRkhW6g4jYhaWeoFFnYCwibRmGhQrD2LjZfIxfT170mJsc4-oHQYh1ihNFhQLhjjO0rnkk6d9LW0Xid_TG9Nf5UVyhELCyVibMdv7S1K_q9NLMePJJc82Q1enbOj3LHZsgjzQtlj4fUD",
+    "attendu": {
+      "f": "Alex",
+      "t": "Sam",
+      "q": "Ça te dit un rendez-vous ?",
+      "o": "date",
+      "th": "date",
+      "n": "fuit",
+      "an": "n",
+      "c": "any",
+      "a": {
+        "v": "v",
+        "x": "Dîner"
+      },
+      "l": {
+        "v": "v",
+        "x": "Café de l'Exemple"
+      },
+      "d": "2027-02-14",
+      "h": "20:00",
+      "mc": 1
+    }
+  },
+  {
+    "nom": "Chatons demandés (ancien format p, mc:1)",
+    "lien": "peyJmIjoiQ2FtaWxsZSIsInQiOiJOb2EiLCJxIjoiVHUgdmllbnMgYXUgcmVwYXMgZGUgTm_Dq2wgPyIsIm8iOiJub2VsIiwidGgiOiJub2VsIiwibiI6InJldHJlY2l0IiwiYW4iOiJkIiwiYyI6ImFueSIsImEiOnsidiI6InYiLCJ4IjoiUmVwYXMgZGUgTm_Dq2wifSwiZCI6IjIwMjYtMTItMjQiLCJoIjoiMTk6MzAiLCJtYyI6MX0",
+    "attendu": {
+      "f": "Camille",
+      "t": "Noa",
+      "q": "Tu viens au repas de Noël ?",
+      "o": "noel",
+      "th": "noel",
+      "n": "retrecit",
+      "an": "d",
+      "c": "any",
+      "a": {
+        "v": "v",
+        "x": "Repas de Noël"
+      },
+      "d": "2026-12-24",
+      "h": "19:30",
+      "mc": 1
+    }
   }
 ];

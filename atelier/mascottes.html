@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Atelier des mascottes</title>
+<!-- Page interne, jamais publiée (exclue par _config.yml) : vérifier les chatons, leurs expressions, leurs gestes et les familles. -->
+<style>
+@font-face{font-family:"Bricolage Grotesque";src:url(../fonts/bricolage-grotesque.woff2) format("woff2");font-weight:200 800}
+:root{--bg:#ECE6FF;--surface:#fff;--ink:#1F1546;--muted:#5b5280;--line:#cfc6f2}
+body{margin:0;font-family:"Bricolage Grotesque",system-ui,sans-serif;background:var(--bg);color:var(--ink)}
+body[data-fond="amour"]{--bg:#FFE4EC;--line:#f3b8cb;--muted:#7a3a58}
+body[data-fond="noel"]{--bg:#FBF3E4;--line:#e6d3b3;--muted:#5d4a33}
+body[data-fond="mystere"]{--bg:#1C1838;--surface:#29234D;--ink:#F2EEFF;--muted:#c3badf;--line:#4a4278}
+main{max-width:1100px;margin:0 auto;padding:16px}
+h1{font-weight:800;letter-spacing:-.02em;margin:8px 0}h2{font-weight:800;margin:26px 0 10px;font-size:20px}
+.outils{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.outils label{font-weight:700;font-size:14px}
+select,button{font:inherit;font-weight:700;border:2px solid var(--ink);border-radius:12px;background:var(--surface);color:var(--ink);padding:7px 12px;min-height:40px}
+button:active{transform:translate(2px,2px)}
+.grille{display:flex;flex-wrap:wrap;gap:12px}
+.case{background:var(--surface);border:2px solid var(--ink);border-radius:16px;box-shadow:4px 4px 0 var(--ink);padding:10px 10px 6px;text-align:center;width:150px}
+.case .mc-chat{width:120px;height:140px;margin:0 auto}
+.case p{margin:4px 0 0;font-size:13px;font-weight:700;color:var(--muted)}
+.duo{display:flex;align-items:flex-end;justify-content:center;gap:0}
+.duo .mc-chat{width:120px;height:140px;margin:0 -8px}
+.scene{background:var(--surface);border:2px solid var(--ink);border-radius:18px;box-shadow:6px 6px 0 var(--ink);padding:18px;margin-top:10px}
+.billet{position:relative;max-width:360px;margin:96px auto 10px;background:var(--surface);border:2px solid var(--ink);border-radius:22px;box-shadow:8px 8px 0 var(--ink);padding:26px 18px;text-align:center}
+.billet .perche{position:absolute;right:18px;bottom:100%;margin-bottom:-6px;display:flex;align-items:flex-end}
+.billet .perche .mc-chat{width:74px;height:86px;margin:0 -5px}
+.billet h3{font-size:24px;font-weight:800;margin:0 0 16px}
+.billet .rep{display:flex;gap:10px;justify-content:center}
+.billet .rep span{border:2px solid var(--ink);border-radius:16px;padding:12px 26px;font-weight:800;box-shadow:4px 4px 0 var(--ink)}
+.billet .rep span:first-child{background:#D82D79;color:#fff}
+.gestes{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:10px}
+.etroit{width:360px;margin:0 auto;border:2px dashed var(--line);border-radius:12px;padding:0 0 10px}
+.etroit .billet{max-width:none;margin:96px 16px 10px}
+</style>
+</head>
+<body>
+<main>
+  <h1>Atelier des mascottes</h1>
+  <p>Page interne, non publiée. Lilas ose demander, Praline répond.</p>
+  <div class="outils">
+    <label>Énergie <select id="energie"><option value="n">Normale</option><option value="d">Réduite</option><option value="0">Immobile</option></select></label>
+    <label>Famille <select id="famille"><option value="">Aucune</option><option value="amour">Amour</option><option value="noel">Noël</option></select></label>
+    <label>Fond <select id="fond"><option value="base">Lilas</option><option value="amour">Amour</option><option value="noel">Noël</option><option value="mystere">Mystère</option></select></label>
+  </div>
+
+  <h2>Expressions</h2>
+  <div class="grille" id="expr"></div>
+
+  <h2>États</h2>
+  <div class="grille" id="etats"></div>
+
+  <h2>Gestes (duo)</h2>
+  <div class="scene">
+    <div class="duo" id="duo"></div>
+    <div class="gestes" id="gestes"></div>
+  </div>
+
+  <h2>Perchés sur le bord du billet, à 360 px</h2>
+  <div class="etroit">
+    <div class="billet"><div class="perche" id="perche"></div><h3>Ça te dit un rendez-vous ?</h3><div class="rep"><span>Oui</span><span>Non</span></div></div>
+  </div>
+</main>
+<script>window.oseLoaded = () => {};</script>
+<script src="../app/mascotte.js"></script>
+<script src="../app/mascotte-amour.js"></script>
+<script src="../app/mascotte-noel.js"></script>
+<script>
+const P = new URLSearchParams(location.search), $ = s => document.querySelector(s);
+["energie", "famille", "fond"].forEach(k => { if(P.has(k)) $("#" + k).value = P.get(k); });
+let tous = [];
+function nouveau(qui, sens){ const c = Mascotte.chat(qui, {energie: $("#energie").value, famille: $("#famille").value, sens}); tous.push(c); return c; }
+function case_(parent, legende, ...chats){
+  const d = document.createElement("div"); d.className = "case";
+  const z = document.createElement("div"); z.className = chats.length > 1 ? "duo" : ""; chats.forEach(c => z.appendChild(c.el));
+  d.appendChild(z); d.insertAdjacentHTML("beforeend", `<p>${legende}</p>`); parent.appendChild(d);
+  if(chats.length > 1) d.style.width = "250px";
+}
+let duo;
+function tout(){
+  document.body.dataset.fond = $("#fond").value;
+  tous.forEach(c => c.detruire()); tous = [];
+  ["#expr", "#etats", "#duo", "#gestes", "#perche"].forEach(s => $(s).innerHTML = "");
+  for(const x of Mascotte.expressions){ case_($("#expr"), "Lilas : " + x, nouveau("lilas").yeux(x)); }
+  for(const x of Mascotte.expressions){ case_($("#expr"), "Praline : " + x, nouveau("praline", -1).yeux(x)); }
+  case_($("#expr"), "Larme", nouveau("praline", -1).larme(true).etat("triste", {yeux: "ouverts"}));
+  case_($("#etats"), "attente", nouveau("lilas").etat("attente"));
+  case_($("#etats"), "attentif", nouveau("lilas").etat("attentif"));
+  case_($("#etats"), "regarde à gauche", nouveau("lilas").etat("regarde").regard(-3, 1));
+  case_($("#etats"), "regarde à droite", nouveau("lilas").etat("regarde").regard(3, -1));
+  case_($("#etats"), "timide", nouveau("praline", -1).etat("timide"));
+  case_($("#etats"), "joie", nouveau("lilas").etat("joie"));
+  case_($("#etats"), "boude", nouveau("lilas").etat("boude"));
+  case_($("#etats"), "triste", nouveau("lilas").etat("triste"));
+  case_($("#etats"), "câlin", nouveau("lilas", 1).etat("calin"), nouveau("praline", -1).etat("calin"));
+  case_($("#etats"), "étoiles", nouveau("praline", -1).etat("etoile"));
+  const l = nouveau("lilas", 1), p = nouveau("praline", -1);
+  $("#duo").append(l.el, p.el); duo = {l, p};
+  const G = {
+    "Saut de joie": () => { l.etat("joie"); p.etat("joie"); l.jouer("saut"); setTimeout(() => p.jouer("saut"), 90); },
+    "Câlin": () => { l.etat("calin"); p.etat("calin"); },
+    "Tire (rabat)": () => { l.etat("attentif"); l.jouer("tire"); },
+    "Suit des yeux": () => { l.etat("regarde"); let i = 0; const t = setInterval(() => { l.regard(Math.sin(i / 3) * 3, 0); if(++i > 24){ clearInterval(t); l.etat("attente"); } }, 60); },
+    "Court": () => { l.courir(true).deplacer(-60); setTimeout(() => l.courir(false).deplacer(0), 700); setTimeout(() => l.courir(false), 1300); },
+    "Boude + tapote": () => { l.etat("boude"); setTimeout(() => p.jouer("tapote"), 250); setTimeout(() => l.etat("attentif"), 1500); },
+    "Triste, soupir, coucou": () => { l.etat("triste"); l.jouer("soupir").then(() => { l.etat("attente", {bouche: "sourire"}); l.jouer("coucou"); }); },
+    "Praline glisse": () => { p.etat("timide"); p.jouer("glisse"); },
+    "Toucher": () => { l.toucher(); setTimeout(() => p.toucher(), 200); },
+    "Repos": () => { l.etat("attente"); p.etat("attente"); }
+  };
+  for(const [nom, fn] of Object.entries(G)){ const b = document.createElement("button"); b.textContent = nom; b.dataset.geste = nom; b.onclick = fn; $("#gestes").appendChild(b); }
+  const pl = nouveau("lilas", 1), pp = nouveau("praline", -1).etat("timide");
+  $("#perche").append(pl.el, pp.el);
+  window.ATELIER = {duo, G, perche: {l: pl, p: pp}};
+}
+["energie", "famille", "fond"].forEach(k => $("#" + k).addEventListener("change", tout));
+tout();
+</script>
+</body>
+</html>
