@@ -48,7 +48,11 @@ export const FICHIERS = [
   { nom: "scanner", chemin: "app/scanner.js", marque: /oseLoaded\("scanner", "[0-9a-f]*"\)/, pose: v => `oseLoaded("scanner", "${v}")` },
   { nom: "mascotte", chemin: "app/mascotte.js", marque: /oseLoaded\("mascotte", "[0-9a-f]*"\)/, pose: v => `oseLoaded("mascotte", "${v}")` },
   { nom: "mascotteAmour", chemin: "app/mascotte-amour.js", marque: /oseLoaded\("mascotteAmour", "[0-9a-f]*"\)/, pose: v => `oseLoaded("mascotteAmour", "${v}")` },
-  { nom: "mascotteNoel", chemin: "app/mascotte-noel.js", marque: /oseLoaded\("mascotteNoel", "[0-9a-f]*"\)/, pose: v => `oseLoaded("mascotteNoel", "${v}")` }
+  { nom: "mascotteNoel", chemin: "app/mascotte-noel.js", marque: /oseLoaded\("mascotteNoel", "[0-9a-f]*"\)/, pose: v => `oseLoaded("mascotteNoel", "${v}")` },
+  { nom: "mascotteNeutre", chemin: "app/mascotte-neutre.js", marque: /oseLoaded\("mascotteNeutre", "[0-9a-f]*"\)/, pose: v => `oseLoaded("mascotteNeutre", "${v}")` },
+  { nom: "mascotteReveillon", chemin: "app/mascotte-reveillon.js", marque: /oseLoaded\("mascotteReveillon", "[0-9a-f]*"\)/, pose: v => `oseLoaded("mascotteReveillon", "${v}")` },
+  { nom: "mascotteGalette", chemin: "app/mascotte-galette.js", marque: /oseLoaded\("mascotteGalette", "[0-9a-f]*"\)/, pose: v => `oseLoaded("mascotteGalette", "${v}")` },
+  { nom: "mascotteAnniv", chemin: "app/mascotte-anniv.js", marque: /oseLoaded\("mascotteAnniv", "[0-9a-f]*"\)/, pose: v => `oseLoaded("mascotteAnniv", "${v}")` }
 ];
 export function versionDe(f, contenu){
   const t = contenu.replace(/\r\n?/g, "\n");

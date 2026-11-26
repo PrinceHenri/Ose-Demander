@@ -9,6 +9,8 @@ const echarpe = (fond, raie) => `<path class="mc-col-encre" style="stroke-width:
   + `<path class="mc-l" style="stroke:${raie};stroke-width:2.4" d="M43.6 101.5h8.6M42.8 107.5h8.8"/><path class="mc-l" d="M42 115.5v3.4M46 116.2v3.4M50 115.6v3.4"/>`;
 Mascotte.famille("noel", {
   particules: ["flake", "star5"],
+  attente(){},
+  oui(duo, o){ o.saut(); o.calin(); },
   acc: {
     lilas: {tete: bonnet("#D7263D", "#FFF4E8"), cou: echarpe("#1F6B47", "#FFF4E8")},
     praline: {tete: bonnet("#1F6B47", "#FFF4E8"), cou: echarpe("#D7263D", "#FFF4E8")}
@@ -16,4 +18,4 @@ Mascotte.famille("noel", {
 });
 })();
 
-oseLoaded("mascotteNoel", "1b570c3612");
+oseLoaded("mascotteNoel", "333cca8d65");
