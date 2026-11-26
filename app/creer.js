@@ -280,6 +280,46 @@ function renderCreator(){
   bindSound(true);
   refreshInstall();
   mcApercu();
+  mcAccueilVider(); if(S.step==="home") mcAccueilPoser();
+}
+/* Accueil : Lilas assis sur le bord du mini-billet (décoratif, aria-hidden), il court vers le Non quand on l'essaie.
+   Accessoire calé sur le logo de saison (MC_SAISON : période du logo -> [famille, chaton qui le porte dans sa famille]),
+   aucun le reste de l'année. Au Oui : Praline arrive, petit saut de joie (0,8 s), puis la création comme avant. */
+const MC_SAISON = {noel:["noel", "lilas"], valentin:["amour", "praline"]};
+let mcAcc=null;
+const mcEnergie = () => REDUCED || S.anim==="0" ? "0" : S.anim;
+function mcAccueilVider(){ if(mcAcc){ mcAcc.chats.forEach(c=>c.detruire()); mcAcc.z.remove(); clearTimeout(mcAcc.t); mcAcc=null; } }
+function mcAccueilPoser(){
+  const saison=logoAt(seasonToday()).find(id=>own(MC_SAISON, id)), fam=saison ? MC_SAISON[saison][0] : "";
+  need("mascotte").then(()=>fam ? need(mcFichier(fam)) : null).then(()=>{
+    const t=$(".demo-ticket"); if(!t || mcAcc || S.step!=="home") return;
+    const z=document.createElement("div"); z.className="mc-zone mc-z-billet mc-touchable"; z.setAttribute("aria-hidden","true");
+    const l=Mascotte.chat("lilas", {energie:mcEnergie()});
+    if(fam) l.el.querySelector('[data-p="acc-tete"]').innerHTML=Mascotte.accessoire(fam, MC_SAISON[saison][1], "tete");
+    z.appendChild(l.el); t.appendChild(z);
+    z.addEventListener("click", e=>{ const c=mcAcc && mcAcc.chats.find(x=>x.el.contains(e.target)); if(c) c.toucher(); });
+    mcAcc={z, l, chats:[l], t:0};
+  }).catch(()=>{});
+}
+/* Il court le long du bord, vers le Non (jamais dessous : il reste au-dessus du bord du billet) */
+function mcAccueilNon(no){
+  if(!mcAcc) return;
+  const {l, z}=mcAcc, b=z.parentElement.getBoundingClientRect(), m=l.el.getBoundingClientRect(), r=no.getBoundingClientRect();
+  const cible=Math.max(b.left+34, Math.min(b.right-34, r.left+r.width/2));
+  const dx=Math.round(cible-(m.left+m.width/2)) + (+getComputedStyle(l.el).getPropertyValue("--mc-dx") || 0);
+  clearTimeout(mcAcc.t);
+  l.etat("attentif").courir(true).deplacer(dx);
+  mcAcc.t=setTimeout(()=>{ if(!mcAcc) return; l.courir(false).etat("regarde").regard(0, 3); }, 560);
+}
+/* Au Oui : Praline arrive en glissant, les deux font un petit saut de joie ; renvoie la durée à attendre (0 si immobile ou absent) */
+function mcAccueilOui(){
+  if(!mcAcc || mcEnergie()==="0") return 0;
+  const {l, z}=mcAcc, p=Mascotte.chat("praline", {energie:mcEnergie(), sens:-1});
+  clearTimeout(mcAcc.t); l.courir(false).deplacer(0);
+  z.appendChild(p.el); mcAcc.chats.push(p);
+  p.etat("joie"); p.jouer("glisse"); l.etat("joie");
+  setTimeout(()=>{ l.jouer("saut"); p.jouer("saut"); }, 120);
+  return 800;
 }
 /* Aperçu (étape 4) : les chatons sur le billet, si la case est cochée et que l'occasion a sa famille */
 function mcApercu(){
@@ -784,13 +824,14 @@ function bindDemoTicket(){
       if(coins.length) [x,t]=coins[0]; else { x=cl; t=ct; }
     }
     no.style.left=x+"px"; no.style.top=t+"px";
+    mcAccueilNon(no);
   };
   no.addEventListener("pointerenter",e=>{ if(e.pointerType==="mouse") dodge(); });
   no.addEventListener("touchstart",dodge,{passive:false});
   no.addEventListener("click",dodge);
   yes.addEventListener("click",()=>{
     const r=yes.getBoundingClientRect(); Decor.burst(r.left+r.width/2, r.top+r.height/2, 60, true); Sound.yes();
-    S.tplCat="Amour"; setTimeout(()=>go(1), still() ? 0 : 450);
+    S.tplCat="Amour"; setTimeout(()=>go(1), still() ? 0 : Math.max(450, mcAccueilOui())); // chatons : le saut de joie (0,8 s), rien de plus
   });
 }
 function bindCreator(){
@@ -1973,4 +2014,4 @@ async function importHistory(file){
   toast(msg);
 }
 
-oseLoaded("creer", "0856282f30");
+oseLoaded("creer", "4a182b6814");

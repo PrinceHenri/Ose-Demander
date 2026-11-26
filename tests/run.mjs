@@ -5277,10 +5277,40 @@ await test("Placement : une seule zone, aria-hidden, au-dessus du bord du billet
 });
 await test("Aperçu de la création : chatons sur le billet si la case est cochée et que l'occasion a sa famille", () => {
   const cr = readFileSync(RACINE + "app/creer.js", "utf8").replace(/\r\n/g, "\n");
-  assert.ok(cr.includes("  refreshInstall();\n  mcApercu();\n}"));
+  assert.ok(cr.includes("  refreshInstall();\n  mcApercu();\n"));
   assert.ok(cr.includes('const f = S.step===4 && S.chatons && own(MC_FAMILLES, S.occ) ? MC_FAMILLES[S.occ] : null;'));
   assert.ok(cr.includes('Mascotte.parcours("apercu", {famille:f, anim:REDUCED ? "0" : S.anim, conteneur:t});'));
   assert.ok(cr.includes('<div class="pv-stage${S.chatons && own(MC_FAMILLES, S.occ) ? " mc-on" : ""}">') && readFileSync(RACINE + "app/creer.css", "utf8").includes(".pv-stage.mc-on .ticket{margin-top:68px}"), "place réservée dans l'aperçu");
+});
+
+/* =========================================================
+   64. Mascottes : accueil (Lilas sur le bord du mini-billet, course après le Non, Oui, accessoire de saison)
+   ========================================================= */
+titre("64. Mascottes : accueil");
+await test("Accueil : Lilas sur le bord du mini-billet (place réservée), aria-hidden, court vers le Non sans passer dessous, détruit en quittant l'accueil", () => {
+  const cr = readFileSync(RACINE + "app/creer.js", "utf8").replace(/\r\n/g, "\n");
+  assert.ok(cr.includes('mcAccueilVider(); if(S.step==="home") mcAccueilPoser();'), "posé sur l'accueil seulement, retiré ailleurs");
+  assert.ok(cr.includes('z.className="mc-zone mc-z-billet mc-touchable"; z.setAttribute("aria-hidden","true");'));
+  assert.ok(readFileSync(RACINE + "app/creer.css", "utf8").includes(".demo-ticket{margin:56px 0 24px}"), "place réservée au-dessus du billet");
+  assert.ok(cr.includes("    mcAccueilNon(no);\n  };"), "la course suit chaque esquive du Non");
+  assert.ok(cr.includes("const cible=Math.max(b.left+34, Math.min(b.right-34, r.left+r.width/2));"), "reste sur le bord du billet");
+  assert.ok(cr.includes('const mcEnergie = () => REDUCED || S.anim==="0" ? "0" : S.anim;'), "immobile avec « moins de mouvement » ou « Aucune »");
+});
+await test("Accueil, Oui : Praline arrive et petit saut de joie (0,8 s), puis la création comme avant, sans autre délai ; rien à attendre si immobile", () => {
+  const cr = readFileSync(RACINE + "app/creer.js", "utf8").replace(/\r\n/g, "\n");
+  assert.ok(cr.includes('S.tplCat="Amour"; setTimeout(()=>go(1), still() ? 0 : Math.max(450, mcAccueilOui()));'));
+  assert.ok(cr.includes('if(!mcAcc || mcEnergie()==="0") return 0;') && cr.includes("  return 800;\n}"), "0,8 s au plus");
+  assert.ok(cr.includes('p.etat("joie"); p.jouer("glisse"); l.etat("joie");') && cr.includes('l.jouer("saut"); p.jouer("saut");'));
+});
+await test("Accessoire de saison de Lilas calé sur le logo de saison : bonnet à Noël, nœud à la Saint-Valentin, aucun le reste de l'année", () => {
+  const cr = readFileSync(RACINE + "app/creer.js", "utf8").replace(/\r\n/g, "\n");
+  assert.ok(cr.includes('const MC_SAISON = {noel:["noel", "lilas"], valentin:["amour", "praline"]};'));
+  assert.ok(cr.includes("const saison=logoAt(seasonToday()).find(id=>own(MC_SAISON, id))"), "mêmes périodes que le logo");
+  assert.ok(MASCOTTE.accessoire("noel", "lilas", "tete").includes("<path"), "bonnet de Noël de Lilas");
+  assert.ok(MASCOTTE.accessoire("amour", "praline", "tete").includes("<path"), "nœud (celui de Praline, posé sur Lilas)");
+  assert.equal(MASCOTTE.accessoire("amour", "lilas", "tete"), "", "aucun accessoire inventé");
+  const idx = readFileSync(RACINE + "index.html", "utf8");
+  for(const id of ["noel", "valentin"]) assert.ok(new RegExp(`\\n  ${id}: +\\{name:`).test(idx), `période ${id} du logo de saison`);
 });
 
 /* ---------- Bilan ---------- */

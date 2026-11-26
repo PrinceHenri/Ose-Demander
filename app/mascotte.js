@@ -400,8 +400,9 @@ window.Mascotte = {
   gestes: Object.keys(DUREES),
   parcours,
   reactionNon,
+  accessoire: (id, qui, k) => (FAMILLES[id] && FAMILLES[id].acc && FAMILLES[id].acc[qui] && FAMILLES[id].acc[qui][k]) || "",
   _dessin: dessin
 };
 })();
 
-oseLoaded("mascotte", "20d35a9392");
+oseLoaded("mascotte", "f9b63ed54c");

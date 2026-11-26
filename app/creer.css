@@ -103,7 +103,7 @@
 .hist-tabs .tab-n{min-width:22px;padding:0 7px;border-radius:999px;background:var(--line);color:var(--ink);font-size:12px;line-height:20px;font-variant-numeric:tabular-nums}
 .hist-tabs button[aria-selected="true"] .tab-n{background:var(--accent-btn);color:var(--accent-ink)}
 .hero h1{font-size:clamp(36px,9.5vw,60px)}
-.demo-ticket{margin:0 0 24px}
+.demo-ticket{margin:56px 0 24px} /* place de Lilas, perché sur le bord (app/mascotte.js) */
 .demo-main{min-height:0;padding:20px 16px 16px}
 .demo-ticket .question{font-size:clamp(28px,7vw,36px);margin:0 0 12px}
 .demo-answer{position:relative;min-height:96px}
@@ -185,7 +185,7 @@
 .img-btns .btn{flex:1 1 160px}
 .img-btns a.btn{display:block;text-align:center;text-decoration:none}
 .img-close{display:block;min-height:44px;margin:4px auto 0}
-:root{--ose-creer-css:"342298fe78"}
+:root{--ose-creer-css:"de1fe39325"}
 /* Invitation de groupe : lien organisateur à garder pour soi, pastille « Groupe » dans « Mes invitations » */
 .orga-box{margin:16px 0 6px;padding:12px 14px;border:2px dashed var(--ink);border-radius:14px;background:var(--surface)}
 .orga-box h4{margin:0 0 4px;font-size:16px}
