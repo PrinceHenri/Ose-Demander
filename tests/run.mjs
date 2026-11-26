@@ -5313,6 +5313,13 @@ await test("Accessoire de saison de Lilas calé sur le logo de saison : bonnet �
   for(const id of ["noel", "valentin"]) assert.ok(new RegExp(`\\n  ${id}: +\\{name:`).test(idx), `période ${id} du logo de saison`);
 });
 
+await test("Skill ose-design : section des mascottes (format des pièces, règle du vrai refus, poids, fichiers séparés pour les lots suivants)", () => {
+  const sk = readFileSync(RACINE + ".claude/skills/ose-design/SKILL.md", "utf8");
+  assert.ok(sk.includes("## 2 duovicies. Mascottes Lilas et Praline"));
+  for(const p of MASCOTTE.pieces.filter(p => p !== "regard" && p !== "effets")) assert.ok(sk.includes("`" + p + "`"), `pièce ${p} documentée`);
+  assert.ok(sk.includes("jamais de bouderie ni de tristesse") && sk.includes("sous 10 Ko compressés") && sk.includes("fichiers séparés"));
+});
+
 /* ---------- Bilan ---------- */
 console.log(`\n${ko ? "❌" : "✅"} ${ok} tests réussis, ${ko} en échec (graine ${GRAINE}${ko ? ` — pour rejouer : node tests/run.mjs --graine=${GRAINE}` : ""})`);
 if(ko){ console.log(echecs.map(e => "  - " + e).join("\n")); process.exitCode = 1; }
