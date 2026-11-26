@@ -12,4 +12,4 @@ Mascotte.famille("amour", {
   }
 });
 
-oseLoaded("mascotteAmour", "0000000000");
+oseLoaded("mascotteAmour", "32b32c9a66");

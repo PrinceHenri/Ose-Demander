@@ -171,6 +171,13 @@ ${["sourire","ouverte","boude"].map(x => `.mc-chat[data-bouche="${x}"] [data-p="
 /* Immobile (animations « Aucune », « moins de mouvement », pause) : seulement des fondus */
 .mc-e-0,.mc-e-0 *{animation:none!important;transition:opacity .25s!important}
 .mc-pause,.mc-pause *{animation-play-state:paused!important}
+/* Zones : une seule par écran ; posées hors du texte et des boutons (au-dessus d'un bord), jamais touchables sauf la tête */
+.mc-zone{position:absolute;display:flex;align-items:flex-end;pointer-events:none;z-index:4}
+.mc-z-env{right:-5%;bottom:100%;margin-bottom:-7px}
+.mc-z-env .mc-chat{width:76px;height:89px}
+.mc-z-billet{right:14px;bottom:100%;margin-bottom:-6px}
+.mc-z-billet .mc-chat{width:60px;height:70px;margin:0 -5px}
+.mc-touchable [data-p="tete"]{pointer-events:auto;cursor:pointer}
 @media (prefers-reduced-motion:reduce){.mc-chat,.mc-chat *{animation:none!important;transition:opacity .25s!important}}
 `;
 let styleMis = false;
@@ -262,6 +269,7 @@ function chat(qui, o = {}){
     ["tete", "cou", "main", "main-g"].forEach(k => { const p = svg.querySelector(`[data-p="acc-${k}"]`); if(p) p.innerHTML = acc[k] || ""; });
     return c;
   };
+  c.arreter = () => { if(geste){ svg.classList.remove("mc-j-" + geste); geste = null; } c.courir(false); return c; };
   c.detruire = () => { timers.forEach(clearTimeout); timers = []; obs && obs.disconnect(); instances.delete(c); svg.remove(); };
   const obs = "IntersectionObserver" in window ? new IntersectionObserver(es => { visible = es[es.length - 1].isIntersecting; c._vis(); }) : null;
   obs && obs.observe(svg);
@@ -273,6 +281,114 @@ function chat(qui, o = {}){
   return c;
 }
 
+/* =========================================================
+   Parcours de la personne invitée : où se posent les chatons et ce qu'ils font à chaque moment.
+   index.html appelle Mascotte.parcours(évènement, info), info = {famille, anim, groupe, rejoue, x, y, n, conteneur}.
+   rejoue : le fichier est arrivé après l'écran, on pose l'état final sans entrée animée.
+   Règles : une seule zone par écran, aria-hidden, jamais devant un texte ni un bouton ;
+   à côté du vrai refus, ni bouderie ni tristesse (pose neutre et attentive).
+   ========================================================= */
+let zone = null, duo = [], minuteurs = [];
+const ensuite = (fn, ms) => { minuteurs.push(setTimeout(fn, ms)); };
+function vider(){ minuteurs.forEach(clearTimeout); minuteurs = []; duo.forEach(c => c.detruire()); duo = []; if(zone) zone.remove(); zone = null; }
+function poser(parent, cls, qui, info){
+  vider();
+  zone = document.createElement("div");
+  zone.className = "mc-zone " + cls;
+  zone.setAttribute("aria-hidden", "true");
+  duo = qui.map((q, i) => chat(q, {energie: info.anim, famille: info.famille, sens: i ? -1 : 1}));
+  duo.forEach(c => zone.appendChild(c.el));
+  zone.addEventListener("click", e => { const c = duo.find(x => x.el.contains(e.target)); if(c) c.toucher(); });
+  parent.appendChild(zone);
+  return duo;
+}
+/* Réaction au Non (décision seule, vérifiée par le banc). La règle prime sur le numéro de l'essai : dès que le vrai refus
+   est proposé (3 essais ou 10 s), aucune bouderie, Lilas suit seulement le Non des yeux, en pose neutre et attentive. */
+function reactionNon(n, refusVisible){
+  if(refusVisible) return "suit";
+  return n <= 1 ? "retient" : n === 2 ? "boude" : "suit";
+}
+function calmer(){
+  minuteurs.forEach(clearTimeout); minuteurs = [];
+  const [l, p] = duo; if(!l) return;
+  duo.forEach(c => c.arreter());
+  l.deplacer(0).etat("attentif"); if(p) p.etat("attente");
+}
+function eclat(info){ // particules de la famille au moment du Oui, avec l'explosion du thème
+  if(!zone || info.anim === "0" || reduit() || typeof Decor === "undefined") return;
+  const r = zone.getBoundingClientRect(), f = FAMILLES[info.famille];
+  Decor.burst(r.left + r.width / 2, r.top + r.height / 2, 36, true, f && f.particules);
+}
+function centreX(el){ const r = el.getBoundingClientRect(); return r.left + r.width / 2; }
+function suivre(l, no, fois){ // Lilas suit le Non des yeux
+  if(!no || !no.isConnected || !l.el.isConnected) return;
+  const r = no.getBoundingClientRect(), m = l.el.getBoundingClientRect();
+  l.regard((r.left + r.width / 2 - (m.left + m.width / 2)) / 25, (r.top - m.bottom) / 60);
+  if(fois > 0) ensuite(() => suivre(l, no, fois - 1), 180);
+}
+function parcours(ev, info = {}){
+  const [l, p] = duo, refus = !!document.getElementById("refuse");
+  if(ev === "enveloppe"){
+    const env = document.getElementById("env"); if(!env) return;
+    const [lilas] = poser(env, "mc-z-env", ["lilas"], info);
+    lilas.etat("regarde").regard(-2, 2);
+  }
+  else if(ev === "ouvre"){
+    if(!l) return;
+    l.etat("attentif"); l.regard(-3, 1);
+    l.jouer("tire").then(() => { l.deplacer(26); l.etat("joie"); });
+  }
+  else if(ev === "question" || ev === "apercu"){
+    const t = info.conteneur || document.querySelector(".inv .ticket"); if(!t) return;
+    const [lilas, praline] = poser(t, "mc-z-billet" + (ev === "question" ? " mc-touchable" : ""), ["lilas", "praline"], info);
+    lilas.etat(refus ? "attentif" : "attente"); praline.etat("timide");
+    if(ev === "question" && !info.rejoue) praline.jouer("glisse");
+  }
+  else if(ev === "non"){
+    if(!l) return;
+    const no = document.getElementById("no"), r = reactionNon(info.n, refus);
+    if(refus) calmer(); else { minuteurs.forEach(clearTimeout); minuteurs = []; }
+    if(r === "suit"){ l.etat("regarde"); ensuite(() => suivre(l, no, 8), 60); ensuite(() => l.etat(refus ? "attentif" : "attente"), 1900); }
+    else if(r === "retient"){ // il court le long du bord du billet, vers le Non, sans jamais quitter sa zone
+      const t = zone.parentElement.getBoundingClientRect(), m = l.el.getBoundingClientRect();
+      const cible = Math.max(t.left + 34, Math.min(t.right - 34, no ? centreX(no) : t.left + t.width / 2));
+      const dx = Math.round(cible - (m.left + m.width / 2)) + (+getComputedStyle(l.el).getPropertyValue("--mc-dx") || 0);
+      l.etat("regarde"); ensuite(() => suivre(l, no, 1), 60); // il regarde d'abord, puis il court
+      ensuite(() => { l.etat("attentif").courir(true).deplacer(dx); }, 450);
+      ensuite(() => { l.courir(false); l.jouer(dx < 0 ? "tire" : "coucou"); }, 1010);
+      ensuite(() => { l.courir(true).deplacer(0); }, 2300);
+      ensuite(() => { l.courir(false).etat("attente"); }, 2850);
+    }
+    else { // boude, brièvement (environ 1,5 s), et Praline lui tapote l'épaule
+      l.deplacer(0).courir(false).etat("boude");
+      if(p) ensuite(() => p.jouer("tapote"), 250);
+      ensuite(() => l.etat("attentif"), 1500);
+    }
+  }
+  else if(ev === "refusLien") calmer();
+  else if(ev === "oui"){
+    if(!l) return;
+    minuteurs.forEach(clearTimeout); minuteurs = [];
+    duo.forEach(c => c.arreter()); l.deplacer(0);
+    duo.forEach(c => c.etat("joie"));
+    if(info.rejoue) return;
+    l.jouer("saut"); if(p) ensuite(() => p.jouer("saut"), 90);
+    ensuite(() => eclat(info), 300);
+    if(info.groupe) return; // groupe : le saut seul, puis le formulaire
+    ensuite(() => duo.forEach(c => c.etat("calin")), 1000);
+    ensuite(() => { l.etat("attente", {yeux: "fermes"}); if(p) p.etat("timide"); }, 3400);
+  }
+  else if(ev === "refus"){
+    if(!l) return;
+    minuteurs.forEach(clearTimeout); minuteurs = [];
+    duo.forEach(c => c.arreter()); l.deplacer(0);
+    if(info.rejoue){ l.etat("attente"); if(p) p.etat("attente"); return; }
+    l.etat("triste"); if(p) p.etat("attente");
+    l.jouer("soupir").then(() => { l.etat("attente"); l.jouer("coucou"); });
+  }
+  else if(ev === "quitter") vider();
+}
+
 window.Mascotte = {
   chat,
   famille: (id, def) => { FAMILLES[id] = def; },
@@ -282,8 +398,10 @@ window.Mascotte = {
   expressions: ["ouverts","fermes","coeur","etoile","plisses"],
   etats: Object.keys(ETATS),
   gestes: Object.keys(DUREES),
+  parcours,
+  reactionNon,
   _dessin: dessin
 };
 })();
 
-oseLoaded("mascotte", "0000000000");
+oseLoaded("mascotte", "20d35a9392");

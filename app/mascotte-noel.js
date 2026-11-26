@@ -16,4 +16,4 @@ Mascotte.famille("noel", {
 });
 })();
 
-oseLoaded("mascotteNoel", "0000000000");
+oseLoaded("mascotteNoel", "1b570c3612");

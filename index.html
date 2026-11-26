@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'sha256-l62gBDK92/+4plb7JMmJ/qtVevIPL/u3+w7/OE2ROf8=' 'sha256-lps9tjuevCOTFALC36NKz190B4lwrNZXlH40s3c8aqw='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' https://ose-liens.osedemander.workers.dev; manifest-src 'self'; worker-src 'self'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'sha256-2FDvLj9fvdlq30H3yPhSaD/G3OrtzE3kJZcQaN0bAI4=' 'sha256-1r2gln7nCny0S9+dcZCYTk0kV9Q9uFR6Njh0UyC7PTs='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' https://ose-liens.osedemander.workers.dev; manifest-src 'self'; worker-src 'self'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
 <title>Ose Demander — crée une invitation à laquelle on ne dit pas non</title>
@@ -35,7 +35,7 @@
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"WebApplication","name":"Ose Demander","url":"https://osedemander.fr/","description":"Crée gratuitement une invitation animée à envoyer par lien : rendez-vous, anniversaire, témoin, fêtes de l'année. Le bouton Non résiste, mais un vrai refus reste possible.","applicationCategory":"LifestyleApplication","operatingSystem":"Tous (navigateur web)","inLanguage":"fr","isAccessibleForFree":true,"offers":{"@type":"Offer","price":"0","priceCurrency":"EUR"}}</script>
 <link rel="preload" href="fonts/bricolage-grotesque.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="app/scenes.js?v=ad35c435a6" as="script">
-<script data-tete>if(!/^#(i|s)=|^#exemple$/.test(location.hash))for(const[h,a]of[["app/creer.js?v=cad67643fb","script"],["app/creer.css?v=700ca64c8e","style"]]){const l=document.createElement("link");l.rel="preload";l.as=a;l.href=h;document.head.appendChild(l)}</script>
+<script data-tete>if(!/^#(i|s)=|^#exemple$/.test(location.hash))for(const[h,a]of[["app/creer.js?v=0856282f30","script"],["app/creer.css?v=342298fe78","style"]]){const l=document.createElement("link");l.rel="preload";l.as=a;l.href=h;document.head.appendChild(l)}</script>
 <style>
 /* ---------- Polices (hébergées sur le site, aucun appel à Google) ---------- */
 @font-face{font-family:"Bricolage Grotesque";font-style:normal;font-display:swap;font-weight:200 800;font-stretch:75% 100%;
@@ -397,6 +397,7 @@ input.input[type=date],input.input[type=time]{min-width:0;max-width:100%}
 /* ---------- Invitation (ticket) ---------- */
 .inv{max-width:480px;margin:0 auto;padding:64px 16px 60px}
 .ticket{position:relative;background:var(--surface);border:2px solid var(--ink);border-radius:22px;box-shadow:8px 8px 0 var(--ink)}
+.inv.mc-on .ticket{margin-top:68px} /* chatons perchés sur le bord du billet : jamais sur l'élément de scène */
 .ticket .stub{padding:16px 22px 18px;display:flex;justify-content:space-between;gap:12px;font-size:15px;color:var(--muted)}
 .ticket .stub b{color:var(--ink);display:block;font-size:18px}
 .ticket .perf{position:relative;height:0;border-top:2px dashed var(--line);margin:0 18px}
@@ -1189,7 +1190,7 @@ const STEP_TITLES = ["Le modèle","Les prénoms","Quand et où","L'aperçu"];
 // demo : la démo du premier lancement (app/demo.js), chargée seulement quand elle sert (demoAVoir, exemple)
 // scanner : scanner une invitation depuis un QR code (app/scanner.js), chargé au toucher de l'icône
 // groupeCommun : invitations de groupe, chiffrement et service (app/groupe-commun.js), chargé seulement pour un lien #g= ou #ga= ou la création d'un groupe
-const OSE_FILES = {creer:"cad67643fb", scenes:"ad35c435a6", creerCss:"700ca64c8e", demo:"def882fa95", groupeCommun:"66e41f012b", groupeInvite:"3419a5a6a6", groupeOrga:"b0a718225b", scanner:"37e73826ea"};
+const OSE_FILES = {creer:"0856282f30", scenes:"ad35c435a6", creerCss:"342298fe78", demo:"def882fa95", groupeCommun:"66e41f012b", groupeInvite:"3419a5a6a6", groupeOrga:"b0a718225b", scanner:"37e73826ea", mascotte:"20d35a9392", mascotteAmour:"32b32c9a66", mascotteNoel:"1b570c3612"};
 const oseGot = {}, oseNeeds = {};
 const oseLoaded = (name, v) => { oseGot[name]=v; };
 const oseUrl = name => `app/${name==="creerCss" ? "creer.css" : name.replace(/[A-Z]/g, c=>"-"+c.toLowerCase())+".js"}?v=${OSE_FILES[name]}`; // groupeCommun -> groupe-commun.js
@@ -1637,6 +1638,22 @@ function inflate(src, max){
    « mariage » n'en a volontairement aucune (occasion retirée de la création) : anciens liens sans chatons. */
 const MC_FAMILLES = {date:"amour", valentin:"amour", annivamour:"amour", couple:"amour", weekend:"amour", dinerspecial:"amour", noel:"noel"};
 const mcFamille = d => (d && d.mc===1 && own(MC_FAMILLES, d.o)) ? MC_FAMILLES[d.o] : null;
+const mcFichier = f => "mascotte" + f[0].toUpperCase() + f.slice(1); // amour -> mascotteAmour (app/mascotte-amour.js)
+/* Côté personne invitée : chargés à la demande, jamais attendus (l'écran s'affiche sans eux, ils arrivent ensuite).
+   mcEv : un moment du parcours (enveloppe, ouvre, question, non, refusLien, oui, refus) ; voir Mascotte.parcours. */
+let MCF=null, mcLast=null;
+function mcInit(){
+  MCF = EXAMPLE ? null : mcFamille(D); mcLast=null;
+  if(window.Mascotte) Mascotte.parcours("quitter");
+  if(!MCF) return;
+  need("mascotte").then(()=>need(mcFichier(MCF))).then(()=>{ if(mcLast) mcEv(mcLast[0], {...mcLast[1], rejoue:true}); }).catch(()=>{});
+}
+function mcEv(ev, info={}){
+  if(!MCF) return;
+  if(ev==="question") $(".inv")?.classList.add("mc-on"); // place réservée au-dessus du billet, dès l'affichage (rien ne saute)
+  if(["enveloppe","question","oui","refus"].includes(ev)) mcLast=[ev, info]; // l'écran à poser si le fichier arrive après
+  if(window.Mascotte && oseHas(mcFichier(MCF))) Mascotte.parcours(ev, {famille:MCF, anim:invAnim(), groupe:!!GRP, ...info});
+}
 function sanitize(x){
   if(!x || typeof x!=="object" || Array.isArray(x)) throw new Error("bad data");
   const str=(v,max)=>typeof v==="string" ? v.slice(0,max).trim() : "";
@@ -2495,10 +2512,11 @@ function renderEnvelope(){
   let opened=false;
   $("#env").addEventListener("click",()=>{
     if(opened) return; opened=true;
-    $("#env").classList.add("open"); $(".env-screen").classList.add("opened"); Sound.init(); Sound.pop(); buzz(20);
+    $("#env").classList.add("open"); $(".env-screen").classList.add("opened"); Sound.init(); Sound.pop(); buzz(20); mcEv("ouvre");
     setTimeout(D.ix ? renderIntro : renderInvite, invAnim()==="0" ? 0 : 1150); // introduction éventuelle, puis la question
   });
   focusScreen(".env-from");
+  mcEv("enveloppe");
 }
 
 /* Introduction scénarisée : les cartes de LINK_INTRO, l'une après l'autre, avant la question.
@@ -2594,6 +2612,7 @@ function renderInvite(){
   if(noTries>=REFUSE_TRIES || refuseOffered) showRefuseLink();
   else refuseTimer=setTimeout(showRefuseLink, REFUSE_DELAY);
   focusScreen(".question");
+  mcEv("question");
 }
 /* Le lien discret « Répondre non, pour de vrai » */
 function showRefuseLink(){
@@ -2602,6 +2621,7 @@ function showRefuseLink(){
   refuseOffered=true; clearTimeout(refuseTimer);
   slot.innerHTML=`<button type="button" class="refuse" id="refuse">Répondre non, pour de vrai</button>`;
   $("#refuse").addEventListener("click", openRefuse);
+  mcEv("refusLien"); // à côté du vrai refus : chatons calmes, sans bouderie ni tristesse
 }
 /* Réponses proposées pour le vrai refus : claires, sans ouverture ambiguë, neutres.
    Chaque texte reste modifiable avant l'envoi (200 caractères max). Rien n'est mis dans le lien. */
@@ -2621,6 +2641,7 @@ const refuseText = () => (refuseDrafts[refuseWhy] ?? refuseDefault(refuseWhy, D.
 function openRefuse(){
   if(yesDone) return;
   refused=true; clearTimeout(refuseTimer);
+  mcEv("refus");
   if(GRP){ $$(".no.flee").forEach(b=>b.remove()); afterMode="groupe"; lienAccueil(); groupeForm("n"); return; }
   noteReponse("n");
   if(EXAMPLE) document.dispatchEvent(new CustomEvent("ose:exemple", {detail:"non"}));
@@ -2669,7 +2690,7 @@ function bindNo(){
   let last=0;
   // Chaque tentative sur le Non compte (une seule fois par geste)
   const hit=()=>{ const now=Date.now(); if(now-last<250) return; last=now; Decor.react(); Sound.no(); buzz(25);
-    if(++noTries>=REFUSE_TRIES) showRefuseLink(); };
+    if(++noTries>=REFUSE_TRIES) showRefuseLink(); mcEv("non", {n:noTries}); };
   const say=()=>{ tease.textContent=lines[Math.min(n,lines.length-1)]; n++; hit(); };
   if(D.n==="fuit"){
     const flee=e=>{
@@ -2726,6 +2747,7 @@ function sayYes(e){
   if(src){ const r=src.getBoundingClientRect(); x=r.left+r.width/2; y=r.top+r.height/2; }
   $$(".no.flee").forEach(b=>b.remove());
   yesDone=true;
+  mcEv("oui");
   if(GRP){ Decor.burst(x, y, 150); Sound.yes(); buzz([40,60,40]); afterMode="groupe"; lienAccueil(); groupeForm("o"); return; }
   noteReponse("o");
   if(EXAMPLE) document.dispatchEvent(new CustomEvent("ose:exemple", {detail:"oui"})); // fin de l'exemple (app/demo.js)
@@ -3478,9 +3500,9 @@ const Decor = (() => {
       const free=P.filter(p=>!p.st).sort(()=>Math.random()-.5).slice(0,3);
       free.forEach(p=>{ p.st=kind; p.n=0; p.vy=kind==="fall"?1:.4; p.vx=rnd(-1,1); });
     },
-    burst(x,y,n,small){
+    burst(x,y,n,small,formes){ // formes : celles d'une famille de mascottes (sinon celles du thème)
       const e=eff(); if(e==="0") return;
-      const c=cfg(), kinds=c.burst||[c.shape];
+      const c=cfg(), kinds=formes||c.burst||[c.shape];
       const cols = theme==="fete"||theme==="base" ? [...c.cols,"#FFC94A","#3CC48A"] : c.cols;
       const count=Math.round(n*(e==="d"?.45:1)), sp=small?.45:1;
       const col=k=>pick((c.kcols&&c.kcols[k])||cols);
@@ -3706,6 +3728,7 @@ async function route(){
       noTries=0; refused=false; refuseOffered=false; refuseWhy="non"; refuseDrafts={}; clearTimeout(refuseTimer);
       clearInterval(countTimer); clearTimeout(revStart); revQueue=[]; remLink=""; remState="wait";
       shareLink=""; shareState="wait";
+      mcInit(); // chatons (seulement s'ils sont demandés et que l'occasion a sa famille)
       if(EXAMPLE) need("demo").catch(()=>{}); // l'exemple se termine par « À toi de créer la tienne » (app/demo.js)
       if(D.vu){ Sound.init(); renderShared(); } // version partagée : en lecture seule, ni enveloppe ni question
       else if(D.rv){ Sound.init(); renderReminder(); } else renderEnvelope(); // rappel d'agenda : directement la carte

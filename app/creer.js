@@ -279,6 +279,16 @@ function renderCreator(){
   bindCreator();
   bindSound(true);
   refreshInstall();
+  mcApercu();
+}
+/* Aperçu (étape 4) : les chatons sur le billet, si la case est cochée et que l'occasion a sa famille */
+function mcApercu(){
+  const f = S.step===4 && S.chatons && own(MC_FAMILLES, S.occ) ? MC_FAMILLES[S.occ] : null;
+  if(!f){ if(window.Mascotte) Mascotte.parcours("quitter"); return; }
+  need("mascotte").then(()=>need(mcFichier(f))).then(()=>{
+    const t=$(".pv-stage .ticket");
+    if(t && S.step===4) Mascotte.parcours("apercu", {famille:f, anim:REDUCED ? "0" : S.anim, conteneur:t});
+  }).catch(()=>{});
 }
 
 /* ---------- Accueil ---------- */
@@ -499,7 +509,7 @@ function previewHTML(){
   const occ=occLabel(), initial=(S.from||"?").trim().charAt(0).toUpperCase();
   return `<div class="preview" aria-label="Aperçu de l'invitation">
     <p class="pv-env">${sealHTML(S.occ, S.em, initial)}Sur l'enveloppe</p>
-    <div class="pv-stage">${sceneWallCopy(S.theme)}${sceneSignHTML(S.theme, REDUCED ? "0" : S.anim)}
+    <div class="pv-stage${S.chatons && own(MC_FAMILLES, S.occ) ? " mc-on" : ""}">${sceneWallCopy(S.theme)}${sceneSignHTML(S.theme, REDUCED ? "0" : S.anim)}
     <div class="ticket">
       <div class="stub"><div>De<b>${esc(S.from)}</b></div><div style="text-align:right">Pour<b>${esc(S.to)}</b></div></div>
       <div class="perf" aria-hidden="true"></div>
@@ -1963,4 +1973,4 @@ async function importHistory(file){
   toast(msg);
 }
 
-oseLoaded("creer", "cad67643fb");
+oseLoaded("creer", "0856282f30");

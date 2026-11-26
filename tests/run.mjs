@@ -5216,6 +5216,73 @@ await test("Création : case « Afficher les chatons » cochée par défaut, pro
   assert.ok(cr.includes("share:d.pa!==0, chatons:d.mc===1"), "duplication : réglage repris du lien");
 });
 
+/* =========================================================
+   63. Mascottes : parcours de la personne invitée (enveloppe, question, Non, Oui, vrai refus), aperçu, chargement
+   ========================================================= */
+titre("63. Mascottes : parcours de la personne invitée");
+await test("Fichiers des mascottes versionnés, chargés à la demande et précachés (sw.js)", () => {
+  const sw = lireFichier("sw.js"), html = lireFichier("index.html");
+  for(const [nom, chemin] of [["mascotte", "app/mascotte.js"], ["mascotteAmour", "app/mascotte-amour.js"], ["mascotteNoel", "app/mascotte-noel.js"]]){
+    const f = CSP.FICHIERS.find(x => x.nom === nom);
+    assert.ok(f && f.chemin === chemin, nom + " dans outils/csp.mjs");
+    const v = CSP.versionDe(f, lireFichier(chemin));
+    assert.ok(sw.includes(`"./${chemin}?v=${v}"`), nom + " précaché à sa version");
+    assert.ok(html.includes(`${nom}:"${v}"`), nom + " dans OSE_FILES");
+  }
+  assert.ok(html.includes('const mcFichier = f => "mascotte" + f[0].toUpperCase() + f.slice(1);'));
+});
+await test("Vrai refus visible (3 essais ou 10 s) : jamais de bouderie ni de tristesse, Lilas suit seulement des yeux ; sinon Non 1 = regard puis course, 2 = bouderie brève", () => {
+  for(let n = 0; n < 8; n++) assert.equal(MASCOTTE.reactionNon(n, true), "suit", `essai ${n}, vrai refus visible`);
+  assert.equal(MASCOTTE.reactionNon(1, false), "retient");
+  assert.equal(MASCOTTE.reactionNon(2, false), "boude");
+  assert.equal(MASCOTTE.reactionNon(2, true), "suit", "vrai refus déjà proposé par le délai de 10 s : pas de bouderie au 2e essai");
+  assert.equal(MASCOTTE.reactionNon(3, false), "suit");
+  const m = readFileSync(RACINE + "app/mascotte.js", "utf8").replace(/\r\n/g, "\n");
+  assert.ok(m.includes('if(refus) calmer(); else { minuteurs.forEach(clearTimeout); minuteurs = []; }'), "vrai refus visible : tout geste en cours s'arrête d'abord");
+  assert.ok(m.includes('ensuite(() => l.etat(refus ? "attentif" : "attente"), 1900);'), "puis pose attentive");
+  assert.ok(m.includes('else if(ev === "refusLien") calmer();'), "le vrai refus apparaît : tout s'arrête");
+  assert.ok(/function calmer\(\)\{\n  minuteurs\.forEach\(clearTimeout\); minuteurs = \[\];[\s\S]*?duo\.forEach\(c => c\.arreter\(\)\);\n  l\.deplacer\(0\)\.etat\("attentif"\); if\(p\) p\.etat\("attente"\);/.test(m), "calmer : gestes arrêtés (plus de tapote), Lilas attentif, Praline neutre");
+  assert.ok(m.includes('lilas.etat(refus ? "attentif" : "attente")'), "question réaffichée avec le vrai refus déjà proposé : attentif");
+  assert.ok(m.includes('ensuite(() => l.etat("attentif"), 1500);'), "bouderie brève (1,5 s)");
+  // Dans la page : le vrai refus est posé AVANT la réaction au Non (au 3e essai, la mascotte voit donc le vrai refus)
+  assert.ok(PAGE.lire("bindNo").toString().includes('if(++noTries>=REFUSE_TRIES) showRefuseLink(); mcEv("non", {n:noTries});'));
+  assert.ok(PAGE.lire("showRefuseLink").toString().includes('mcEv("refusLien");'));
+});
+await test("Accroches du parcours : enveloppe, ouverture, question, Oui (groupe : le saut seul), vrai refus ; rien sans chatons demandés, ni dans l'exemple ; jamais attendus", () => {
+  const src = n => PAGE.lire(n).toString();
+  assert.ok(src("renderEnvelope").includes('mcEv("ouvre");') && src("renderEnvelope").includes('mcEv("enveloppe");'));
+  assert.ok(src("renderInvite").includes('mcEv("question");'));
+  assert.ok(src("sayYes").includes('yesDone=true;\n  mcEv("oui");\n  if(GRP){'), "Oui, aussi pour un groupe");
+  assert.ok(src("openRefuse").includes('mcEv("refus");\n  if(GRP){'), "vrai refus, aussi pour un groupe");
+  const init = src("mcInit"), ev = src("mcEv");
+  assert.ok(init.includes("MCF = EXAMPLE ? null : mcFamille(D);") && init.includes("if(!MCF) return;\n  need(\"mascotte\")"), "rien n'est chargé sans chatons demandés (anciens liens)");
+  assert.ok(ev.startsWith("function mcEv(ev, info={}){\n  if(!MCF) return;"), "aucun effet sans chatons");
+  assert.ok(ev.includes("if(window.Mascotte && oseHas(mcFichier(MCF)))"), "jamais attendu : rien tant que le fichier n'est pas arrivé");
+  assert.ok(init.includes('mcEv(mcLast[0], {...mcLast[1], rejoue:true})'), "fichier arrivé après l'écran : l'état final est posé");
+  assert.ok(!src("renderReminder").includes("mcEv") && !src("renderShared").includes("mcEv") && !src("renderIntro").includes("mcEv"), "rappel, version partagée, introduction : pas dans le lot 1");
+  const m = readFileSync(RACINE + "app/mascotte.js", "utf8").replace(/\r\n/g, "\n");
+  assert.ok(m.includes("if(info.groupe) return; // groupe : le saut seul, puis le formulaire"));
+  assert.ok(m.includes('Decor.burst(r.left + r.width / 2, r.top + r.height / 2, 36, true, f && f.particules);'), "particules de la famille");
+  assert.ok(lireFichier("index.html").includes("burst(x,y,n,small,formes){") && lireFichier("index.html").includes("kinds=formes||c.burst||[c.shape]"));
+});
+await test("Placement : une seule zone, aria-hidden, au-dessus du bord du billet ou de l'enveloppe (place réservée, jamais sur l'élément de scène ni un bouton), seule la tête est touchable", () => {
+  const m = readFileSync(RACINE + "app/mascotte.js", "utf8").replace(/\r\n/g, "\n");
+  assert.ok(m.includes("function poser(parent, cls, qui, info){\n  vider();"), "une seule zone à la fois");
+  assert.ok(m.includes('zone.setAttribute("aria-hidden", "true");'));
+  assert.ok(m.includes(".mc-zone{position:absolute;display:flex;align-items:flex-end;pointer-events:none;z-index:4}"));
+  assert.ok(m.includes(".mc-z-billet{right:14px;bottom:100%;margin-bottom:-6px}") && m.includes(".mc-z-env{right:-5%;bottom:100%;margin-bottom:-7px}"), "au-dessus d'un bord");
+  assert.ok(m.includes('.mc-touchable [data-p="tete"]{pointer-events:auto;cursor:pointer}'));
+  const html = lireFichier("index.html");
+  assert.ok(html.includes(".inv.mc-on .ticket{margin-top:68px}") && PAGE.lire("mcEv").toString().includes('if(ev==="question") $(".inv")?.classList.add("mc-on");'), "place réservée dès l'affichage");
+});
+await test("Aperçu de la création : chatons sur le billet si la case est cochée et que l'occasion a sa famille", () => {
+  const cr = readFileSync(RACINE + "app/creer.js", "utf8").replace(/\r\n/g, "\n");
+  assert.ok(cr.includes("  refreshInstall();\n  mcApercu();\n}"));
+  assert.ok(cr.includes('const f = S.step===4 && S.chatons && own(MC_FAMILLES, S.occ) ? MC_FAMILLES[S.occ] : null;'));
+  assert.ok(cr.includes('Mascotte.parcours("apercu", {famille:f, anim:REDUCED ? "0" : S.anim, conteneur:t});'));
+  assert.ok(cr.includes('<div class="pv-stage${S.chatons && own(MC_FAMILLES, S.occ) ? " mc-on" : ""}">') && readFileSync(RACINE + "app/creer.css", "utf8").includes(".pv-stage.mc-on .ticket{margin-top:68px}"), "place réservée dans l'aperçu");
+});
+
 /* ---------- Bilan ---------- */
 console.log(`\n${ko ? "❌" : "✅"} ${ok} tests réussis, ${ko} en échec (graine ${GRAINE}${ko ? ` — pour rejouer : node tests/run.mjs --graine=${GRAINE}` : ""})`);
 if(ko){ console.log(echecs.map(e => "  - " + e).join("\n")); process.exitCode = 1; }
