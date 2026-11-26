@@ -24,6 +24,7 @@ const CORE = [
   "./app/groupe-commun.js?v=66e41f012b",
   "./app/mascotte.js?v=2a0d05d102",
   "./app/mascotte-amour.js?v=1a0b341c7f",
+  "./app/mascotte-annonce.js?v=301bc232b1",
   "./app/mascotte-anniv.js?v=f31db918ec",
   "./app/mascotte-galette.js?v=31239efe85",
   "./app/mascotte-reveillon.js?v=bfe3ce99d4",

@@ -52,7 +52,8 @@ export const FICHIERS = [
   { nom: "mascotteNeutre", chemin: "app/mascotte-neutre.js", marque: /oseLoaded\("mascotteNeutre", "[0-9a-f]*"\)/, pose: v => `oseLoaded("mascotteNeutre", "${v}")` },
   { nom: "mascotteReveillon", chemin: "app/mascotte-reveillon.js", marque: /oseLoaded\("mascotteReveillon", "[0-9a-f]*"\)/, pose: v => `oseLoaded("mascotteReveillon", "${v}")` },
   { nom: "mascotteGalette", chemin: "app/mascotte-galette.js", marque: /oseLoaded\("mascotteGalette", "[0-9a-f]*"\)/, pose: v => `oseLoaded("mascotteGalette", "${v}")` },
-  { nom: "mascotteAnniv", chemin: "app/mascotte-anniv.js", marque: /oseLoaded\("mascotteAnniv", "[0-9a-f]*"\)/, pose: v => `oseLoaded("mascotteAnniv", "${v}")` }
+  { nom: "mascotteAnniv", chemin: "app/mascotte-anniv.js", marque: /oseLoaded\("mascotteAnniv", "[0-9a-f]*"\)/, pose: v => `oseLoaded("mascotteAnniv", "${v}")` },
+  { nom: "mascotteAnnonce", chemin: "app/mascotte-annonce.js", marque: /oseLoaded\("mascotteAnnonce", "[0-9a-f]*"\)/, pose: v => `oseLoaded("mascotteAnnonce", "${v}")` }
 ];
 export function versionDe(f, contenu){
   const t = contenu.replace(/\r\n?/g, "\n");
