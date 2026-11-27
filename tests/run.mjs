@@ -5403,6 +5403,19 @@ await test("Skill ose-design : section des mascottes (format des pièces, règle
   assert.ok(sk.includes("jamais de bouderie ni de tristesse") && sk.includes("sous 10 Ko compressés") && sk.includes("fichiers séparés"));
 });
 
+titre("65. Création : « Personnaliser davantage » en accordéon");
+
+await test("Une seule section ouverte (name partagé + repli en JS), défilement doux jusqu'au titre à l'ouverture par la personne, instantané avec « moins de mouvement »", () => {
+  const cr = readFileSync(RACINE + "app/creer.js", "utf8").replace(/\r\n/g, "\n"), css = readFileSync(RACINE + "app/creer.css", "utf8");
+  assert.ok(cr.includes('<details class="sec" name="perso" data-sec="${key}"'), "name commun");
+  assert.equal((cr.match(/<details /g) || []).length, 2, "aucune autre section dépliable dans la création");
+  assert.ok(cr.includes('$$("details[data-sec]").forEach(o=>{ if(o!==d && o.open) o.open=false; });'), "repli : les autres se ferment");
+  assert.ok(cr.includes('S.open=new Set([d.dataset.sec]);') && cr.includes('S.open=new Set([key]);') && !cr.includes("S.open.add("), "une seule section retenue");
+  assert.ok(cr.includes('behavior: REDUCED ? "auto" : "smooth"'), "moins de mouvement : instantané");
+  assert.ok(cr.includes('if(voulu===d.dataset.sec){ voulu=""; secDefiler(d); }'), "défilement seulement à l'ouverture par la personne (pas au rendu)");
+  assert.ok(/\.sec\{[^}]*scroll-margin-top/.test(css), "titre pas collé au bord");
+});
+
 /* ---------- Bilan ---------- */
 console.log(`\n${ko ? "❌" : "✅"} ${ok} tests réussis, ${ko} en échec (graine ${GRAINE}${ko ? ` — pour rejouer : node tests/run.mjs --graine=${GRAINE}` : ""})`);
 if(ko){ console.log(echecs.map(e => "  - " + e).join("\n")); process.exitCode = 1; }

@@ -542,7 +542,7 @@ function recapRow(label, value, attr){
   return `<li><div><b>${label}</b><span>${value}</span></div><button type="button" class="linkbtn" ${attr} aria-label="Modifier : ${label}">Modifier</button></li>`;
 }
 function section(key, title, body){
-  return `<details class="sec" data-sec="${key}" ${S.open.has(key)?"open":""}><summary>${title}</summary>
+  return `<details class="sec" name="perso" data-sec="${key}" ${S.open.has(key)?"open":""}><summary>${title}</summary>
     <div class="sec-body">${S.errSec===key ? `<p class="error" role="alert">${esc(S.err)}</p>` : ""}${body}</div></details>`;
 }
 
@@ -797,10 +797,25 @@ function showErr(e){
 }
 function go(step){ S.step=step; S.link=""; renderCreator(); window.scrollTo({top:0}); focusScreen(step==="home" ? ".hero h1" : ".panel h2"); Sound.step(); }
 function openSection(key){
-  S.step=4; S.moreOpen=true; S.open.add(key); renderCreator();
-  $(`details[data-sec="${key}"]`)?.scrollIntoView({block:"start"});
+  S.step=4; S.moreOpen=true; S.open=new Set([key]); renderCreator();
+  secDefiler($(`details[data-sec="${key}"]`));
 }
 
+/* « Personnaliser davantage » en accordéon : une seule section ouverte (name="perso" ; repli pour les navigateurs qui
+   ignorent name : les autres sont refermées ici). Ouverte par la personne : défilement doux jusqu'à son titre. */
+const secDefiler = d => d && requestAnimationFrame(()=>d.scrollIntoView({block:"start", behavior: REDUCED ? "auto" : "smooth"}));
+function bindAccordeon(){
+  let voulu="";
+  $$("details[data-sec]").forEach(d=>{
+    d.querySelector("summary").addEventListener("click",()=>{ voulu=d.dataset.sec; });
+    d.addEventListener("toggle",()=>{
+      if(!d.open){ S.open.delete(d.dataset.sec); return; }
+      S.open=new Set([d.dataset.sec]);
+      $$("details[data-sec]").forEach(o=>{ if(o!==d && o.open) o.open=false; });
+      if(voulu===d.dataset.sec){ voulu=""; secDefiler(d); }
+    });
+  });
+}
 /* Accueil : le mini-billet vivant. Le Non s'esquive dans le billet (ton taquin), le Oui lance la création.
    Animations coupées (réglage ou « moins de mouvement ») : le Non ne bouge pas, seule la phrase change. */
 function bindDemoTicket(){
@@ -869,7 +884,7 @@ function bindCreator(){
   $$("[data-edit]").forEach(b=>b.addEventListener("click",()=>{ readAll(); go(+b.dataset.edit); }));
   $$("[data-goto]").forEach(b=>b.addEventListener("click",()=>{ readAll(); openSection(b.dataset.goto); }));
   $("#more")?.addEventListener("toggle",e=>{ S.moreOpen=e.target.open; });
-  $$("details[data-sec]").forEach(d=>d.addEventListener("toggle",()=>{ d.open ? S.open.add(d.dataset.sec) : S.open.delete(d.dataset.sec); }));
+  bindAccordeon();
 
   // Occasion et style
   on("[data-occ]", b=>{ S.occ=b.dataset.occ; if(!S.themeManual){ S.theme=OCC[S.occ].createTheme||OCC[S.occ].theme; fixAccent(); } if(!S.qEdited) S.q=OCC[S.occ].q; });
@@ -2028,4 +2043,4 @@ async function importHistory(file){
   toast(msg);
 }
 
-oseLoaded("creer", "7971c8a6b9");
+oseLoaded("creer", "2a7aa9e009");
