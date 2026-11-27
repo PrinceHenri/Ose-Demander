@@ -5379,6 +5379,8 @@ await test("Partie B, petits écrans : endormis (service ou connexion), course (
   assert.ok(v && readFileSync(RACINE + "sw.js", "utf8").includes(`"./app/mascotte-ecrans.js?v=${v}"`) && CSP.FICHIERS.some(x => x.chemin === "app/mascotte-ecrans.js"), "versionné, précaché (hors connexion aussi)");
   assert.ok(sc.includes('z.setAttribute("aria-hidden", "true")'), "décoratif");
   assert.ok(idx.includes('if(e==="reseau" || e==="charge") mcEcran(".err-ill", "dort", lv, true);'), "endormis : service muet ou page pas chargée, seulement");
+  assert.ok(idx.includes('else if(e==="supprime") mcEcran(".err-ill", "enveloppe", lv, true);'), "invitation supprimée : Lilas dans l'enveloppe vide");
+  assert.ok(!/etat\("triste"|etat\("boude"/.test(sc), "jamais tristes ni boudeurs");
   assert.ok(idx.includes('mcEcran("main.inv .lead", "course");') && orga.includes('mcEcran(".panel .lead", "course");'), "course : ouverture d'un lien court, chargement des réponses");
   assert.ok(cr.includes('if($(".panel .empty")) mcEcran(".panel .empty", "vide");'), "boîte vide : historique vide");
   assert.ok(!/<script/i.test(p404), "404 : aucun script");
