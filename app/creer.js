@@ -184,7 +184,7 @@ const S = {
   date:"", time:"", choose:false, slots:[{d:"",t:""},{d:"",t:""}],
   q:"", qEdited:false, msg:"", hidden:false,
   no:"fuit", tone:"taquin", ch:"any", chId:"", link:"",
-  ac:"", em:"", sg:"", snd:true, intro:false, share:true, chatons:true, groupe:false, orgaLink:"",
+  ac:"", em:"", sg:"", snd:true, intro:false, chatons:true, groupe:false, orgaLink:"",
   moreOpen:false, open:new Set(), err:"", errSec:""
 };
 
@@ -435,7 +435,7 @@ function screenHTML(){
       ${recapRow("Le Non", esc(NO_MODES.find(m=>m.id===S.no).t)+" · ton "+esc(noTone(S.tone).t.toLowerCase()), 'data-goto="no"')}
       ${S.groupe ? recapRow("Réponses", "Chaque personne répond depuis le lien", 'data-edit="2"')
         : recapRow("Réponse via", esc(CHANNELS.find(c=>c.id===S.ch).t)+(S.chId?" ("+esc(S.chId)+")":""), 'data-goto="reply"')
-          + recapRow("Partage", S.share ? "Autorisé, sans le lieu ni les surprises" : "<em>Non autorisé</em>", 'data-goto="reply"')}
+}
     </ul>
     <details class="more" id="more" ${S.moreOpen?"open":""}>
       <summary>Personnaliser davantage</summary>
@@ -718,10 +718,7 @@ function secReply(){
       <p class="hint">${S.ch==="any" ? "L'appli sera choisie au moment de répondre." : tel ? "Le message s'ouvrira déjà écrit, il n'y aura plus qu'à l'envoyer." : "Cette appli ne permet pas de pré-écrire le message : la réponse sera copiée, il suffira de la coller."}</p>
     </div>
     ${ch.need ? `<label class="field"><span>${tel?"Ton numéro":"Ton nom d'utilisateur"}</span><input class="input" id="chId" maxlength="40" placeholder="${ch.ph}" value="${esc(S.chId)}" ${tel?'inputmode="tel"':''}></label>
-    <p class="hint">Il sera inclus dans le lien, visible seulement par les personnes qui l'ont.</p>` : ""}
-    <p class="group-title">Après le Oui</p>
-    <label class="check"><input type="checkbox" id="allowShare" ${S.share?"checked":""}><span>Autoriser le partage de la surprise</span></label>
-    <p class="hint">${esc(S.to||"La personne invitée")} pourra montrer l'invitation à ses proches : une version en lecture seule, sans le lieu, les surprises, le message caché ni tes coordonnées.</p>`;
+    <p class="hint">Il sera inclus dans le lien, visible seulement par les personnes qui l'ont.</p>` : ""}`;
 }
 function occLabel(){ if(S.occ==="libre") return S.occFree || "Autre"; return OCC[S.occ]?.label || ""; }
 function itemRecap(it){ return it.v==="s" ? "Surprise"+(it.h?` (indice : ${esc(it.h)})`:"") : it.v==="r" ? `${esc(it.x)} <em>(révélé le ${esc(it.at.replace("T"," à "))})</em>` : esc(it.x); }
@@ -745,7 +742,6 @@ function readAll(){
   if($("#msg")) S.msg=$("#msg").value.trim();
   if($("#hidden")) S.hidden=$("#hidden").checked;
   if($("#mcInv")) S.chatons=$("#mcInv").checked;
-  if($("#allowShare")) S.share=$("#allowShare").checked; // (pas « share » : c'est l'identifiant du bouton « Partager le lien »)
   if($("#chId")) S.chId=v("chId");
   if($("#sg")) S.sg=v("sg");
   if($("#sndInv")) S.snd=$("#sndInv").checked;
@@ -1338,7 +1334,6 @@ async function buildLink(nz, gp){
   if(S.anim!=="n") d.an=S.anim;
   if(S.ac) d.ac=S.ac; if(S.em) d.em=S.em; if(S.sg) d.sg=S.sg;
   if(!S.snd) d.so=0;
-  if(!S.share) d.pa=0; // partage de la surprise refusé (absent = autorisé)
   if(S.chatons && own(MC_FAMILLES, S.occ)) d.mc=1; // chatons : seulement pour une occasion qui a sa famille
   if(nz) d.nz=nz; // notification de réponse (voir subscribeNotif)
   if(S.msg){ d.m=S.msg; if(S.hidden) d.mh=1; }
@@ -1445,10 +1440,12 @@ function validEntry(x){
 // l'invitation ne s'ouvre plus, ici non plus (ce que la personne qui l'a créée attend)
 // rep : "o" (Acceptée, au Oui) ou "n" (Refusée, au vrai refus), repAt : date ; repSlot : créneau choisi ;
 // ag : titre et lieu tels qu'affichés à la personne invitée, heure de fin (pour l'agenda, sans rouvrir le lien)
-const RECUE_FIELDS=["id","from","to","occ","occFree","when","link","created","mc","rep","repAt","repSlot","ag","gr"];
+const RECUE_FIELDS=["id","from","to","occ","occFree","when","link","created","mc","rep","repAt","repSlot","ag","gr","th","ac"];
+// th, ac : thème et couleur d'accent de l'invitation (couleurs de « Partager en story »), absents des anciennes entrées
 // gr : réponse envoyée à une invitation de groupe (« o », « p » ou « n ») ; Oui = Acceptée, Non = Refusée, Peut-être = « Peut-être »
 function validRecue(x){
   if(!x || typeof x!=="object" || Array.isArray(x) || Object.keys(x).some(k=>!RECUE_FIELDS.includes(k)) || !validCommun(x)) return false;
+  if((x.th!==undefined && !THEMES.some(t=>t.id===x.th)) || (x.ac!==undefined && !ACCENTS.some(a=>a.id===x.ac))) return false;
   if(x.gr!==undefined && (!GRP_LINK.test(hashOf(x.link)) || !["o","p","n"].includes(x.gr) || (x.gr==="p" ? x.rep!==undefined : x.rep!==x.gr))) return false;
   if(x.rep===undefined) return x.repAt===undefined && x.repSlot===undefined && x.ag===undefined;
   const ag=x.ag, okAg = ag && typeof ag==="object" && !Array.isArray(ag) && Object.keys(ag).every(k=>["t","l","e"].includes(k))
@@ -1712,6 +1709,11 @@ function aReponduGroupe(link){
   const g=GRP_LINK.exec(hashOf(link)); if(!g) return "";
   try{ const x=JSON.parse(localStorage.getItem("ose-groupe-rep")||"{}"); return x && typeof x==="object" && x[g[1]] ? g[1] : ""; }catch(e){ return ""; }
 }
+/* « Partager en story » depuis une Reçue acceptée : mêmes données que juste après le Oui (storyInfo, index.html) */
+function storyInfoRecue(b){
+  const id=b.closest("li[data-id]")?.dataset.id, it=loadRecues().find(x=>x.id===id); if(!it || it.rep!=="o") return null;
+  return storyInfo({th:it.th||OCC[it.occ]?.theme, ac:it.ac, o:it.occ, mc:it.mc, f:it.from}, !!it.gr);
+}
 function histCardRecue(it){
   return `
         <li data-id="${esc(it.id)}">
@@ -1725,6 +1727,7 @@ function histCardRecue(it){
           <div class="acts">
             <button type="button" class="btn sm primary" data-act="open">Ouvrir</button>
             ${rdvSlot(it, true)!==null && !rdvPasse(it, rdvSlot(it, true)) ? agendaBtns() : ""}
+            ${it.rep==="o" ? storyBtnHTML("recue", "btn sm") : ""}
             ${aReponduGroupe(it.link) ? `<button type="button" class="btn sm" data-act="retirer">Supprimer ma réponse</button>` : ""}
             <button type="button" class="btn sm ghost" data-act="del">Retirer de l'historique</button>
           </div>
@@ -1970,7 +1973,7 @@ async function duplicateInvitation(it){
     slots:d.sl ? d.sl.map(s=>({d:s[0],t:s[1]})) : [{d:"",t:""},{d:"",t:""}],
     q:d.q, qEdited:!o||d.q!==o.q, msg:d.m||"", hidden:!!d.mh,
     no:d.n, tone:d.tn||"taquin", ch:d.c, chId:d.ci||"", link:"",
-    ac:d.ac||"", em:d.em||"", sg:d.sg||"", snd:d.so!==0, share:d.pa!==0, chatons:d.mc===1
+    ac:d.ac||"", em:d.em||"", sg:d.sg||"", snd:d.so!==0, chatons:d.mc===1
   });
   location.hash=""; // retour au formulaire (voir route)
   window.scrollTo({top:0});
@@ -2065,4 +2068,4 @@ async function importHistory(file){
   toast(msg);
 }
 
-oseLoaded("creer", "780973616a");
+oseLoaded("creer", "fddfca90ba");

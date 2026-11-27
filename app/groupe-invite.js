@@ -198,7 +198,7 @@ function renderGroupeEnvoye(c){
       ${signHTML()}
       ${c.r!=="n" ? `<div class="details" id="details">${detailsHTML()}</div>` : ""}
       <div class="after-actions">
-        <button type="button" class="btn" id="grpModif">${esc(grpT("grp.modifier"))}</button>
+        ${c.r==="o" ? storyBtnHTML() : ""}<button type="button" class="btn" id="grpModif">${esc(grpT("grp.modifier"))}</button>
         <button type="button" class="refuse" id="grpRetirer">${esc(grpT("grp.retirer"))}</button>
         <p class="cal-note">${esc(grpT("grp.ok.modif"))}</p>
       </div>
@@ -209,4 +209,4 @@ function renderGroupeEnvoye(c){
   focusScreen("#main .question");
 }
 
-oseLoaded("groupeInvite", "8217611bbc");
+oseLoaded("groupeInvite", "0f928d30f2");

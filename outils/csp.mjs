@@ -46,6 +46,7 @@ export const FICHIERS = [
   { nom: "groupeInvite", chemin: "app/groupe-invite.js", marque: /oseLoaded\("groupeInvite", "[0-9a-f]*"\)/, pose: v => `oseLoaded("groupeInvite", "${v}")` },
   { nom: "groupeOrga", chemin: "app/groupe-orga.js", marque: /oseLoaded\("groupeOrga", "[0-9a-f]*"\)/, pose: v => `oseLoaded("groupeOrga", "${v}")` },
   { nom: "scanner", chemin: "app/scanner.js", marque: /oseLoaded\("scanner", "[0-9a-f]*"\)/, pose: v => `oseLoaded("scanner", "${v}")` },
+  { nom: "story", chemin: "app/story.js", marque: /oseLoaded\("story", "[0-9a-f]*"\)/, pose: v => `oseLoaded("story", "${v}")` },
   { nom: "mascotte", chemin: "app/mascotte.js", marque: /oseLoaded\("mascotte", "[0-9a-f]*"\)/, pose: v => `oseLoaded("mascotte", "${v}")` },
   { nom: "mascotteAmour", chemin: "app/mascotte-amour.js", marque: /oseLoaded\("mascotteAmour", "[0-9a-f]*"\)/, pose: v => `oseLoaded("mascotteAmour", "${v}")` },
   { nom: "mascotteNoel", chemin: "app/mascotte-noel.js", marque: /oseLoaded\("mascotteNoel", "[0-9a-f]*"\)/, pose: v => `oseLoaded("mascotteNoel", "${v}")` },
