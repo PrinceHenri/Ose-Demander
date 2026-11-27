@@ -26,6 +26,7 @@ const CORE = [
   "./app/mascotte-amour.js?v=1a0b341c7f",
   "./app/mascotte-bebe.js?v=8ead6835c3",
   "./app/mascotte-honneur.js?v=090c7a1757",
+  "./app/mascotte-paques.js?v=8fae96399e",
   "./app/mascotte-famille.js?v=f606d67b34",
   "./app/mascotte-annonce.js?v=301bc232b1",
   "./app/mascotte-anniv.js?v=f31db918ec",
