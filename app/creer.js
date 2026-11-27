@@ -240,8 +240,9 @@ if(typeof document!=="undefined" && document.addEventListener) document.addEvent
 });
 function topHTML(onHistory){
   const n = onHistory ? 0 : loadHistory().length + loadRecues().length;
-  return `<header class="top">
-      ${logoHTML(seasonToday(), S.anim!=="0")}
+  const accueil = !onHistory && S.step==="home"; // Praline endormie contre le « ? » (place réservée, décorative)
+  return `<header class="top${accueil ? " top-home" : ""}">
+      ${accueil ? `<div class="top-logo">${logoHTML(seasonToday(), S.anim!=="0")}<span class="mc-logo" aria-hidden="true"></span></div>` : logoHTML(seasonToday(), S.anim!=="0")}
       <div class="top-actions">
         <button type="button" class="snd-inline" id="snd" aria-pressed="${Sound.on}" aria-label="${Sound.on?"Couper le son":"Activer le son"}">${Sound.on?"🔊":"🔇"}</button>
         ${!onHistory && S.step==="home" ? scanBtnHTML("snd-inline scan-btn") : ""}
@@ -280,27 +281,33 @@ function renderCreator(){
   bindSound(true);
   refreshInstall();
   mcApercu();
-  mcAccueilVider(); if(S.step==="home") mcAccueilPoser();
+  mcAccueilVider(); if(S.step==="home") mcAccueilPoser(); else mcArrivee=true;
 }
 /* Accueil : Lilas assis sur le bord du mini-billet (décoratif, aria-hidden), il court vers le Non quand on l'essaie.
    Accessoire calé sur le logo de saison (MC_SAISON : période du logo -> [famille, chaton qui le porte dans sa famille, pièce] ;
    « saison » = accessoire réservé à l'accueil ; périodes qui se chevauchent, comme fête des pères et musique : un accessoire par pièce),
-   aucun le reste de l'année ni pendant Octobre rose. Au Oui : Praline arrive, petit saut de joie (0,8 s), puis la création comme avant. */
+   aucun le reste de l'année ni pendant Octobre rose. Praline dort contre le « ? » du logo, avec le même accessoire de saison
+   (app/mascotte-accueil.js) ; Lilas fait coucou une fois en arrivant sur l'accueil. Au Oui : Praline se réveille, rejoint Lilas,
+   saut de joie, puis la création comme avant. Le duo séparé (logo + carte) compte pour une seule scène. */
 const MC_SAISON = {halloween:["halloween", "lilas", "cou"], noel:["noel", "lilas", "tete"], reveillon:["reveillon", "lilas", "tete"], galette:["galette", "saison", "tete"],
   valentin:["amour", "praline", "tete"], paques:["paques", "lilas", "tete"], meres:["famille", "saison", "tete"], peres:["famille", "saison", "cou"], musique:["musique", "lilas", "tete"]};
-let mcAcc=null;
+let mcAcc=null, mcArrivee=true;
 const mcEnergie = () => REDUCED || S.anim==="0" ? "0" : S.anim;
-function mcAccueilVider(){ if(mcAcc){ mcAcc.chats.forEach(c=>c.detruire()); mcAcc.z.remove(); clearTimeout(mcAcc.t); mcAcc=null; } }
+function mcAccueilVider(){ if(window.MascotteAccueil) MascotteAccueil.arreter(); if(mcAcc){ mcAcc.chats.forEach(c=>c.detruire()); if(mcAcc.b) mcAcc.b.detruire(); mcAcc.z.remove(); clearTimeout(mcAcc.t); mcAcc=null; } }
 function mcAccueilPoser(){
   const saisons=logoAt(seasonToday()).filter(id=>own(MC_SAISON, id)), fams=[...new Set(saisons.map(id=>MC_SAISON[id][0]))];
-  need("mascotte").then(()=>Promise.all(fams.map(f=>need(mcFichier(f))))).then(()=>{
+  need("mascotte").then(()=>Promise.all([...fams.map(f=>need(mcFichier(f))), need("mascotteAccueil")])).then(()=>{
     const t=$(".demo-ticket"); if(!t || mcAcc || S.step!=="home") return;
     const z=document.createElement("div"); z.className="mc-zone mc-z-billet mc-touchable"; z.setAttribute("aria-hidden","true");
     const l=Mascotte.chat("lilas", {energie:mcEnergie()});
     saisons.forEach(id=>{ const [fam, qui, k]=MC_SAISON[id], p=l.el.querySelector(`[data-p="acc-${k}"]`); if(!p.innerHTML) p.innerHTML=Mascotte.accessoire(fam, qui, k); }); // périodes qui se chevauchent : une pièce chacune
+    const accs=[]; saisons.forEach(id=>{ const [fam, qui, k]=MC_SAISON[id]; if(!accs.some(a=>a[0]===k)) accs.push([k, Mascotte.accessoire(fam, "praline", k) || Mascotte.accessoire(fam, qui, k)]); }); // Praline : le sien, sinon celui de Lilas
     z.appendChild(l.el); t.appendChild(z);
     z.addEventListener("click", e=>{ const c=mcAcc && mcAcc.chats.find(x=>x.el.contains(e.target)); if(c) c.toucher(); });
-    mcAcc={z, l, chats:[l], t:0};
+    const place=$(".mc-logo"), b=place && MascotteAccueil.praline(place, mcEnergie(), accs);
+    if(place) place.addEventListener("click", ()=>{ if(mcAcc && mcAcc.b) mcAcc.b.toucher(); });
+    mcAcc={z, l, b, accs, chats:[l], t:0};
+    if(mcArrivee){ mcArrivee=false; MascotteAccueil.coucou(l, z, mcEnergie()); } // une seule fois en arrivant, jamais en boucle
   }).catch(()=>{});
 }
 /* Il court le long du bord, vers le Non (jamais dessous : il reste au-dessus du bord du billet) */
@@ -313,15 +320,14 @@ function mcAccueilNon(no){
   l.etat("attentif").courir(true).deplacer(dx);
   mcAcc.t=setTimeout(()=>{ if(!mcAcc) return; l.courir(false).etat("regarde").regard(0, 3); }, 560);
 }
-/* Au Oui : Praline arrive en glissant, les deux font un petit saut de joie ; renvoie la durée à attendre (0 si immobile ou absent) */
+/* Au Oui : Praline se réveille sur le logo (bâillement, étirement), saute rejoindre Lilas sur le billet, saut de joie à deux ;
+   renvoie la durée à attendre (0 si immobile ou absent) */
 function mcAccueilOui(){
-  if(!mcAcc || mcEnergie()==="0") return 0;
-  const {l, z}=mcAcc, p=Mascotte.chat("praline", {energie:mcEnergie(), sens:-1});
-  clearTimeout(mcAcc.t); l.courir(false).deplacer(0);
-  z.appendChild(p.el); mcAcc.chats.push(p);
-  p.etat("joie"); p.jouer("glisse"); l.etat("joie");
-  setTimeout(()=>{ l.jouer("saut"); p.jouer("saut"); }, 120);
-  return 800;
+  if(!mcAcc || !mcAcc.b || mcEnergie()==="0") return 0;
+  clearTimeout(mcAcc.t); MascotteAccueil.arreter(); mcAcc.z.querySelectorAll(".mca-bulle").forEach(x=>x.remove());
+  const {p, duree}=MascotteAccueil.rejoindre(mcAcc.b, mcAcc.l, mcAcc.z, mcEnergie(), mcAcc.accs);
+  mcAcc.chats.push(p);
+  return duree;
 }
 /* Aperçu (étape 4) : les chatons sur le billet, si la case est cochée et que l'occasion a sa famille */
 function mcApercu(){
@@ -864,7 +870,7 @@ function bindDemoTicket(){
   no.addEventListener("click",dodge);
   yes.addEventListener("click",()=>{
     const r=yes.getBoundingClientRect(); Decor.burst(r.left+r.width/2, r.top+r.height/2, 60, true); Sound.yes();
-    S.tplCat="Amour"; setTimeout(()=>go(1), still() ? 0 : Math.max(450, mcAccueilOui())); // chatons : le saut de joie (0,8 s), rien de plus
+    S.tplCat="Amour"; setTimeout(()=>go(1), still() ? 0 : Math.max(450, mcAccueilOui())); // chatons : réveil de Praline, saut de joie, rien de plus
   });
 }
 function bindCreator(){
@@ -2068,4 +2074,4 @@ async function importHistory(file){
   toast(msg);
 }
 
-oseLoaded("creer", "fddfca90ba");
+oseLoaded("creer", "5bdb29f62d");

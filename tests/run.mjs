@@ -5133,7 +5133,7 @@ await test("Lien « Accueil » : après le Oui, le vrai refus, le formulaire de 
    61. Mascottes Lilas et Praline : moteur, dessins, familles (app/mascotte*.js)
    ========================================================= */
 titre("61. Mascottes");
-const MC_SCENES = ["app/mascotte-groupe.js", "app/mascotte-souvenirs.js", "app/mascotte-ecrans.js"]; // partie B : scènes (groupe, souvenirs, petits écrans), pas des familles
+const MC_SCENES = ["app/mascotte-groupe.js", "app/mascotte-souvenirs.js", "app/mascotte-ecrans.js", "app/mascotte-accueil.js"]; // scènes (groupe, souvenirs, petits écrans, accueil), pas des familles
 const MC_FICHIERS = readdirSync(RACINE + "app").filter(f => /^mascotte-[a-z]+[.]js$/.test(f)).sort().map(f => "app/" + f).filter(f => !MC_SCENES.includes(f));
 const MASCOTTE = (() => {
   // Le moteur est évalué ici, avec un faux document (aucun navigateur)
@@ -5311,11 +5311,13 @@ await test("Accueil : Lilas sur le bord du mini-billet (place réservée), aria-
   assert.ok(cr.includes("const cible=Math.max(b.left+34, Math.min(b.right-34, r.left+r.width/2));"), "reste sur le bord du billet");
   assert.ok(cr.includes('const mcEnergie = () => REDUCED || S.anim==="0" ? "0" : S.anim;'), "immobile avec « moins de mouvement » ou « Aucune »");
 });
-await test("Accueil, Oui : Praline arrive et petit saut de joie (0,8 s), puis la création comme avant, sans autre délai ; rien à attendre si immobile", () => {
-  const cr = readFileSync(RACINE + "app/creer.js", "utf8").replace(/\r\n/g, "\n");
+await test("Accueil, Oui : Praline se réveille sur le logo, rejoint Lilas, saut de joie, puis la création comme avant ; rien à attendre si immobile", () => {
+  const cr = readFileSync(RACINE + "app/creer.js", "utf8").replace(/\r\n/g, "\n"), ma = readFileSync(RACINE + "app/mascotte-accueil.js", "utf8").replace(/\r\n/g, "\n");
   assert.ok(cr.includes('S.tplCat="Amour"; setTimeout(()=>go(1), still() ? 0 : Math.max(450, mcAccueilOui()));'));
-  assert.ok(cr.includes('if(!mcAcc || mcEnergie()==="0") return 0;') && cr.includes("  return 800;\n}"), "0,8 s au plus");
-  assert.ok(cr.includes('p.etat("joie"); p.jouer("glisse"); l.etat("joie");') && cr.includes('l.jouer("saut"); p.jouer("saut");'));
+  assert.ok(cr.includes('if(!mcAcc || !mcAcc.b || mcEnergie()==="0") return 0;'), "immobile : la création tout de suite");
+  assert.ok(cr.includes("MascotteAccueil.rejoindre(mcAcc.b, mcAcc.l, mcAcc.z, mcEnergie(), mcAcc.accs)") && !cr.includes('p.jouer("glisse")'), "plus d'arrivée en glissant");
+  assert.ok(ma.includes('b.el.classList.add("mca-reveil")') && ma.includes('ensuite(() => { l.jouer("saut"); p.jouer("saut"); }, T + V);'), "réveil, puis saut de joie à deux");
+  assert.ok(ma.includes("const k = energie === \"d\" ? 1.4 : 1, T = Math.round(820 * k), V = Math.round(560 * k);") && ma.includes("duree: T + V + Math.round(900 * k)"), "2,3 s en animations Normales");
 });
 await test("Accessoire de saison de Lilas calé sur le logo de saison (toutes les périodes sauf Octobre rose), aucun le reste de l'année", () => {
   const cr = readFileSync(RACINE + "app/creer.js", "utf8").replace(/\r\n/g, "\n");
@@ -5599,6 +5601,38 @@ await test("Chaque lien vers une ancre des mentions légales (site, appli, pages
   for(const s of sources){ const c = FAB[s] ?? lireFichier(s); for(const m of c.matchAll(/mentions-legales\.html#([a-z0-9-]+)/g)) ancres.add(m[1]); }
   assert.ok(ancres.size >= 3, [...ancres].join(", "));
   for(const a of ancres) assert.ok(ids.has(a), `#${a} introuvable dans les mentions légales`);
+});
+
+titre("69. Mascottes : Praline endormie sur le logo de l'accueil");
+await test("Place réservée contre le « ? » (accueil seulement), hors du lien du logo, sans écart ajouté : logo et boutons ne bougent pas", () => {
+  const cr = readFileSync(RACINE + "app/creer.js", "utf8").replace(/\r\n/g, "\n"), css = readFileSync(RACINE + "app/creer.css", "utf8");
+  assert.ok(cr.includes('const accueil = !onHistory && S.step==="home";') && cr.includes('<div class="top-logo">${logoHTML(seasonToday(), S.anim!=="0")}<span class="mc-logo" aria-hidden="true"></span></div>'), "sœur du lien, jamais dedans, aria-hidden");
+  assert.ok(css.includes(".top-home{column-gap:0}") && css.includes(".mc-logo{position:relative;flex:none;width:28px;"), "28 px pris sur les 30 px libres entre logo et boutons (largeur de la page : 600 px)");
+  assert.ok(css.includes(".mc-logo::after{content:\"\";position:absolute;inset:-9px 0 -12px}"), "zone tactile agrandie vers le haut et le bas seulement (ni vers le logo, ni vers les boutons)");
+});
+await test("Praline endormie : dessin décoratif sans texte ni identifiant, accessoire de saison (le sien, sinon celui de Lilas), immobile si moins de mouvement", () => {
+  const env = { window: { Mascotte: MASCOTTE }, document: { head: { insertAdjacentHTML(){} }, createElement(){ return {}; } }, matchMedia: () => ({ matches: false }), oseLoaded(){} };
+  new Function("window", "document", "matchMedia", "oseLoaded", "Mascotte", readFileSync(RACINE + "app/mascotte-accueil.js", "utf8"))(env.window, env.document, env.matchMedia, env.oseLoaded, MASCOTTE);
+  const MA = env.window.MascotteAccueil, svg = MA._boule([["tete", MASCOTTE.accessoire("noel", "praline", "tete")]]);
+  assert.ok(svg.startsWith('<svg class="mca-boule mc-praline" viewBox="0 0 64 46" aria-hidden="true" focusable="false">'));
+  assert.ok(!/\sid=|<text|<title/.test(svg), "ni identifiant ni texte");
+  assert.ok(svg.includes(MASCOTTE.accessoire("noel", "praline", "tete")), "accessoire posé sur la tête");
+  for(const p of ["souffle", "queue", "tete", "dort-g", "oeil-g", "baille"]) assert.ok(svg.includes(`data-b="${p}"`), p);
+  const ma = readFileSync(RACINE + "app/mascotte-accueil.js", "utf8"), cr = readFileSync(RACINE + "app/creer.js", "utf8");
+  assert.ok(cr.includes('accs.push([k, Mascotte.accessoire(fam, "praline", k) || Mascotte.accessoire(fam, qui, k)])'), "même calendrier que Lilas");
+  for(const [p, [fam, qui, k]] of Object.entries(Function("return " + cr.match(/const MC_SAISON = (\{[^;]*\});/)[1])())) assert.ok((MASCOTTE.accessoire(fam, "praline", k) || MASCOTTE.accessoire(fam, qui, k)).includes("<"), p + " : accessoire de Praline");
+  assert.ok(ma.includes('vit = energie !== "0" && !reduit();') && ma.includes(".mca-vit [data-b=\"souffle\"]{animation:mca-souffle 4.2s"), "respiration seulement quand ça bouge");
+  assert.ok(ma.includes("@media (prefers-reduced-motion:reduce){.mca-boule,.mca-boule *,.mca-bulle{animation:none!important}.mca-bulle{display:none}}"));
+  for(const [, corps] of ma.matchAll(/@keyframes [\w-]+\{([\s\S]*?)\}\n/g)) assert.ok(!/(?:^|[{;])\s*(?:left|top|width|height|margin)\s*:/.test(corps), "keyframes : transform et opacity seulement");
+  assert.ok(gzipSync(readFileSync(RACINE + "app/mascotte-accueil.js")).length < 5000, "poids dans son propre fichier, pas dans mascotte.js");
+});
+await test("Coucou de Lilas : une seule fois en arrivant sur l'accueil, bulle « Coucou ! » 2 s, aria-hidden ; jamais immobile ni en boucle", () => {
+  const ma = readFileSync(RACINE + "app/mascotte-accueil.js", "utf8"), cr = readFileSync(RACINE + "app/creer.js", "utf8").replace(/\r\n/g, "\n");
+  assert.ok(cr.includes("if(mcArrivee){ mcArrivee=false; MascotteAccueil.coucou(l, z, mcEnergie()); }") && cr.includes('mcAccueilVider(); if(S.step==="home") mcAccueilPoser(); else mcArrivee=true;'), "à l'arrivée seulement");
+  assert.ok(ma.includes('if(energie === "0" || reduit()) return;'), "ni coucou ni bulle si immobile");
+  assert.ok(ma.includes('b.textContent = "Coucou\\u00A0!";') && ma.includes("ensuite(() => b.classList.add(\"mca-fin\"), 2350);"), "texte posé en texte, retiré après 2 s");
+  assert.ok(cr.includes('z.className="mc-zone mc-z-billet mc-touchable"; z.setAttribute("aria-hidden","true");'), "bulle dans la zone aria-hidden");
+  assert.ok(!/setInterval/.test(ma), "aucune boucle");
 });
 
 /* ---------- Bilan ---------- */

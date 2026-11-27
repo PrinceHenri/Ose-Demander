@@ -16,7 +16,7 @@ const CORE = [
   // Fichiers chargés à part par index.html : l'empreinte de leur contenu (?v=) est écrite par node outils/csp.mjs.
   // Gardés dès l'installation : une invitation ouverte une fois s'affiche sans réseau, scènes comprises.
   "./app/scenes.js?v=ad35c435a6",
-  "./app/creer.js?v=fddfca90ba",
+  "./app/creer.js?v=5bdb29f62d",
   "./app/demo.js?v=def882fa95",
   "./app/scanner.js?v=37e73826ea",
   "./app/story.js?v=bc89b34813",
@@ -35,6 +35,7 @@ const CORE = [
   "./app/mascotte-groupe.js?v=599d5f81b9",
   "./app/mascotte-souvenirs.js?v=b15db67c8f",
   "./app/mascotte-ecrans.js?v=a81701c4bf",
+  "./app/mascotte-accueil.js?v=3cb23380ef",
   "./app/mascotte-famille.js?v=288e5ea016",
   "./app/mascotte-annonce.js?v=301bc232b1",
   "./app/mascotte-anniv.js?v=f31db918ec",
@@ -42,7 +43,7 @@ const CORE = [
   "./app/mascotte-reveillon.js?v=bfe3ce99d4",
   "./app/mascotte-neutre.js?v=639426aca2",
   "./app/mascotte-noel.js?v=333cca8d65",
-  "./app/creer.css?v=205576db21"
+  "./app/creer.css?v=70e16d48d9"
 ];
 
 self.addEventListener("install", event => {
