@@ -61,6 +61,7 @@ async function renderTableau(arg){
     [, id, key, d] = o;
   }
   coquille(`<h2 tabindex="-1">${esc(orgaT("orga.titre"))}</h2><p class="lead" role="status">${esc(orgaT("orga.chargement"))}</p>`);
+  mcEcran(".panel .lead", "course");
   focusScreen(".panel h2");
   // L'invitation (pour son titre et sa clé publique), puis la clé privée vérifiée contre la clé publique
   let inv, priv;
@@ -86,10 +87,12 @@ async function tableauCharger(g, coquille){
   if(l.etat!=="ok") return tableauErreur(coquille, l.etat==="supprime" ? "orga.err.supprime" : l.etat==="expire" ? "orga.err.expire" : "orga.err.reseau");
   const s=grpResume(l.reponses);
   orgaGarderResume(g.invite, s);
+  const fam=mcFamille(g.inv);
   const liste=[...l.reponses].sort((a,b)=>({o:0,p:1,n:2}[a.r]-{o:0,p:1,n:2}[b.r]) || a.p.localeCompare(b.p, "fr"));
   coquille(`
     <h2 tabindex="-1">${esc(orgaT("orga.titre"))}</h2>
     <p class="lead">${esc(orgaT("orga.pour", {pour:g.inv.t, de:g.inv.f}))}</p>
+    ${fam ? `<div id="orgaIllu" aria-hidden="true"></div>` : ""}
     <div class="grp-compteurs" role="group" aria-label="Résumé des réponses">
       ${["o","p","n"].map(k=>`<div class="grp-cpt grp-cpt-${k}"><b>${s[k]}</b><span>${esc(orgaT("orga."+k))}</span></div>`).join("")}
     </div>
@@ -112,6 +115,10 @@ async function tableauCharger(g, coquille){
       <button type="button" class="btn sm danger" id="orgaSuppr">${esc(orgaT("orga.supprimer"))}</button>
     </div>`);
   orgaNotifPeindre(g);
+  // Invitation avec chatons : la table se remplit (scène décorative ; les chiffres et la liste restent dessous)
+  if(fam) need("mascotte").then(()=>need(mcFichier(fam))).then(()=>need("mascotteGroupe")).then(()=>{
+    const el=$("#orgaIllu"); if(el) MascotteGroupe.dessiner(el, {famille:fam, o:g.inv.o, anim:"d", oui:liste.filter(r=>r.r==="o"), peut:liste.filter(r=>r.r==="p"), non:s.n, ferme:l.ferme});
+  }).catch(()=>{});
   const erreur=()=>{ const e=$("#orgaErr"); e.textContent=orgaT("orga.err.action"); e.classList.remove("hidden"); };
   const recharger=async focus=>{ await tableauCharger(g, coquille); if(focus) $(focus)?.focus(); };
   $("#orgaMaj").addEventListener("click", ()=>recharger("#orgaMaj"));
@@ -164,4 +171,4 @@ function orgaGarderResume(invite, s){
   it.grs=grs; if(validEntry(it)) storeHistory(list);
 }
 
-oseLoaded("groupeOrga", "b0a718225b");
+oseLoaded("groupeOrga", "fcaf1585d0");

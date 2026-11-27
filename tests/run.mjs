@@ -5133,7 +5133,8 @@ await test("Lien « Accueil » : après le Oui, le vrai refus, le formulaire de 
    61. Mascottes Lilas et Praline : moteur, dessins, familles (app/mascotte*.js)
    ========================================================= */
 titre("61. Mascottes");
-const MC_FICHIERS = readdirSync(RACINE + "app").filter(f => /^mascotte-[a-z]+[.]js$/.test(f)).sort().map(f => "app/" + f);
+const MC_SCENES = ["app/mascotte-groupe.js", "app/mascotte-souvenirs.js", "app/mascotte-ecrans.js"]; // partie B : scènes (groupe, souvenirs, petits écrans), pas des familles
+const MC_FICHIERS = readdirSync(RACINE + "app").filter(f => /^mascotte-[a-z]+[.]js$/.test(f)).sort().map(f => "app/" + f).filter(f => !MC_SCENES.includes(f));
 const MASCOTTE = (() => {
   // Le moteur est évalué ici, avec un faux document (aucun navigateur)
   const env = { window: {}, document: { addEventListener(){}, head: { insertAdjacentHTML(){} } }, matchMedia: () => ({ matches: false }), oseLoaded(){} };
@@ -5335,6 +5336,63 @@ await test("Accessoire de saison de Lilas calé sur le logo de saison (toutes le
   }
   assert.equal(MASCOTTE.accessoire("amour", "lilas", "tete"), "", "aucun accessoire inventé");
   for(const f of ["galette", "famille"]) assert.ok(readFileSync(RACINE + `app/mascotte-${f}.js`, "utf8").includes("acc: {saison: {"), f + " : accessoire « saison » réservé à l'accueil");
+});
+
+await test("Partie B, groupe : scène à part (app/mascotte-groupe.js), décorative, chargée seulement pour une invitation avec chatons ; liste et chiffres toujours dessous", () => {
+  const sc = readFileSync(RACINE + "app/mascotte-groupe.js", "utf8"), inv = readFileSync(RACINE + "app/groupe-invite.js", "utf8"), orga = readFileSync(RACINE + "app/groupe-orga.js", "utf8");
+  assert.ok(gzipSync(sc).length < 5000, `${gzipSync(sc).length} octets compressés`);
+  assert.ok(!/https?:\/\//.test(sc.replace(/\/\*[\s\S]*?\*\//g, "")), "aucune adresse");
+  assert.ok(CSP.FICHIERS.some(x => x.chemin === "app/mascotte-groupe.js"), "versionné");
+  const v = (sc.match(/oseLoaded\("mascotteGroupe", "([0-9a-f]{10})"\)/) || [])[1];
+  assert.ok(v && readFileSync(RACINE + "sw.js", "utf8").includes(`"./app/mascotte-groupe.js?v=${v}"`), "précaché");
+  assert.ok(inv.includes('const grpIllu = (r, a) => MCF && need("mascotte")'), "formulaire : seulement avec chatons (MCF)");
+  assert.ok(orga.includes("const fam=mcFamille(g.inv);") && orga.includes('${fam ? `<div id="orgaIllu" aria-hidden="true"></div>` : ""}'), "tableau : seulement avec chatons, aria-hidden");
+  assert.ok(orga.indexOf('id="orgaIllu"') < orga.indexOf('class="grp-compteurs"') && orga.includes('<ul class="grp-liste">'), "chiffres et liste toujours sous l'illustration");
+  assert.ok(sc.includes('`<div aria-hidden="true"></div><p class="hint grp-legende"></p>`'), "scène décorative, légende du Non lisible hors de la scène");
+  assert.ok(sc.includes('nom.textContent = x.p') && sc.includes("document.createTextNode("), "prénom et mot posés en texte, jamais en HTML");
+  const G = (() => { const w = {addEventListener(){}}; new Function("window", "document", "oseLoaded", "Mascotte", sc)(w, { head: { insertAdjacentHTML(){} } }, () => {}, {}); return w.MascotteGroupe; })();
+  assert.equal(G.decorDe("voyage", "amis"), "bus"); assert.equal(G.decorDe("soiree", "amis"), "canape"); assert.equal(G.decorDe("monanniv", "anniv"), "gateau");
+  assert.equal(G.decorDe("babyshower", "bebe"), "coussins"); assert.equal(G.decorDe("repasfam", "famille"), "table");
+});
+
+await test("Partie B, Mes invitations : chatons sur les cartes acceptées d'une invitation avec chatons (champ mc = 1), accessoire le jour J, endormis dans les souvenirs", () => {
+  const sc = readFileSync(RACINE + "app/mascotte-souvenirs.js", "utf8"), cr = readFileSync(RACINE + "app/creer.js", "utf8").replace(/\r\n/g, "\n"), idx = readFileSync(RACINE + "index.html", "utf8").replace(/\r\n/g, "\n");
+  assert.ok(gzipSync(sc).length < 3000, `${gzipSync(sc).length} octets compressés`);
+  assert.ok(!/https?:\/\//.test(sc.replace(/\/\*[\s\S]*?\*\//g, "")), "aucune adresse");
+  const v = (sc.match(/oseLoaded\("mascotteSouvenirs", "([0-9a-f]{10})"\)/) || [])[1];
+  assert.ok(v && readFileSync(RACINE + "sw.js", "utf8").includes(`"./app/mascotte-souvenirs.js?v=${v}"`) && CSP.FICHIERS.some(x => x.chemin === "app/mascotte-souvenirs.js"), "versionné, précaché");
+  assert.ok(cr.includes('"created","mc",') && cr.split('"created","mc",').length === 3, "mc dans les champs des Envoyées et des Reçues");
+  assert.ok(cr.includes("(x.mc===undefined || x.mc===1)"), "mc validé : 1 seulement");
+  assert.ok(cr.includes("  if(d.mc===1) e.mc=1;\n") && idx.includes("  if(d.mc===1) e.mc=1;\n  return e;"), "posé à l'enregistrement (Envoyées, Reçues)");
+  assert.ok(cr.includes('`<div class="hist-chatons" aria-hidden="true" data-mc-fam="${mcHistFam(it)}"'), "décoratif, seulement avec une famille");
+  assert.ok(cr.includes("${s!==null ? mcHistHTML(it, s) + reboursHTML(it, s) : \"\"}"), "à côté du compte à rebours");
+  assert.ok(sc.includes('famille: jour ? fam : ""') && sc.includes('c.etat("attente", {yeux: "fermes"})'), "accessoire le jour J seulement, endormis dans les souvenirs");
+  assert.ok(!/["']triste["']|["']boude["']/.test(sc), "jamais tristes ni boudeurs");
+});
+
+await test("Partie B, petits écrans : endormis (service ou connexion), course (chargement), boîte vide (historique), loupe (404 sans script)", () => {
+  const sc = readFileSync(RACINE + "app/mascotte-ecrans.js", "utf8"), idx = readFileSync(RACINE + "index.html", "utf8").replace(/\r\n/g, "\n");
+  const cr = readFileSync(RACINE + "app/creer.js", "utf8"), orga = readFileSync(RACINE + "app/groupe-orga.js", "utf8"), p404 = readFileSync(RACINE + "404.html", "utf8");
+  assert.ok(gzipSync(sc).length < 3000, `${gzipSync(sc).length} octets compressés`);
+  assert.ok(!/https?:\/\//.test(sc.replace(/\/\*[\s\S]*?\*\//g, "")), "aucune adresse");
+  const v = (sc.match(/oseLoaded\("mascotteEcrans", "([0-9a-f]{10})"\)/) || [])[1];
+  assert.ok(v && readFileSync(RACINE + "sw.js", "utf8").includes(`"./app/mascotte-ecrans.js?v=${v}"`) && CSP.FICHIERS.some(x => x.chemin === "app/mascotte-ecrans.js"), "versionné, précaché (hors connexion aussi)");
+  assert.ok(sc.includes('z.setAttribute("aria-hidden", "true")'), "décoratif");
+  assert.ok(idx.includes('const mcMode={reseau:"dort", charge:"dort", supprime:"enveloppe", introuvable:"loupe", expire:"sablier", incomplet:"dechire"}[e];')
+    && idx.includes('if(mcMode) mcEcran(".err-ill", mcMode, lv, true);'), "écrans d'erreur : chatons à la place de l'illustration (pas pour « version »)");
+  for(const m of ["dort", "enveloppe", "loupe", "sablier", "dechire", "course", "vide"]) assert.ok(sc.includes(`mode === "${m}"`) || m === "vide", "mode " + m);
+  assert.ok(!/etat\("triste"|etat\("boude"/.test(sc), "jamais tristes ni boudeurs");
+  assert.ok(idx.includes('mcEcran("main.inv .lead", "course");') && orga.includes('mcEcran(".panel .lead", "course");'), "course : ouverture d'un lien court, chargement des réponses");
+  assert.ok(cr.includes('if($(".panel .empty")) mcEcran(".panel .empty", "vide");'), "boîte vide : historique vide");
+  assert.ok(!/<script/i.test(p404), "404 : aucun script");
+  assert.ok(p404.includes('<div class="mc404" aria-hidden="true"><svg class="mc-chat mc-lilas"'), "404 : le vrai dessin de Lilas, décoratif");
+  assert.ok(/@media \(prefers-reduced-motion:reduce\)\{\.mc404 \[data-p="tete"\]\{animation:none\}\}/.test(p404), "404 : animation coupée par « moins de mouvement »");
+  assert.ok(gzipSync(p404).length < 12000, `404 : ${gzipSync(p404).length} octets compressés`);
+});
+
+await test("Lot 2 terminé : chaque occasion a sa famille de chatons, sauf « mariage » et « pardon » (jamais de famille sans décision)", () => {
+  const idx = readFileSync(RACINE + "index.html", "utf8"), F = Function("return " + idx.match(/const MC_FAMILLES = (\{[\s\S]*?\});/)[1])();
+  assert.deepEqual(Object.keys(L.OCC).filter(o => !F[o]).sort(), ["mariage", "pardon"]);
 });
 
 await test("Skill ose-design : section des mascottes (format des pièces, règle du vrai refus, poids, fichiers séparés pour les lots suivants)", () => {

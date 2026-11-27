@@ -1327,7 +1327,7 @@ async function buildLink(nz, gp){
    (localStorage). Jamais envoyé nulle part, jamais lu côté destinataire.
    ========================================================= */
 const HIST_KEY="ose-historique", HIST_MAX=200, SITE_HOST="osedemander.fr";
-const HIST_FIELDS=["id","from","to","occ","occFree","when","link","created","long","jeton","gone","img","imgJeton","nid","njeton","rep","repAt","repSlot","ok","okSlot","orga","grs"];
+const HIST_FIELDS=["id","from","to","occ","occFree","when","link","created","mc","long","jeton","gone","img","imgJeton","nid","njeton","rep","repAt","repSlot","ok","okSlot","orga","grs"];
 // grs : résumé des réponses d'un groupe, gardé à chaque lecture du tableau de bord ({o, p, n, pers} : des nombres, jamais de prénom)
 // Invitation de groupe : link = lien invités (#g=ID.CLÉ), orga = lien organisateur (#ga=ID.CLÉ.D, la clé privée : lit les réponses)
 const GRP_LINK=/^#g=([A-Za-z0-9_-]{22})\.([A-Za-z0-9_-]{22})$/, GRP_ORGA_LINK=/^#ga=([A-Za-z0-9_-]{22})\.([A-Za-z0-9_-]{22})\.([A-Za-z0-9_-]{43})$/;
@@ -1362,7 +1362,7 @@ function validCommun(x){
   const txt=(v,max)=>typeof v==="string" && v.trim()!=="" && v.length<=max;
   const isDate=v=>typeof v==="string" && /^\d{4}-\d{2}-\d{2}$/.test(v);
   const isTime=v=>typeof v==="string" && /^\d{2}:\d{2}$/.test(v);
-  return typeof x.id==="string" && /^[a-z0-9]{6,24}$/.test(x.id)
+  return typeof x.id==="string" && /^[a-z0-9]{6,24}$/.test(x.id) && (x.mc===undefined || x.mc===1) // mc : invitation avec chatons
     && txt(x.from,30) && txt(x.to,30)
     && typeof x.occ==="string" && Object.keys(OCC).includes(x.occ)
     && (x.occFree===undefined || (typeof x.occFree==="string" && x.occFree.length<=40))
@@ -1408,7 +1408,7 @@ function validEntry(x){
 // l'invitation ne s'ouvre plus, ici non plus (ce que la personne qui l'a créée attend)
 // rep : "o" (Acceptée, au Oui) ou "n" (Refusée, au vrai refus), repAt : date ; repSlot : créneau choisi ;
 // ag : titre et lieu tels qu'affichés à la personne invitée, heure de fin (pour l'agenda, sans rouvrir le lien)
-const RECUE_FIELDS=["id","from","to","occ","occFree","when","link","created","rep","repAt","repSlot","ag","gr"];
+const RECUE_FIELDS=["id","from","to","occ","occFree","when","link","created","mc","rep","repAt","repSlot","ag","gr"];
 // gr : réponse envoyée à une invitation de groupe (« o », « p » ou « n ») ; Oui = Acceptée, Non = Refusée, Peut-être = « Peut-être »
 function validRecue(x){
   if(!x || typeof x!=="object" || Array.isArray(x) || Object.keys(x).some(k=>!RECUE_FIELDS.includes(k)) || !validCommun(x)) return false;
@@ -1445,6 +1445,7 @@ function noteTestee(long){
 function entryFrom(d, link, created=new Date().toISOString(), id=newId(), extra={}){
   const e={id, from:d.f, to:d.t, occ:d.o, when: d.sl ? d.sl.map(s=>[s[0],s[1]]) : [[d.d,d.h]], link, created};
   if(d.o==="libre" && d.of) e.occFree=d.of;
+  if(d.mc===1) e.mc=1;
   if(shortId(link)){ e.long=extra.long; if(extra.jeton) e.jeton=extra.jeton; if(extra.gone) e.gone=true; }
   if(extra.img && extra.imgJeton){ e.img=extra.img; e.imgJeton=extra.imgJeton; }
   if(d.nz){ // l'identifiant vient du lien : le statut ne peut concerner que cette invitation
@@ -1576,6 +1577,15 @@ function reboursParle(r){
   if(r.m || !p.length) p.push(mot(r.m,"minute","minutes"));
   return "Dans " + (p.length>1 ? p.slice(0,-1).join(", ")+" et "+p.at(-1) : p[0]);
 }
+/* Chatons d'une carte acceptée (invitation avec chatons) : attente, accessoire de la famille le jour J, endormis dans les
+   souvenirs (app/mascotte-souvenirs.js, peint après l'affichage par mcHistPeindre ; décoratif, aria-hidden) */
+const mcHistFam = it => it.mc===1 ? mcFamille({mc:1, o:it.occ}) : null;
+const mcHistHTML = (it, s) => mcHistFam(it) ? `<div class="hist-chatons" aria-hidden="true" data-mc-fam="${mcHistFam(it)}" data-mc-etat="${rebours(it.when[s][0], it.when[s][1]).etat}"></div>` : "";
+function mcHistPeindre(){
+  const fams=[...new Set($$(".hist-chatons[data-mc-fam]").map(z=>z.dataset.mcFam))]; if(!fams.length) return;
+  need("mascotte").then(()=>Promise.all([...fams.map(f=>need(mcFichier(f))), need("mascotteSouvenirs")]))
+    .then(()=>{ if(location.hash==="#mes-invitations") MascotteSouvenirs.peindre(REDUCED_ANIM ? "0" : "d"); }).catch(()=>{});
+}
 function reboursHTML(it, s, now=new Date()){
   const [day,time]=it.when[s], r=rebours(day, time, now);
   const corps = r.etat==="passe" ? `<p class="rb-titre rb-passe">Passé</p><p class="rb-sous">Souvenir du ${esc(frDate(day))}</p>`
@@ -1620,7 +1630,7 @@ function histCardEnv(it){
           <p class="who">Pour ${esc(it.to)}</p>
           ${histReply(it)}
           ${!it.rep && it.ok ? `<p class="rep rep-o">Acceptée 🎉${s===null ? "" : esc(", " + rdvQuand(it, s))}</p>` : ""}
-          ${s!==null ? reboursHTML(it, s) : ""}
+          ${s!==null ? mcHistHTML(it, s) + reboursHTML(it, s) : ""}
           ${s!==null ? `<div data-rdv3-slot="e:${esc(it.id)}">${rdv3HTML("e:"+it.id)}</div>` : ""}
           <p class="meta">De ${esc(it.from)} · ${esc(histOcc(it))}</p>
           <p class="meta">${esc(histWhen(it))}</p>
@@ -1670,7 +1680,7 @@ function histCardRecue(it){
         <li data-id="${esc(it.id)}">
           <p class="who">De ${esc(it.from)}</p>
           ${statutRecue(it)}
-          ${rdvSlot(it, true)!==null ? reboursHTML(it, rdvSlot(it, true)) + `<div data-rdv3-slot="r:${esc(it.id)}">${rdv3HTML("r:"+it.id)}</div>` : ""}
+          ${rdvSlot(it, true)!==null ? mcHistHTML(it, rdvSlot(it, true)) + reboursHTML(it, rdvSlot(it, true)) + `<div data-rdv3-slot="r:${esc(it.id)}">${rdv3HTML("r:"+it.id)}</div>` : ""}
           <p class="meta">Pour ${esc(it.to)}</p>
           <p class="meta">${esc(histOcc(it))}</p>
           <p class="meta">${esc(histWhen(it))}</p>
@@ -1780,6 +1790,8 @@ function renderHistory(){
   bindSound(true);
   syncReplies().then(ch=>{ if(ch && location.hash==="#mes-invitations") renderHistory(); });
   startRebours();
+  mcHistPeindre();
+  if($(".panel .empty")) mcEcran(".panel .empty", "vide");
   bindDefile(recues);
   syncRdv3Hist(list, recues);
 
@@ -2016,4 +2028,4 @@ async function importHistory(file){
   toast(msg);
 }
 
-oseLoaded("creer", "2e4e91ff8f");
+oseLoaded("creer", "5818f91409");

@@ -177,8 +177,29 @@ ${piedDePage(theme)}
 `;
 }
 
+/* Lilas à la loupe, pour la page introuvable : le vrai dessin du chaton (app/mascotte.js, évalué ici sans navigateur) et ses
+   styles, en SVG intégré ; aucun script (CSP des pages statiques). Animation en CSS seul, coupée par « moins de mouvement ». */
+function chaton404(){
+  const src = readFileSync(RACINE + "app/mascotte.js", "utf8"), w = {};
+  let css = "";
+  const doc = { addEventListener(){}, head: { insertAdjacentHTML: (p, s) => { css += s; } }, createElement: () => { throw new Error("styles seulement"); } };
+  new Function("window", "document", "matchMedia", "oseLoaded", src)(w, doc, () => ({ matches: false }), () => {});
+  try{ w.Mascotte.chat("lilas"); }catch(e){} // pose les styles du moteur, puis s'arrête (pas de document ici)
+  css = css.replace(/^<style[^>]*>/, "").replace(/<\/style>$/, "");
+  // La loupe est posée au premier plan (acc-tete, dessiné en dernier) : le manche part de la patte levée, la lentille devant un œil
+  const E = "#1F1546", loupe = `<path d="M83 114L87 82" style="stroke:${E};stroke-width:5;stroke-linecap:round"/><path d="M83 114L87 82" style="stroke:#C98F4E;stroke-width:2.6;stroke-linecap:round"/>`
+    + `<circle cx="88" cy="70" r="11.5" style="fill:#DDF3FF;fill-opacity:.55;stroke:${E};stroke-width:3"/><path d="M81 66q2-5 7-6" style="fill:none;stroke:#fff;stroke-width:2;stroke-linecap:round"/>`;
+  const svg = w.Mascotte._dessin("lilas").replace(/ data-a="([\d.]+) ([\d.]+)"/g, ' data-a="$1 $2" style="transform-origin:$1px $2px"')
+    .replace('<g data-p="acc-tete" data-a="60 24" style="transform-origin:60px 24px"></g>', `<g data-p="acc-tete" data-a="60 24" style="transform-origin:60px 24px">${loupe}</g>`);
+  if(!svg.includes(loupe)) throw new Error("404 : pièce acc-tete introuvable dans le dessin de Lilas");
+  return { svg, css: css + `
+.mc404{display:flex;justify-content:center;margin:0 0 4px}.mc404 .mc-chat{width:92px;height:107px}
+.mc404 [data-p="patte-av-d"]{transform:rotate(-95deg)}.mc404 [data-p="tete"]{animation:mc404 1.8s ease-in-out 8 alternate}@keyframes mc404{to{transform:rotate(3deg)}}
+@media (prefers-reduced-motion:reduce){.mc404 [data-p="tete"]{animation:none}}` };
+}
 function page404(){
-  return `${tete({ titre: "Cette page n'existe pas | Ose Demander", description: "Cette adresse ne mène à aucune page d'Ose Demander.", theme: "base", robots: "noindex" })}
+  const c = chaton404();
+  return `${tete({ titre: "Cette page n'existe pas | Ose Demander", description: "Cette adresse ne mène à aucune page d'Ose Demander.", theme: "base", robots: "noindex", css: c.css })}
 <body>
 <a class="skip" href="#contenu">Aller au contenu</a>
 <div id="scene" class="scene-home" aria-hidden="true">${HOME_SCENE}</div>
@@ -186,6 +207,7 @@ function page404(){
 <header class="top"><a class="logo" href="/">Ose Demander<span class="q" aria-hidden="true">?</span></a></header>
 <main id="contenu">
 <section class="panel hero">
+<div class="mc404" aria-hidden="true">${c.svg}</div>
 <h1>Cette page n'existe pas</h1>
 <p class="lead">${t("L'adresse est peut-être incomplète ou mal copiée. Si tu as reçu une invitation, demande à la personne qui te l'a envoyée de te renvoyer le lien en entier.")}</p>
 <p class="cta"><a class="btn primary" href="/">Créer ma propre invitation</a></p>
