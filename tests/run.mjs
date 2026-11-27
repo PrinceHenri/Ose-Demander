@@ -5133,7 +5133,8 @@ await test("Lien « Accueil » : après le Oui, le vrai refus, le formulaire de 
    61. Mascottes Lilas et Praline : moteur, dessins, familles (app/mascotte*.js)
    ========================================================= */
 titre("61. Mascottes");
-const MC_FICHIERS = readdirSync(RACINE + "app").filter(f => /^mascotte-[a-z]+[.]js$/.test(f)).sort().map(f => "app/" + f);
+const MC_SCENES = ["app/mascotte-groupe.js"]; // partie B : scènes (groupe, souvenirs, petits écrans), pas des familles
+const MC_FICHIERS = readdirSync(RACINE + "app").filter(f => /^mascotte-[a-z]+[.]js$/.test(f)).sort().map(f => "app/" + f).filter(f => !MC_SCENES.includes(f));
 const MASCOTTE = (() => {
   // Le moteur est évalué ici, avec un faux document (aucun navigateur)
   const env = { window: {}, document: { addEventListener(){}, head: { insertAdjacentHTML(){} } }, matchMedia: () => ({ matches: false }), oseLoaded(){} };
@@ -5335,6 +5336,23 @@ await test("Accessoire de saison de Lilas calé sur le logo de saison (toutes le
   }
   assert.equal(MASCOTTE.accessoire("amour", "lilas", "tete"), "", "aucun accessoire inventé");
   for(const f of ["galette", "famille"]) assert.ok(readFileSync(RACINE + `app/mascotte-${f}.js`, "utf8").includes("acc: {saison: {"), f + " : accessoire « saison » réservé à l'accueil");
+});
+
+await test("Partie B, groupe : scène à part (app/mascotte-groupe.js), décorative, chargée seulement pour une invitation avec chatons ; liste et chiffres toujours dessous", () => {
+  const sc = readFileSync(RACINE + "app/mascotte-groupe.js", "utf8"), inv = readFileSync(RACINE + "app/groupe-invite.js", "utf8"), orga = readFileSync(RACINE + "app/groupe-orga.js", "utf8");
+  assert.ok(gzipSync(sc).length < 5000, `${gzipSync(sc).length} octets compressés`);
+  assert.ok(!/https?:\/\//.test(sc.replace(/\/\*[\s\S]*?\*\//g, "")), "aucune adresse");
+  assert.ok(CSP.FICHIERS.some(x => x.chemin === "app/mascotte-groupe.js"), "versionné");
+  const v = (sc.match(/oseLoaded\("mascotteGroupe", "([0-9a-f]{10})"\)/) || [])[1];
+  assert.ok(v && readFileSync(RACINE + "sw.js", "utf8").includes(`"./app/mascotte-groupe.js?v=${v}"`), "précaché");
+  assert.ok(inv.includes('const grpIllu = (r, a) => MCF && need("mascotte")'), "formulaire : seulement avec chatons (MCF)");
+  assert.ok(orga.includes("const fam=mcFamille(g.inv);") && orga.includes('${fam ? `<div id="orgaIllu" aria-hidden="true"></div>` : ""}'), "tableau : seulement avec chatons, aria-hidden");
+  assert.ok(orga.indexOf('id="orgaIllu"') < orga.indexOf('class="grp-compteurs"') && orga.includes('<ul class="grp-liste">'), "chiffres et liste toujours sous l'illustration");
+  assert.ok(sc.includes('`<div aria-hidden="true"></div><p class="hint grp-legende"></p>`'), "scène décorative, légende du Non lisible hors de la scène");
+  assert.ok(sc.includes('nom.textContent = x.p') && sc.includes("document.createTextNode("), "prénom et mot posés en texte, jamais en HTML");
+  const G = (() => { const w = {addEventListener(){}}; new Function("window", "document", "oseLoaded", "Mascotte", sc)(w, { head: { insertAdjacentHTML(){} } }, () => {}, {}); return w.MascotteGroupe; })();
+  assert.equal(G.decorDe("voyage", "amis"), "bus"); assert.equal(G.decorDe("soiree", "amis"), "canape"); assert.equal(G.decorDe("monanniv", "anniv"), "gateau");
+  assert.equal(G.decorDe("babyshower", "bebe"), "coussins"); assert.equal(G.decorDe("repasfam", "famille"), "table");
 });
 
 await test("Skill ose-design : section des mascottes (format des pièces, règle du vrai refus, poids, fichiers séparés pour les lots suivants)", () => {

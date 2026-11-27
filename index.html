@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'sha256-ToGoeCkUY/WaG8PiJoh+f76mEAcxsA0se90C5g61cf0=' 'sha256-/LiT7bkJniRy2mgz/uaWYagnBdbKShshVa7PSNR0sx0='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' https://ose-liens.osedemander.workers.dev; manifest-src 'self'; worker-src 'self'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'sha256-WOfRARvcPOGhWRmArBqzdzHwc7OjcpOmkpQL4MhQvh0=' 'sha256-/LiT7bkJniRy2mgz/uaWYagnBdbKShshVa7PSNR0sx0='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' https://ose-liens.osedemander.workers.dev; manifest-src 'self'; worker-src 'self'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
 <title>Ose Demander — crée une invitation à laquelle on ne dit pas non</title>
@@ -1190,7 +1190,7 @@ const STEP_TITLES = ["Le modèle","Les prénoms","Quand et où","L'aperçu"];
 // demo : la démo du premier lancement (app/demo.js), chargée seulement quand elle sert (demoAVoir, exemple)
 // scanner : scanner une invitation depuis un QR code (app/scanner.js), chargé au toucher de l'icône
 // groupeCommun : invitations de groupe, chiffrement et service (app/groupe-commun.js), chargé seulement pour un lien #g= ou #ga= ou la création d'un groupe
-const OSE_FILES = {creer:"2e4e91ff8f", scenes:"ad35c435a6", creerCss:"de1fe39325", demo:"def882fa95", groupeCommun:"66e41f012b", groupeInvite:"3419a5a6a6", groupeOrga:"b0a718225b", scanner:"37e73826ea", mascotte:"2a0d05d102", mascotteAmour:"1a0b341c7f", mascotteNoel:"333cca8d65", mascotteNeutre:"639426aca2", mascotteReveillon:"bfe3ce99d4", mascotteGalette:"3ce6f5a9ac", mascotteAnniv:"f31db918ec", mascotteAnnonce:"301bc232b1", mascotteFamille:"288e5ea016", mascotteBebe:"8ead6835c3", mascotteHonneur:"090c7a1757", mascottePaques:"8fae96399e", mascotteAmis:"33350a37f7", mascotteSurprises:"797a854f33", mascotteMusique:"d81590a839", mascotteHalloween:"14d66a36ae"};
+const OSE_FILES = {creer:"2e4e91ff8f", scenes:"ad35c435a6", creerCss:"de1fe39325", demo:"def882fa95", groupeCommun:"66e41f012b", groupeInvite:"8217611bbc", groupeOrga:"7680efb2d3", scanner:"37e73826ea", mascotte:"2a0d05d102", mascotteAmour:"1a0b341c7f", mascotteNoel:"333cca8d65", mascotteNeutre:"639426aca2", mascotteReveillon:"bfe3ce99d4", mascotteGalette:"3ce6f5a9ac", mascotteAnniv:"f31db918ec", mascotteAnnonce:"301bc232b1", mascotteFamille:"288e5ea016", mascotteBebe:"8ead6835c3", mascotteHonneur:"090c7a1757", mascottePaques:"8fae96399e", mascotteAmis:"33350a37f7", mascotteSurprises:"797a854f33", mascotteMusique:"d81590a839", mascotteHalloween:"14d66a36ae", mascotteGroupe:"599d5f81b9"};
 const oseGot = {}, oseNeeds = {};
 const oseLoaded = (name, v) => { oseGot[name]=v; };
 const oseUrl = name => `app/${name==="creerCss" ? "creer.css" : name.replace(/[A-Z]/g, c=>"-"+c.toLowerCase())+".js"}?v=${OSE_FILES[name]}`; // groupeCommun -> groupe-commun.js

@@ -71,6 +71,8 @@ function grpNoterRecue(r){
     localStorage.setItem(RECUES_KEY, JSON.stringify(list));
   }catch(e){}
 }
+// Chatons : app/mascotte-groupe.js
+const grpIllu = (r, a) => MCF && need("mascotte").then(()=>need(mcFichier(MCF))).then(()=>need("mascotteGroupe")).then(()=>MascotteGroupe.invite(r, a)).catch(()=>{});
 const grpResumeTexte = c => c.r==="n" ? "non" : (c.r==="o" ? "oui" : "peut-être") + (c.a ? `, avec ${c.a} personne${c.a>1?"s":""}` : "");
 
 /* Le formulaire, à la place de la carte habituelle. r : réponse proposée (« o » après le Oui, « n » après le vrai refus) */
@@ -90,6 +92,7 @@ function renderGroupeForm(r){
       <p class="occ">${esc(invOccLabel())}</p>
       <h1 class="question" tabindex="-1" style="margin-bottom:8px">${esc(grpT(deja ? "grp.titre.modif" : r==="n" ? "grp.titre.n" : "grp.titre.o"))}</h1>
       <p class="send-lead"><strong>${esc(grpT("grp.lead", {de:D.f})).replace(/^([^:]+:)/, "$1</strong>")}</p>
+      <div id="grpIllu"></div>
       <label class="field"><span>${esc(grpT("grp.prenom"))}</span>
         <input class="input" id="grpP" maxlength="${GRP_PRENOM_MAX}" autocomplete="given-name" value="${esc(v.p)}" required></label>
       <div class="field"><span id="grpRl">${esc(grpT("grp.reponse"))}</span>
@@ -116,7 +119,10 @@ function renderGroupeForm(r){
     choix=b.dataset.grpR;
     $$("[data-grp-r]", main).forEach(x=>x.setAttribute("aria-pressed", x===b));
     $(".grp-avec", main).classList.toggle("hidden", choix==="n");
+    grpIllu(choix, choix==="n" ? 0 : +$("#grpA").value);
   }));
+  $("#grpA").addEventListener("change", e=>grpIllu(choix, +e.target.value));
+  grpIllu(v.r, v.r==="n" ? 0 : v.a);
   $("#grpM").addEventListener("input", e=>{ $("#grpCnt").textContent=`${[...e.target.value].length} / ${GRP_MOT_MAX}`; });
   $("#undoNo")?.addEventListener("click",()=>{ renderInvite(); });
   $("#grpRetirer")?.addEventListener("click",()=>grpRetirerUI(r));
@@ -186,6 +192,7 @@ function renderGroupeEnvoye(c){
     <div class="pop-in">
       <p class="occ">${esc(invOccLabel())}</p>
       <h1 class="question" tabindex="-1" style="margin-bottom:8px">${esc(grpT("grp.ok.titre"))} ✅</h1>
+      <div id="grpIllu"></div>
       <p class="grp-etat" role="status">${esc(grpT("grp.ok.texte", {de:D.f, resume:grpResumeTexte(c)}))}</p>
       ${c.r!=="n" && D.m ? `<p class="handnote">${esc(D.m)}</p>` : ""}
       ${signHTML()}
@@ -196,9 +203,10 @@ function renderGroupeEnvoye(c){
         <p class="cal-note">${esc(grpT("grp.ok.modif"))}</p>
       </div>
     </div>`;
+  grpIllu(c.r, c.a);
   $("#grpModif").addEventListener("click",()=>renderGroupeForm(c.r));
   $("#grpRetirer").addEventListener("click",()=>grpRetirerUI(c.r));
   focusScreen("#main .question");
 }
 
-oseLoaded("groupeInvite", "3419a5a6a6");
+oseLoaded("groupeInvite", "8217611bbc");
