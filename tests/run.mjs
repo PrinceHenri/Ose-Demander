@@ -5223,7 +5223,8 @@ await test("Familles prêtes : Amour (rendez-vous, Saint-Valentin, anniversaire 
 await test("Création : case « Afficher les chatons » cochée par défaut, proposée seulement pour une occasion qui a sa famille, écrite dans le lien seulement alors, récapitulatif, duplication", () => {
   const cr = readFileSync(RACINE + "app/creer.js", "utf8").replace(/\r\n/g, "\n");
   assert.ok(cr.includes("share:true, chatons:true, groupe:false,"), "cochée par défaut");
-  assert.ok(cr.includes('${own(MC_FAMILLES, S.occ) ? `<label class="check" style="margin-top:14px"><input type="checkbox" id="mcInv" ${S.chatons?"checked":""}><span>Afficher les chatons '), "seulement pour une famille prête");
+  assert.ok(cr.includes('${own(MC_FAMILLES, S.occ) ? `<label class="check" style="margin-top:14px"><input type="checkbox" id="mcInv" ${S.chatons?"checked":""}><span>Afficher les chatons</span></label>` : ""}'), "seulement pour une famille prête, libellé seul");
+  assert.ok(cr.includes("<span>Sons dans l'invitation</span></label>"), "son : libellé seul");
   assert.ok(cr.includes("if(S.chatons && own(MC_FAMILLES, S.occ)) d.mc=1;"), "dans le lien seulement pour une famille prête");
   assert.ok(cr.includes('if($("#mcInv")) S.chatons=$("#mcInv").checked;') && cr.includes('$("#mcInv")?.addEventListener("change"'), "relue, aperçu refait");
   assert.ok(cr.includes('own(MC_FAMILLES, S.occ) ? recapRow("Chatons", '), "ligne du récapitulatif");

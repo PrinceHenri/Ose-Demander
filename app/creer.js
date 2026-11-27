@@ -698,8 +698,8 @@ function secStyle(){
       <button type="button" data-anim="0" aria-pressed="${S.anim==="0"}">Aucune</button>
     </div>
     <p class="hint">Le décor bouge en fond, et explose au moment du Oui. Choisis « Aucune » pour une invitation sobre.</p>
-    <label class="check" style="margin-top:14px"><input type="checkbox" id="sndInv" ${S.snd?"checked":""}><span>Sons dans l'invitation <em style="color:var(--muted)">(sons brefs à l'ouverture, au Non et au Oui ; la personne invitée peut toujours les couper)</em></span></label>
-    ${own(MC_FAMILLES, S.occ) ? `<label class="check" style="margin-top:14px"><input type="checkbox" id="mcInv" ${S.chatons?"checked":""}><span>Afficher les chatons <em style="color:var(--muted)">(Lilas et Praline accompagnent l'invitation : sur l'enveloppe, à la question et au moment du Oui)</em></span></label>` : ""}`;
+    <label class="check" style="margin-top:14px"><input type="checkbox" id="sndInv" ${S.snd?"checked":""}><span>Sons dans l'invitation</span></label>
+    ${own(MC_FAMILLES, S.occ) ? `<label class="check" style="margin-top:14px"><input type="checkbox" id="mcInv" ${S.chatons?"checked":""}><span>Afficher les chatons</span></label>` : ""}`;
 }
 function secNo(){
   const t=noTone(S.tone);
@@ -2028,4 +2028,4 @@ async function importHistory(file){
   toast(msg);
 }
 
-oseLoaded("creer", "5818f91409");
+oseLoaded("creer", "7971c8a6b9");

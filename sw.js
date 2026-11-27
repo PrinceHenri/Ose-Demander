@@ -16,7 +16,7 @@ const CORE = [
   // Fichiers chargés à part par index.html : l'empreinte de leur contenu (?v=) est écrite par node outils/csp.mjs.
   // Gardés dès l'installation : une invitation ouverte une fois s'affiche sans réseau, scènes comprises.
   "./app/scenes.js?v=ad35c435a6",
-  "./app/creer.js?v=5818f91409",
+  "./app/creer.js?v=7971c8a6b9",
   "./app/demo.js?v=def882fa95",
   "./app/scanner.js?v=37e73826ea",
   "./app/groupe-orga.js?v=fcaf1585d0",
