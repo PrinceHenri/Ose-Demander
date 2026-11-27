@@ -184,7 +184,7 @@ const S = {
   date:"", time:"", choose:false, slots:[{d:"",t:""},{d:"",t:""}],
   q:"", qEdited:false, msg:"", hidden:false,
   no:"fuit", tone:"taquin", ch:"any", chId:"", link:"",
-  ac:"", em:"", sg:"", snd:true, intro:false, share:true, chatons:true, groupe:false, orgaLink:"",
+  ac:"", em:"", sg:"", snd:true, intro:false, chatons:true, groupe:false, orgaLink:"",
   moreOpen:false, open:new Set(), err:"", errSec:""
 };
 
@@ -435,7 +435,7 @@ function screenHTML(){
       ${recapRow("Le Non", esc(NO_MODES.find(m=>m.id===S.no).t)+" · ton "+esc(noTone(S.tone).t.toLowerCase()), 'data-goto="no"')}
       ${S.groupe ? recapRow("Réponses", "Chaque personne répond depuis le lien", 'data-edit="2"')
         : recapRow("Réponse via", esc(CHANNELS.find(c=>c.id===S.ch).t)+(S.chId?" ("+esc(S.chId)+")":""), 'data-goto="reply"')
-          + recapRow("Partage", S.share ? "Autorisé, sans le lieu ni les surprises" : "<em>Non autorisé</em>", 'data-goto="reply"')}
+}
     </ul>
     <details class="more" id="more" ${S.moreOpen?"open":""}>
       <summary>Personnaliser davantage</summary>
@@ -542,7 +542,7 @@ function recapRow(label, value, attr){
   return `<li><div><b>${label}</b><span>${value}</span></div><button type="button" class="linkbtn" ${attr} aria-label="Modifier : ${label}">Modifier</button></li>`;
 }
 function section(key, title, body){
-  return `<details class="sec" data-sec="${key}" ${S.open.has(key)?"open":""}><summary>${title}</summary>
+  return `<details class="sec" name="perso" data-sec="${key}" ${S.open.has(key)?"open":""}><summary>${title}</summary>
     <div class="sec-body">${S.errSec===key ? `<p class="error" role="alert">${esc(S.err)}</p>` : ""}${body}</div></details>`;
 }
 
@@ -698,8 +698,8 @@ function secStyle(){
       <button type="button" data-anim="0" aria-pressed="${S.anim==="0"}">Aucune</button>
     </div>
     <p class="hint">Le décor bouge en fond, et explose au moment du Oui. Choisis « Aucune » pour une invitation sobre.</p>
-    <label class="check" style="margin-top:14px"><input type="checkbox" id="sndInv" ${S.snd?"checked":""}><span>Sons dans l'invitation <em style="color:var(--muted)">(sons brefs à l'ouverture, au Non et au Oui ; la personne invitée peut toujours les couper)</em></span></label>
-    ${own(MC_FAMILLES, S.occ) ? `<label class="check" style="margin-top:14px"><input type="checkbox" id="mcInv" ${S.chatons?"checked":""}><span>Afficher les chatons <em style="color:var(--muted)">(Lilas et Praline accompagnent l'invitation : sur l'enveloppe, à la question et au moment du Oui)</em></span></label>` : ""}`;
+    <label class="check" style="margin-top:14px"><input type="checkbox" id="sndInv" ${S.snd?"checked":""}><span>Sons dans l'invitation</span></label>
+    ${own(MC_FAMILLES, S.occ) ? `<label class="check" style="margin-top:14px"><input type="checkbox" id="mcInv" ${S.chatons?"checked":""}><span>Afficher les chatons</span></label>` : ""}`;
 }
 function secNo(){
   const t=noTone(S.tone);
@@ -718,10 +718,7 @@ function secReply(){
       <p class="hint">${S.ch==="any" ? "L'appli sera choisie au moment de répondre." : tel ? "Le message s'ouvrira déjà écrit, il n'y aura plus qu'à l'envoyer." : "Cette appli ne permet pas de pré-écrire le message : la réponse sera copiée, il suffira de la coller."}</p>
     </div>
     ${ch.need ? `<label class="field"><span>${tel?"Ton numéro":"Ton nom d'utilisateur"}</span><input class="input" id="chId" maxlength="40" placeholder="${ch.ph}" value="${esc(S.chId)}" ${tel?'inputmode="tel"':''}></label>
-    <p class="hint">Il sera inclus dans le lien, visible seulement par les personnes qui l'ont.</p>` : ""}
-    <p class="group-title">Après le Oui</p>
-    <label class="check"><input type="checkbox" id="allowShare" ${S.share?"checked":""}><span>Autoriser le partage de la surprise</span></label>
-    <p class="hint">${esc(S.to||"La personne invitée")} pourra montrer l'invitation à ses proches : une version en lecture seule, sans le lieu, les surprises, le message caché ni tes coordonnées.</p>`;
+    <p class="hint">Il sera inclus dans le lien, visible seulement par les personnes qui l'ont.</p>` : ""}`;
 }
 function occLabel(){ if(S.occ==="libre") return S.occFree || "Autre"; return OCC[S.occ]?.label || ""; }
 function itemRecap(it){ return it.v==="s" ? "Surprise"+(it.h?` (indice : ${esc(it.h)})`:"") : it.v==="r" ? `${esc(it.x)} <em>(révélé le ${esc(it.at.replace("T"," à "))})</em>` : esc(it.x); }
@@ -745,7 +742,6 @@ function readAll(){
   if($("#msg")) S.msg=$("#msg").value.trim();
   if($("#hidden")) S.hidden=$("#hidden").checked;
   if($("#mcInv")) S.chatons=$("#mcInv").checked;
-  if($("#allowShare")) S.share=$("#allowShare").checked; // (pas « share » : c'est l'identifiant du bouton « Partager le lien »)
   if($("#chId")) S.chId=v("chId");
   if($("#sg")) S.sg=v("sg");
   if($("#sndInv")) S.snd=$("#sndInv").checked;
@@ -795,12 +791,47 @@ function showErr(e){
   if(typeof e.go==="number") go(e.go);
   else { S.errSec=e.go; openSection(e.go); }
 }
-function go(step){ S.step=step; S.link=""; renderCreator(); window.scrollTo({top:0}); focusScreen(step==="home" ? ".hero h1" : ".panel h2"); Sound.step(); }
+function go(step, depuisHistorique){ if(!depuisHistorique) navAller(step); S.step=step; S.link=""; renderCreator(); window.scrollTo({top:0}); focusScreen(step==="home" ? ".hero h1" : ".panel h2"); Sound.step(); }
+/* Historique de la création (voir NAV dans index.html) : une entrée par écran, dans l'ordre accueil, 1, 2, 3, 4.
+   Avancer ajoute les écrans traversés ; reculer (bouton « Retour », « Modifier ») revient sur les entrées déjà là,
+   pour que le retour du téléphone mène toujours à l'écran d'avant, exactement comme le bouton « Retour ». */
+const RANG_ECRAN = s => s==="home" ? 0 : +s;
+const navSur = e => RANG_ECRAN(e)>=2 && !S.tpl ? 1 : e; // formulaire vide (page rechargée) : le choix du modèle
+function navAller(step){
+  const st=navEtat(), cur = st && st.ecran!==undefined && st.ecran!=="lien" ? st.ecran : S.step, c = st && st.c || 0;
+  const d=RANG_ECRAN(step)-RANG_ECRAN(cur);
+  if(d>0){ for(let r=RANG_ECRAN(cur)+1, k=c+1; r<=RANG_ECRAN(step); r++, k++) navPousser({ecran:r, c:k}); return; }
+  const pas=-d + (st && st.perso ? 1 : 0);
+  if(d<0 && -d<=c && history.go) history.go(-pas); // les entrées existent : on y revient (l'écran est déjà affiché)
+  else if(d<0 || (st && st.perso)) history.replaceState && history.replaceState({ose:1, ecran:step, c:Math.max(0, c+d)}, "", location.href);
+}
+/* Retour du téléphone dans la création : l'écran de l'entrée, ou « Personnaliser davantage » refermé */
+function navEcran(st){
+  if(location.hash || typeof S==="undefined") return;
+  const e = navSur(st && st.ecran!==undefined && st.ecran!=="lien" ? st.ecran : "home"), more=!!(st && st.perso);
+  if(e===S.step){ const m=$("#more"); if(m && m.open!==more){ S.moreOpen=more; m.open=more; } return; }
+  S.moreOpen=more; go(e, true);
+}
 function openSection(key){
-  S.step=4; S.moreOpen=true; S.open.add(key); renderCreator();
-  $(`details[data-sec="${key}"]`)?.scrollIntoView({block:"start"});
+  S.step=4; S.moreOpen=true; S.open=new Set([key]); renderCreator();
+  secDefiler($(`details[data-sec="${key}"]`));
 }
 
+/* « Personnaliser davantage » en accordéon : une seule section ouverte (name="perso" ; repli pour les navigateurs qui
+   ignorent name : les autres sont refermées ici). Ouverte par la personne : défilement doux jusqu'à son titre. */
+const secDefiler = d => d && requestAnimationFrame(()=>d.scrollIntoView({block:"start", behavior: REDUCED ? "auto" : "smooth"}));
+function bindAccordeon(){
+  let voulu="";
+  $$("details[data-sec]").forEach(d=>{
+    d.querySelector("summary").addEventListener("click",()=>{ voulu=d.dataset.sec; });
+    d.addEventListener("toggle",()=>{
+      if(!d.open){ S.open.delete(d.dataset.sec); return; }
+      S.open=new Set([d.dataset.sec]);
+      $$("details[data-sec]").forEach(o=>{ if(o!==d && o.open) o.open=false; });
+      if(voulu===d.dataset.sec){ voulu=""; secDefiler(d); }
+    });
+  });
+}
 /* Accueil : le mini-billet vivant. Le Non s'esquive dans le billet (ton taquin), le Oui lance la création.
    Animations coupées (réglage ou « moins de mouvement ») : le Non ne bouge pas, seule la phrase change. */
 function bindDemoTicket(){
@@ -868,8 +899,10 @@ function bindCreator(){
   $("#back")?.addEventListener("click",()=>{ readAll(); go(S.step===1 ? "home" : S.step-1); });
   $$("[data-edit]").forEach(b=>b.addEventListener("click",()=>{ readAll(); go(+b.dataset.edit); }));
   $$("[data-goto]").forEach(b=>b.addEventListener("click",()=>{ readAll(); openSection(b.dataset.goto); }));
-  $("#more")?.addEventListener("toggle",e=>{ S.moreOpen=e.target.open; });
-  $$("details[data-sec]").forEach(d=>d.addEventListener("toggle",()=>{ d.open ? S.open.add(d.dataset.sec) : S.open.delete(d.dataset.sec); }));
+  $("#more")?.addEventListener("toggle",e=>{ S.moreOpen=e.target.open; const st=navEtat();
+    if(e.target.open && !(st && st.perso)) navPousser({...(st||{ecran:S.step, c:0}), perso:1}); // une entrée : le retour le referme
+    else if(!e.target.open && st && st.perso) history.back(); });
+  bindAccordeon();
 
   // Occasion et style
   on("[data-occ]", b=>{ S.occ=b.dataset.occ; if(!S.themeManual){ S.theme=OCC[S.occ].createTheme||OCC[S.occ].theme; fixAccent(); } if(!S.qEdited) S.q=OCC[S.occ].q; });
@@ -1301,7 +1334,6 @@ async function buildLink(nz, gp){
   if(S.anim!=="n") d.an=S.anim;
   if(S.ac) d.ac=S.ac; if(S.em) d.em=S.em; if(S.sg) d.sg=S.sg;
   if(!S.snd) d.so=0;
-  if(!S.share) d.pa=0; // partage de la surprise refusé (absent = autorisé)
   if(S.chatons && own(MC_FAMILLES, S.occ)) d.mc=1; // chatons : seulement pour une occasion qui a sa famille
   if(nz) d.nz=nz; // notification de réponse (voir subscribeNotif)
   if(S.msg){ d.m=S.msg; if(S.hidden) d.mh=1; }
@@ -1408,10 +1440,12 @@ function validEntry(x){
 // l'invitation ne s'ouvre plus, ici non plus (ce que la personne qui l'a créée attend)
 // rep : "o" (Acceptée, au Oui) ou "n" (Refusée, au vrai refus), repAt : date ; repSlot : créneau choisi ;
 // ag : titre et lieu tels qu'affichés à la personne invitée, heure de fin (pour l'agenda, sans rouvrir le lien)
-const RECUE_FIELDS=["id","from","to","occ","occFree","when","link","created","mc","rep","repAt","repSlot","ag","gr"];
+const RECUE_FIELDS=["id","from","to","occ","occFree","when","link","created","mc","rep","repAt","repSlot","ag","gr","th","ac"];
+// th, ac : thème et couleur d'accent de l'invitation (couleurs de « Partager en story »), absents des anciennes entrées
 // gr : réponse envoyée à une invitation de groupe (« o », « p » ou « n ») ; Oui = Acceptée, Non = Refusée, Peut-être = « Peut-être »
 function validRecue(x){
   if(!x || typeof x!=="object" || Array.isArray(x) || Object.keys(x).some(k=>!RECUE_FIELDS.includes(k)) || !validCommun(x)) return false;
+  if((x.th!==undefined && !THEMES.some(t=>t.id===x.th)) || (x.ac!==undefined && !ACCENTS.some(a=>a.id===x.ac))) return false;
   if(x.gr!==undefined && (!GRP_LINK.test(hashOf(x.link)) || !["o","p","n"].includes(x.gr) || (x.gr==="p" ? x.rep!==undefined : x.rep!==x.gr))) return false;
   if(x.rep===undefined) return x.repAt===undefined && x.repSlot===undefined && x.ag===undefined;
   const ag=x.ag, okAg = ag && typeof ag==="object" && !Array.isArray(ag) && Object.keys(ag).every(k=>["t","l","e"].includes(k))
@@ -1675,6 +1709,11 @@ function aReponduGroupe(link){
   const g=GRP_LINK.exec(hashOf(link)); if(!g) return "";
   try{ const x=JSON.parse(localStorage.getItem("ose-groupe-rep")||"{}"); return x && typeof x==="object" && x[g[1]] ? g[1] : ""; }catch(e){ return ""; }
 }
+/* « Partager en story » depuis une Reçue acceptée : mêmes données que juste après le Oui (storyInfo, index.html) */
+function storyInfoRecue(b){
+  const id=b.closest("li[data-id]")?.dataset.id, it=loadRecues().find(x=>x.id===id); if(!it || it.rep!=="o") return null;
+  return storyInfo({th:it.th||OCC[it.occ]?.theme, ac:it.ac, o:it.occ, mc:it.mc, f:it.from}, !!it.gr);
+}
 function histCardRecue(it){
   return `
         <li data-id="${esc(it.id)}">
@@ -1688,6 +1727,7 @@ function histCardRecue(it){
           <div class="acts">
             <button type="button" class="btn sm primary" data-act="open">Ouvrir</button>
             ${rdvSlot(it, true)!==null && !rdvPasse(it, rdvSlot(it, true)) ? agendaBtns() : ""}
+            ${it.rep==="o" ? storyBtnHTML("recue", "btn sm") : ""}
             ${aReponduGroupe(it.link) ? `<button type="button" class="btn sm" data-act="retirer">Supprimer ma réponse</button>` : ""}
             <button type="button" class="btn sm ghost" data-act="del">Retirer de l'historique</button>
           </div>
@@ -1933,7 +1973,7 @@ async function duplicateInvitation(it){
     slots:d.sl ? d.sl.map(s=>({d:s[0],t:s[1]})) : [{d:"",t:""},{d:"",t:""}],
     q:d.q, qEdited:!o||d.q!==o.q, msg:d.m||"", hidden:!!d.mh,
     no:d.n, tone:d.tn||"taquin", ch:d.c, chId:d.ci||"", link:"",
-    ac:d.ac||"", em:d.em||"", sg:d.sg||"", snd:d.so!==0, share:d.pa!==0, chatons:d.mc===1
+    ac:d.ac||"", em:d.em||"", sg:d.sg||"", snd:d.so!==0, chatons:d.mc===1
   });
   location.hash=""; // retour au formulaire (voir route)
   window.scrollTo({top:0});
@@ -2028,4 +2068,4 @@ async function importHistory(file){
   toast(msg);
 }
 
-oseLoaded("creer", "5818f91409");
+oseLoaded("creer", "fddfca90ba");

@@ -1548,31 +1548,31 @@ await test("Écran partagé : lecture seule, « Gardé secret 🤫 », une seule
   assert.ok(!/[←→]| · /.test(main), "ni flèche ni « · »");
   assert.ok(PAGE.lire("route").toString().includes("if(D.vu){ Sound.init(); renderShared(); }"), "le lien partagé ouvre cet écran");
 });
-await test("Après le Oui : « Partager la surprise » secondaire, si autorisé et le créneau choisi", () => {
-  const actions = (d, slot = null) => { ouvrir(d, slot); PAGE.ecrire("shareState", d.pa === 0 ? "none" : "ok"); return PAGE.lire("actionsHTML")(); };
+await test("Après le Oui : « Partager en story » secondaire remplace « Partager la surprise » (plus aucun lien partagé n'est créé ; les anciens s'ouvrent toujours)", () => {
+  const actions = (d, slot = null) => { ouvrir(d, slot); return PAGE.lire("actionsHTML")(); };
   const h = actions(INV());
-  assert.ok(h.includes('<button type="button" class="btn" id="shareSur">Partager la surprise</button>'), "bouton secondaire");
-  assert.ok(!actions(INV({ pa: 0 })).includes("shareSur"), "refusé par le créateur : pas de bouton");
-  assert.ok(!actions(INV({ d: undefined, h: undefined, sl: [["2026-11-14", "20:00"], ["2026-11-21", "20:00"]] })).includes("shareSur"), "créneau pas encore choisi");
+  assert.ok(h.includes('<button type="button" class="btn" data-story="inv">Partager en story</button>'), "bouton secondaire");
+  assert.ok(actions(INV({ pa: 0 })).includes("data-story"), "ancien réglage pa:0 : la story ne montre rien de l'invitation, toujours proposée");
+  assert.ok(actions(INV({ d: undefined, h: undefined, sl: [["2026-11-14", "20:00"], ["2026-11-21", "20:00"]] })).includes("data-story"), "même avant le choix du créneau");
+  assert.ok(!actions(INV({ vu: 1 })).includes("data-story"), "pas sur une version partagée (celle de quelqu'un d'autre)");
+  assert.ok(!h.includes("shareSur") && !h.includes("Partager la surprise"));
   const prep = PAGE.lire("prepReminder").toString();
-  assert.ok(prep.includes('if(D.pa===0 || D.vu) shareState="none";') && prep.includes("shareData(D, slot)"));
-  ouvrir(INV()); PAGE.ecrire("shareState", "ok"); PAGE.ecrire("remState", "ok");
+  assert.ok(!prep.includes("shareData"), "plus de lien partagé créé");
+  ouvrir(INV()); PAGE.ecrire("remState", "ok");
   const page = PAGE.lire("ticketHTML")(PAGE.lire("afterHTML")("C'est un oui !", ""));
   assert.equal(principales(page).length, 1, "toujours une seule action principale (la réponse)");
 });
-await test("Création : « Autoriser le partage » activé par défaut, pa = 0 seulement s'il est décoché", async () => {
+await test("Création : plus de case « Autoriser le partage de la surprise » (pa n'est plus écrit) ; pa reste décodé pour les anciens liens", async () => {
   const S = PAGE.lire("S"), lien = PAGE.lire("buildLink"), dec = PAGE.lire("decodeData");
   const lire = async () => { const u = await lien(); return dec(u.slice(u.indexOf("#i=") + 3)); };
   Object.assign(S, { from: "Alex", to: "Sam", date: "2027-10-31", time: "20:00", choose: false, mode: "one", occ: "date", ch: "any", chId: "" });
-  assert.equal(S.share, true, "activé par défaut");
-  assert.ok(!("pa" in await lire()), "autorisé : rien dans le lien (comme les anciens liens)");
-  S.share = false; assert.equal((await lire()).pa, 0);
-  Object.assign(S, { step: 4, link: "" }); PAGE.lire("renderCreator")();
-  assert.ok(PAGE.zones["#app"].innerHTML.includes("<b>Partage</b><span><em>Non autorisé</em></span>"), "récapitulatif");
-  S.share = true; S.open.add("reply"); PAGE.lire("renderCreator")();
+  assert.ok(!("share" in S), "plus de réglage");
+  assert.ok(!("pa" in await lire()), "rien dans le lien");
+  Object.assign(S, { step: 4, link: "" }); S.open = new Set(["reply"]); PAGE.lire("renderCreator")();
   const h = PAGE.zones["#app"].innerHTML;
-  assert.ok(h.includes('<input type="checkbox" id="allowShare" checked><span>Autoriser le partage de la surprise</span>'), "case à cocher");
-  Object.assign(S, { step: "home", occ: "juste" }); S.open.delete("reply");
+  assert.ok(!h.includes("allowShare") && !h.includes("<b>Partage</b>") && !h.includes("Autoriser le partage"), "ni case ni ligne du récapitulatif");
+  assert.ok(L.LINK_KEYS.includes("P"), "pa toujours connu du décodage");
+  Object.assign(S, { step: "home", occ: "juste" }); S.open = new Set();
 });
 
 /* =========================================================
@@ -1851,23 +1851,21 @@ await test("« Mes invitations » : lien court, lien complet et jeton validés s
 titre("20. Liens courts du rappel et du partage");
 const attendre = async cond => { for(let i = 0; i < 200 && !cond(); i++) await new Promise(r => setTimeout(r, 10)); };
 const relire = async lien => { const [, id, key] = lien.match(/#s=([A-Za-z0-9_-]{22})\.([A-Za-z0-9_-]{22})$/) || []; assert.ok(id, `lien court attendu : ${lien.slice(0, 60)}`); return L.decodeData(await PAGE.lire("readShort")(id, key)); };
-const apresOuiCourt = async d => { ouvrir(d); PAGE.ecrire("remState", "wait"); PAGE.lire("prepReminder")(); await attendre(() => PAGE.lire("remState") !== "wait" && PAGE.lire("shareState") !== "wait"); return [PAGE.lire("remLink"), PAGE.lire("shareLink")]; };
-await essaiWorker("Après le Oui : rappel et partage en liens courts, chacun avec son propre contenu allégé", async () => {
+const apresOuiCourt = async d => { ouvrir(d); PAGE.ecrire("remState", "wait"); PAGE.lire("prepReminder")(); await attendre(() => PAGE.lire("remState") !== "wait"); return [PAGE.lire("remLink")]; };
+await essaiWorker("Après le Oui : le rappel en lien court, avec son propre contenu allégé ; plus aucun lien de partage déposé", async () => {
   const r = reseau(); brancher(r);
   const d = INV({ m: "Secret", mh: 1, l: { v: "v", x: "Restaurant de l'Exemple" } });
-  const [rem, part] = await apresOuiCourt(d);
-  const dr = await relire(rem), dp = await relire(part);
+  const [rem] = await apresOuiCourt(d);
+  const dr = await relire(rem);
   assert.deepEqual(dr, PAGE.lire("reminderData")(d, null), "rappel : contenu de reminderData");
   assert.equal(dr.rv, 1); assert.ok(!("ci" in dr), "rappel : sans le numéro du créateur");
-  assert.deepEqual(dp, PAGE.lire("shareData")(d, null), "partage : contenu de shareData");
-  assert.equal(dp.vu, 1); assert.ok(!("l" in dp) && !("m" in dp) && !("ci" in dp), "partage : sans lieu, message caché ni numéro");
-  assert.notEqual(rem.split("#s=")[1].split(".")[1], part.split("#s=")[1].split(".")[1], "deux clés différentes");
+  assert.equal(r.journal.filter(q => q.body.includes('"ct"')).length, 1, "un seul dépôt : le rappel");
   for(const req of r.journal) assert.ok(!req.body.includes("Restaurant") && !req.url.includes(rem.split(".").pop()), "rien en clair, aucune clé envoyée");
 });
-await essaiWorker("Repli : service muet, le rappel et le partage gardent le lien complet ; exemple : jamais de dépôt", async () => {
+await essaiWorker("Repli : service muet, le rappel garde le lien complet ; exemple : jamais de dépôt", async () => {
   PAGE.ecrire("shortFetch", async () => { throw new TypeError("Failed to fetch"); });
-  const [rem, part] = await apresOuiCourt(INV());
-  assert.ok(rem.includes("#i=") && part.includes("#i="), "liens complets");
+  const [rem] = await apresOuiCourt(INV());
+  assert.ok(rem.includes("#i="), "lien complet");
   assert.equal((await L.decodeData(rem.split("#i=")[1])).rv, 1);
   const r = reseau(); brancher(r); PAGE.ecrire("EXAMPLE", true);
   const [rem2] = await apresOuiCourt(INV());
@@ -1882,11 +1880,11 @@ await essaiWorker("Carte ouverte depuis un lien de rappel court : ce même lien 
   const [rem] = await apresOuiCourt(d);
   PAGE.lire("location").hash = "";
   assert.equal(rem, sh.link);
-  assert.equal(r.journal.filter(q => q.body.includes('"ct"')).length - n, 1, "seulement le lien de partage est déposé");
+  assert.equal(r.journal.filter(q => q.body.includes('"ct"')).length - n, 0, "aucun dépôt");
 });
-await test("Cas où le partage n'est pas proposé : aucun dépôt (refusé par le créateur ou version partagée)", () => {
+await test("Plus aucun lien « Partager la surprise » n'est créé (remplacé par la story, faite sur l'appareil)", () => {
   const src = PAGE.lire("prepReminder").toString();
-  assert.ok(src.indexOf('if(D.pa===0 || D.vu) shareState="none";') < src.indexOf("encodeData(shareData(D, slot)).then(publish)"));
+  assert.ok(!src.includes("shareData") && !src.includes("shareState"));
 });
 
 /* =========================================================
@@ -1943,7 +1941,7 @@ await test("Invitation : aucun identifiant en double (enveloppe, question, aprè
 await test("« Partager le lien » est branché sur le bouton, la case de partage a son propre identifiant", () => {
   const src = PAGE.lire("bindCreator").toString(), lire = PAGE.lire("readAll").toString();
   assert.ok(src.includes('$("#share")?.addEventListener("click",()=>navigator.share('));
-  assert.ok(lire.includes('$("#allowShare").checked') && !lire.includes('$("#share")'));
+  assert.ok(!lire.includes("allowShare") && !lire.includes('$("#share")'), "plus de case de partage ; « share » reste l'identifiant du bouton");
 });
 
 /* =========================================================
@@ -3239,14 +3237,16 @@ await test("Rien que la CSP bloquerait : ni gestionnaire on…= dans le HTML, ni
   const appels = [...code.matchAll(/fetch\(\s*["'`](https?:\/\/[^/"'`]+)/g)].map(m => m[1]);
   for(const o of appels) assert.ok(CSP.CONNEXIONS.includes(o), `connexion à ${o} non autorisée par la CSP`);
 });
-await test("Pages statiques (occasions, 404, suppression, mentions légales) : CSP stricte, aucun script exécuté", () => {
+await test("Pages statiques (occasions, 404, suppression, mentions légales) : CSP stricte ; seul script : celui des mentions légales, par son empreinte", () => {
   const pages = { ...Object.fromEntries(Object.entries(FAB).filter(([n]) => n.endsWith(".html"))), "mentions-legales.html": lireFichier("mentions-legales.html") };
   assert.ok(Object.keys(pages).length >= 9);
   for(const [nom, h] of Object.entries(pages)){
-    assert.equal(CSP.cspDe(h), CSP.CSP_STATIQUE, nom);
+    const ml = nom === "mentions-legales.html";
+    assert.equal(CSP.cspDe(h), ml ? CSP.cspMentions(CSP.empreinteMentions(h)) : CSP.CSP_STATIQUE, nom);
     assert.ok(h.indexOf("Content-Security-Policy") < h.search(/<script|<style|<link/), `${nom} : balise en tête`);
-    assert.ok(!/<script(?![^>]*type="application\/ld\+json")/.test(h), `${nom} : script exécuté`);
+    assert.equal((h.match(/<script(?![^>]*type="application\/ld\+json")/g) || []).length, ml ? 1 : 0, `${nom} : scripts exécutés`);
   }
+  assert.ok(!CSP.cspMentions("sha256-x").includes("unsafe-inline'; script") && !/script-src[^;]*unsafe-inline/.test(CSP.cspMentions("sha256-x")), "jamais 'unsafe-inline' pour un script");
 });
 
 /* =========================================================
@@ -4753,7 +4753,7 @@ await essaiWorker("Lien organisateur sur un autre appareil : réponses déchiffr
   assert.ok(hist[0].orga.endsWith(`#ga=${g.id}.${g.key}.${g.d}`));
   assert.deepEqual(hist[0].grs, { o: 2, p: 1, n: 1, pers: 4 }, "résumé gardé (des nombres seulement)");
   assert.ok(!P.location.hash.includes(g.d), "la clé privée ne reste pas dans l'adresse");
-  assert.ok(P.lire("renderTableau").toString().includes('history.replaceState(null, "", location.pathname+"#groupe="+id)'));
+  assert.ok(P.lire("renderTableau").toString().includes('history.replaceState(history.state, "", location.pathname+"#groupe="+id)'));
   // Rouvert par #groupe=ID : relu dans « Mes invitations »
   const Q = await tableauDeTest(g, { id: g.id }, stockage);
   assert.ok(/grp-cpt-o"><b>2<\/b>/.test(Q.zones["#app"].innerHTML));
@@ -5222,12 +5222,13 @@ await test("Familles prêtes : Amour (rendez-vous, Saint-Valentin, anniversaire 
 });
 await test("Création : case « Afficher les chatons » cochée par défaut, proposée seulement pour une occasion qui a sa famille, écrite dans le lien seulement alors, récapitulatif, duplication", () => {
   const cr = readFileSync(RACINE + "app/creer.js", "utf8").replace(/\r\n/g, "\n");
-  assert.ok(cr.includes("share:true, chatons:true, groupe:false,"), "cochée par défaut");
-  assert.ok(cr.includes('${own(MC_FAMILLES, S.occ) ? `<label class="check" style="margin-top:14px"><input type="checkbox" id="mcInv" ${S.chatons?"checked":""}><span>Afficher les chatons '), "seulement pour une famille prête");
+  assert.ok(cr.includes("intro:false, chatons:true, groupe:false,"), "cochée par défaut");
+  assert.ok(cr.includes('${own(MC_FAMILLES, S.occ) ? `<label class="check" style="margin-top:14px"><input type="checkbox" id="mcInv" ${S.chatons?"checked":""}><span>Afficher les chatons</span></label>` : ""}'), "seulement pour une famille prête, libellé seul");
+  assert.ok(cr.includes("<span>Sons dans l'invitation</span></label>"), "son : libellé seul");
   assert.ok(cr.includes("if(S.chatons && own(MC_FAMILLES, S.occ)) d.mc=1;"), "dans le lien seulement pour une famille prête");
   assert.ok(cr.includes('if($("#mcInv")) S.chatons=$("#mcInv").checked;') && cr.includes('$("#mcInv")?.addEventListener("change"'), "relue, aperçu refait");
   assert.ok(cr.includes('own(MC_FAMILLES, S.occ) ? recapRow("Chatons", '), "ligne du récapitulatif");
-  assert.ok(cr.includes("share:d.pa!==0, chatons:d.mc===1"), "duplication : réglage repris du lien");
+  assert.ok(cr.includes("snd:d.so!==0, chatons:d.mc===1"), "duplication : réglage repris du lien");
 });
 
 /* =========================================================
@@ -5363,7 +5364,7 @@ await test("Partie B, Mes invitations : chatons sur les cartes acceptées d'une 
   assert.ok(v && readFileSync(RACINE + "sw.js", "utf8").includes(`"./app/mascotte-souvenirs.js?v=${v}"`) && CSP.FICHIERS.some(x => x.chemin === "app/mascotte-souvenirs.js"), "versionné, précaché");
   assert.ok(cr.includes('"created","mc",') && cr.split('"created","mc",').length === 3, "mc dans les champs des Envoyées et des Reçues");
   assert.ok(cr.includes("(x.mc===undefined || x.mc===1)"), "mc validé : 1 seulement");
-  assert.ok(cr.includes("  if(d.mc===1) e.mc=1;\n") && idx.includes("  if(d.mc===1) e.mc=1;\n  return e;"), "posé à l'enregistrement (Envoyées, Reçues)");
+  assert.ok(cr.includes("  if(d.mc===1) e.mc=1;\n") && idx.includes("  if(d.mc===1) e.mc=1;\n"), "posé à l'enregistrement (Envoyées, Reçues)");
   assert.ok(cr.includes('`<div class="hist-chatons" aria-hidden="true" data-mc-fam="${mcHistFam(it)}"'), "décoratif, seulement avec une famille");
   assert.ok(cr.includes("${s!==null ? mcHistHTML(it, s) + reboursHTML(it, s) : \"\"}"), "à côté du compte à rebours");
   assert.ok(sc.includes('famille: jour ? fam : ""') && sc.includes('c.etat("attente", {yeux: "fermes"})'), "accessoire le jour J seulement, endormis dans les souvenirs");
@@ -5400,6 +5401,204 @@ await test("Skill ose-design : section des mascottes (format des pièces, règle
   assert.ok(sk.includes("## 2 duovicies. Mascottes Lilas et Praline"));
   for(const p of MASCOTTE.pieces.filter(p => p !== "regard" && p !== "effets")) assert.ok(sk.includes("`" + p + "`"), `pièce ${p} documentée`);
   assert.ok(sk.includes("jamais de bouderie ni de tristesse") && sk.includes("sous 10 Ko compressés") && sk.includes("fichiers séparés"));
+});
+
+titre("65. Création : « Personnaliser davantage » en accordéon");
+
+await test("Une seule section ouverte (name partagé + repli en JS), défilement doux jusqu'au titre à l'ouverture par la personne, instantané avec « moins de mouvement »", () => {
+  const cr = readFileSync(RACINE + "app/creer.js", "utf8").replace(/\r\n/g, "\n"), css = readFileSync(RACINE + "app/creer.css", "utf8");
+  assert.ok(cr.includes('<details class="sec" name="perso" data-sec="${key}"'), "name commun");
+  assert.equal((cr.match(/<details /g) || []).length, 2, "aucune autre section dépliable dans la création");
+  assert.ok(cr.includes('$$("details[data-sec]").forEach(o=>{ if(o!==d && o.open) o.open=false; });'), "repli : les autres se ferment");
+  assert.ok(cr.includes('S.open=new Set([d.dataset.sec]);') && cr.includes('S.open=new Set([key]);') && !cr.includes("S.open.add("), "une seule section retenue");
+  assert.ok(cr.includes('behavior: REDUCED ? "auto" : "smooth"'), "moins de mouvement : instantané");
+  assert.ok(cr.includes('if(voulu===d.dataset.sec){ voulu=""; secDefiler(d); }'), "défilement seulement à l'ouverture par la personne (pas au rendu)");
+  assert.ok(/\.sec\{[^}]*scroll-margin-top/.test(css), "titre pas collé au bord");
+});
+
+titre("66. Bouton retour du téléphone");
+
+await test("Création : une entrée d'historique par écran (accueil, 1, 2, 3, 4), reculer revient sur ces entrées, l'adresse ne change jamais", async () => {
+  const P = chargerPage(), H = P.history, S = () => P.lire("S"), go = P.lire("go");
+  await P.lire("route")();
+  assert.deepEqual(H.state, { ose: 1, ecran: "home", c: 0 }, "premier écran marqué, sans entrée ajoutée");
+  assert.equal(H.length, 1);
+  go(1); P.lire("applyTemplate")("rdv"); go(2); go(3);
+  assert.deepEqual(H.pile.map(e => e.state.ecran), ["home", 1, 2, 3], "une entrée par écran");
+  assert.equal(P.location.hash, "", "adresse inchangée");
+  go(4); assert.deepEqual(H.state, { ose: 1, ecran: 4, c: 4 });
+  go(2); assert.deepEqual(H.deplacements, [-2], "« Modifier » vers l'étape 2 : on revient sur les entrées existantes (pas de nouvelle entrée)");
+  assert.equal(S().step, 2);
+  // Saut en avant (depuis l'accueil, un modèle de saison ouvre l'étape 2) : les écrans traversés sont ajoutés
+  const P2 = chargerPage(); await P2.lire("route")(); P2.lire("applyTemplate")("rdv"); P2.lire("go")(2);
+  assert.deepEqual(P2.history.pile.map(e => e.state.ecran), ["home", 1, 2], "retour depuis l'étape 2 = le choix du modèle, puis l'accueil");
+  // Page rechargée sur un écran avancé : le formulaire est vide, on repart du premier écran (jamais une étape sans modèle)
+  assert.equal(P.lire("navSur")(3), 3);
+  const P3 = chargerPage(); assert.equal(P3.lire("navSur")(3), 1);
+});
+
+await test("Entrées d'historique sans changer l'adresse (#i= #s= #g= #ga= intacts), panneaux refermés au retour, liens « Retour » qui reviennent en arrière, aucun piège", () => {
+  const idx = readFileSync(RACINE + "index.html", "utf8").replace(/\r\n/g, "\n"), cr = readFileSync(RACINE + "app/creer.js", "utf8").replace(/\r\n/g, "\n");
+  const pushs = [...(idx + cr).matchAll(/history\.(pushState|replaceState)\(([^;]*)\)/g)].map(m => m[2]);
+  for(const p of pushs) assert.ok(/location\.(href|pathname)/.test(p), "chaque entrée garde l'adresse : " + p);
+  assert.ok(idx.includes('history.pushState({ose:1, ...etat}, "", location.href)'), "pushState : adresse exacte, fragment compris");
+  assert.ok(idx.includes('const PANNEAU="body > .sheet, body > .scan-vue";'), "panneaux : feuilles et vue du scanner");
+  assert.ok(idx.includes('document.dispatchEvent(new KeyboardEvent("keydown", {key:"Escape", bubbles:true}));'), "retour = Échap (chaque panneau, scanner compris, sait se fermer et couper la caméra)");
+  assert.ok(idx.includes("else if(!ouvert && st && st.panneau) history.back();"), "fermé par son bouton : son entrée est retirée");
+  assert.ok(idx.includes('const a=e.target.closest && e.target.closest("a.back, a.demo-back");') && idx.includes("if(a && navEtat()?.retour){ e.preventDefault(); history.back(); }"), "« Retour » de Mes invitations, de l'exemple, du tableau");
+  assert.ok(idx.includes("if(location.hash!==NAV.hash) return;"), "changement d'adresse : la route s'en charge");
+  assert.ok(cr.includes("if(e.target.open && !(st && st.perso)) navPousser(") && cr.includes("else if(!e.target.open && st && st.perso) history.back();"), "« Personnaliser davantage » : une entrée, refermé au retour");
+  // Aucune entrée ajoutée au premier écran : depuis l'accueil, le retour quitte le site
+  assert.ok(idx.includes('else if(premier && history.replaceState){ history.replaceState({ose:1, ecran:S.step, c:0}, "", location.href);'), "premier écran : l'entrée est seulement marquée");
+  // Scanner et feuilles : bien ajoutés au corps de la page (ce que surveille le retour)
+  const sc = readFileSync(RACINE + "app/scanner.js", "utf8");
+  assert.ok(sc.includes('d.className="sheet"') && sc.includes('v.className="scan-vue"') && /document\.body\.appendChild\(v\)/.test(sc));
+  assert.ok(sc.includes('const onKey=e=>{ if(e.key==="Escape") scanFin(); };'), "vue du scanner : Échap coupe la caméra");
+});
+
+titre("67. Partager en story (côté personne invitée)");
+
+// app/story.js chargé hors navigateur : fausse page minimale, couleurs et accents de la vraie page
+const STORY = (() => {
+  const src = readFileSync(RACINE + "app/story.js", "utf8"), w = {};
+  Function("window", "document", "THEMES", "accentVars", "oseLoaded", "DECOR", "Decor", src)(w, { head: { insertAdjacentHTML(){} } }, PAGE.lire("THEMES"), PAGE.lire("accentVars"), () => {}, PAGE.lire("DECOR"), PAGE.lire("Decor"));
+  return w.Story;
+})();
+// Les dessins de l'invitation (app/creer.js), comme dans la page
+const KIT = Object.fromEntries(["imageTheme", "svgImage", "sceneImageSVG", "sprinkle", "drawEnvelope", "banner", "handText", "rrect", "paperCard"].map(n => [n, PAGE.lire(n)]));
+// Contexte de dessin qui note tout le texte dessiné
+const ctxNoteur = () => {
+  const textes = [], px = () => +(/(\d+)px/.exec(c.font) || [0, 40])[1];
+  const c = new Proxy({ font: "", textes }, { get: (o, k) => k in o ? o[k] : k === "fillText" || k === "strokeText" ? (t => textes.push(String(t)))
+    : k === "measureText" ? (t => ({ width: String(t).length * px() * .55 })) : () => {}, set: (o, k, v) => { o[k] = v; return true; } });
+  return c;
+};
+const FAMILLES_STORY = { amour: "On a rendez-vous 💕", noel: "J'y serai ! 🎄", reveillon: "J'y serai ! 🥂", galette: "J'y serai ! 👑", anniv: "J'y serai ! 🎂",
+  famille: "J'y serai ! 💐", bebe: "J'y serai ! 🍼", paques: "J'y serai ! 🐣", amis: "J'y serai ! 🎉", musique: "J'y serai ! 🎶", halloween: "J'y serai ! 🎃",
+  honneur: "J'ai accepté 🎀", annonce: "J'ai hâte de savoir ✨", surprises: "Surprise acceptée 🤫", neutre: "C'est oui ✨", "": "C'est oui ✨" };
+
+await test("Textes validés selon la famille de l'occasion (jamais « J'ai dit oui »), prénom seulement si la case est cochée, jamais pour Annonce et Surprises", () => {
+  const T = (fam, o = {}) => STORY.texte({ fam, prenom: "Alex", groupe: false, ...o }, !!o.p);
+  for(const [f, t] of Object.entries(FAMILLES_STORY)) assert.equal(T(f), t, f);
+  assert.equal(T("amour", { p: 1 }), "J'ai rendez-vous avec Alex 💕");
+  assert.equal(T("noel", { p: 1 }), "J'y serai, Alex ! 🎄");
+  assert.equal(T("honneur", { p: 1 }), "J'ai accepté, Alex 🎀");
+  assert.equal(T("neutre", { p: 1 }), "J'y serai, Alex ! ✨");
+  assert.equal(T("annonce", { p: 1 }), "J'ai hâte de savoir ✨"); assert.equal(T("surprises", { p: 1 }), "Surprise acceptée 🤫");
+  assert.ok(!STORY.prenomPossible({ fam: "annonce", prenom: "Alex" }) && !STORY.prenomPossible({ fam: "surprises", prenom: "Alex" }) && STORY.prenomPossible({ fam: "amour", prenom: "Alex" }));
+  assert.equal(T("anniv", { groupe: true }), "Je viens ! 🎂"); assert.equal(T("anniv", { groupe: true, p: 1 }), "Je viens chez Alex ! 🎂");
+  const src = readFileSync(RACINE + "app/story.js", "utf8");
+  assert.ok(!/dit oui/i.test(src), "jamais « J'ai dit oui » (se lit comme une annonce de fiançailles)");
+  for(const f of new Set(Object.values(Function("return " + readFileSync(RACINE + "index.html", "utf8").match(/const MC_FAMILLES = (\{[\s\S]*?\});/)[1])())))
+    assert.ok(f in FAMILLES_STORY, "famille " + f + " a son texte");
+});
+
+await test("L'image ne reçoit et ne dessine aucune donnée de l'invitation : ni lien, ni message, ni date, ni heure, ni lieu, ni groupe ; prénom seulement sur demande", async () => {
+  const d = INV({ m: "Message secret de l'Exemple", mh: 1, d: "2027-06-12", h: "19:30", l: { v: "v", x: "Café de l'Exemple" }, mc: 1, c: "sms", ci: "06 00 00 00 01", ac: "ocean" });
+  const info = PAGE.lire("storyInfo")(d, { id: "AAAAAAAAAAAAAAAAAAAAAA", key: "BBBBBBBBBBBBBBBBBBBBBB" });
+  assert.deepEqual(Object.keys(info).sort(), ["ac", "chats", "em", "fam", "groupe", "occ", "prenom", "th"], "seulement ces champs");
+  assert.deepEqual(info, { th: "amour", ac: "ocean", occ: "date", em: "", fam: "amour", chats: true, groupe: true, prenom: "Alex" });
+  const interdits = ["Message secret", "2027", "06-12", "12 juin", "19:30", "19 h", "Café de l'Exemple", "06 00", "#i=", "#s=", "#g=", "http", "AAAAAAAA", "BBBBBBBB", "Sam", "rendez-vous avec moi"];
+  for(const [avecPrenom, emoji] of [[false, true], [true, true], [false, false]]){
+    const c = ctxNoteur(); await STORY.dessiner(c, { ...info, groupe: false }, { avecPrenom, emoji, chats: null }, KIT);
+    const tout = c.textes.join(" | ");
+    for(const x of interdits) assert.ok(!tout.includes(x), `« ${x} » dessiné : ${tout}`);
+    assert.ok(tout.includes("Crée la tienne sur osedemander.fr"), "signature");
+    assert.equal(tout.includes("Alex"), avecPrenom, "prénom seulement si la case est cochée");
+    if(!emoji) assert.ok(!/\p{Extended_Pictographic}/u.test(tout.replace("💌", "")), "repli : texte sans emoji s'il ne s'affiche pas (le cachet de l'enveloppe mis à part)");
+    assert.ok(tout.includes("Invitation acceptée"), "talon du billet");
+    assert.ok(!/\b[A-Z]\b(?! )/.test(c.textes.filter(s => s.length === 1).join("")), "jamais d'initiale sur le cachet");
+  }
+  // Après le Oui d'un groupe : aucune information du groupe ne passe
+  const cg = ctxNoteur(); await STORY.dessiner(cg, info, { avecPrenom: false, emoji: true, chats: null }, KIT);
+  assert.equal(cg.textes.join(" ").replace(/\u00A0/g, " "), ["💌", "Je viens ! 💕", "Invitation acceptée", "💕", "Crée la tienne sur osedemander.fr"].join(" "), "groupe : cachet, phrase, talon, emoji, signature, rien d'autre");
+});
+
+await test("Emoji : repli propre quand la police emoji du système ne l'affiche pas (carré vide ou dessin gris)", () => {
+  const fab = rgb => () => ({ getContext: () => ({ fillText(){}, getImageData: () => ({ data: Uint8ClampedArray.from({ length: 48 * 48 * 4 }, (_, i) => i % 4 === 3 ? 255 : rgb[i % 4]) }) }) });
+  assert.equal(STORY.emojiVisible(fab([200, 30, 90]), "💕"), true, "emoji en couleur : gardé");
+  assert.equal(STORY.emojiVisible(fab([90, 90, 90]), "💕"), false, "dessin gris ou carré : retiré");
+  assert.equal(STORY.emojiVisible(() => { throw new Error(); }, "💕"), false);
+  assert.equal(STORY.sansEmoji("J'y serai, Alex ! 🎄"), "J'y serai, Alex !");
+  assert.equal(STORY.sansEmoji("On a rendez-vous 💕"), "On a rendez-vous");
+});
+
+await test("PNG nettoyé : aucun bloc de texte ni de métadonnées (tEXt, iTXt, zTXt, eXIf, tIME…), l'image elle-même intacte", () => {
+  const bloc = (type, data) => { const b = Buffer.alloc(12 + data.length); b.writeUInt32BE(data.length, 0); b.write(type, 4, "latin1"); Buffer.from(data).copy(b, 8); return b; };
+  const ihdr = bloc("IHDR", Buffer.from([0, 0, 0, 1, 0, 0, 0, 1, 8, 6, 0, 0, 0])), idat = bloc("IDAT", Buffer.from([1, 2, 3])), iend = bloc("IEND", Buffer.alloc(0));
+  const png = Buffer.concat([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), ihdr, bloc("tEXt", Buffer.from("Comment\0Café de l'Exemple")), bloc("iTXt", Buffer.from("XML:com.adobe.xmp\0\0\0\0\0Alex")),
+    bloc("zTXt", Buffer.from("Author\0\0x")), bloc("eXIf", Buffer.from("MM\0*Exemple")), bloc("tIME", Buffer.alloc(7)), bloc("pHYs", Buffer.alloc(9)), idat, iend]);
+  const out = Buffer.from(STORY.pngPropre(new Uint8Array(png)));
+  assert.deepEqual(out, Buffer.concat([png.subarray(0, 8), ihdr, idat, iend]));
+  for(const x of ["tEXt", "iTXt", "zTXt", "eXIf", "tIME", "Exemple", "Alex"]) assert.ok(!out.includes(x), x);
+  assert.equal(STORY.pngPropre(new Uint8Array([1, 2, 3])), null, "pas un PNG : rien");
+  const src = readFileSync(RACINE + "app/story.js", "utf8");
+  assert.ok(src.includes('const propre = brut && pngPropre(new Uint8Array(await brut.arrayBuffer()));'), "toujours appliqué avant le partage");
+});
+
+await test("Bouton secondaire après le Oui (simple, groupe, rappel) et sur les Reçues acceptées ; partage du fichier, sinon téléchargement ; rien n'est envoyé", () => {
+  const src = readFileSync(RACINE + "app/story.js", "utf8"), gi = readFileSync(RACINE + "app/groupe-invite.js", "utf8"), cr = readFileSync(RACINE + "app/creer.js", "utf8");
+  assert.ok(gi.includes('${c.r==="o" ? storyBtnHTML() : ""}'), "groupe : seulement après « Je viens »");
+  assert.ok(cr.includes('${it.rep==="o" ? storyBtnHTML("recue", "btn sm") : ""}'), "Reçues : acceptées seulement");
+  assert.ok(src.includes("navigator.canShare({files: [fichier()]})") && src.includes('download="ose-demander-story.png"'), "partage du fichier ou téléchargement");
+  assert.ok(!/fetch\(|XMLHttpRequest|sendBeacon|createShort|encodeData|location\./.test(src), "aucun envoi, aucun lien");
+  assert.ok(src.includes('<input type="checkbox" id="storyPrenom">'), "case du prénom décochée par défaut");
+  const v = (src.match(/oseLoaded\("story", "([0-9a-f]{10})"\)/) || [])[1];
+  assert.ok(v && readFileSync(RACINE + "sw.js", "utf8").includes(`"./app/story.js?v=${v}"`) && CSP.FICHIERS.some(x => x.chemin === "app/story.js"), "versionné, précaché");
+  assert.ok(gzipSync(src).length < 6000, `${gzipSync(src).length} octets compressés`);
+  assert.ok(gzipSync(gi).length < 5000, `groupe-invite.js : ${gzipSync(gi).length} octets compressés`);
+});
+
+await test("Reçues : thème et accent gardés (couleurs de la story), validés ; les anciennes entrées sans eux restent valides", async () => {
+  const lien = "http://localhost:8000/#i=" + await L.encodeData(INV());
+  const ent = PAGE.lire("recueEntry")(INV({ ac: "ocean" }), lien);
+  assert.equal(ent.th, "amour"); assert.equal(ent.ac, "ocean");
+  const valid = PAGE.lire("validRecue"), base = { id: "abcdef12", from: "Alex", to: "Sam", occ: "date", when: [["2027-06-12", "19:30"]], link: "http://localhost:8000/#i=abc", created: "2026-11-27T10:00:00.000Z", link: lien };
+  assert.ok(valid(base), "ancienne entrée");
+  assert.ok(valid({ ...base, th: "amour", ac: "ocean" }));
+  assert.ok(!valid({ ...base, th: "inconnu" }) && !valid({ ...base, ac: "#FF0000" }), "valeurs inconnues refusées");
+});
+
+titre("68. Mentions légales en sections dépliables");
+
+// Empreinte du texte légal (balises retirées, espaces réduits), hors encadré « L'essentiel », bouton et script.
+// À mettre à jour seulement quand un texte légal change volontairement (jamais pour la présentation).
+const TEXTE_LEGAL_SHA = "6ec14c8bf3ddcdd83ee29c0926d2f9ae8d363c670fbab0b186f198f8e5597765";
+const texteLegal = html => html.slice(html.indexOf("<main>"), html.indexOf("</main>")).replace(/\r\n/g, "\n")
+  .replace(/<aside class="essentiel"[\s\S]*?<\/aside>/, "").replace(/<p class="ml-outils"[\s\S]*?<\/p>/, "").replace(/<script>[\s\S]*?<\/script>/, "")
+  .replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+
+await test("Aucun texte légal supprimé ni modifié : seulement la présentation (empreinte du texte identique)", () => {
+  assert.equal(createHash("sha256").update(texteLegal(lireFichier("mentions-legales.html"))).digest("hex"), TEXTE_LEGAL_SHA);
+});
+
+await test("Encadré « L'essentiel » toujours visible ; chaque section dans un <details> ouvert sans JavaScript, plusieurs à la fois ; impression complète", () => {
+  const h = lireFichier("mentions-legales.html").replace(/\r\n/g, "\n"), main = h.slice(h.indexOf("<main>"), h.indexOf("</main>"));
+  const ess = main.slice(main.indexOf('<aside class="essentiel"'), main.indexOf("</aside>"));
+  assert.ok(main.indexOf('<aside class="essentiel"') < main.indexOf("<details"), "en haut, hors des sections");
+  for(const x of ["Rien n'est stocké en clair en ligne", "Aucun suivi", "Pas de compte", 'href="/supprimer-mes-donnees/"', "href=\"mailto:"]) assert.ok(ess.includes(x), x);
+  assert.equal((ess.match(/<li>/g) || []).length, 5, "5 lignes");
+  const h2 = [...main.matchAll(/<h2[^>]*>/g)].length - 1, sec = [...main.matchAll(/<details class="ml-sec" open><summary><h2/g)].length;
+  assert.equal(sec, h2, "chaque section (h2) dans un <details>, avec son titre visible");
+  assert.equal([...main.matchAll(/<h3/g)].length, [...main.matchAll(/<details class="ml-sub" open><summary><h3/g)].length, "chaque sous-section aussi");
+  assert.equal([...main.matchAll(/<details(?![^>]* open)/g)].length, 0, "sans JavaScript : tout est ouvert");
+  assert.ok(!/<details[^>]* name=/.test(main), "pas d'accordéon exclusif");
+  assert.ok(/<p class="ml-outils" hidden>/.test(main), "bouton caché sans JavaScript");
+  assert.ok(h.includes("@media print{.ml-outils{display:none}") && h.includes("details::details-content{content-visibility:visible;display:block}"), "impression : tout s'affiche");
+  const js = main.slice(main.indexOf("<script>"));
+  assert.ok(js.includes('addEventListener("beforeprint"') && js.includes('addEventListener("afterprint"'), "impression : ouvert le temps d'imprimer");
+  assert.ok(js.includes('b.textContent=t?"Tout replier":"Tout afficher"') && js.includes('b.setAttribute("aria-expanded",t)'), "Tout afficher / Tout replier, état annoncé");
+  assert.ok(js.includes('for(let e=c;e;e=e.parentElement)if(e.tagName==="DETAILS")e.open=true;c.scrollIntoView()'), "ancre : sa section (et sa section parente) s'ouvre");
+  assert.ok(js.includes('addEventListener("hashchange"') && js.includes("a[href^=\"#\"]"), "liens internes aussi");
+});
+
+await test("Chaque lien vers une ancre des mentions légales (site, appli, pages fabriquées) mène à un identifiant qui existe", () => {
+  const ml = lireFichier("mentions-legales.html"), ids = new Set([...ml.matchAll(/\sid="([^"]+)"/g)].map(m => m[1]));
+  const sources = ["index.html", ...readdirSync(RACINE + "app").filter(n => n.endsWith(".js")).map(n => "app/" + n), "outils/pages.mjs", ...Object.keys(FAB)];
+  const ancres = new Set();
+  for(const s of sources){ const c = FAB[s] ?? lireFichier(s); for(const m of c.matchAll(/mentions-legales\.html#([a-z0-9-]+)/g)) ancres.add(m[1]); }
+  assert.ok(ancres.size >= 3, [...ancres].join(", "));
+  for(const a of ancres) assert.ok(ids.has(a), `#${a} introuvable dans les mentions légales`);
 });
 
 /* ---------- Bilan ---------- */

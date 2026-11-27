@@ -72,7 +72,7 @@ async function renderTableau(arg){
   // Lien organisateur ouvert : l'invitation rejoint les Envoyées de cet appareil (si elle n'y est pas), puis la clé quitte l'adresse
   const base=location.origin+location.pathname, invite=grpLienInvite(base, id, key), orga=grpLienOrga(base, id, key, d);
   if(!loadHistory().some(x=>x.link===invite)) addGroupeToHistory(inv, invite, orga);
-  if(arg.d) history.replaceState(null, "", location.pathname+"#groupe="+id);
+  if(arg.d){ history.replaceState(history.state, "", location.pathname+"#groupe="+id); NAV.hash=location.hash; }
   const g={id, key, d, priv, inv, invite};
   await tableauCharger(g, coquille);
 }
@@ -171,4 +171,4 @@ function orgaGarderResume(invite, s){
   it.grs=grs; if(validEntry(it)) storeHistory(list);
 }
 
-oseLoaded("groupeOrga", "fcaf1585d0");
+oseLoaded("groupeOrga", "5c9082b46f");

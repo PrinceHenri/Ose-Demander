@@ -7,7 +7,9 @@
      node outils/csp.mjs              (met à jour versions et balise)
      node outils/csp.mjs --verifier   (vérifie seulement ; le banc le vérifie aussi)
    Sans cela, le navigateur bloque tout le script, ou la page croit recevoir un fichier d'une autre version.
-   Pages fabriquées (outils/pages.mjs) et mentions légales : aucun script exécuté, CSP_STATIQUE. */
+   Pages fabriquées (outils/pages.mjs) : aucun script exécuté, CSP_STATIQUE. Mentions légales : CSP_STATIQUE plus leur seul
+   petit script intégré (« Tout afficher / Tout replier », ouverture de la section d'une ancre), autorisé par son empreinte
+   (cspMentions), jamais par 'unsafe-inline' ; sans JavaScript, toutes les sections restent ouvertes. */
 import { createHash } from "node:crypto";
 import { readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -46,6 +48,7 @@ export const FICHIERS = [
   { nom: "groupeInvite", chemin: "app/groupe-invite.js", marque: /oseLoaded\("groupeInvite", "[0-9a-f]*"\)/, pose: v => `oseLoaded("groupeInvite", "${v}")` },
   { nom: "groupeOrga", chemin: "app/groupe-orga.js", marque: /oseLoaded\("groupeOrga", "[0-9a-f]*"\)/, pose: v => `oseLoaded("groupeOrga", "${v}")` },
   { nom: "scanner", chemin: "app/scanner.js", marque: /oseLoaded\("scanner", "[0-9a-f]*"\)/, pose: v => `oseLoaded("scanner", "${v}")` },
+  { nom: "story", chemin: "app/story.js", marque: /oseLoaded\("story", "[0-9a-f]*"\)/, pose: v => `oseLoaded("story", "${v}")` },
   { nom: "mascotte", chemin: "app/mascotte.js", marque: /oseLoaded\("mascotte", "[0-9a-f]*"\)/, pose: v => `oseLoaded("mascotte", "${v}")` },
   { nom: "mascotteAmour", chemin: "app/mascotte-amour.js", marque: /oseLoaded\("mascotteAmour", "[0-9a-f]*"\)/, pose: v => `oseLoaded("mascotteAmour", "${v}")` },
   { nom: "mascotteNoel", chemin: "app/mascotte-noel.js", marque: /oseLoaded\("mascotteNoel", "[0-9a-f]*"\)/, pose: v => `oseLoaded("mascotteNoel", "${v}")` },
@@ -80,6 +83,8 @@ export function miseAJour(lire){
   for(const f of FICHIERS){ sw = sw.replace(adresse(f), `${f.chemin}?v=${v[f.nom]}`); html = html.replace(adresse(f), `${f.chemin}?v=${v[f.nom]}`); }
   html = html.replace(/const OSE_FILES = \{[^}]*\};/, `const OSE_FILES = {${FICHIERS.map(f => `${f.nom}:"${v[f.nom]}"`).join(", ")}};`);
   html = poser(html, cspAccueil(...empreintes(html)));
+  const ml = lire("mentions-legales.html"), ml2 = poser(ml, cspMentions(empreinteMentions(ml)));
+  if(ml2 !== ml) out["mentions-legales.html"] = ml2;
   if(sw !== lire("sw.js")) out["sw.js"] = sw;
   if(html !== lire("index.html")) out["index.html"] = html;
   return { out, versions: v };
@@ -107,6 +112,10 @@ export const CSP_STATIQUE = [
   "base-uri 'none'",
   "form-action 'none'"
 ].join("; ");
+
+// Mentions légales : la politique des pages statiques, plus leur script intégré (par son empreinte)
+export const cspMentions = hash => CSP_STATIQUE.replace("default-src 'none'", `default-src 'none'; script-src '${hash}'`);
+export const empreinteMentions = html => empreinte(html.slice(html.indexOf("<main>")));
 
 export const balise = csp => `<meta http-equiv="Content-Security-Policy" content="${csp}">`;
 const BALISE = /<meta http-equiv="Content-Security-Policy" content="[^"]*">/;

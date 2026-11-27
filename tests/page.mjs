@@ -47,8 +47,18 @@ export function chargerPage({ share = false, ios = false, fichiers = ["scenes", 
     rechargements: 0, reload(){ this.rechargements++; } };
   const window = { CompressionStream, addEventListener: rien, devicePixelRatio: 1, location, scrollTo: rien };
   const navigator = { userAgent: ios ? "iPhone" : "Android", platform: "", maxTouchPoints: 0, ...(share ? { share: async () => {} } : {}) };
+  // Historique simulé : une pile d'entrées {état, ancre} ; back / go / forward sont notés (pas d'événement popstate ici)
+  const ancre = u => { const s = String(u ?? ""), i = s.indexOf("#"); return i < 0 ? "" : s.slice(i); };
+  const pile = [{ state: null }], deplacements = [];
+  let pos = 0;
+  const history = {
+    get state(){ return pile[pos].state; }, get length(){ return pile.length; }, pile, deplacements,
+    replaceState(s, t, u){ pile[pos] = { state: s ?? null }; if(u !== undefined) location.hash = ancre(u); },
+    pushState(s, t, u){ pile.splice(pos + 1); pile.push({ state: s ?? null }); pos++; if(u !== undefined) location.hash = ancre(u); },
+    go(n){ deplacements.push(n); }, back(){ deplacements.push(-1); }, forward(){ deplacements.push(1); }
+  };
   const globaux = {
-    window, document, navigator, location, history: { replaceState: () => { location.hash = ""; } },
+    window, document, navigator, location, history,
     matchMedia: () => ({ matches: false }),
     localStorage: { getItem: k => stockage.has(k) ? stockage.get(k) : null, setItem: (k, v) => stockage.set(k, String(v)), removeItem: k => stockage.delete(k) },
     requestAnimationFrame: rien, cancelAnimationFrame: rien, addEventListener: rien,
@@ -60,7 +70,7 @@ export function chargerPage({ share = false, ios = false, fichiers = ["scenes", 
   const f = new Function(...Object.keys(globaux),
     src + `\nreturn { lire: nom => eval(nom), ecrire: (nom, v) => eval(nom + " = v") };`);
   const P = f(...Object.values(globaux));
-  return { ...P, zones, vus, navigator, demandes, location, stockage };
+  return { ...P, zones, vus, navigator, demandes, location, stockage, history };
 }
 
 /* Boutons « action principale » visibles d'un morceau de HTML : bouton principal, Oui, installation.
