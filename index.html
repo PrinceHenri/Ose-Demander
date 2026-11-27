@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'sha256-PFWeO7uyW3jB3HK+exiaqvK0qbRcpgPq1fMhpp7uWyw=' 'sha256-gCvB45xBXnqHDDabj/Mx7aT7j1ck4LfRBwYC1KgoKNs='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' https://ose-liens.osedemander.workers.dev; manifest-src 'self'; worker-src 'self'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'sha256-19Nro1K8whs4rOMm2eddhCEX7fZW9bjF8Vb4XJLD3Tg=' 'sha256-gCvB45xBXnqHDDabj/Mx7aT7j1ck4LfRBwYC1KgoKNs='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' https://ose-liens.osedemander.workers.dev; manifest-src 'self'; worker-src 'self'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
 <title>Ose Demander — crée une invitation à laquelle on ne dit pas non</title>
@@ -1190,7 +1190,7 @@ const STEP_TITLES = ["Le modèle","Les prénoms","Quand et où","L'aperçu"];
 // demo : la démo du premier lancement (app/demo.js), chargée seulement quand elle sert (demoAVoir, exemple)
 // scanner : scanner une invitation depuis un QR code (app/scanner.js), chargé au toucher de l'icône
 // groupeCommun : invitations de groupe, chiffrement et service (app/groupe-commun.js), chargé seulement pour un lien #g= ou #ga= ou la création d'un groupe
-const OSE_FILES = {creer:"fddfca90ba", scenes:"ad35c435a6", creerCss:"205576db21", demo:"def882fa95", groupeCommun:"66e41f012b", groupeInvite:"0f928d30f2", groupeOrga:"5c9082b46f", scanner:"37e73826ea", story:"ed51480401", mascotte:"2a0d05d102", mascotteAmour:"1a0b341c7f", mascotteNoel:"333cca8d65", mascotteNeutre:"639426aca2", mascotteReveillon:"bfe3ce99d4", mascotteGalette:"3ce6f5a9ac", mascotteAnniv:"f31db918ec", mascotteAnnonce:"301bc232b1", mascotteFamille:"288e5ea016", mascotteBebe:"8ead6835c3", mascotteHonneur:"090c7a1757", mascottePaques:"8fae96399e", mascotteAmis:"33350a37f7", mascotteSurprises:"797a854f33", mascotteMusique:"d81590a839", mascotteHalloween:"14d66a36ae", mascotteGroupe:"599d5f81b9", mascotteSouvenirs:"b15db67c8f", mascotteEcrans:"a81701c4bf"};
+const OSE_FILES = {creer:"fddfca90ba", scenes:"ad35c435a6", creerCss:"205576db21", demo:"def882fa95", groupeCommun:"66e41f012b", groupeInvite:"0f928d30f2", groupeOrga:"5c9082b46f", scanner:"37e73826ea", story:"bc89b34813", mascotte:"2a0d05d102", mascotteAmour:"1a0b341c7f", mascotteNoel:"333cca8d65", mascotteNeutre:"639426aca2", mascotteReveillon:"bfe3ce99d4", mascotteGalette:"3ce6f5a9ac", mascotteAnniv:"f31db918ec", mascotteAnnonce:"301bc232b1", mascotteFamille:"288e5ea016", mascotteBebe:"8ead6835c3", mascotteHonneur:"090c7a1757", mascottePaques:"8fae96399e", mascotteAmis:"33350a37f7", mascotteSurprises:"797a854f33", mascotteMusique:"d81590a839", mascotteHalloween:"14d66a36ae", mascotteGroupe:"599d5f81b9", mascotteSouvenirs:"b15db67c8f", mascotteEcrans:"a81701c4bf"};
 const oseGot = {}, oseNeeds = {};
 const oseLoaded = (name, v) => { oseGot[name]=v; };
 const oseUrl = name => `app/${name==="creerCss" ? "creer.css" : name.replace(/[A-Z]/g, c=>"-"+c.toLowerCase())+".js"}?v=${OSE_FILES[name]}`; // groupeCommun -> groupe-commun.js
@@ -3029,12 +3029,12 @@ async function setRevealNotif(on, ask=true){
 }
 function refreshActions(){ const a=$("#actions"); if(a){ a.innerHTML=actionsHTML(); bindActions(); } }
 /* « Partager en story » (app/story.js) : bouton secondaire après le Oui (invitation simple ou groupe, carte du rappel) et sur les
-   Reçues acceptées. L'image ne reçoit que storyInfo : thème, accent, famille de l'occasion, chatons, groupe et prénom de
+   Reçues acceptées. L'image ne reçoit que storyInfo : thème, accent, occasion et emoji du cachet (pour l'enveloppe), famille, chatons, groupe et prénom de
    l'expéditeur (écrit seulement si la personne coche la case). Jamais le lien, le message, la date, l'heure ni le lieu.
    Remplace l'ancien lien « Partager la surprise » : les liens déjà partagés (vu:1) s'ouvrent toujours (renderShared). */
 const storyBtnHTML = (src="inv", cls="btn") => `<button type="button" class="${cls}" data-story="${src}">Partager en story</button>`;
 const storyInfo = (d, groupe) => { const fam = own(MC_FAMILLES, d.o) ? MC_FAMILLES[d.o] : "";
-  return {th:d.th||"base", ac:d.ac||"", fam, chats:d.mc===1 && !!fam, groupe:!!groupe, prenom:d.f||""}; };
+  return {th:d.th||"base", ac:d.ac||"", occ:d.o, em:d.em||"", fam, chats:d.mc===1 && !!fam, groupe:!!groupe, prenom:d.f||""}; };
 document.addEventListener("click", e=>{
   const b=e.target.closest && e.target.closest("[data-story]"); if(!b) return;
   const info = b.dataset.story==="inv" ? (D && storyInfo(D, GRP)) : (typeof storyInfoRecue==="function" ? storyInfoRecue(b) : null);

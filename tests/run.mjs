@@ -5461,9 +5461,11 @@ titre("67. Partager en story (côté personne invitée)");
 // app/story.js chargé hors navigateur : fausse page minimale, couleurs et accents de la vraie page
 const STORY = (() => {
   const src = readFileSync(RACINE + "app/story.js", "utf8"), w = {};
-  Function("window", "document", "THEMES", "accentVars", "oseLoaded", src)(w, { head: { insertAdjacentHTML(){} } }, PAGE.lire("THEMES"), PAGE.lire("accentVars"), () => {});
+  Function("window", "document", "THEMES", "accentVars", "oseLoaded", "DECOR", "Decor", src)(w, { head: { insertAdjacentHTML(){} } }, PAGE.lire("THEMES"), PAGE.lire("accentVars"), () => {}, PAGE.lire("DECOR"), PAGE.lire("Decor"));
   return w.Story;
 })();
+// Les dessins de l'invitation (app/creer.js), comme dans la page
+const KIT = Object.fromEntries(["imageTheme", "svgImage", "sceneImageSVG", "sprinkle", "drawEnvelope", "banner", "handText", "rrect", "paperCard"].map(n => [n, PAGE.lire(n)]));
 // Contexte de dessin qui note tout le texte dessiné
 const ctxNoteur = () => {
   const textes = [], px = () => +(/(\d+)px/.exec(c.font) || [0, 40])[1];
@@ -5491,23 +5493,25 @@ await test("Textes validés selon la famille de l'occasion (jamais « J'ai dit o
     assert.ok(f in FAMILLES_STORY, "famille " + f + " a son texte");
 });
 
-await test("L'image ne reçoit et ne dessine aucune donnée de l'invitation : ni lien, ni message, ni date, ni heure, ni lieu, ni groupe ; prénom seulement sur demande", () => {
+await test("L'image ne reçoit et ne dessine aucune donnée de l'invitation : ni lien, ni message, ni date, ni heure, ni lieu, ni groupe ; prénom seulement sur demande", async () => {
   const d = INV({ m: "Message secret de l'Exemple", mh: 1, d: "2027-06-12", h: "19:30", l: { v: "v", x: "Café de l'Exemple" }, mc: 1, c: "sms", ci: "06 00 00 00 01", ac: "ocean" });
   const info = PAGE.lire("storyInfo")(d, { id: "AAAAAAAAAAAAAAAAAAAAAA", key: "BBBBBBBBBBBBBBBBBBBBBB" });
-  assert.deepEqual(Object.keys(info).sort(), ["ac", "chats", "fam", "groupe", "prenom", "th"], "seulement ces champs");
-  assert.deepEqual(info, { th: "amour", ac: "ocean", fam: "amour", chats: true, groupe: true, prenom: "Alex" });
+  assert.deepEqual(Object.keys(info).sort(), ["ac", "chats", "em", "fam", "groupe", "occ", "prenom", "th"], "seulement ces champs");
+  assert.deepEqual(info, { th: "amour", ac: "ocean", occ: "date", em: "", fam: "amour", chats: true, groupe: true, prenom: "Alex" });
   const interdits = ["Message secret", "2027", "06-12", "12 juin", "19:30", "19 h", "Café de l'Exemple", "06 00", "#i=", "#s=", "#g=", "http", "AAAAAAAA", "BBBBBBBB", "Sam", "rendez-vous avec moi"];
   for(const [avecPrenom, emoji] of [[false, true], [true, true], [false, false]]){
-    const c = ctxNoteur(); STORY.dessiner(c, { ...info, groupe: false }, { avecPrenom, emoji, chats: null });
+    const c = ctxNoteur(); await STORY.dessiner(c, { ...info, groupe: false }, { avecPrenom, emoji, chats: null }, KIT);
     const tout = c.textes.join(" | ");
     for(const x of interdits) assert.ok(!tout.includes(x), `« ${x} » dessiné : ${tout}`);
     assert.ok(tout.includes("Crée la tienne sur osedemander.fr"), "signature");
     assert.equal(tout.includes("Alex"), avecPrenom, "prénom seulement si la case est cochée");
-    if(!emoji) assert.ok(!/\p{Extended_Pictographic}/u.test(tout), "repli : texte sans emoji s'il ne s'affiche pas");
+    if(!emoji) assert.ok(!/\p{Extended_Pictographic}/u.test(tout.replace("💌", "")), "repli : texte sans emoji s'il ne s'affiche pas (le cachet de l'enveloppe mis à part)");
+    assert.ok(tout.includes("Invitation acceptée"), "talon du billet");
+    assert.ok(!/\b[A-Z]\b(?! )/.test(c.textes.filter(s => s.length === 1).join("")), "jamais d'initiale sur le cachet");
   }
   // Après le Oui d'un groupe : aucune information du groupe ne passe
-  const cg = ctxNoteur(); STORY.dessiner(cg, info, { avecPrenom: false, emoji: true, chats: null });
-  assert.deepEqual(cg.textes.map(t => t.replace(/\u00A0/g, " ")), ["Je viens ! 💕", "Crée la tienne sur osedemander.fr"], "groupe : la phrase et la signature, rien d'autre");
+  const cg = ctxNoteur(); await STORY.dessiner(cg, info, { avecPrenom: false, emoji: true, chats: null }, KIT);
+  assert.equal(cg.textes.join(" ").replace(/\u00A0/g, " "), ["💌", "Je viens ! 💕", "Invitation acceptée", "💕", "Crée la tienne sur osedemander.fr"].join(" "), "groupe : cachet, phrase, talon, emoji, signature, rien d'autre");
 });
 
 await test("Emoji : repli propre quand la police emoji du système ne l'affiche pas (carré vide ou dessin gris)", () => {

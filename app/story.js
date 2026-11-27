@@ -2,7 +2,7 @@
    dessinée sur l'appareil, aux couleurs du thème, avec les chatons si l'invitation les affiche, un texte selon la famille de
    l'occasion et « Crée la tienne sur osedemander.fr ».
    Ce que l'image NE contient JAMAIS : le lien ni le QR code de l'invitation, le message, la date, l'heure, le lieu, ni rien
-   d'un groupe. Elle ne reçoit d'ailleurs que {th, ac, fam, chats, groupe, prenom} (storyInfo, index.html) ; le prénom de
+   d'un groupe. Elle ne reçoit d'ailleurs que {th, ac, occ, em, fam, chats, groupe, prenom} (storyInfo, index.html) ; le prénom de
    l'expéditeur n'est écrit que si la case « Afficher le prénom de … » est cochée (décochée par défaut). Le PNG est nettoyé :
    aucun bloc de texte ni de métadonnées (pngPropre). Rien n'est envoyé : partage par le téléphone, sinon téléchargement. */
 (function(){
@@ -34,57 +34,48 @@ function emojiVisible(fabrique, e){
   }catch(e){}
   return false;
 }
-// Couleurs du thème (et de la couleur d'accent choisie, si elle reste lisible)
-function couleurs(th, ac){
-  const t = THEMES.find(x => x.id === th) || THEMES[0], v = ac ? accentVars(t.id, ac) : null;
-  return {bg: t.c, surface: t.s || "#FFFFFF", ink: t.i, soft: t.so, accent: v ? v.accent : t.a};
-}
-function hasard(graine){ let s = graine >>> 0; return () => (s = (s * 1664525 + 1013904223) >>> 0) / 4294967296; }
-const arrondi = (x, X, Y, w, h, r) => { x.beginPath(); x.moveTo(X + r, Y); x.arcTo(X + w, Y, X + w, Y + h, r); x.arcTo(X + w, Y + h, X, Y + h, r); x.arcTo(X, Y + h, X, Y, r); x.arcTo(X, Y, X + w, Y, r); x.closePath(); };
-function coeur(x, cx, cy, s){ x.beginPath(); x.moveTo(cx, cy + s * .35); x.bezierCurveTo(cx - s, cy - s * .3, cx - s * .45, cy - s, cx, cy - s * .45); x.bezierCurveTo(cx + s * .45, cy - s, cx + s, cy - s * .3, cx, cy + s * .35); x.fill(); }
-function etoile(x, cx, cy, s){ x.beginPath(); for(let i = 0; i < 8; i++){ const a = i * Math.PI / 4, r = i % 2 ? s * .38 : s; x.lineTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r); } x.closePath(); x.fill(); }
-// Découpe le texte en lignes d'au plus « large » pixels : le moins de lignes possible (1, puis 2, puis 3), police réduite
-// au besoin, jamais sous 72 px tant qu'une ligne de plus suffit
-function lignes(x, t, large){
-  t = t.replace(/ (?=[!?;:]|\p{Extended_Pictographic}|\p{Regional_Indicator})/gu, "\u00A0"); // jamais « ! » ni un emoji seul en début de ligne
-  const couper = px => { x.font = POLICE(800, px); const l = []; let cur = "";
-    for(const m of t.split(" ")){ const essai = cur ? cur + " " + m : m; if(x.measureText(essai).width <= large || !cur) cur = essai; else { l.push(cur); cur = m; } }
-    if(cur) l.push(cur); return l.every(s => x.measureText(s).width <= large) ? l : null; };
-  for(let n = 1; n <= 3; n++) for(let px = 112; px >= (n < 3 ? 72 : 48); px -= 8){ const l = couper(px); if(l && l.length <= n) return {px, l}; }
-  x.font = POLICE(800, 48); return {px: 48, l: [t]};
-}
-/* Dessine l'image. o = {avecPrenom, emoji (affichable ?), chats (image des chatons ou null)}. Seul texte dessiné : la phrase
-   de la story et la signature ; aucune autre donnée n'arrive jusqu'ici. */
-function dessiner(x, info, o){
-  const c = couleurs(info.th, info.ac), al = hasard(7 + (info.fam || "").length * 31);
-  x.fillStyle = c.bg; x.fillRect(0, 0, W, H);
-  // Décor : quelques cœurs, étoiles et confettis ton sur ton, de l'espace (pas touffu)
-  x.fillStyle = c.accent;
-  for(let i = 0; i < 22; i++){
-    const cx = al() * W, cy = al() * H, s = 14 + al() * 22, k = i % 3;
-    x.globalAlpha = .16 + al() * .14;
-    if(k === 0) coeur(x, cx, cy, s); else if(k === 1) etoile(x, cx, cy, s); else { x.beginPath(); x.arc(cx, cy, s * .4, 0, Math.PI * 2); x.fill(); }
-  }
-  x.globalAlpha = 1;
-  // Carte : contour épais à l'encre, ombre dure décalée (comme le billet)
-  const cy = o.chats ? 820 : 640, ch = o.chats ? 560 : 620, cx = 100, cw = 880;
-  x.fillStyle = c.ink; arrondi(x, cx + 22, cy + 22, cw, ch, 56); x.fill();
-  x.fillStyle = c.surface; arrondi(x, cx, cy, cw, ch, 56); x.fill();
-  x.lineWidth = 8; x.strokeStyle = c.ink; arrondi(x, cx, cy, cw, ch, 56); x.stroke();
-  if(o.chats) x.drawImage(o.chats, (W - 760) / 2, cy - 400, 760, 446);
-  // Phrase
+/* Dessine l'image avec les éléments de l'invitation elle-même (dessins de l'image « fête et billet », app/creer.js, passés
+   dans K) : la scène du thème en plein cadre et ses décors semés, l'enveloppe de l'occasion (cachet : l'emoji choisi, 💌 pour
+   une surprise, jamais une initiale), la phrase manuscrite sur la banderole à l'accent, le billet (talon « Invitation acceptée »,
+   perforation et encoches, carte à l'accent penchée derrière) qui porte les chatons, puis la signature.
+   Hauts et bas laissés libres (barres d'une story). o = {avecPrenom, emoji (affichable ?), chats (image ou null)}.
+   Seuls textes dessinés : la phrase, « Invitation acceptée », la signature (et le cachet) ; aucune autre donnée n'arrive ici. */
+const ZONES = {env: [345, 210, 390], ban: [70, 560, 940, 230], tk: [130, 880, 820, 760], stub: 150};
+async function dessiner(x, info, o, K){
+  const col = K.imageTheme(info.th, info.ac), [ex, ey, ew] = ZONES.env, [bx, by, bw, bh] = ZONES.ban, [tx, ty, tw, th] = ZONES.tk, stub = ZONES.stub;
+  x.fillStyle = col.bg; x.fillRect(0, 0, W, H);
+  try{ x.drawImage(await K.svgImage(K.sceneImageSVG(info.th, W, H, col)), 0, 0, W, H); }catch(e){}
+  K.sprinkle(x, info.th, W, H, [[tx - 40, ty - 40, tw + 80, th + 80], [bx, by, bw, bh], [ex, ey, ew, ew * .72]], 44, 7 + (info.occ || "").length * 37, 1.3);
+  try{ await K.drawEnvelope(x, {occ: info.occ, th: info.th, em: info.em, initial: "💌"}, col, ex, ey, ew, -.07); }catch(e){}
+  // La phrase, manuscrite sur la banderole (jamais « ! » ni un emoji seul en début de ligne)
   let t = texte(info, o.avecPrenom);
   if(!o.emoji) t = sansEmoji(t);
-  const {px, l} = lignes(x, t, cw - 140), hl = px * 1.18, haut = cy + ch / 2 + (o.chats ? 40 : 0) - (l.length * hl) / 2 - 30;
-  x.fillStyle = c.ink; x.textAlign = "center"; x.textBaseline = "middle"; x.font = POLICE(800, px);
-  l.forEach((s, i) => x.fillText(s, W / 2, haut + hl / 2 + i * hl));
-  x.fillStyle = c.accent; arrondi(x, W / 2 - 80, haut + l.length * hl + 26, 160, 14, 7); x.fill();
-  // Signature
-  x.fillStyle = c.ink; x.globalAlpha = .85; x.font = POLICE(600, 46);
-  x.fillText("Crée la tienne sur osedemander.fr", W / 2, 1660);
+  const cut = K.banner(x, bx, by, bw, bh, col);
+  K.handText(x, t.replace(/ (?=[!?;:]|\p{Extended_Pictographic}|\p{Regional_Indicator})/gu, "\u00A0"), W / 2, by + bh / 2, bw - 2 * cut - 40, 112, col.btnInk, true);
+  // Le billet : carte à l'accent penchée derrière, papier, talon, perforation à encoches
+  x.save(); x.translate(tx + tw / 2, ty + th / 2); x.rotate(.05); x.fillStyle = col.accent; K.rrect(x, -tw / 2 - 18, -th / 2 - 14, tw + 36, th + 28, 40); x.fill(); x.restore();
+  K.paperCard(x, tx, ty, tw, th, 40, col);
+  const py = ty + stub;
+  x.fillStyle = col.ink; x.font = `700 ${Math.round(stub * .48)}px "Caveat", "Comic Sans MS", cursive`; x.textAlign = "center"; x.textBaseline = "middle";
+  x.fillText("Invitation acceptée", tx + tw / 2, ty + stub / 2 + 4);
+  x.strokeStyle = col.line; x.lineWidth = 6; x.setLineDash([18, 16]); x.beginPath(); x.moveTo(tx + 56, py); x.lineTo(tx + tw - 56, py); x.stroke(); x.setLineDash([]);
+  for(const bord of [tx, tx + tw]){
+    x.fillStyle = col.bg; x.beginPath(); x.arc(bord, py, 30, 0, 6.29); x.fill();
+    x.strokeStyle = col.ink; x.lineWidth = 6; x.beginPath(); x.arc(bord, py, 30, bord === tx ? -1.57 : 1.57, bord === tx ? 1.57 : 4.71); x.stroke();
+  }
+  // Dans le billet : les chatons, sinon l'emoji de la famille en grand (ou une forme du décor du thème s'il ne s'affiche pas)
+  const mh = ty + th - py;
+  if(o.chats) x.drawImage(o.chats, W / 2 - 330, py + 40, 660, 412);
+  else if(o.emoji){ x.font = `260px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif`; x.fillStyle = col.ink; x.fillText(EMO[info.fam] || "✨", W / 2, py + mh / 2 - 50); }
+  else { const cfg = (typeof DECOR !== "undefined" && (DECOR[info.th] || DECOR.base)) || {}, f = [].concat(cfg.shape || "heart")[0];
+    x.save(); x.translate(W / 2, py + mh / 2 - 50); try{ Decor.paint(x, f, 150, col.accent); }catch(e){} x.restore(); }
+  x.fillStyle = col.ink; x.globalAlpha = .85; x.font = POLICE(600, 40); x.textAlign = "center"; x.textBaseline = "middle";
+  x.fillText("Crée la tienne sur osedemander.fr", W / 2, ty + th - 64);
   x.globalAlpha = 1;
   return t;
 }
+// Les dessins de l'image « fête et billet » (app/creer.js, chargé à la demande)
+const kit = () => ({imageTheme, svgImage, sceneImageSVG, sprinkle, drawEnvelope, banner, handText, rrect, paperCard});
 /* PNG sans métadonnées : on ne garde que les blocs de l'image (IHDR, PLTE, tRNS, IDAT, IEND) */
 function pngPropre(u8){
   const sig = [137, 80, 78, 71, 13, 10, 26, 10];
@@ -116,10 +107,11 @@ async function imageChats(fam){
 }
 const fabrique = (w, h) => { const c = document.createElement("canvas"); c.width = w; c.height = h; return c; };
 async function produire(info, avecPrenom, chats){
-  try{ await document.fonts.load(POLICE(800, 112)); await document.fonts.load(POLICE(600, 46)); }catch(e){}
+  await need("creer"); // les dessins de l'invitation (déjà là côté création et dans « Mes invitations »)
+  try{ await Promise.all([POLICE(600, 40), `700 112px "Caveat"`].map(p => document.fonts.load(p))); }catch(e){}
   const c = fabrique(W, H), x = c.getContext("2d");
   const phrase = texte(info, avecPrenom), e = (phrase.match(PICTO) || [""])[0].trim();
-  dessiner(x, info, {avecPrenom, emoji: !e || emojiVisible(fabrique, e), chats});
+  await dessiner(x, info, {avecPrenom, emoji: !e || emojiVisible(fabrique, e), chats}, kit());
   const brut = await new Promise(r => c.toBlob(r, "image/png"));
   const propre = brut && pngPropre(new Uint8Array(await brut.arrayBuffer()));
   return propre ? new Blob([propre], {type: "image/png"}) : null;
@@ -173,4 +165,4 @@ function ouvrir(opener, info){
 window.Story = {ouvrir, texte, dessiner, pngPropre, prenomPossible, sansEmoji, emojiVisible};
 })();
 
-oseLoaded("story", "ed51480401");
+oseLoaded("story", "bc89b34813");
