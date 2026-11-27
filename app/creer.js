@@ -283,19 +283,21 @@ function renderCreator(){
   mcAccueilVider(); if(S.step==="home") mcAccueilPoser();
 }
 /* Accueil : Lilas assis sur le bord du mini-billet (décoratif, aria-hidden), il court vers le Non quand on l'essaie.
-   Accessoire calé sur le logo de saison (MC_SAISON : période du logo -> [famille, chaton qui le porte dans sa famille]),
-   aucun le reste de l'année. Au Oui : Praline arrive, petit saut de joie (0,8 s), puis la création comme avant. */
-const MC_SAISON = {noel:["noel", "lilas"], valentin:["amour", "praline"]};
+   Accessoire calé sur le logo de saison (MC_SAISON : période du logo -> [famille, chaton qui le porte dans sa famille, pièce] ;
+   « saison » = accessoire réservé à l'accueil ; périodes qui se chevauchent, comme fête des pères et musique : un accessoire par pièce),
+   aucun le reste de l'année ni pendant Octobre rose. Au Oui : Praline arrive, petit saut de joie (0,8 s), puis la création comme avant. */
+const MC_SAISON = {halloween:["halloween", "lilas", "cou"], noel:["noel", "lilas", "tete"], reveillon:["reveillon", "lilas", "tete"], galette:["galette", "saison", "tete"],
+  valentin:["amour", "praline", "tete"], paques:["paques", "lilas", "tete"], meres:["famille", "saison", "tete"], peres:["famille", "saison", "cou"], musique:["musique", "lilas", "tete"]};
 let mcAcc=null;
 const mcEnergie = () => REDUCED || S.anim==="0" ? "0" : S.anim;
 function mcAccueilVider(){ if(mcAcc){ mcAcc.chats.forEach(c=>c.detruire()); mcAcc.z.remove(); clearTimeout(mcAcc.t); mcAcc=null; } }
 function mcAccueilPoser(){
-  const saison=logoAt(seasonToday()).find(id=>own(MC_SAISON, id)), fam=saison ? MC_SAISON[saison][0] : "";
-  need("mascotte").then(()=>fam ? need(mcFichier(fam)) : null).then(()=>{
+  const saisons=logoAt(seasonToday()).filter(id=>own(MC_SAISON, id)), fams=[...new Set(saisons.map(id=>MC_SAISON[id][0]))];
+  need("mascotte").then(()=>Promise.all(fams.map(f=>need(mcFichier(f))))).then(()=>{
     const t=$(".demo-ticket"); if(!t || mcAcc || S.step!=="home") return;
     const z=document.createElement("div"); z.className="mc-zone mc-z-billet mc-touchable"; z.setAttribute("aria-hidden","true");
     const l=Mascotte.chat("lilas", {energie:mcEnergie()});
-    if(fam) l.el.querySelector('[data-p="acc-tete"]').innerHTML=Mascotte.accessoire(fam, MC_SAISON[saison][1], "tete");
+    saisons.forEach(id=>{ const [fam, qui, k]=MC_SAISON[id], p=l.el.querySelector(`[data-p="acc-${k}"]`); if(!p.innerHTML) p.innerHTML=Mascotte.accessoire(fam, qui, k); }); // périodes qui se chevauchent : une pièce chacune
     z.appendChild(l.el); t.appendChild(z);
     z.addEventListener("click", e=>{ const c=mcAcc && mcAcc.chats.find(x=>x.el.contains(e.target)); if(c) c.toucher(); });
     mcAcc={z, l, chats:[l], t:0};
@@ -2014,4 +2016,4 @@ async function importHistory(file){
   toast(msg);
 }
 
-oseLoaded("creer", "663423755c");
+oseLoaded("creer", "2e4e91ff8f");

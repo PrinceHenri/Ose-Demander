@@ -8,6 +8,11 @@ const fleur = `<svg viewBox="0 0 20 30" width="18" height="27"><path d="M10 29V1
   + `<circle cx="10" cy="10" r="3" style="fill:#FFC94A;stroke:#1F1546;stroke-width:1.2"/></svg>`;
 const cravate = `<svg viewBox="0 0 16 28" width="15" height="26"><path d="M4.5 2h7l-1.6 3.5 2.8 15-4.7 5-4.7-5 2.8-15Z" style="fill:#2F5BFF;stroke:#1F1546;stroke-width:1.6;stroke-linejoin:round"/>`
   + `<path d="M6.4 10.5l4.2-2.3M5.8 15.6l5.4-2.8M6.2 20.6l3.6-1.9" style="stroke:#FFC94A;stroke-width:1.5;stroke-linecap:round"/></svg>`;
+// Accueil, périodes du logo (jamais posés sur les chatons de l'invitation) : petite fleur à l'oreille, nœud papillon
+const fleurOreille = `<g transform="translate(84 31) scale(1.5) translate(-84 -31)">` + [0, 72, 144, 216, 288].map(a => `<ellipse class="mc-t" cx="84" cy="27" rx="2.6" ry="3.6" transform="rotate(${a} 84 31)" style="fill:#F4A7C0;stroke-width:1.2"/>`).join("")
+  + `<circle class="mc-t" cx="84" cy="31" r="2.4" style="fill:#FFC94A;stroke-width:1.2"/></g>`;
+const noeudPap = `<g transform="translate(60 94) scale(1.5) translate(-60 -94)"><path class="mc-t" style="fill:#1F7A8C;stroke-width:1.6" d="M60 94L48 87.5Q46 94 48 100.5Z"/><path class="mc-t" style="fill:#1F7A8C;stroke-width:1.6" d="M60 94L72 87.5Q74 94 72 100.5Z"/>`
+  + `<rect class="mc-t" x="57" y="91" width="6" height="6" rx="1.8" style="fill:#1F7A8C;stroke-width:1.6"/><path style="fill:none;stroke:#FFC94A;stroke-width:1.2;stroke-linecap:round" d="M50.5 90.5v7M69.5 90.5v7"/></g>`;
 let petit = null;
 const bouquet = (o, zone) => { // petites fleurs et cœurs au Oui (formes du décor animé)
   if(o.fige || typeof Decor === "undefined" || !zone) return;
@@ -15,7 +20,7 @@ const bouquet = (o, zone) => { // petites fleurs et cœurs au Oui (formes du dé
 };
 Mascotte.famille("famille", {
   particules: ["flower", "heart"],
-  acc: {},
+  acc: {saison: {tete: fleurOreille, cou: noeudPap}},
   css: `.mcf-petit{left:-44px;bottom:0;transition:transform .5s cubic-bezier(.3,1.4,.5,1)}.mcf-petit .mc-chat{width:42px;height:49px}
 .mcf-petit .mc-chat{--mc-peau:#fffaf3;--mc-ombre:#f6e8d8;--mc-marque:#f9cdb3;--mc-collier:#8DD3C7}
 .mcf-tient [data-p="patte-av-d"]{transform:rotate(-70deg)}
@@ -42,4 +47,4 @@ Mascotte.famille("famille", {
 });
 })();
 
-oseLoaded("mascotteFamille", "f606d67b34");
+oseLoaded("mascotteFamille", "288e5ea016");
