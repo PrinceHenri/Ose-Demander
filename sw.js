@@ -16,7 +16,7 @@ const CORE = [
   // Fichiers chargés à part par index.html : l'empreinte de leur contenu (?v=) est écrite par node outils/csp.mjs.
   // Gardés dès l'installation : une invitation ouverte une fois s'affiche sans réseau, scènes comprises.
   "./app/scenes.js?v=ad35c435a6",
-  "./app/creer.js?v=2e4e91ff8f",
+  "./app/creer.js?v=46dd2b6d96",
   "./app/demo.js?v=def882fa95",
   "./app/scanner.js?v=37e73826ea",
   "./app/groupe-orga.js?v=7680efb2d3",
@@ -32,6 +32,7 @@ const CORE = [
   "./app/mascotte-musique.js?v=d81590a839",
   "./app/mascotte-halloween.js?v=14d66a36ae",
   "./app/mascotte-groupe.js?v=599d5f81b9",
+  "./app/mascotte-souvenirs.js?v=b15db67c8f",
   "./app/mascotte-famille.js?v=288e5ea016",
   "./app/mascotte-annonce.js?v=301bc232b1",
   "./app/mascotte-anniv.js?v=f31db918ec",

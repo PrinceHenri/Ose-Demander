@@ -5133,7 +5133,7 @@ await test("Lien « Accueil » : après le Oui, le vrai refus, le formulaire de 
    61. Mascottes Lilas et Praline : moteur, dessins, familles (app/mascotte*.js)
    ========================================================= */
 titre("61. Mascottes");
-const MC_SCENES = ["app/mascotte-groupe.js"]; // partie B : scènes (groupe, souvenirs, petits écrans), pas des familles
+const MC_SCENES = ["app/mascotte-groupe.js", "app/mascotte-souvenirs.js"]; // partie B : scènes (groupe, souvenirs, petits écrans), pas des familles
 const MC_FICHIERS = readdirSync(RACINE + "app").filter(f => /^mascotte-[a-z]+[.]js$/.test(f)).sort().map(f => "app/" + f).filter(f => !MC_SCENES.includes(f));
 const MASCOTTE = (() => {
   // Le moteur est évalué ici, avec un faux document (aucun navigateur)
@@ -5353,6 +5353,21 @@ await test("Partie B, groupe : scène à part (app/mascotte-groupe.js), décorat
   const G = (() => { const w = {addEventListener(){}}; new Function("window", "document", "oseLoaded", "Mascotte", sc)(w, { head: { insertAdjacentHTML(){} } }, () => {}, {}); return w.MascotteGroupe; })();
   assert.equal(G.decorDe("voyage", "amis"), "bus"); assert.equal(G.decorDe("soiree", "amis"), "canape"); assert.equal(G.decorDe("monanniv", "anniv"), "gateau");
   assert.equal(G.decorDe("babyshower", "bebe"), "coussins"); assert.equal(G.decorDe("repasfam", "famille"), "table");
+});
+
+await test("Partie B, Mes invitations : chatons sur les cartes acceptées d'une invitation avec chatons (champ mc = 1), accessoire le jour J, endormis dans les souvenirs", () => {
+  const sc = readFileSync(RACINE + "app/mascotte-souvenirs.js", "utf8"), cr = readFileSync(RACINE + "app/creer.js", "utf8").replace(/\r\n/g, "\n"), idx = readFileSync(RACINE + "index.html", "utf8").replace(/\r\n/g, "\n");
+  assert.ok(gzipSync(sc).length < 3000, `${gzipSync(sc).length} octets compressés`);
+  assert.ok(!/https?:\/\//.test(sc.replace(/\/\*[\s\S]*?\*\//g, "")), "aucune adresse");
+  const v = (sc.match(/oseLoaded\("mascotteSouvenirs", "([0-9a-f]{10})"\)/) || [])[1];
+  assert.ok(v && readFileSync(RACINE + "sw.js", "utf8").includes(`"./app/mascotte-souvenirs.js?v=${v}"`) && CSP.FICHIERS.some(x => x.chemin === "app/mascotte-souvenirs.js"), "versionné, précaché");
+  assert.ok(cr.includes('"created","mc",') && cr.split('"created","mc",').length === 3, "mc dans les champs des Envoyées et des Reçues");
+  assert.ok(cr.includes("(x.mc===undefined || x.mc===1)"), "mc validé : 1 seulement");
+  assert.ok(cr.includes("  if(d.mc===1) e.mc=1;\n") && idx.includes("  if(d.mc===1) e.mc=1;\n  return e;"), "posé à l'enregistrement (Envoyées, Reçues)");
+  assert.ok(cr.includes('`<div class="hist-chatons" aria-hidden="true" data-mc-fam="${mcHistFam(it)}"'), "décoratif, seulement avec une famille");
+  assert.ok(cr.includes("${s!==null ? mcHistHTML(it, s) + reboursHTML(it, s) : \"\"}"), "à côté du compte à rebours");
+  assert.ok(sc.includes('famille: jour ? fam : ""') && sc.includes('c.etat("attente", {yeux: "fermes"})'), "accessoire le jour J seulement, endormis dans les souvenirs");
+  assert.ok(!/["']triste["']|["']boude["']/.test(sc), "jamais tristes ni boudeurs");
 });
 
 await test("Skill ose-design : section des mascottes (format des pièces, règle du vrai refus, poids, fichiers séparés pour les lots suivants)", () => {
