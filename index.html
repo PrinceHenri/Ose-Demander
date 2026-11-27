@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'sha256-J8E6I8xbuONI+cnMc8cS0uIR+4cgl6n5Nn5u6GlU8Xk=' 'sha256-jpgC3IFic8X1fkaLxYVgzWGeG9kmZfoMoXYA1dFUXr8='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' https://ose-liens.osedemander.workers.dev; manifest-src 'self'; worker-src 'self'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'sha256-6wYQ1pAJHUi5ZpNqxbgifFR+85IyawfJIk73ti8Oa9c=' 'sha256-jpgC3IFic8X1fkaLxYVgzWGeG9kmZfoMoXYA1dFUXr8='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' https://ose-liens.osedemander.workers.dev; manifest-src 'self'; worker-src 'self'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
 <title>Ose Demander — crée une invitation à laquelle on ne dit pas non</title>
@@ -1190,7 +1190,7 @@ const STEP_TITLES = ["Le modèle","Les prénoms","Quand et où","L'aperçu"];
 // demo : la démo du premier lancement (app/demo.js), chargée seulement quand elle sert (demoAVoir, exemple)
 // scanner : scanner une invitation depuis un QR code (app/scanner.js), chargé au toucher de l'icône
 // groupeCommun : invitations de groupe, chiffrement et service (app/groupe-commun.js), chargé seulement pour un lien #g= ou #ga= ou la création d'un groupe
-const OSE_FILES = {creer:"663423755c", scenes:"ad35c435a6", creerCss:"de1fe39325", demo:"def882fa95", groupeCommun:"66e41f012b", groupeInvite:"3419a5a6a6", groupeOrga:"b0a718225b", scanner:"37e73826ea", mascotte:"2a0d05d102", mascotteAmour:"1a0b341c7f", mascotteNoel:"333cca8d65", mascotteNeutre:"639426aca2", mascotteReveillon:"bfe3ce99d4", mascotteGalette:"31239efe85", mascotteAnniv:"f31db918ec", mascotteAnnonce:"301bc232b1", mascotteFamille:"f606d67b34", mascotteBebe:"8ead6835c3"};
+const OSE_FILES = {creer:"663423755c", scenes:"ad35c435a6", creerCss:"de1fe39325", demo:"def882fa95", groupeCommun:"66e41f012b", groupeInvite:"3419a5a6a6", groupeOrga:"b0a718225b", scanner:"37e73826ea", mascotte:"2a0d05d102", mascotteAmour:"1a0b341c7f", mascotteNoel:"333cca8d65", mascotteNeutre:"639426aca2", mascotteReveillon:"bfe3ce99d4", mascotteGalette:"31239efe85", mascotteAnniv:"f31db918ec", mascotteAnnonce:"301bc232b1", mascotteFamille:"f606d67b34", mascotteBebe:"8ead6835c3", mascotteHonneur:"090c7a1757"};
 const oseGot = {}, oseNeeds = {};
 const oseLoaded = (name, v) => { oseGot[name]=v; };
 const oseUrl = name => `app/${name==="creerCss" ? "creer.css" : name.replace(/[A-Z]/g, c=>"-"+c.toLowerCase())+".js"}?v=${OSE_FILES[name]}`; // groupeCommun -> groupe-commun.js
@@ -1639,7 +1639,7 @@ function inflate(src, max){
 const MC_FAMILLES = {date:"amour", valentin:"amour", annivamour:"amour", couple:"amour", weekend:"amour", dinerspecial:"amour", noel:"noel",
   libre:"neutre", juste:"neutre", reveillon:"reveillon", galette:"galette",
   monanniv:"anniv", annivfam:"anniv", fetesurprise:"anniv", annivami:"anniv", nouvelle:"annonce",
-  meres:"famille", peres:"famille", repasfam:"famille", grands:"famille", babyshower:"bebe"};
+  meres:"famille", peres:"famille", repasfam:"famille", grands:"famille", babyshower:"bebe", temoin:"honneur", parrain:"honneur"};
 const mcFamille = d => (d && d.mc===1 && own(MC_FAMILLES, d.o)) ? MC_FAMILLES[d.o] : null;
 const mcFichier = f => "mascotte" + f[0].toUpperCase() + f.slice(1); // amour -> mascotteAmour (app/mascotte-amour.js)
 /* Côté personne invitée : chargés à la demande, jamais attendus (l'écran s'affiche sans eux, ils arrivent ensuite).
