@@ -30,6 +30,7 @@ const CORE = [
   "./app/mascotte-amis.js?v=33350a37f7",
   "./app/mascotte-surprises.js?v=797a854f33",
   "./app/mascotte-musique.js?v=d81590a839",
+  "./app/mascotte-halloween.js?v=14d66a36ae",
   "./app/mascotte-famille.js?v=f606d67b34",
   "./app/mascotte-annonce.js?v=301bc232b1",
   "./app/mascotte-anniv.js?v=f31db918ec",
