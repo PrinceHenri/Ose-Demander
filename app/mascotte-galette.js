@@ -21,7 +21,7 @@ const couronne = `<g class="mcg-couronne"><g transform="translate(67 24) scale(1
 let assiette = null;
 Mascotte.famille("galette", {
   particules: ["crown", "bean"],
-  acc: {},
+  acc: {saison: {tete: couronne.replace(' class="mcg-couronne"', "")}}, // accueil, période du logo (jamais sur les chatons de l'invitation)
   css: `.mcg-part{left:36px;bottom:-2px}
 .mcg-p{opacity:0}.mcg-p0{opacity:1}
 .mcg-part:not(.mc-fige) .mcg-p0{animation:mcg-a 3.6s forwards}.mcg-part:not(.mc-fige) .mcg-p1{animation:mcg-b 3.6s forwards}.mcg-part:not(.mc-fige) .mcg-p2{animation:mcg-c 3.6s forwards}
@@ -49,4 +49,4 @@ Mascotte.famille("galette", {
 });
 })();
 
-oseLoaded("mascotteGalette", "31239efe85");
+oseLoaded("mascotteGalette", "3ce6f5a9ac");

@@ -1,7 +1,7 @@
 /* Ose Demander — service worker
    Rend le site installable et utilisable hors connexion.
    Pour publier une mise à jour importante, change simplement la version ci-dessous. */
-const VERSION = "ose-v50";
+const VERSION = "ose-v51";
 const CORE = [
   "./",
   "./index.html",
@@ -16,7 +16,7 @@ const CORE = [
   // Fichiers chargés à part par index.html : l'empreinte de leur contenu (?v=) est écrite par node outils/csp.mjs.
   // Gardés dès l'installation : une invitation ouverte une fois s'affiche sans réseau, scènes comprises.
   "./app/scenes.js?v=ad35c435a6",
-  "./app/creer.js?v=663423755c",
+  "./app/creer.js?v=2e4e91ff8f",
   "./app/demo.js?v=def882fa95",
   "./app/scanner.js?v=37e73826ea",
   "./app/groupe-orga.js?v=b0a718225b",
@@ -29,10 +29,12 @@ const CORE = [
   "./app/mascotte-paques.js?v=8fae96399e",
   "./app/mascotte-amis.js?v=33350a37f7",
   "./app/mascotte-surprises.js?v=797a854f33",
-  "./app/mascotte-famille.js?v=f606d67b34",
+  "./app/mascotte-musique.js?v=d81590a839",
+  "./app/mascotte-halloween.js?v=14d66a36ae",
+  "./app/mascotte-famille.js?v=288e5ea016",
   "./app/mascotte-annonce.js?v=301bc232b1",
   "./app/mascotte-anniv.js?v=f31db918ec",
-  "./app/mascotte-galette.js?v=31239efe85",
+  "./app/mascotte-galette.js?v=3ce6f5a9ac",
   "./app/mascotte-reveillon.js?v=bfe3ce99d4",
   "./app/mascotte-neutre.js?v=639426aca2",
   "./app/mascotte-noel.js?v=333cca8d65",

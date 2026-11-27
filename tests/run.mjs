@@ -5315,15 +5315,26 @@ await test("Accueil, Oui : Praline arrive et petit saut de joie (0,8 s), puis la
   assert.ok(cr.includes('if(!mcAcc || mcEnergie()==="0") return 0;') && cr.includes("  return 800;\n}"), "0,8 s au plus");
   assert.ok(cr.includes('p.etat("joie"); p.jouer("glisse"); l.etat("joie");') && cr.includes('l.jouer("saut"); p.jouer("saut");'));
 });
-await test("Accessoire de saison de Lilas calé sur le logo de saison : bonnet à Noël, nœud à la Saint-Valentin, aucun le reste de l'année", () => {
+await test("Accessoire de saison de Lilas calé sur le logo de saison (toutes les périodes sauf Octobre rose), aucun le reste de l'année", () => {
   const cr = readFileSync(RACINE + "app/creer.js", "utf8").replace(/\r\n/g, "\n");
-  assert.ok(cr.includes('const MC_SAISON = {noel:["noel", "lilas"], valentin:["amour", "praline"]};'));
-  assert.ok(cr.includes("const saison=logoAt(seasonToday()).find(id=>own(MC_SAISON, id))"), "mêmes périodes que le logo");
-  assert.ok(MASCOTTE.accessoire("noel", "lilas", "tete").includes("<path"), "bonnet de Noël de Lilas");
-  assert.ok(MASCOTTE.accessoire("amour", "praline", "tete").includes("<path"), "nœud (celui de Praline, posé sur Lilas)");
+  const m = cr.match(/const MC_SAISON = (\{[^;]*\});/);
+  assert.ok(m, "table MC_SAISON");
+  const table = Function("return " + m[1])();
+  assert.ok(cr.includes("const saisons=logoAt(seasonToday()).filter(id=>own(MC_SAISON, id))"), "mêmes périodes que le logo, toutes celles du jour");
+  assert.ok(cr.includes('p=l.el.querySelector(`[data-p="acc-${k}"]`); if(!p.innerHTML) p.innerHTML=Mascotte.accessoire(fam, qui, k);'), "posé dans sa pièce, une seule fois par pièce");
+  const tete = Object.values(table).filter(x => x[2] === "tete").length, cou = Object.values(table).filter(x => x[2] === "cou").length;
+  assert.ok(table.peres[2] !== table.musique[2], "fête des pères et musique (toujours en même temps) : deux pièces différentes");
+  assert.ok(tete && cou);
+  const idx = readFileSync(RACINE + "index.html", "utf8").replace(/\r\n/g, "\n");
+  const periodes = [...idx.slice(idx.indexOf("const LOGO_PERIODS")).split("};")[0].matchAll(/\n  ([a-z]+): +\{name:/g)].map(x => x[1]);
+  assert.ok(periodes.length >= 10, "périodes du logo lues");
+  assert.deepEqual(Object.keys(table).sort(), periodes.filter(p => p !== "rose").sort(), "une entrée par période du logo, sauf Octobre rose");
+  for(const [p, [fam, qui, k]] of Object.entries(table)){
+    assert.ok(["tete", "cou"].includes(k), p + " : pièce");
+    assert.ok(MASCOTTE.accessoire(fam, qui, k).includes("<"), `${p} : accessoire ${fam}/${qui}/${k} dessiné`);
+  }
   assert.equal(MASCOTTE.accessoire("amour", "lilas", "tete"), "", "aucun accessoire inventé");
-  const idx = readFileSync(RACINE + "index.html", "utf8");
-  for(const id of ["noel", "valentin"]) assert.ok(new RegExp(`\\n  ${id}: +\\{name:`).test(idx), `période ${id} du logo de saison`);
+  for(const f of ["galette", "famille"]) assert.ok(readFileSync(RACINE + `app/mascotte-${f}.js`, "utf8").includes("acc: {saison: {"), f + " : accessoire « saison » réservé à l'accueil");
 });
 
 await test("Skill ose-design : section des mascottes (format des pièces, règle du vrai refus, poids, fichiers séparés pour les lots suivants)", () => {
