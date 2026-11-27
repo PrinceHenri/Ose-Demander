@@ -61,6 +61,7 @@ async function renderTableau(arg){
     [, id, key, d] = o;
   }
   coquille(`<h2 tabindex="-1">${esc(orgaT("orga.titre"))}</h2><p class="lead" role="status">${esc(orgaT("orga.chargement"))}</p>`);
+  mcEcran(".panel .lead", "course");
   focusScreen(".panel h2");
   // L'invitation (pour son titre et sa clé publique), puis la clé privée vérifiée contre la clé publique
   let inv, priv;
@@ -170,4 +171,4 @@ function orgaGarderResume(invite, s){
   it.grs=grs; if(validEntry(it)) storeHistory(list);
 }
 
-oseLoaded("groupeOrga", "7680efb2d3");
+oseLoaded("groupeOrga", "fcaf1585d0");

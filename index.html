@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'sha256-UyeXQl3HImtOnn8qryzgpiS0l89pnxVL3CuLNfLVAsY=' 'sha256-0+v1ujl9LdaFds7YRC5rEsF9ilzgnloSn+WUaxxmrhc='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' https://ose-liens.osedemander.workers.dev; manifest-src 'self'; worker-src 'self'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'sha256-cvVFz94DtC0mthJdpG1jBVC7qRg7bvsxRorSZFhFBlU=' 'sha256-wFZNCwQZvnwEZFkTV0wK66OP1Q3Rnf5Fm4CvdbWcm1I='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' https://ose-liens.osedemander.workers.dev; manifest-src 'self'; worker-src 'self'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
 <title>Ose Demander — crée une invitation à laquelle on ne dit pas non</title>
@@ -35,7 +35,7 @@
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"WebApplication","name":"Ose Demander","url":"https://osedemander.fr/","description":"Crée gratuitement une invitation animée à envoyer par lien : rendez-vous, anniversaire, témoin, fêtes de l'année. Le bouton Non résiste, mais un vrai refus reste possible.","applicationCategory":"LifestyleApplication","operatingSystem":"Tous (navigateur web)","inLanguage":"fr","isAccessibleForFree":true,"offers":{"@type":"Offer","price":"0","priceCurrency":"EUR"}}</script>
 <link rel="preload" href="fonts/bricolage-grotesque.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="app/scenes.js?v=ad35c435a6" as="script">
-<script data-tete>if(!/^#(i|s)=|^#exemple$/.test(location.hash))for(const[h,a]of[["app/creer.js?v=46dd2b6d96","script"],["app/creer.css?v=de1fe39325","style"]]){const l=document.createElement("link");l.rel="preload";l.as=a;l.href=h;document.head.appendChild(l)}</script>
+<script data-tete>if(!/^#(i|s)=|^#exemple$/.test(location.hash))for(const[h,a]of[["app/creer.js?v=5818f91409","script"],["app/creer.css?v=de1fe39325","style"]]){const l=document.createElement("link");l.rel="preload";l.as=a;l.href=h;document.head.appendChild(l)}</script>
 <style>
 /* ---------- Polices (hébergées sur le site, aucun appel à Google) ---------- */
 @font-face{font-family:"Bricolage Grotesque";font-style:normal;font-display:swap;font-weight:200 800;font-stretch:75% 100%;
@@ -1190,7 +1190,7 @@ const STEP_TITLES = ["Le modèle","Les prénoms","Quand et où","L'aperçu"];
 // demo : la démo du premier lancement (app/demo.js), chargée seulement quand elle sert (demoAVoir, exemple)
 // scanner : scanner une invitation depuis un QR code (app/scanner.js), chargé au toucher de l'icône
 // groupeCommun : invitations de groupe, chiffrement et service (app/groupe-commun.js), chargé seulement pour un lien #g= ou #ga= ou la création d'un groupe
-const OSE_FILES = {creer:"46dd2b6d96", scenes:"ad35c435a6", creerCss:"de1fe39325", demo:"def882fa95", groupeCommun:"66e41f012b", groupeInvite:"8217611bbc", groupeOrga:"7680efb2d3", scanner:"37e73826ea", mascotte:"2a0d05d102", mascotteAmour:"1a0b341c7f", mascotteNoel:"333cca8d65", mascotteNeutre:"639426aca2", mascotteReveillon:"bfe3ce99d4", mascotteGalette:"3ce6f5a9ac", mascotteAnniv:"f31db918ec", mascotteAnnonce:"301bc232b1", mascotteFamille:"288e5ea016", mascotteBebe:"8ead6835c3", mascotteHonneur:"090c7a1757", mascottePaques:"8fae96399e", mascotteAmis:"33350a37f7", mascotteSurprises:"797a854f33", mascotteMusique:"d81590a839", mascotteHalloween:"14d66a36ae", mascotteGroupe:"599d5f81b9", mascotteSouvenirs:"b15db67c8f"};
+const OSE_FILES = {creer:"5818f91409", scenes:"ad35c435a6", creerCss:"de1fe39325", demo:"def882fa95", groupeCommun:"66e41f012b", groupeInvite:"8217611bbc", groupeOrga:"fcaf1585d0", scanner:"37e73826ea", mascotte:"2a0d05d102", mascotteAmour:"1a0b341c7f", mascotteNoel:"333cca8d65", mascotteNeutre:"639426aca2", mascotteReveillon:"bfe3ce99d4", mascotteGalette:"3ce6f5a9ac", mascotteAnniv:"f31db918ec", mascotteAnnonce:"301bc232b1", mascotteFamille:"288e5ea016", mascotteBebe:"8ead6835c3", mascotteHonneur:"090c7a1757", mascottePaques:"8fae96399e", mascotteAmis:"33350a37f7", mascotteSurprises:"797a854f33", mascotteMusique:"d81590a839", mascotteHalloween:"14d66a36ae", mascotteGroupe:"599d5f81b9", mascotteSouvenirs:"b15db67c8f", mascotteEcrans:"9366f87465"};
 const oseGot = {}, oseNeeds = {};
 const oseLoaded = (name, v) => { oseGot[name]=v; };
 const oseUrl = name => `app/${name==="creerCss" ? "creer.css" : name.replace(/[A-Z]/g, c=>"-"+c.toLowerCase())+".js"}?v=${OSE_FILES[name]}`; // groupeCommun -> groupe-commun.js
@@ -3650,6 +3650,11 @@ const ERR_ART={
     <text class="eq ea-z" x="150" y="54" font-size="16">z</text><text class="eq ea-z" style="animation-delay:1s" x="162" y="36" font-size="21">z</text><text class="eq ea-z" style="animation-delay:2s" x="176" y="16" font-size="26">z</text>`
 };
 for(const k of Object.keys(ERR_ART)) ERR_ART[k]=sepText(ERR_ART[k]);
+/* Petits écrans (app/mascotte-ecrans.js) : chatons endormis (hors connexion), qui courent (chargement), dans une boîte vide
+   (historique vide), placés devant l'élément donné ; remplace : l'illustration habituelle laisse sa place. Décoratif. */
+function mcEcran(sel, mode, lv, remplace){
+  need("mascotte").then(()=>need("mascotteEcrans")).then(()=>{ const el=$(sel); if(MascotteEcrans.poser(el, mode, lv==="0" || REDUCED_ANIM ? "0" : "d") && remplace) el.remove(); }).catch(()=>{});
+}
 function renderLinkError(kind, lv=REDUCED_ANIM ? "0" : "n"){
   const e=LINK_ERRORS[kind] ? kind : "incomplet", {t,p,art=e}=LINK_ERRORS[e];
   setTheme("base", lv, "", "home");
@@ -3668,6 +3673,7 @@ function renderLinkError(kind, lv=REDUCED_ANIM ? "0" : "n"){
   </main>`;
   $("#retry")?.addEventListener("click", e=>{ e.currentTarget.disabled=true; e.currentTarget.textContent="Nouvel essai…"; route(); });
   $("#reload")?.addEventListener("click", ()=>location.reload());
+  if(e==="reseau" || e==="charge") mcEcran(".err-ill", "dort", lv, true); // le service ou la connexion fait la sieste
   focusScreen(".question");
 }
 /* Une invitation ouverte (#i=, #s=, exemple) n'est jamais indexée par les moteurs de recherche.
@@ -3716,6 +3722,7 @@ async function route(){
       if(ms){ // lien court : on récupère le contenu chiffré, puis on le déchiffre ici (la clé ne quitte jamais l'appareil)
         setTheme("base","n");
         $("#app").innerHTML=`<main class="inv"><p class="lead" role="status" style="text-align:center">Ouverture de l'invitation…</p></main>`;
+        mcEcran("main.inv .lead", "course");
         code = await readShort(ms[1], ms[2]);
       }
       // Les scènes arrivent d'ordinaire avec la page : on les attend au plus 0,4 s, sinon l'écran s'affiche sans elles (sceneRefresh)

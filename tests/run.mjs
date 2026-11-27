@@ -5133,7 +5133,7 @@ await test("Lien « Accueil » : après le Oui, le vrai refus, le formulaire de 
    61. Mascottes Lilas et Praline : moteur, dessins, familles (app/mascotte*.js)
    ========================================================= */
 titre("61. Mascottes");
-const MC_SCENES = ["app/mascotte-groupe.js", "app/mascotte-souvenirs.js"]; // partie B : scènes (groupe, souvenirs, petits écrans), pas des familles
+const MC_SCENES = ["app/mascotte-groupe.js", "app/mascotte-souvenirs.js", "app/mascotte-ecrans.js"]; // partie B : scènes (groupe, souvenirs, petits écrans), pas des familles
 const MC_FICHIERS = readdirSync(RACINE + "app").filter(f => /^mascotte-[a-z]+[.]js$/.test(f)).sort().map(f => "app/" + f).filter(f => !MC_SCENES.includes(f));
 const MASCOTTE = (() => {
   // Le moteur est évalué ici, avec un faux document (aucun navigateur)
@@ -5368,6 +5368,23 @@ await test("Partie B, Mes invitations : chatons sur les cartes acceptées d'une 
   assert.ok(cr.includes("${s!==null ? mcHistHTML(it, s) + reboursHTML(it, s) : \"\"}"), "à côté du compte à rebours");
   assert.ok(sc.includes('famille: jour ? fam : ""') && sc.includes('c.etat("attente", {yeux: "fermes"})'), "accessoire le jour J seulement, endormis dans les souvenirs");
   assert.ok(!/["']triste["']|["']boude["']/.test(sc), "jamais tristes ni boudeurs");
+});
+
+await test("Partie B, petits écrans : endormis (service ou connexion), course (chargement), boîte vide (historique), loupe (404 sans script)", () => {
+  const sc = readFileSync(RACINE + "app/mascotte-ecrans.js", "utf8"), idx = readFileSync(RACINE + "index.html", "utf8").replace(/\r\n/g, "\n");
+  const cr = readFileSync(RACINE + "app/creer.js", "utf8"), orga = readFileSync(RACINE + "app/groupe-orga.js", "utf8"), p404 = readFileSync(RACINE + "404.html", "utf8");
+  assert.ok(gzipSync(sc).length < 3000, `${gzipSync(sc).length} octets compressés`);
+  assert.ok(!/https?:\/\//.test(sc.replace(/\/\*[\s\S]*?\*\//g, "")), "aucune adresse");
+  const v = (sc.match(/oseLoaded\("mascotteEcrans", "([0-9a-f]{10})"\)/) || [])[1];
+  assert.ok(v && readFileSync(RACINE + "sw.js", "utf8").includes(`"./app/mascotte-ecrans.js?v=${v}"`) && CSP.FICHIERS.some(x => x.chemin === "app/mascotte-ecrans.js"), "versionné, précaché (hors connexion aussi)");
+  assert.ok(sc.includes('z.setAttribute("aria-hidden", "true")'), "décoratif");
+  assert.ok(idx.includes('if(e==="reseau" || e==="charge") mcEcran(".err-ill", "dort", lv, true);'), "endormis : service muet ou page pas chargée, seulement");
+  assert.ok(idx.includes('mcEcran("main.inv .lead", "course");') && orga.includes('mcEcran(".panel .lead", "course");'), "course : ouverture d'un lien court, chargement des réponses");
+  assert.ok(cr.includes('if($(".panel .empty")) mcEcran(".panel .empty", "vide");'), "boîte vide : historique vide");
+  assert.ok(!/<script/i.test(p404), "404 : aucun script");
+  assert.ok(p404.includes('<div class="mc404" aria-hidden="true"><svg class="mc-chat mc-lilas"'), "404 : le vrai dessin de Lilas, décoratif");
+  assert.ok(/@media \(prefers-reduced-motion:reduce\)\{\.mc404 \[data-p="tete"\]\{animation:none\}\}/.test(p404), "404 : animation coupée par « moins de mouvement »");
+  assert.ok(gzipSync(p404).length < 12000, `404 : ${gzipSync(p404).length} octets compressés`);
 });
 
 await test("Skill ose-design : section des mascottes (format des pièces, règle du vrai refus, poids, fichiers séparés pour les lots suivants)", () => {

@@ -1791,6 +1791,7 @@ function renderHistory(){
   syncReplies().then(ch=>{ if(ch && location.hash==="#mes-invitations") renderHistory(); });
   startRebours();
   mcHistPeindre();
+  if($(".panel .empty")) mcEcran(".panel .empty", "vide");
   bindDefile(recues);
   syncRdv3Hist(list, recues);
 
@@ -2027,4 +2028,4 @@ async function importHistory(file){
   toast(msg);
 }
 
-oseLoaded("creer", "46dd2b6d96");
+oseLoaded("creer", "5818f91409");
