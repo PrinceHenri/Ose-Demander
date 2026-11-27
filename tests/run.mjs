@@ -5390,6 +5390,11 @@ await test("Partie B, petits écrans : endormis (service ou connexion), course (
   assert.ok(gzipSync(p404).length < 12000, `404 : ${gzipSync(p404).length} octets compressés`);
 });
 
+await test("Lot 2 terminé : chaque occasion a sa famille de chatons, sauf « mariage » et « pardon » (jamais de famille sans décision)", () => {
+  const idx = readFileSync(RACINE + "index.html", "utf8"), F = Function("return " + idx.match(/const MC_FAMILLES = (\{[\s\S]*?\});/)[1])();
+  assert.deepEqual(Object.keys(L.OCC).filter(o => !F[o]).sort(), ["mariage", "pardon"]);
+});
+
 await test("Skill ose-design : section des mascottes (format des pièces, règle du vrai refus, poids, fichiers séparés pour les lots suivants)", () => {
   const sk = readFileSync(RACINE + ".claude/skills/ose-design/SKILL.md", "utf8");
   assert.ok(sk.includes("## 2 duovicies. Mascottes Lilas et Praline"));
