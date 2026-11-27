@@ -5378,8 +5378,9 @@ await test("Partie B, petits écrans : endormis (service ou connexion), course (
   const v = (sc.match(/oseLoaded\("mascotteEcrans", "([0-9a-f]{10})"\)/) || [])[1];
   assert.ok(v && readFileSync(RACINE + "sw.js", "utf8").includes(`"./app/mascotte-ecrans.js?v=${v}"`) && CSP.FICHIERS.some(x => x.chemin === "app/mascotte-ecrans.js"), "versionné, précaché (hors connexion aussi)");
   assert.ok(sc.includes('z.setAttribute("aria-hidden", "true")'), "décoratif");
-  assert.ok(idx.includes('if(e==="reseau" || e==="charge") mcEcran(".err-ill", "dort", lv, true);'), "endormis : service muet ou page pas chargée, seulement");
-  assert.ok(idx.includes('else if(e==="supprime") mcEcran(".err-ill", "enveloppe", lv, true);'), "invitation supprimée : Lilas dans l'enveloppe vide");
+  assert.ok(idx.includes('const mcMode={reseau:"dort", charge:"dort", supprime:"enveloppe", introuvable:"loupe", expire:"sablier", incomplet:"dechire"}[e];')
+    && idx.includes('if(mcMode) mcEcran(".err-ill", mcMode, lv, true);'), "écrans d'erreur : chatons à la place de l'illustration (pas pour « version »)");
+  for(const m of ["dort", "enveloppe", "loupe", "sablier", "dechire", "course", "vide"]) assert.ok(sc.includes(`mode === "${m}"`) || m === "vide", "mode " + m);
   assert.ok(!/etat\("triste"|etat\("boude"/.test(sc), "jamais tristes ni boudeurs");
   assert.ok(idx.includes('mcEcran("main.inv .lead", "course");') && orga.includes('mcEcran(".panel .lead", "course");'), "course : ouverture d'un lien court, chargement des réponses");
   assert.ok(cr.includes('if($(".panel .empty")) mcEcran(".panel .empty", "vide");'), "boîte vide : historique vide");
