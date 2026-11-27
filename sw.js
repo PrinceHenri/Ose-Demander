@@ -1,7 +1,7 @@
 /* Ose Demander — service worker
    Rend le site installable et utilisable hors connexion.
    Pour publier une mise à jour importante, change simplement la version ci-dessous. */
-const VERSION = "ose-v48";
+const VERSION = "ose-v49";
 const CORE = [
   "./",
   "./index.html",
@@ -24,6 +24,10 @@ const CORE = [
   "./app/groupe-commun.js?v=66e41f012b",
   "./app/mascotte.js?v=2a0d05d102",
   "./app/mascotte-amour.js?v=1a0b341c7f",
+  "./app/mascotte-bebe.js?v=8ead6835c3",
+  "./app/mascotte-honneur.js?v=090c7a1757",
+  "./app/mascotte-famille.js?v=f606d67b34",
+  "./app/mascotte-annonce.js?v=301bc232b1",
   "./app/mascotte-anniv.js?v=f31db918ec",
   "./app/mascotte-galette.js?v=31239efe85",
   "./app/mascotte-reveillon.js?v=bfe3ce99d4",
