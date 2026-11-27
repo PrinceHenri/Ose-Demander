@@ -3237,14 +3237,16 @@ await test("Rien que la CSP bloquerait : ni gestionnaire on…= dans le HTML, ni
   const appels = [...code.matchAll(/fetch\(\s*["'`](https?:\/\/[^/"'`]+)/g)].map(m => m[1]);
   for(const o of appels) assert.ok(CSP.CONNEXIONS.includes(o), `connexion à ${o} non autorisée par la CSP`);
 });
-await test("Pages statiques (occasions, 404, suppression, mentions légales) : CSP stricte, aucun script exécuté", () => {
+await test("Pages statiques (occasions, 404, suppression, mentions légales) : CSP stricte ; seul script : celui des mentions légales, par son empreinte", () => {
   const pages = { ...Object.fromEntries(Object.entries(FAB).filter(([n]) => n.endsWith(".html"))), "mentions-legales.html": lireFichier("mentions-legales.html") };
   assert.ok(Object.keys(pages).length >= 9);
   for(const [nom, h] of Object.entries(pages)){
-    assert.equal(CSP.cspDe(h), CSP.CSP_STATIQUE, nom);
+    const ml = nom === "mentions-legales.html";
+    assert.equal(CSP.cspDe(h), ml ? CSP.cspMentions(CSP.empreinteMentions(h)) : CSP.CSP_STATIQUE, nom);
     assert.ok(h.indexOf("Content-Security-Policy") < h.search(/<script|<style|<link/), `${nom} : balise en tête`);
-    assert.ok(!/<script(?![^>]*type="application\/ld\+json")/.test(h), `${nom} : script exécuté`);
+    assert.equal((h.match(/<script(?![^>]*type="application\/ld\+json")/g) || []).length, ml ? 1 : 0, `${nom} : scripts exécutés`);
   }
+  assert.ok(!CSP.cspMentions("sha256-x").includes("unsafe-inline'; script") && !/script-src[^;]*unsafe-inline/.test(CSP.cspMentions("sha256-x")), "jamais 'unsafe-inline' pour un script");
 });
 
 /* =========================================================
@@ -5551,6 +5553,48 @@ await test("Reçues : thème et accent gardés (couleurs de la story), validés 
   assert.ok(valid(base), "ancienne entrée");
   assert.ok(valid({ ...base, th: "amour", ac: "ocean" }));
   assert.ok(!valid({ ...base, th: "inconnu" }) && !valid({ ...base, ac: "#FF0000" }), "valeurs inconnues refusées");
+});
+
+titre("68. Mentions légales en sections dépliables");
+
+// Empreinte du texte légal (balises retirées, espaces réduits), hors encadré « L'essentiel », bouton et script.
+// À mettre à jour seulement quand un texte légal change volontairement (jamais pour la présentation).
+const TEXTE_LEGAL_SHA = "6ec14c8bf3ddcdd83ee29c0926d2f9ae8d363c670fbab0b186f198f8e5597765";
+const texteLegal = html => html.slice(html.indexOf("<main>"), html.indexOf("</main>")).replace(/\r\n/g, "\n")
+  .replace(/<aside class="essentiel"[\s\S]*?<\/aside>/, "").replace(/<p class="ml-outils"[\s\S]*?<\/p>/, "").replace(/<script>[\s\S]*?<\/script>/, "")
+  .replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+
+await test("Aucun texte légal supprimé ni modifié : seulement la présentation (empreinte du texte identique)", () => {
+  assert.equal(createHash("sha256").update(texteLegal(lireFichier("mentions-legales.html"))).digest("hex"), TEXTE_LEGAL_SHA);
+});
+
+await test("Encadré « L'essentiel » toujours visible ; chaque section dans un <details> ouvert sans JavaScript, plusieurs à la fois ; impression complète", () => {
+  const h = lireFichier("mentions-legales.html").replace(/\r\n/g, "\n"), main = h.slice(h.indexOf("<main>"), h.indexOf("</main>"));
+  const ess = main.slice(main.indexOf('<aside class="essentiel"'), main.indexOf("</aside>"));
+  assert.ok(main.indexOf('<aside class="essentiel"') < main.indexOf("<details"), "en haut, hors des sections");
+  for(const x of ["Rien n'est stocké en clair en ligne", "Aucun suivi", "Pas de compte", 'href="/supprimer-mes-donnees/"', "href=\"mailto:"]) assert.ok(ess.includes(x), x);
+  assert.equal((ess.match(/<li>/g) || []).length, 5, "5 lignes");
+  const h2 = [...main.matchAll(/<h2[^>]*>/g)].length - 1, sec = [...main.matchAll(/<details class="ml-sec" open><summary><h2/g)].length;
+  assert.equal(sec, h2, "chaque section (h2) dans un <details>, avec son titre visible");
+  assert.equal([...main.matchAll(/<h3/g)].length, [...main.matchAll(/<details class="ml-sub" open><summary><h3/g)].length, "chaque sous-section aussi");
+  assert.equal([...main.matchAll(/<details(?![^>]* open)/g)].length, 0, "sans JavaScript : tout est ouvert");
+  assert.ok(!/<details[^>]* name=/.test(main), "pas d'accordéon exclusif");
+  assert.ok(/<p class="ml-outils" hidden>/.test(main), "bouton caché sans JavaScript");
+  assert.ok(h.includes("@media print{.ml-outils{display:none}") && h.includes("details::details-content{content-visibility:visible;display:block}"), "impression : tout s'affiche");
+  const js = main.slice(main.indexOf("<script>"));
+  assert.ok(js.includes('addEventListener("beforeprint"') && js.includes('addEventListener("afterprint"'), "impression : ouvert le temps d'imprimer");
+  assert.ok(js.includes('b.textContent=t?"Tout replier":"Tout afficher"') && js.includes('b.setAttribute("aria-expanded",t)'), "Tout afficher / Tout replier, état annoncé");
+  assert.ok(js.includes('for(let e=c;e;e=e.parentElement)if(e.tagName==="DETAILS")e.open=true;c.scrollIntoView()'), "ancre : sa section (et sa section parente) s'ouvre");
+  assert.ok(js.includes('addEventListener("hashchange"') && js.includes("a[href^=\"#\"]"), "liens internes aussi");
+});
+
+await test("Chaque lien vers une ancre des mentions légales (site, appli, pages fabriquées) mène à un identifiant qui existe", () => {
+  const ml = lireFichier("mentions-legales.html"), ids = new Set([...ml.matchAll(/\sid="([^"]+)"/g)].map(m => m[1]));
+  const sources = ["index.html", ...readdirSync(RACINE + "app").filter(n => n.endsWith(".js")).map(n => "app/" + n), "outils/pages.mjs", ...Object.keys(FAB)];
+  const ancres = new Set();
+  for(const s of sources){ const c = FAB[s] ?? lireFichier(s); for(const m of c.matchAll(/mentions-legales\.html#([a-z0-9-]+)/g)) ancres.add(m[1]); }
+  assert.ok(ancres.size >= 3, [...ancres].join(", "));
+  for(const a of ancres) assert.ok(ids.has(a), `#${a} introuvable dans les mentions légales`);
 });
 
 /* ---------- Bilan ---------- */
