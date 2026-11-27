@@ -795,7 +795,27 @@ function showErr(e){
   if(typeof e.go==="number") go(e.go);
   else { S.errSec=e.go; openSection(e.go); }
 }
-function go(step){ S.step=step; S.link=""; renderCreator(); window.scrollTo({top:0}); focusScreen(step==="home" ? ".hero h1" : ".panel h2"); Sound.step(); }
+function go(step, depuisHistorique){ if(!depuisHistorique) navAller(step); S.step=step; S.link=""; renderCreator(); window.scrollTo({top:0}); focusScreen(step==="home" ? ".hero h1" : ".panel h2"); Sound.step(); }
+/* Historique de la création (voir NAV dans index.html) : une entrée par écran, dans l'ordre accueil, 1, 2, 3, 4.
+   Avancer ajoute les écrans traversés ; reculer (bouton « Retour », « Modifier ») revient sur les entrées déjà là,
+   pour que le retour du téléphone mène toujours à l'écran d'avant, exactement comme le bouton « Retour ». */
+const RANG_ECRAN = s => s==="home" ? 0 : +s;
+const navSur = e => RANG_ECRAN(e)>=2 && !S.tpl ? 1 : e; // formulaire vide (page rechargée) : le choix du modèle
+function navAller(step){
+  const st=navEtat(), cur = st && st.ecran!==undefined && st.ecran!=="lien" ? st.ecran : S.step, c = st && st.c || 0;
+  const d=RANG_ECRAN(step)-RANG_ECRAN(cur);
+  if(d>0){ for(let r=RANG_ECRAN(cur)+1, k=c+1; r<=RANG_ECRAN(step); r++, k++) navPousser({ecran:r, c:k}); return; }
+  const pas=-d + (st && st.perso ? 1 : 0);
+  if(d<0 && -d<=c && history.go) history.go(-pas); // les entrées existent : on y revient (l'écran est déjà affiché)
+  else if(d<0 || (st && st.perso)) history.replaceState && history.replaceState({ose:1, ecran:step, c:Math.max(0, c+d)}, "", location.href);
+}
+/* Retour du téléphone dans la création : l'écran de l'entrée, ou « Personnaliser davantage » refermé */
+function navEcran(st){
+  if(location.hash || typeof S==="undefined") return;
+  const e = navSur(st && st.ecran!==undefined && st.ecran!=="lien" ? st.ecran : "home"), more=!!(st && st.perso);
+  if(e===S.step){ const m=$("#more"); if(m && m.open!==more){ S.moreOpen=more; m.open=more; } return; }
+  S.moreOpen=more; go(e, true);
+}
 function openSection(key){
   S.step=4; S.moreOpen=true; S.open=new Set([key]); renderCreator();
   secDefiler($(`details[data-sec="${key}"]`));
@@ -883,7 +903,9 @@ function bindCreator(){
   $("#back")?.addEventListener("click",()=>{ readAll(); go(S.step===1 ? "home" : S.step-1); });
   $$("[data-edit]").forEach(b=>b.addEventListener("click",()=>{ readAll(); go(+b.dataset.edit); }));
   $$("[data-goto]").forEach(b=>b.addEventListener("click",()=>{ readAll(); openSection(b.dataset.goto); }));
-  $("#more")?.addEventListener("toggle",e=>{ S.moreOpen=e.target.open; });
+  $("#more")?.addEventListener("toggle",e=>{ S.moreOpen=e.target.open; const st=navEtat();
+    if(e.target.open && !(st && st.perso)) navPousser({...(st||{ecran:S.step, c:0}), perso:1}); // une entrée : le retour le referme
+    else if(!e.target.open && st && st.perso) history.back(); });
   bindAccordeon();
 
   // Occasion et style
@@ -2043,4 +2065,4 @@ async function importHistory(file){
   toast(msg);
 }
 
-oseLoaded("creer", "2a7aa9e009");
+oseLoaded("creer", "780973616a");

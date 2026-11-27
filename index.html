@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'sha256-BeemhCGwURSBk0VfMOb0Cg4XWve2CnIXPtoSDFLvqA0=' 'sha256-L+vGInxLv57eqwV0+hxcMX0psGJzPaCO3vnsA936ouM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' https://ose-liens.osedemander.workers.dev; manifest-src 'self'; worker-src 'self'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'sha256-5LONQfMFNs5zCqR+jAoOZM/45wai9zZU+8mHbQthniY=' 'sha256-2kZrhZ0U0qxkYnZW26SH8xDljDnS5Dykhx4bDIyB/RQ='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' https://ose-liens.osedemander.workers.dev; manifest-src 'self'; worker-src 'self'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
 <title>Ose Demander — crée une invitation à laquelle on ne dit pas non</title>
@@ -35,7 +35,7 @@
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"WebApplication","name":"Ose Demander","url":"https://osedemander.fr/","description":"Crée gratuitement une invitation animée à envoyer par lien : rendez-vous, anniversaire, témoin, fêtes de l'année. Le bouton Non résiste, mais un vrai refus reste possible.","applicationCategory":"LifestyleApplication","operatingSystem":"Tous (navigateur web)","inLanguage":"fr","isAccessibleForFree":true,"offers":{"@type":"Offer","price":"0","priceCurrency":"EUR"}}</script>
 <link rel="preload" href="fonts/bricolage-grotesque.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="app/scenes.js?v=ad35c435a6" as="script">
-<script data-tete>if(!/^#(i|s)=|^#exemple$/.test(location.hash))for(const[h,a]of[["app/creer.js?v=2a7aa9e009","script"],["app/creer.css?v=205576db21","style"]]){const l=document.createElement("link");l.rel="preload";l.as=a;l.href=h;document.head.appendChild(l)}</script>
+<script data-tete>if(!/^#(i|s)=|^#exemple$/.test(location.hash))for(const[h,a]of[["app/creer.js?v=780973616a","script"],["app/creer.css?v=205576db21","style"]]){const l=document.createElement("link");l.rel="preload";l.as=a;l.href=h;document.head.appendChild(l)}</script>
 <style>
 /* ---------- Polices (hébergées sur le site, aucun appel à Google) ---------- */
 @font-face{font-family:"Bricolage Grotesque";font-style:normal;font-display:swap;font-weight:200 800;font-stretch:75% 100%;
@@ -1190,7 +1190,7 @@ const STEP_TITLES = ["Le modèle","Les prénoms","Quand et où","L'aperçu"];
 // demo : la démo du premier lancement (app/demo.js), chargée seulement quand elle sert (demoAVoir, exemple)
 // scanner : scanner une invitation depuis un QR code (app/scanner.js), chargé au toucher de l'icône
 // groupeCommun : invitations de groupe, chiffrement et service (app/groupe-commun.js), chargé seulement pour un lien #g= ou #ga= ou la création d'un groupe
-const OSE_FILES = {creer:"2a7aa9e009", scenes:"ad35c435a6", creerCss:"205576db21", demo:"def882fa95", groupeCommun:"66e41f012b", groupeInvite:"8217611bbc", groupeOrga:"fcaf1585d0", scanner:"37e73826ea", mascotte:"2a0d05d102", mascotteAmour:"1a0b341c7f", mascotteNoel:"333cca8d65", mascotteNeutre:"639426aca2", mascotteReveillon:"bfe3ce99d4", mascotteGalette:"3ce6f5a9ac", mascotteAnniv:"f31db918ec", mascotteAnnonce:"301bc232b1", mascotteFamille:"288e5ea016", mascotteBebe:"8ead6835c3", mascotteHonneur:"090c7a1757", mascottePaques:"8fae96399e", mascotteAmis:"33350a37f7", mascotteSurprises:"797a854f33", mascotteMusique:"d81590a839", mascotteHalloween:"14d66a36ae", mascotteGroupe:"599d5f81b9", mascotteSouvenirs:"b15db67c8f", mascotteEcrans:"a81701c4bf"};
+const OSE_FILES = {creer:"780973616a", scenes:"ad35c435a6", creerCss:"205576db21", demo:"def882fa95", groupeCommun:"66e41f012b", groupeInvite:"8217611bbc", groupeOrga:"5c9082b46f", scanner:"37e73826ea", mascotte:"2a0d05d102", mascotteAmour:"1a0b341c7f", mascotteNoel:"333cca8d65", mascotteNeutre:"639426aca2", mascotteReveillon:"bfe3ce99d4", mascotteGalette:"3ce6f5a9ac", mascotteAnniv:"f31db918ec", mascotteAnnonce:"301bc232b1", mascotteFamille:"288e5ea016", mascotteBebe:"8ead6835c3", mascotteHonneur:"090c7a1757", mascottePaques:"8fae96399e", mascotteAmis:"33350a37f7", mascotteSurprises:"797a854f33", mascotteMusique:"d81590a839", mascotteHalloween:"14d66a36ae", mascotteGroupe:"599d5f81b9", mascotteSouvenirs:"b15db67c8f", mascotteEcrans:"a81701c4bf"};
 const oseGot = {}, oseNeeds = {};
 const oseLoaded = (name, v) => { oseGot[name]=v; };
 const oseUrl = name => `app/${name==="creerCss" ? "creer.css" : name.replace(/[A-Z]/g, c=>"-"+c.toLowerCase())+".js"}?v=${OSE_FILES[name]}`; // groupeCommun -> groupe-commun.js
@@ -3687,6 +3687,7 @@ function setNoindex(on){
   if(!on && m) m.remove();
 }
 async function route(){
+  NAV.hash=location.hash; const premier=!NAV.vu; NAV.vu=1;
   scenesReady().catch(()=>{}); // jamais bloquant ici
   const mg=location.hash.match(GRP_HASH), ms=mg || location.hash.match(SHORT_HASH), m=ms ? null : location.hash.match(/^#i=(.+)$/);
   GRP=null;
@@ -3696,6 +3697,7 @@ async function route(){
     if(!await needCreer()) return;
     Sound.on=Sound.pref(); // le choix gardé sur cet appareil
   }
+  if(location.hash==="#mes-invitations" || location.hash==="#exemple" || GRP_TAB_HASH.test(location.hash)) navMarquer({ecran:"lien", retour:NAV.dernier ? 1 : 0});
   if(location.hash==="#mes-invitations"){ renderHistory(); focusScreen(".panel h2"); return; }
   const mga=location.hash.match(GRP_ORGA_HASH), mgt=location.hash.match(GRP_TAB_HASH);
   if(mga || mgt){
@@ -3706,7 +3708,7 @@ async function route(){
   }
   // Liens du pied de page : l'accueil, défilé jusqu'aux catégories, ou l'aide à l'installation ; l'adresse redevient celle de l'accueil
   if(location.hash==="#choisir" || location.hash==="#installer"){
-    const quoi=location.hash; history.replaceState(null, "", location.pathname);
+    const quoi=location.hash; history.replaceState({ose:1, ecran:"home", c:0}, "", location.pathname); NAV.hash="";
     S.step="home"; S.link=""; renderCreator();
     if(quoi==="#choisir"){ $("#choisir")?.scrollIntoView({block:"start"}); $(".home-card")?.focus({preventScroll:true}); }
     else installHelp();
@@ -3716,8 +3718,10 @@ async function route(){
   // L'identifiant est validé contre la liste des modèles ; on le retire ensuite de l'adresse (un rechargement ne réinitialise rien).
   const mod=location.hash.match(/^#modele=([a-z]{2,20})$/), tpl=mod && TEMPLATES.find(t=>t.id===mod[1]);
   if(mod){
-    history.replaceState(null, "", location.pathname);
-    if(tpl){ S.tplCat=tpl.cat; applyTemplate(tpl.id); S.step=2; S.link=""; renderCreator(); window.scrollTo({top:0}); focusScreen(".panel h2"); return; }
+    history.replaceState(null, "", location.pathname); NAV.hash="";
+    // Le retour suit le même chemin que le bouton « Retour » : le choix du modèle, puis l'accueil
+    if(tpl){ navMarquer({ecran:"home", c:0}); navPousser({ecran:1, c:1}); navPousser({ecran:2, c:2});
+      S.tplCat=tpl.cat; applyTemplate(tpl.id); S.step=2; S.link=""; renderCreator(); window.scrollTo({top:0}); focusScreen(".panel h2"); return; }
   }
   if(m || ms || EXAMPLE){
     try{
@@ -3751,9 +3755,49 @@ async function route(){
     }
     catch(e){ renderLinkError(e && e.kind || "incomplet"); return; }
   }
+  // Création : l'entrée d'historique dit quel écran afficher (retour depuis Mes invitations…) ; sinon on la marque
+  // (au chargement de la page, l'état gardé par le navigateur est remplacé : le formulaire, lui, est reparti de zéro)
+  const st=navEtat();
+  if(!premier && st && st.ecran!==undefined && st.ecran!=="lien"){ S.step=navSur(st.ecran); S.moreOpen=!!st.perso; }
+  else if(premier && history.replaceState){ history.replaceState({ose:1, ecran:S.step, c:0}, "", location.href); NAV.dernier=navEtat(); }
+  else navMarquer({ecran:S.step, c:0});
   renderCreator();
   if(demoAVoir()) need("demo").then(()=>demoAccueil(), ()=>{}); // premier lancement : la démo (jamais bloquante)
 }
+/* Bouton retour du téléphone (et du navigateur). L'adresse ne change jamais : les entrées d'historique ajoutées gardent
+   l'adresse exacte (#i= #s= #g= #ga= compris), seul leur état change : {ose:1, ecran, c, panneau, perso, retour}.
+   - Création (app/creer.js, navAller / navEcran) : une entrée par écran, dans l'ordre accueil, 1, 2, 3, 4 (c = nombre
+     d'écrans de la création juste en dessous) : revenir en arrière = l'écran d'avant, comme le bouton « Retour ».
+   - Panneaux (feuilles, vue du scanner) : une entrée à l'ouverture ; le retour les ferme (comme Échap) ; fermés par leur
+     bouton, ils retirent leur entrée. « Personnaliser davantage » fait de même.
+   - « Mes invitations », l'exemple, le tableau d'un groupe : leur lien « Retour » revient en arrière si on y est venu
+     depuis l'appli (retour:1), sinon il garde son adresse. Depuis le premier écran, le retour quitte le site, sans piège. */
+const NAV={hash:location.hash, dernier:null};
+const PANNEAU="body > .sheet, body > .scan-vue";
+const navEtat=()=>{ const s=history.state; return s && s.ose ? s : null; };
+function navPousser(etat){ if(!history.pushState) return; history.pushState({ose:1, ...etat}, "", location.href); NAV.dernier=navEtat(); }
+function navMarquer(etat){ if(navEtat() || !history.replaceState) return; history.replaceState({ose:1, ...etat}, "", location.href); NAV.dernier=navEtat(); }
+function navFermerPanneau(p){
+  document.dispatchEvent(new KeyboardEvent("keydown", {key:"Escape", bubbles:true})); // chaque panneau se ferme sur Échap
+  if(p.isConnected) p.remove();
+}
+if(typeof MutationObserver==="function" && document.body) new MutationObserver(()=>{
+  const ouvert=!!document.querySelector(PANNEAU), st=navEtat();
+  if(ouvert && !(st && st.panneau)) navPousser({...(st||{}), panneau:1});
+  else if(!ouvert && st && st.panneau) history.back(); // fermé par son bouton : on retire son entrée
+}).observe(document.body, {childList:true});
+window.addEventListener("popstate", ()=>{
+  const st=navEtat(); if(st) NAV.dernier=st; // (un simple changement d'ancre arrive ici sans état)
+  if(location.hash!==NAV.hash) return; // autre adresse : la route s'en charge (hashchange)
+  const p=document.querySelector(PANNEAU);
+  if(p && !(st && st.panneau)){ navFermerPanneau(p); return; }
+  if(!p && st && st.panneau){ history.back(); return; } // entrée d'un panneau déjà fermé
+  if(typeof navEcran==="function") navEcran(st); // écrans de la création
+});
+document.addEventListener("click", e=>{ // « Retour » de Mes invitations, de l'exemple, du tableau d'un groupe
+  const a=e.target.closest && e.target.closest("a.back, a.demo-back");
+  if(a && navEtat()?.retour){ e.preventDefault(); history.back(); }
+});
 window.addEventListener("hashchange",route);
 // Après le Oui : toucher le fond fait jaillir des éléments du thème
 document.addEventListener("pointerdown",e=>{

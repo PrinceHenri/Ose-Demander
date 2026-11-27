@@ -4753,7 +4753,7 @@ await essaiWorker("Lien organisateur sur un autre appareil : réponses déchiffr
   assert.ok(hist[0].orga.endsWith(`#ga=${g.id}.${g.key}.${g.d}`));
   assert.deepEqual(hist[0].grs, { o: 2, p: 1, n: 1, pers: 4 }, "résumé gardé (des nombres seulement)");
   assert.ok(!P.location.hash.includes(g.d), "la clé privée ne reste pas dans l'adresse");
-  assert.ok(P.lire("renderTableau").toString().includes('history.replaceState(null, "", location.pathname+"#groupe="+id)'));
+  assert.ok(P.lire("renderTableau").toString().includes('history.replaceState(history.state, "", location.pathname+"#groupe="+id)'));
   // Rouvert par #groupe=ID : relu dans « Mes invitations »
   const Q = await tableauDeTest(g, { id: g.id }, stockage);
   assert.ok(/grp-cpt-o"><b>2<\/b>/.test(Q.zones["#app"].innerHTML));
@@ -5414,6 +5414,46 @@ await test("Une seule section ouverte (name partagé + repli en JS), défilement
   assert.ok(cr.includes('behavior: REDUCED ? "auto" : "smooth"'), "moins de mouvement : instantané");
   assert.ok(cr.includes('if(voulu===d.dataset.sec){ voulu=""; secDefiler(d); }'), "défilement seulement à l'ouverture par la personne (pas au rendu)");
   assert.ok(/\.sec\{[^}]*scroll-margin-top/.test(css), "titre pas collé au bord");
+});
+
+titre("66. Bouton retour du téléphone");
+
+await test("Création : une entrée d'historique par écran (accueil, 1, 2, 3, 4), reculer revient sur ces entrées, l'adresse ne change jamais", async () => {
+  const P = chargerPage(), H = P.history, S = () => P.lire("S"), go = P.lire("go");
+  await P.lire("route")();
+  assert.deepEqual(H.state, { ose: 1, ecran: "home", c: 0 }, "premier écran marqué, sans entrée ajoutée");
+  assert.equal(H.length, 1);
+  go(1); P.lire("applyTemplate")("rdv"); go(2); go(3);
+  assert.deepEqual(H.pile.map(e => e.state.ecran), ["home", 1, 2, 3], "une entrée par écran");
+  assert.equal(P.location.hash, "", "adresse inchangée");
+  go(4); assert.deepEqual(H.state, { ose: 1, ecran: 4, c: 4 });
+  go(2); assert.deepEqual(H.deplacements, [-2], "« Modifier » vers l'étape 2 : on revient sur les entrées existantes (pas de nouvelle entrée)");
+  assert.equal(S().step, 2);
+  // Saut en avant (depuis l'accueil, un modèle de saison ouvre l'étape 2) : les écrans traversés sont ajoutés
+  const P2 = chargerPage(); await P2.lire("route")(); P2.lire("applyTemplate")("rdv"); P2.lire("go")(2);
+  assert.deepEqual(P2.history.pile.map(e => e.state.ecran), ["home", 1, 2], "retour depuis l'étape 2 = le choix du modèle, puis l'accueil");
+  // Page rechargée sur un écran avancé : le formulaire est vide, on repart du premier écran (jamais une étape sans modèle)
+  assert.equal(P.lire("navSur")(3), 3);
+  const P3 = chargerPage(); assert.equal(P3.lire("navSur")(3), 1);
+});
+
+await test("Entrées d'historique sans changer l'adresse (#i= #s= #g= #ga= intacts), panneaux refermés au retour, liens « Retour » qui reviennent en arrière, aucun piège", () => {
+  const idx = readFileSync(RACINE + "index.html", "utf8").replace(/\r\n/g, "\n"), cr = readFileSync(RACINE + "app/creer.js", "utf8").replace(/\r\n/g, "\n");
+  const pushs = [...(idx + cr).matchAll(/history\.(pushState|replaceState)\(([^;]*)\)/g)].map(m => m[2]);
+  for(const p of pushs) assert.ok(/location\.(href|pathname)/.test(p), "chaque entrée garde l'adresse : " + p);
+  assert.ok(idx.includes('history.pushState({ose:1, ...etat}, "", location.href)'), "pushState : adresse exacte, fragment compris");
+  assert.ok(idx.includes('const PANNEAU="body > .sheet, body > .scan-vue";'), "panneaux : feuilles et vue du scanner");
+  assert.ok(idx.includes('document.dispatchEvent(new KeyboardEvent("keydown", {key:"Escape", bubbles:true}));'), "retour = Échap (chaque panneau, scanner compris, sait se fermer et couper la caméra)");
+  assert.ok(idx.includes("else if(!ouvert && st && st.panneau) history.back();"), "fermé par son bouton : son entrée est retirée");
+  assert.ok(idx.includes('const a=e.target.closest && e.target.closest("a.back, a.demo-back");') && idx.includes("if(a && navEtat()?.retour){ e.preventDefault(); history.back(); }"), "« Retour » de Mes invitations, de l'exemple, du tableau");
+  assert.ok(idx.includes("if(location.hash!==NAV.hash) return;"), "changement d'adresse : la route s'en charge");
+  assert.ok(cr.includes("if(e.target.open && !(st && st.perso)) navPousser(") && cr.includes("else if(!e.target.open && st && st.perso) history.back();"), "« Personnaliser davantage » : une entrée, refermé au retour");
+  // Aucune entrée ajoutée au premier écran : depuis l'accueil, le retour quitte le site
+  assert.ok(idx.includes('else if(premier && history.replaceState){ history.replaceState({ose:1, ecran:S.step, c:0}, "", location.href);'), "premier écran : l'entrée est seulement marquée");
+  // Scanner et feuilles : bien ajoutés au corps de la page (ce que surveille le retour)
+  const sc = readFileSync(RACINE + "app/scanner.js", "utf8");
+  assert.ok(sc.includes('d.className="sheet"') && sc.includes('v.className="scan-vue"') && /document\.body\.appendChild\(v\)/.test(sc));
+  assert.ok(sc.includes('const onKey=e=>{ if(e.key==="Escape") scanFin(); };'), "vue du scanner : Échap coupe la caméra");
 });
 
 /* ---------- Bilan ---------- */
